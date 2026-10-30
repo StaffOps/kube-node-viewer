@@ -6,7 +6,7 @@
 
 - [x] T0. Owner answers the open questions; spec-refuter review applied
   - _Covers: — · Depends on: — · Verified by: review date in the spec header_
-- [ ] T1. Create `feat/rebrand` from `feat/sule26-group-by` (D7); rename module path (exact string, D1) in `go.mod`, imports, `.golangci.yaml`
+- [x] T1. Create `feat/rebrand` from `feat/sule26-group-by` (D7); rename module path (exact string, D1) in `go.mod`, imports, `.golangci.yaml`
   - _Covers: R1 · Depends on: T0 · Verified by: `scripts/verify.sh`; R1 grep empty_
 - [ ] T2. `git mv cmd/eks-node-viewer cmd/kube-node-viewer`; update `Makefile`, `.goreleaser.yaml`, root and `cmd/` `.gitignore`, help/version text; build-info fallback for `-version` + test
   - _Covers: R2 · Depends on: T1 · Verified by: `scripts/build.sh && bin/kube-node-viewer -version`; `go test ./cmd/...`_

@@ -88,9 +88,13 @@ project.
 **Choice**: each upstream `.go`/`.sh` file changed by a task gets, in the same
 task, one line right after its license block:
 `// Modified by the kube-node-viewer authors, 2026.` (`#` for shell).
-New files get the Apache header with `Copyright 2026 The kube-node-viewer
-authors.` Docs (README, CONTRIBUTING) are rewritten and credit upstream in
-text instead.
+New files get the same Apache header as upstream files (the `goheader`
+template in `.golangci.yaml`), with no note. Docs (README, CONTRIBUTING) are
+rewritten and credit upstream in text instead.
+
+> **Corrected 2026-10-30.** New files first got a `Copyright … authors` line;
+> dropped because the `goheader` template matches the header exactly and the
+> note sits outside the license block for the same reason.
 
 **Justification**:
 1. Apache 2.0 §4(b) requires prominent notices in modified files.
