@@ -6,7 +6,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 
 ## Reading order
 
-1. [`rebrand/`](rebrand/) — **draft**. Rename module, binary, config file and
+1. [`rebrand/`](rebrand/) — **active**. Rename module, binary, config file and
    docs away from the upstream name.
    [requirements](rebrand/requirements.md) · [design](rebrand/design.md) ·
    [tasks](rebrand/tasks.md)
