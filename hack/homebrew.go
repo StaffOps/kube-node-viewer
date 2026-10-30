@@ -11,6 +11,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Modified by the kube-node-viewer authors, 2026.
 package main
 
 import (
@@ -48,7 +50,7 @@ func main() {
     "version": "{{.Version}}",
     "bin": "eks-node-viewer",
     "bottle": {
-        "root_url": "https://github.com/awslabs/eks-node-viewer/releases/download/v{{.Version}}/eks-node-viewer",
+        "root_url": "https://github.com/staffops/kube-node-viewer/releases/download/v{{.Version}}/eks-node-viewer",
         "sha256": {
             "sierra": "{{.DarwinAll}}",
             "linux": "{{.LinuxX64}}",
@@ -62,7 +64,7 @@ func main() {
 	}
 
 	// fetch and parse the checksums
-	req, err := http.Get(fmt.Sprintf(`https://github.com/awslabs/eks-node-viewer/releases/download/v%s/eks-node-viewer_%s_sha256_checksums.txt`, data.Version, data.Version))
+	req, err := http.Get(fmt.Sprintf(`https://github.com/staffops/kube-node-viewer/releases/download/v%s/eks-node-viewer_%s_sha256_checksums.txt`, data.Version, data.Version))
 	if err != nil {
 		log.Fatalf("fetching checksums, %s", err)
 	}

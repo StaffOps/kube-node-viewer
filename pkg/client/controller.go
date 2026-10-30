@@ -11,6 +11,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Modified by the kube-node-viewer authors, 2026.
 package client
 
 import (
@@ -28,8 +30,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/awslabs/eks-node-viewer/pkg/model"
-	"github.com/awslabs/eks-node-viewer/pkg/pricing"
+	"github.com/staffops/kube-node-viewer/pkg/model"
+	"github.com/staffops/kube-node-viewer/pkg/pricing"
 )
 
 type Controller struct {
