@@ -159,5 +159,9 @@ then base the branch on `main` and drop R4b's `--group-by` item.
 - `scripts/build.sh && bin/kube-node-viewer -version`.
 - `goreleaser check && goreleaser build --snapshot --clean` (R7).
 - Name sweep, with an explicit allowlist:
-  `grep -rIln 'eks-node-viewer' --exclude-dir=.git --exclude-dir=specs --exclude-dir=.kiro --exclude-dir=.claude . | grep -v -e '^./NOTICE$' -e '^./README.md$' -e '^./AGENTS.md$' -e '^./CHANGELOG.md$'`
-  lists only the files holding the D2/D3 compatibility code.
+  `grep -rIln 'eks-node-viewer' --exclude-dir=.git --exclude-dir=specs --exclude-dir=.kiro --exclude-dir=.claude --exclude-dir=bin . | grep -vE '^(\./)?(NOTICE|README\.md|AGENTS\.md|CHANGELOG\.md)$'`
+  lists only the files holding the D2/D3 compatibility code
+  (`cmd/kube-node-viewer/flag.go`, `flag_test.go`, `pkg/model/node.go`).
+
+> **Corrected 2026-10-30.** The allowlist patterns assumed a `./` prefix, which BSD
+> grep omits, and the sweep scanned `bin/`; both fixed after running it in T9.

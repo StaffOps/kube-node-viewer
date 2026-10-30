@@ -29,8 +29,12 @@ git switch -c feat/<source>-<topic> main
 git cherry-pick -x <sha>...        # -x records the origin; author stays the original
 ```
 
-- Conflicts from the rebrand (import path `github.com/awslabs/eks-node-viewer`
-  → this module): resolve, then `go build ./cmd/... ./pkg/...`.
+- Conflicts from the rebrand: import path `github.com/awslabs/eks-node-viewer`
+  → `github.com/staffops/kube-node-viewer` (exact string; `awslabs/operatorpkg`
+  is a real dependency), `cmd/eks-node-viewer/` → `cmd/kube-node-viewer/`
+  (`git cherry-pick` usually follows the rename), and new label names use the
+  `model.LabelPrefix` constant. Resolve, add the modification note to changed
+  upstream files, then `scripts/verify.sh`.
 - Never rewrite the original author. If you had to change their commit
   substantially, add a follow-up commit of your own instead of amending.
 - New files from the source keep their license header; check it is Apache 2.0

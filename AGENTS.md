@@ -15,15 +15,19 @@ node allocatable capacity, plus node cost, for a Kubernetes cluster. It does
 
 Derived from [`awslabs/eks-node-viewer`](https://github.com/awslabs/eks-node-viewer)
 (Apache 2.0), imported verbatim at `fe35ed41e18b` —
-[ADR-001](specs/decisions/ADR-001-import-as-new-repo.md). Until the rebrand
-([`specs/rebrand/`](specs/rebrand/)) ships, the module path, `cmd/` directory,
-binary name and config file still use the upstream name `eks-node-viewer`.
+[ADR-001](specs/decisions/ADR-001-import-as-new-repo.md), then renamed
+([`specs/rebrand/`](specs/rebrand/)). The upstream name survives only as
+compatibility: the `eks-node-viewer/` label prefix and the
+`~/.eks-node-viewer` config fallback. Keep both working. Upstream `.go`/`.sh`
+files you change carry the line
+`// Modified by the kube-node-viewer authors, 2026.` after the license block
+(rebrand design D5); add it if missing.
 
 ## Layout
 
 | Path | What lives there |
 |------|------------------|
-| `cmd/eks-node-viewer/` | `main.go` (wiring), `flag.go` (flag > `~/.eks-node-viewer` config file; only `-kubeconfig` also reads the `KUBECONFIG` env var, between the two) |
+| `cmd/kube-node-viewer/` | `main.go` (wiring), `version.go`, `flag.go` (flag > `~/.kube-node-viewer` config file, falling back to `~/.eks-node-viewer`; only `-kubeconfig` also reads the `KUBECONFIG` env var, between the two) |
 | `pkg/client/` | kubeconfig loading; informers for pods, nodes and Karpenter `nodeclaims` feeding the model |
 | `pkg/model/` | `Cluster`/`Node`/`Pod` state, stats, and the Bubble Tea `UIModel` (rendering, keys) |
 | `pkg/pricing/` | `Provider` interface (`NodePrice`, `OnUpdate`) |
