@@ -59,8 +59,8 @@ under the `kube-node-viewer/` prefix, the new prefix winning on conflict.
 branding implying endorsement.
 
 **R6** WHEN the repository is inspected THEN AWS governance files SHALL be
-gone or replaced: `CODEOWNERS` deleted (single maintainer, no team to route
-reviews to), `CODE_OF_CONDUCT.md` deleted, `CONTRIBUTING.md` rewritten to
+gone or replaced: `CODEOWNERS` reads `* @karlipegomes @sule26`,
+`CODE_OF_CONDUCT.md` deleted, `CONTRIBUTING.md` rewritten to
 point to `AGENTS.md`; Homebrew `aws/tap` instructions and `hack/homebrew.go`
 removed.
 
@@ -95,6 +95,6 @@ Answered by the owner on 2026-10-30.
 - Module path: `github.com/staffops/kube-node-viewer` (lowercase, matches
   `otel-libs`; Go module paths are case-sensitive, GitHub URLs are not).
 - License for new code: Apache 2.0, one license for the whole tree.
-- `CODEOWNERS`: not needed. Single maintainer; it only adds value when
-  reviews must be routed to a team or required by branch protection.
-  Re-add it when a second maintainer joins.
+- `CODEOWNERS`: `* @karlipegomes @sule26` (Carlos Gomes and João Pedro
+  Alcantara). GitHub ignores owners without write access, so `sule26` needs
+  write access to `StaffOps/kube-node-viewer` for the rule to apply.
