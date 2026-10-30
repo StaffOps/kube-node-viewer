@@ -2,7 +2,7 @@
 
 > Implements [design](design.md). Status: `[ ]` todo · `[-]` in progress · `[x]` done
 
-- [ ] T0. Owner answers the `[TO CONFIRM]` questions; spec-refuter review
+- [-] T0. Owner answers the `[TO CONFIRM]` questions; spec-refuter review
   - _Covers: — · Depends on: — · Verified by: review date in the spec header_
 - [ ] T1. Rename module path in `go.mod`, imports, `.golangci.yaml`
   - _Covers: R1 · Depends on: T0 · Verified by: `scripts/verify.sh`_
@@ -16,7 +16,7 @@
   - _Covers: R6 · Depends on: T2 · Verified by: grep check in the design test plan_
 - [ ] T5b. Regenerate `ATTRIBUTION.md` (root + `cmd/`) with `hack/gen_licenses.sh`, as its own commit (needs `go-licenses`; do not refresh pricing in the same commit)
   - _Covers: R2 · Depends on: T2, T5 · Verified by: `grep -c eks-node-viewer ATTRIBUTION.md` is 0_
-- [ ] T6. Governance files: `CODEOWNERS`, drop `CODE_OF_CONDUCT.md`, new `CONTRIBUTING.md`
+- [ ] T6. Governance files: delete `CODEOWNERS` and `CODE_OF_CONDUCT.md`, rewrite `CONTRIBUTING.md`
   - _Covers: R6 · Depends on: T0 · Verified by: review_
 - [ ] T7. `NOTICE` line + modification notes on changed upstream files
   - _Covers: R8 · Depends on: T1–T5b · Verified by: `git diff af96088 -- LICENSE` empty_
@@ -28,4 +28,5 @@
 | Task | Promotion trigger |
 |------|-------------------|
 | Homebrew tap via goreleaser `brews:` | a `staffops/tap` repository exists |
+| `CODEOWNERS` | a second maintainer joins, or branch protection requires code-owner review |
 | Drop `eks-node-viewer/*` label fallback | a major release, and no known user carries the old labels |

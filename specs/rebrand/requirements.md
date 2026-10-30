@@ -59,9 +59,10 @@ under the `kube-node-viewer/` prefix, the new prefix winning on conflict.
 branding implying endorsement.
 
 **R6** WHEN the repository is inspected THEN AWS governance files SHALL be
-gone or replaced: `CODEOWNERS` (owner TBD), `CODE_OF_CONDUCT.md`,
-`CONTRIBUTING.md` (points to `AGENTS.md`); Homebrew `aws/tap` instructions and
-`hack/homebrew.go` removed.
+gone or replaced: `CODEOWNERS` deleted (single maintainer, no team to route
+reviews to), `CODE_OF_CONDUCT.md` deleted, `CONTRIBUTING.md` rewritten to
+point to `AGENTS.md`; Homebrew `aws/tap` instructions and `hack/homebrew.go`
+removed.
 
 **R7** WHEN a tag is pushed THEN the release workflow and `.goreleaser.yaml`
 SHALL produce `kube-node-viewer_*` artifacts.
@@ -69,7 +70,7 @@ SHALL produce `kube-node-viewer_*` artifacts.
 **R8** WHEN the code is distributed THEN `LICENSE`, the original `NOTICE`
 line and every existing Apache license header SHALL still be present; `NOTICE` gains
 a line for this project; files changed from upstream carry a modification
-note.
+note; new code is licensed Apache 2.0.
 
 - [ ] `git diff af96088 -- LICENSE` empty; `NOTICE` first line unchanged.
 
@@ -87,10 +88,13 @@ note.
 - Merging `feat/sule26-group-by` (it will need the same import-path rename
   when rebased).
 
-## Open questions
+## Resolved questions
 
-- [TO CONFIRM] Module path case: `github.com/staffops/kube-node-viewer`
-  (lowercase, matches `otel-libs`) or `github.com/StaffOps/kube-node-viewer`.
-- [TO CONFIRM] License for new code: Apache 2.0 (recommended — one license
-  for the whole tree) or another.
-- [TO CONFIRM] `CODEOWNERS` owner handle.
+Answered by the owner on 2026-10-30.
+
+- Module path: `github.com/staffops/kube-node-viewer` (lowercase, matches
+  `otel-libs`; Go module paths are case-sensitive, GitHub URLs are not).
+- License for new code: Apache 2.0, one license for the whole tree.
+- `CODEOWNERS`: not needed. Single maintainer; it only adds value when
+  reviews must be routed to a team or required by branch protection.
+  Re-add it when a second maintainer joins.
