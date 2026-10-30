@@ -20,6 +20,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/staffops/kube-node-viewer/pkg/model"
@@ -188,5 +189,22 @@ func TestNodeNotReadyNoCondition(t *testing.T) {
 				t.Errorf("expected not ready time = %s, got %s", notReadyTime, node.NotReadyTime())
 			}
 		})
+	}
+}
+
+func TestComputeLabelPrefixes(t *testing.T) {
+	n := testNode("mynode")
+	n.CreationTimestamp = metav1.NewTime(time.Now().Add(-2 * time.Hour))
+	n.Status.Allocatable = v1.ResourceList{v1.ResourceCPU: resource.MustParse("4")}
+	node := model.NewNode(n)
+	for _, name := range []string{"node-age", "node-cpu-usage"} {
+		legacy := node.ComputeLabel(model.LegacyLabelPrefix + name)
+		current := node.ComputeLabel(model.LabelPrefix + name)
+		if legacy == "-" || legacy != current {
+			t.Errorf("%s: legacy %q, new %q; want equal and computed", name, legacy, current)
+		}
+	}
+	if got := node.ComputeLabel("other/node-age"); got != "-" {
+		t.Errorf("unknown prefix computed %q, want -", got)
 	}
 }
