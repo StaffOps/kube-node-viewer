@@ -22,7 +22,7 @@
   - _Covers: R6 · Depends on: T0 · Verified by: GitHub shows no CODEOWNERS errors on the file page_
 - [-] T7. CI: `test.yaml` runs `scripts/verify.sh` + `scripts/build.sh`; `release.yaml` drops `make generate` and `git diff-index` (D6)
   - _Covers: R7 · Depends on: T2 · Verified by: `goreleaser check && goreleaser build --snapshot --clean` → `dist/kube-node-viewer_*`_
-- [ ] T8. New `README.md` (usage, install, credits, badges) + `CHANGELOG.md` entry
+- [x] T8. New `README.md` (usage, install, credits, badges) + `CHANGELOG.md` entry
   - _Covers: R5 · Depends on: T2–T7 · Verified by: review_
 - [ ] T9. `NOTICE` line; check D5 notes on every modified upstream file; run the design name sweep
   - _Covers: R8 · Depends on: T1–T8 · Verified by: R8 checks; name sweep allowlist_
