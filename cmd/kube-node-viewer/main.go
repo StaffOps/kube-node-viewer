@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -54,7 +55,9 @@ func main() {
 	}
 
 	if flags.Version {
-		fmt.Printf("eks-node-viewer version %s\n", version)
+		info, ok := debug.ReadBuildInfo()
+		version, commit := resolveVersion(version, commit, info, ok)
+		fmt.Printf("kube-node-viewer version %s\n", version)
 		fmt.Printf("commit: %s\n", commit)
 		fmt.Printf("built at: %s\n", date)
 		fmt.Printf("built by: %s\n", builtBy)
