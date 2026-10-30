@@ -1,9 +1,8 @@
 .idea
-/eks-node-viewer
+/kube-node-viewer
 coverage.out
 /dist
 /bin
-/kube-node-viewer
 
 # Agent tooling: shared config is versioned, personal overrides are not
 .claude/settings.local.json

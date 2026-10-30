@@ -66,8 +66,8 @@ func ParseFlags() (Flags, error) {
 		return Flags{}, fmt.Errorf("load config file: %w", err)
 	}
 
-	flagSet.BoolVar(&flags.Version, "v", false, "Display eks-node-viewer version")
-	flagSet.BoolVar(&flags.Version, "version", false, "Display eks-node-viewer version")
+	flagSet.BoolVar(&flags.Version, "v", false, "Display kube-node-viewer version")
+	flagSet.BoolVar(&flags.Version, "version", false, "Display kube-node-viewer version")
 
 	contextDefault := cfg.getValue("context", "")
 	flagSet.StringVar(&flags.Context, "context", contextDefault, "Name of the kubernetes context to use")
