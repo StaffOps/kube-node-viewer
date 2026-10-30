@@ -29,7 +29,7 @@ binary name and config file still use the upstream name `eks-node-viewer`.
 | `pkg/pricing/` | `Provider` interface (`NodePrice`, `OnUpdate`) |
 | `pkg/aws/` | AWS pricing provider; `zz_generated_*.go` are static price tables copied from Karpenter by `make generate` — never hand-edit |
 | `pkg/text/` | color-aware tabwriter |
-| `hack/` | upstream helper programs (boilerplate, homebrew, licenses); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |
+| `hack/` | upstream helper programs (boilerplate, licenses); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |
 | `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh`, `agent-hooks/` |
 | `specs/` | planning artefacts — see [`specs/README.md`](specs/README.md) |
 
