@@ -10,7 +10,7 @@
   - _Covers: R1 · Depends on: T0 · Verified by: `scripts/verify.sh`; R1 grep empty_
 - [x] T2. `git mv cmd/eks-node-viewer cmd/kube-node-viewer`; update `Makefile`, `.goreleaser.yaml`, root and `cmd/` `.gitignore`, help/version text; build-info fallback for `-version` + test
   - _Covers: R2 · Depends on: T1 · Verified by: `scripts/build.sh && bin/kube-node-viewer -version`; `go test ./cmd/...`_
-- [ ] T3. Config file fallback with stderr warning; inject home dir; tests
+- [x] T3. Config file fallback with stderr warning; inject home dir; tests
   - _Covers: R3 · Depends on: T2 · Verified by: `go test ./cmd/...`_
 - [ ] T4. Price label lookup with both keys (R4a) + computed-name prefix helper used by `--extra-labels`, `--node-sort`, `--group-by` (R4b); tests
   - _Covers: R4a, R4b · Depends on: T1 · Verified by: `go test ./pkg/...`_
