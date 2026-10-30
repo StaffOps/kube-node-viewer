@@ -16,7 +16,7 @@
   - _Covers: R4a, R4b · Depends on: T1 · Verified by: `go test ./pkg/...`_
 - [x] T5. Remove `hack/homebrew.go`; update `hack/attribution.tmpl` wording
   - _Covers: R6 · Depends on: T2 · Verified by: `grep -rn 'aws/tap' .` empty_
-- [ ] T5b. Regenerate attribution in its own commit: `hack/gen_licenses.sh && go generate ./cmd/...` (needs `go-licenses`; no pricing refresh)
+- [x] T5b. Regenerate attribution in its own commit: `hack/gen_licenses.sh && go generate ./cmd/...` (needs `go-licenses`; no pricing refresh)
   - _Covers: R2 · Depends on: T2, T5 · Verified by: `grep -c eks-node-viewer ATTRIBUTION.md cmd/kube-node-viewer/ATTRIBUTION.md` is 0 for both_
 - [ ] T6. Governance files: `CODEOWNERS` = `* @karlipegomes @sule26`, delete `CODE_OF_CONDUCT.md`, rewrite `CONTRIBUTING.md`
   - _Covers: R6 · Depends on: T0 · Verified by: GitHub shows no CODEOWNERS errors on the file page_
