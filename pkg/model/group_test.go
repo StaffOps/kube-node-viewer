@@ -21,7 +21,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/awslabs/eks-node-viewer/pkg/model"
+	"github.com/staffops/kube-node-viewer/pkg/model"
 )
 
 const nodePoolLabel = "karpenter.sh/nodepool"

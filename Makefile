@@ -10,7 +10,7 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[33m%-20s\033[0m %s\n", $$1, $$2}'
 
 build: generate ## Build
-	go build -ldflags="-s -w -X main.version=local -X main.builtBy=Makefile" ./cmd/eks-node-viewer
+	go build -ldflags="-s -w -X main.version=local -X main.builtBy=Makefile" ./cmd/kube-node-viewer
 
 goreleaser: ## Release snapshot
 	goreleaser build --snapshot --clean
@@ -47,7 +47,7 @@ generate: ## Generate attribution
 	rm -f pkg/aws/*.bkup
 
 clean: ## Clean artifacts
-	rm -rf eks-node-viewer
+	rm -rf kube-node-viewer
 	rm -rf dist/
 
 test:

@@ -12,6 +12,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Modified by the kube-node-viewer authors, 2026.
+
 package model
 
 import (
@@ -32,7 +34,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/duration"
 
-	"github.com/awslabs/eks-node-viewer/pkg/text"
+	"github.com/staffops/kube-node-viewer/pkg/text"
 )
 
 var (

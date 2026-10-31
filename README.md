@@ -1,38 +1,39 @@
-[![GitHub License](https://img.shields.io/badge/License-Apache%202.0-ff69b4.svg)](https://github.com/awslabs/eks-node-viewer/blob/main/LICENSE)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/awslabs/eks-node-viewer/issues)
-[![Go code tests](https://github.com/awslabs/eks-node-viewer/actions/workflows/test.yaml/badge.svg)](https://github.com/awslabs/eks-node-viewer/actions/workflows/test.yaml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-ff69b4.svg)](LICENSE)
+[![Go code tests](https://github.com/StaffOps/kube-node-viewer/actions/workflows/test.yaml/badge.svg)](https://github.com/StaffOps/kube-node-viewer/actions/workflows/test.yaml)
 
-## Usage
+# kube-node-viewer
 
-`eks-node-viewer` is a tool for visualizing dynamic node usage within a cluster.  It was originally developed as an internal tool at AWS for demonstrating consolidation with [Karpenter](https://karpenter.sh/).  It displays the scheduled pod resource requests vs the allocatable capacity on the node.  It *does not* look at the actual pod resource usage.
+`kube-node-viewer` is a terminal UI for watching node usage in a Kubernetes
+cluster. It shows the scheduled pod resource requests against each node's
+allocatable capacity, plus the node price. It *does not* look at actual pod
+resource usage.
+
+Prices come from AWS (on-demand, spot and Fargate). On other clouds, run with
+`--disable-pricing`, or set prices per node with the
+`kube-node-viewer/instance-price` label.
 
 ![](./.static/screenshot.png)
 
-### Talks Using eks-node-viewer
+## Installation
 
-- [Containers from the Couch: Workload Consolidation with Karpenter](https://www.youtube.com/watch?v=BnksdJ3oOEs)
-- [AWS re:Invent 2022 - Kubernetes virtually anywhere, for everyone](https://www.youtube.com/watch?v=OB7IZolZk78)
+Download a binary from the
+[releases](https://github.com/StaffOps/kube-node-viewer/releases) page, or
+install with Go:
 
-### Installation
-
-#### Homebrew
-
-```bash
-brew tap aws/tap
-brew install eks-node-viewer
-```
-
-#### Manual
-Please either fetch the latest [release](https://github.com/awslabs/eks-node-viewer/releases) or install manually using:
 ```shell
-go install github.com/awslabs/eks-node-viewer/cmd/eks-node-viewer@latest
+go install github.com/staffops/kube-node-viewer/cmd/kube-node-viewer@latest
 ```
 
-Note: This will install it to your `GOBIN` directory, typically `~/go/bin` if it is unconfigured.
+This installs to your `GOBIN` directory, typically `~/go/bin`.
+
+To build from a checkout, run `scripts/build.sh` (binary in
+`bin/kube-node-viewer`); `scripts/build.sh -i` installs it and
+`scripts/build.sh -a` cross-compiles for every release platform.
 
 ## Usage
-```shell
-Usage of ./eks-node-viewer:
+
+```text
+Usage of kube-node-viewer:
   -attribution
     	Show the Open Source Attribution
   -context string
@@ -44,65 +45,67 @@ Usage of ./eks-node-viewer:
   -group-by string
     	Node label to summarize usage and cost by, optionally restricted to a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. If empty no summary is displayed
   -groups-only
-    	Hide the individual node list and only display the --group-by summary. Toggled at runtime with 'g'
+    	Start with the individual node list hidden, leaving only the --group-by summary. The summary is toggled at runtime with 'g' and the node list with 'n'
   -kubeconfig string
     	Absolute path to the kubeconfig file (default "~/.kube/config")
   -node-selector string
     	Node label selector used to filter nodes, if empty all nodes are selected
   -node-sort string
-    	Sort order for the nodes, either 'creation' or a label name. The sort order can be controlled by appending =asc or =dsc to the value. (default "creation")
+    	Sort order for the nodes, either 'creation' or a label name. The sort order defaults to ascending and can be controlled by appending =asc or =dsc to the value. (default "creation=dsc")
   -resources string
     	List of comma separated resources to monitor (default "cpu")
   -style string
     	Three color to use for styling 'good','ok' and 'bad' values. These are also used in the gradients displayed from bad -> good. (default "#04B575,#FFFF00,#FF0000")
-  -v	Display eks-node-viewer version
+  -v	Display kube-node-viewer version
   -version
-    	Display eks-node-viewer version
+    	Display kube-node-viewer version
 ```
 
 ### Keys
 
-| Key   | Action                                                        |
-|-------|---------------------------------------------------------------|
-| `←/→` | Page through whichever list is on screen                      |
-| `g`   | Toggle the `--group-by` summary                               |
-| `n`   | Toggle the node list                                          |
-| `q`   | Quit                                                          |
+| Key   | Action                                   |
+|-------|------------------------------------------|
+| `←/→` | Page through whichever list is on screen |
+| `g`   | Toggle the `--group-by` summary          |
+| `n`   | Toggle the node list                     |
+| `q`   | Quit                                     |
 
-`g` and `n` never leave both sections hidden. With a lot of groups the summary can fill the
-screen, so hiding one of the two is the way to read the other.
-o
+`g` and `n` never leave both sections hidden. With a lot of groups the summary
+can fill the screen, so hiding one of the two is the way to read the other.
+
 ### Examples
+
 ```shell
 # Standard usage
-eks-node-viewer
+kube-node-viewer
 # Karpenter nodes only
-eks-node-viewer --node-selector karpenter.sh/nodepool
-# Display both CPU and Memory Usage
-eks-node-viewer --resources cpu,memory
+kube-node-viewer --node-selector karpenter.sh/nodepool
+# Display both CPU and memory usage
+kube-node-viewer --resources cpu,memory
 # Display extra labels, i.e. AZ
-eks-node-viewer --extra-labels topology.kubernetes.io/zone
+kube-node-viewer --extra-labels topology.kubernetes.io/zone
 # Sort by CPU usage in descending order
-eks-node-viewer --node-sort=eks-node-viewer/node-cpu-usage=dsc
+kube-node-viewer --node-sort=kube-node-viewer/node-cpu-usage=dsc
 # Cost and usage per nodepool, without the per-node detail
-eks-node-viewer --group-by karpenter.sh/nodepool --groups-only
+kube-node-viewer --group-by karpenter.sh/nodepool --groups-only
 # Cost and usage per team, using your own node label
-eks-node-viewer --group-by company.com/team
+kube-node-viewer --group-by company.com/team
 # A few nodepools at once, instead of one terminal per nodepool
-eks-node-viewer --group-by karpenter.sh/nodepool=default,gpu,spot
-# Specify a particular AWS profile and region
-AWS_PROFILE=myprofile AWS_REGION=us-west-2
+kube-node-viewer --group-by karpenter.sh/nodepool=default,gpu,spot
+# Specify a particular AWS profile and region for pricing
+AWS_PROFILE=myprofile AWS_REGION=us-west-2 kube-node-viewer
 ```
 
-### Grouping By Label
+### Grouping by label
 
-`--group-by` adds a summary block that aggregates every node sharing a value for the given label.
-Each group shows its node count, pod count, resource requests vs allocatable, the percentage in use
-and the cost, which answers questions like "how much is this nodepool costing me" or "how much are
-the nodes belonging to this team costing me":
+`--group-by` adds a summary block that aggregates every node sharing a value
+for the given label. Each group shows its node count, pod count, resource
+requests vs allocatable, the percentage in use and the cost, which answers
+questions like "how much is this nodepool costing me" or "how much are the
+nodes belonging to this team costing me":
 
 ```shell
-eks-node-viewer --group-by karpenter.sh/nodepool
+kube-node-viewer --group-by karpenter.sh/nodepool
 ```
 
 ```text
@@ -113,44 +116,54 @@ default  4 nodes  32 pods  (65536Mi/251451Mi)  26.1% memory  ██████�
 gpu      2 nodes  16 pods  (32768Mi/125725Mi)  26.1% memory  ██████████░░░░░░░░░░░░  $1.536/hour | $1,121.280/month
 ```
 
-Appending a comma separated list of values restricts the view to them, so a single flag both picks
-the nodepools to watch and breaks the cost down by them, replacing a terminal per nodepool:
+Appending a comma separated list of values restricts the view to them, so a
+single flag both picks the nodepools to watch and breaks the cost down by them:
 
 ```shell
-eks-node-viewer --group-by karpenter.sh/nodepool=default,gpu
+kube-node-viewer --group-by karpenter.sh/nodepool=default,gpu
 ```
 
 A few notes:
 
-- The label is any node label, written out in full. Grouping by team, zone, instance type or
-  capacity type is the same flag with a different key.
-- Values are optional. A bare `--group-by` label only says how to aggregate and leaves the node
-  selection alone, which keeps the nodes that don't carry the label visible. `--node-selector` is
-  still the flag to use to filter on a label other than the one being grouped by.
-- The percentage is the usage of the group as a whole, so it is weighted by node size rather than
-  being the plain average of each node's percentage. It also covers every resource passed to
-  `--resources`.
-- Nodes without the label are collected into a `<none>` group, which always sorts last.
-- A cost prefixed with `>=` means at least one node in the group has an unknown price, so the real
-  cost is higher than the number shown. A group with no known price at all shows no cost.
-- Add `--groups-only` to start with the per-node list hidden. Either section can be toggled at
-  runtime without restarting: `g` for the summary and `n` for the node list. On a cluster with
-  many groups the summary fills the screen, so hiding it with `g` is how you get back to
-  reading node by node.
+- The label is any node label, written out in full. Grouping by team, zone,
+  instance type or capacity type is the same flag with a different key.
+- Values are optional. A bare `--group-by` label only says how to aggregate
+  and leaves the node selection alone, which keeps the nodes that don't carry
+  the label visible. `--node-selector` is still the flag to use to filter on a
+  label other than the one being grouped by.
+- The percentage is the usage of the group as a whole, so it is weighted by
+  node size rather than being the plain average of each node's percentage. It
+  also covers every resource passed to `--resources`.
+- Nodes without the label are collected into a `<none>` group, which always
+  sorts last.
+- A cost prefixed with `>=` means at least one node in the group has an
+  unknown price, so the real cost is higher than the number shown. A group
+  with no known price at all shows no cost.
+- Add `--groups-only` to start with the per-node list hidden. Either section
+  can be toggled at runtime: `g` for the summary and `n` for the node list.
 
-### Computed Labels
+### Computed labels
 
-`eks-node-viewer` supports some custom label names that can be passed to the `--extra-labels` to display additional node information. 
+These label names can be passed to `--extra-labels`, `--node-sort` and
+`--group-by` to show computed node information:
 
-- `eks-node-viewer/node-age` - Age of the node
-- `eks-node-viewer/node-cpu-usage` - CPU usage (requests)
-- `eks-node-viewer/node-memory-usage` - Memory usage (requests)
-- `eks-node-viewer/node-pods-usage` - Pod usage (requests)
-- `eks-node-viewer/node-ephemeral-storage-usage` - Ephemeral Storage usage (requests)
+- `kube-node-viewer/node-age` - age of the node
+- `kube-node-viewer/node-cpu-usage` - CPU usage (requests)
+- `kube-node-viewer/node-memory-usage` - memory usage (requests)
+- `kube-node-viewer/node-pods-usage` - pod usage (requests)
+- `kube-node-viewer/node-ephemeral-storage-usage` - ephemeral storage usage (requests)
 
-### Default Options
-You can supply default options to `eks-node-viewer` by creating a file named `.eks-node-viewer` in your home directory and specifying
-options there. The format is `option-name=value` where the option names are the command line flags:
+### Price override label
+
+A node labeled `kube-node-viewer/instance-price=<price per hour>` uses that
+price instead of a pricing lookup.
+
+### Default options
+
+You can supply default options in a file named `.kube-node-viewer` in your
+home directory. The format is `option-name=value`, where the option names are
+the command line flags:
+
 ```text
 # select only Karpenter managed nodes
 node-selector=karpenter.sh/nodepool
@@ -174,9 +187,18 @@ node-sort=creation=asc
 style=#2E91D2,#ffff00,#D55E00
 ```
 
-### IAM Permissions
+### Coming from eks-node-viewer
 
-`eks-node-viewer` reads node and pod data through the Kubernetes API (using your kubeconfig), so it needs no EKS or STS API permissions for that. It only calls AWS for pricing data, which requires:
+- If `~/.kube-node-viewer` doesn't exist, `~/.eks-node-viewer` is read instead
+  and a warning names the new path. The old file is never changed.
+- The `eks-node-viewer/` prefix still works for the price override label and
+  the computed label names. When a node carries both price labels,
+  `kube-node-viewer/instance-price` wins.
+
+### AWS permissions for pricing
+
+Node and pod data comes from the Kubernetes API through your kubeconfig. AWS
+is only called for pricing, which requires:
 
 ```json
 {
@@ -194,31 +216,50 @@ style=#2E91D2,#ffff00,#D55E00
 }
 ```
 
-`pricing:GetProducts` is used for on-demand and Fargate pricing, and `ec2:DescribeSpotPriceHistory` for spot pricing. Neither action supports resource-level scoping, so `Resource` is `*`.
-
-If you run with `--disable-pricing`, no AWS permissions are needed at all.
+`pricing:GetProducts` is used for on-demand and Fargate pricing, and
+`ec2:DescribeSpotPriceHistory` for spot pricing. Neither action supports
+resource-level scoping, so `Resource` is `*`. With `--disable-pricing`, no AWS
+permissions are needed.
 
 ### Troubleshooting
 
-#### NoCredentialProviders: no valid providers in chain. Deprecated.
+#### NoCredentialProviders: no valid providers in chain
 
-This CLI relies on AWS credentials to access pricing data if you don't use the `--disable-pricing` option. You must have credentials configured via `~/aws/credentials`, `~/.aws/config`, environment variables, or some other credential provider chain.
+Pricing needs AWS credentials unless you use `--disable-pricing`. Configure
+them through `~/.aws/credentials`, `~/.aws/config`, environment variables or
+another provider in the
+[default credential chain](https://docs.aws.amazon.com/sdk-for-go/v2/developer-guide/configure-gosdk.html).
 
-See [credential provider documentation](https://docs.aws.amazon.com/sdk-for-go/api/aws/session/) for more.
+#### `creating client, exec plugin: invalid apiVersion "client.authentication.k8s.io/v1alpha1"`
 
-#### I get an error of `creating client, exec plugin: invalid apiVersion "client.authentication.k8s.io/v1alpha1"`
-
-Updating your AWS cli to the latest version and [updating your kubeconfig](https://docs.aws.amazon.com/cli/latest/reference/eks/update-kubeconfig.html) should resolve this issue.
+Update the AWS CLI and
+[regenerate your kubeconfig](https://docs.aws.amazon.com/cli/latest/reference/eks/update-kubeconfig.html).
 
 ## Development
 
-### Building
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). In short:
+`scripts/verify.sh` checks formatting, vet, tests and specs, and
+`scripts/build.sh` builds the binary.
 
-```shell
-$ make build
-```
+## Credits
 
-Or local execution of GoReleaser build:
-```shell
-$ make goreleaser
-```
+`kube-node-viewer` is based on
+[`awslabs/eks-node-viewer`](https://github.com/awslabs/eks-node-viewer),
+licensed under the Apache License 2.0, which was originally developed at AWS
+for demonstrating consolidation with [Karpenter](https://karpenter.sh/). It
+was presented in
+[Containers from the Couch: Workload Consolidation with Karpenter](https://www.youtube.com/watch?v=BnksdJ3oOEs)
+and
+[AWS re:Invent 2022 - Kubernetes virtually anywhere, for everyone](https://www.youtube.com/watch?v=OB7IZolZk78).
+This project is not affiliated with or endorsed by AWS.
+
+Thanks to:
+
+- the authors and contributors of `eks-node-viewer`, whose code this project
+  starts from;
+- [João Pedro Alcantara](https://github.com/sule26), for the `--group-by` and
+  `--groups-only` features, imported from the `sule26/eks-node-viewer` fork.
+
+## License
+
+[Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for attribution.

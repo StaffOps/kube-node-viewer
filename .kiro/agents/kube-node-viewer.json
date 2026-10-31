@@ -1,0 +1,21 @@
+{
+  "name": "kube-node-viewer",
+  "description": "Spec-driven development agent for kube-node-viewer. Loads AGENTS.md, the specs index and the project skills; injects open spec tasks at start; guards destructive git commands.",
+  "prompt": "Follow AGENTS.md. Work spec-first: specs live in specs/ at the repo root, never in a separate .kiro/specs copy. Use the project skills spec-new, change-loop and upstream-sync. Independent reviews go to the spec-refuter agent.",
+  "tools": ["*"],
+  "resources": [
+    "file://specs/README.md"
+  ],
+  "hooks": [
+    {
+      "name": "session-context",
+      "trigger": "SessionStart",
+      "action": { "type": "command", "command": "sh scripts/agent-hooks/session-context.sh" }
+    },
+    {
+      "name": "guard-destructive",
+      "trigger": "PreToolUse",
+      "action": { "type": "command", "command": "sh scripts/agent-hooks/guard-destructive.sh kiro" }
+    }
+  ]
+}

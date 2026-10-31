@@ -11,6 +11,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Modified by the kube-node-viewer authors, 2026.
 package model_test
 
 import (
@@ -18,9 +20,10 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/awslabs/eks-node-viewer/pkg/model"
+	"github.com/staffops/kube-node-viewer/pkg/model"
 )
 
 func testNode(name string) *v1.Node {
@@ -186,5 +189,22 @@ func TestNodeNotReadyNoCondition(t *testing.T) {
 				t.Errorf("expected not ready time = %s, got %s", notReadyTime, node.NotReadyTime())
 			}
 		})
+	}
+}
+
+func TestComputeLabelPrefixes(t *testing.T) {
+	n := testNode("mynode")
+	n.CreationTimestamp = metav1.NewTime(time.Now().Add(-2 * time.Hour))
+	n.Status.Allocatable = v1.ResourceList{v1.ResourceCPU: resource.MustParse("4")}
+	node := model.NewNode(n)
+	for _, name := range []string{"node-age", "node-cpu-usage"} {
+		legacy := node.ComputeLabel(model.LegacyLabelPrefix + name)
+		current := node.ComputeLabel(model.LabelPrefix + name)
+		if legacy == "-" || legacy != current {
+			t.Errorf("%s: legacy %q, new %q; want equal and computed", name, legacy, current)
+		}
+	}
+	if got := node.ComputeLabel("other/node-age"); got != "-" {
+		t.Errorf("unknown prefix computed %q, want -", got)
 	}
 }
