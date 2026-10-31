@@ -113,10 +113,15 @@ group, zone, region, internal IP, age, status, price, the computed labels
 (`node-age`, `node-<resource>-usage`, either prefix) and any extra label.
 
 - [ ] Capacity type is one of `OnDemand`, `Spot`, `Reserved`, `Fargate`,
-  `Auto`, `Unknown`, from `karpenter.sh/capacity-type` (`on-demand`, `spot`,
-  `reserved`), `eks.amazonaws.com/capacityType` (`ON_DEMAND`, `SPOT`,
-  `CAPACITY_BLOCK` → `Reserved`) and `eks.amazonaws.com/compute-type`
-  (`fargate`, `auto`).
+  `Unknown`, from `eks.amazonaws.com/compute-type=fargate`, then
+  `karpenter.sh/capacity-type` (`on-demand`, `spot`, `reserved`), then
+  `eks.amazonaws.com/capacityType` (`ON_DEMAND`, `SPOT`, `CAPACITY_BLOCK` →
+  `Reserved`). EKS Auto Mode nodes show their capacity type with an `/Auto`
+  suffix (`Spot/Auto`).
+
+  > **Corrected 2026-10-31.** `Auto` was a capacity value; Auto Mode nodes
+  > also carry `karpenter.sh/capacity-type`, so making `Auto` a value would
+  > hide whether they are spot or on-demand, which the cost filter needs.
 - [ ] Node group is the `karpenter.sh/nodepool` value, else
   `ManagedNodeGroup:<eks.amazonaws.com/nodegroup>`, else `-`.
 - [ ] A nodeclaim-only node shows `-` for IP and the instance ID as its name.
