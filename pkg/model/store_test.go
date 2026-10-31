@@ -163,3 +163,22 @@ func TestStoreReset(t *testing.T) {
 		t.Error("node-a still indexed after reset")
 	}
 }
+
+func TestStatsLeaveOutEquivalentPrices(t *testing.T) {
+	c := model.NewCluster()
+	paid := storeNode("paid")
+	paid.SetPrice(2)
+	reserved := storeNode("reserved")
+	reserved.SetEquivalentPrice(5)
+	c.AddNode(paid)
+	c.AddNode(reserved)
+
+	st := c.Stats()
+	if st.TotalPrice != 2 || st.UnpricedReserved != 1 {
+		t.Errorf("total %v reserved %d, want 2 and 1", st.TotalPrice, st.UnpricedReserved)
+	}
+	groups := model.GroupNodes(st.Nodes, "missing-label")
+	if len(groups) != 1 || groups[0].TotalPrice != 2 || groups[0].ReservedNodes != 1 || !groups[0].FullyPriced() {
+		t.Errorf("group: %+v", groups)
+	}
+}

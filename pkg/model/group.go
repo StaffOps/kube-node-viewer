@@ -34,6 +34,8 @@ type GroupStats struct {
 	TotalPrice           float64
 	// PricedNodes is how many nodes contributed to TotalPrice
 	PricedNodes int
+	// ReservedNodes have only an equivalent price, left out of TotalPrice
+	ReservedNodes int
 }
 
 // PercentUsed is the group's usage as a whole, so weighted by node size rather
@@ -48,8 +50,9 @@ func (g GroupStats) PercentUsed(resource v1.ResourceName) float64 {
 }
 
 // FullyPriced tells whether TotalPrice is the real cost or a lower bound.
+// Reserved nodes are prepaid and reported apart, they don't make it a bound.
 func (g GroupStats) FullyPriced() bool {
-	return g.PricedNodes == g.NumNodes
+	return g.PricedNodes+g.ReservedNodes == g.NumNodes
 }
 
 // GroupNodes aggregates nodes by their value for the label, sorted by name with
@@ -71,9 +74,11 @@ func GroupNodes(nodes []*Node, label string) []GroupStats {
 		group.NumPods += n.NumPods()
 		n.AddAllocatableTo(group.AllocatableResources)
 		n.AddUsedTo(group.UsedResources)
-		if n.HasPrice() {
+		if n.HasActualPrice() {
 			group.TotalPrice += n.Price()
 			group.PricedNodes++
+		} else if n.PriceIsEquivalent() {
+			group.ReservedNodes++
 		}
 	}
 

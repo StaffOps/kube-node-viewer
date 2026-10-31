@@ -53,3 +53,20 @@ func TestUpdatePriceLabelPrefixes(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdatePriceReservedIsEquivalent(t *testing.T) {
+	reserved := model.NewNode(&v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "r",
+		Labels: map[string]string{"karpenter.sh/capacity-type": "reserved"}}})
+	c := &Controller{pricing: fixedPricing(9)}
+	c.updatePrice(reserved)
+	if !reserved.PriceIsEquivalent() || reserved.Price() != 9 || reserved.HasActualPrice() {
+		t.Errorf("reserved: price %v equivalent %v actual %v", reserved.Price(), reserved.PriceIsEquivalent(), reserved.HasActualPrice())
+	}
+
+	// an explicit override is what the user says the node costs
+	reserved.Labels()[model.LabelPrefix+"instance-price"] = "1.5"
+	c.updatePrice(reserved)
+	if reserved.PriceIsEquivalent() || reserved.Price() != 1.5 {
+		t.Errorf("override: price %v equivalent %v", reserved.Price(), reserved.PriceIsEquivalent())
+	}
+}

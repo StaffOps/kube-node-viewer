@@ -217,7 +217,11 @@ func (m *Controller) updatePrice(node *model.Node) {
 	// lookup our n price
 	node.SetPrice(math.NaN())
 	if price, ok := m.pricing.NodePrice(node); ok {
-		node.SetPrice(price)
+		if node.CapacityType() == model.CapacityReserved {
+			node.SetEquivalentPrice(price)
+		} else {
+			node.SetPrice(price)
+		}
 	}
 
 }

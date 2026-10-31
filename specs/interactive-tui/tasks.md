@@ -18,7 +18,7 @@
   - _Covers: R11 · Depends on: T4 · Verified by: unit tests; benchmark rerun_
 - [x] T6. Derived node facts: capacity type (R7 table), node group, zone, region, IP, status flags
   - _Covers: R3, R7 · Depends on: T3 · Verified by: unit tests_
-- [ ] T7. Price kind in `pricing.Provider`; reserved as equivalent in `pkg/aws`; totals exclude equivalents
+- [x] T7. Price kind in `pricing.Provider`; reserved as equivalent in `pkg/aws`; totals exclude equivalents
   - _Covers: R8 · Depends on: T6 · Verified by: unit tests_
 - [ ] T8. `ViewState`: filters, group-by ≤3 with subtotals, sort, search, column priority
   - _Covers: R3, R4, R5, R6, R14 · Depends on: T6 · Verified by: unit tests_

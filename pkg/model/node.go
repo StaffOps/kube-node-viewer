@@ -39,13 +39,16 @@ type objectKey struct {
 	name      string
 }
 type Node struct {
-	mu                    sync.RWMutex
-	visible               bool
-	node                  v1.Node
-	pods                  map[objectKey]*Pod
-	used                  v1.ResourceList
-	podsByPhase           map[v1.PodPhase]int
-	price                 float64
+	mu          sync.RWMutex
+	visible     bool
+	node        v1.Node
+	pods        map[objectKey]*Pod
+	used        v1.ResourceList
+	podsByPhase map[v1.PodPhase]int
+	price       float64
+	// priceIsEquivalent marks a price that is not what the node costs, the
+	// on-demand price of a reserved node
+	priceIsEquivalent     bool
 	nodeclaimCreationTime time.Time
 }
 
@@ -444,6 +447,22 @@ func (n *Node) HasPrice() bool {
 	return !math.IsNaN(n.price)
 }
 
+// PriceIsEquivalent tells whether Price is only an on-demand equivalent, as
+// for reserved nodes, rather than what the node costs. Totals leave it out.
+func (n *Node) PriceIsEquivalent() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.priceIsEquivalent
+}
+
+// HasActualPrice tells whether the node has a known price that counts towards
+// totals.
+func (n *Node) HasActualPrice() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return !math.IsNaN(n.price) && !n.priceIsEquivalent
+}
+
 // Price is the node's hourly price, NaN when unknown.
 func (n *Node) Price() float64 {
 	n.mu.RLock()
@@ -517,6 +536,15 @@ func (n *Node) SetPrice(price float64) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.price = price
+	n.priceIsEquivalent = false
+}
+
+// SetEquivalentPrice sets a price that is only an on-demand equivalent.
+func (n *Node) SetEquivalentPrice(price float64) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.price = price
+	n.priceIsEquivalent = true
 }
 
 func pctUsage(allocatable v1.ResourceList, used v1.ResourceList, resource string) string {
