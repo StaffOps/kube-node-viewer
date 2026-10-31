@@ -11,6 +11,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Modified by the kube-node-viewer authors, 2026.
 package main
 
 import (
@@ -18,6 +20,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,18 +29,21 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
+const (
+	configFileName       = ".kube-node-viewer"
+	legacyConfigFileName = ".eks-node-viewer"
+)
+
 var (
-	homeDir    string
-	configPath string
-	version    = "dev"
-	commit     = ""
-	date       = ""
-	builtBy    = ""
+	homeDir string
+	version = "dev"
+	commit  = ""
+	date    = ""
+	builtBy = ""
 )
 
 func init() {
 	homeDir = homedir.HomeDir()
-	configPath = filepath.Join(homeDir, ".eks-node-viewer")
 }
 
 type Flags struct {
@@ -59,13 +65,13 @@ func ParseFlags() (Flags, error) {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	var flags Flags
 
-	cfg, err := loadConfigFile()
+	cfg, err := loadConfigFile(resolveConfigPath(homeDir, os.Stderr))
 	if err != nil {
 		return Flags{}, fmt.Errorf("load config file: %w", err)
 	}
 
-	flagSet.BoolVar(&flags.Version, "v", false, "Display eks-node-viewer version")
-	flagSet.BoolVar(&flags.Version, "version", false, "Display eks-node-viewer version")
+	flagSet.BoolVar(&flags.Version, "v", false, "Display kube-node-viewer version")
+	flagSet.BoolVar(&flags.Version, "version", false, "Display kube-node-viewer version")
 
 	contextDefault := cfg.getValue("context", "")
 	flagSet.StringVar(&flags.Context, "context", contextDefault, "Name of the kubernetes context to use")
@@ -136,7 +142,23 @@ func (c configFile) getBoolValue(key string, defaultValue bool) bool {
 	return defaultValue
 }
 
-func loadConfigFile() (configFile, error) {
+// resolveConfigPath returns ~/.kube-node-viewer, or the upstream
+// ~/.eks-node-viewer when only that one exists, warning on w. The legacy file
+// is never written or moved, since the upstream binary may still read it.
+func resolveConfigPath(home string, w io.Writer) string {
+	path := filepath.Join(home, configFileName)
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		return path
+	}
+	legacy := filepath.Join(home, legacyConfigFileName)
+	if _, err := os.Stat(legacy); errors.Is(err, os.ErrNotExist) {
+		return path
+	}
+	fmt.Fprintf(w, "kube-node-viewer: reading legacy config %s; move it to %s\n", legacy, path)
+	return legacy
+}
+
+func loadConfigFile(configPath string) (configFile, error) {
 	fileContent := make(map[string]string)
 	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
 		return fileContent, nil

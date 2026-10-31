@@ -1,1 +1,6 @@
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+kube-node-viewer
+Copyright 2026 The kube-node-viewer authors.
+This product is based on eks-node-viewer (https://github.com/awslabs/eks-node-viewer),
+licensed under the Apache License 2.0. Files changed from it carry a modification note.

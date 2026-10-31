@@ -11,6 +11,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Modified by the kube-node-viewer authors, 2026.
 package client
 
 import (
@@ -28,8 +30,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/awslabs/eks-node-viewer/pkg/model"
-	"github.com/awslabs/eks-node-viewer/pkg/pricing"
+	"github.com/staffops/kube-node-viewer/pkg/model"
+	"github.com/staffops/kube-node-viewer/pkg/pricing"
 )
 
 type Controller struct {
@@ -193,11 +195,15 @@ func (m Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
 
 func (m Controller) updatePrice(node *model.Node) {
 	// If the node has the instance-price override label, don't look up pricing
-	// and use the value here.
-	if val, ok := node.Labels()["eks-node-viewer/instance-price"]; ok {
-		if price, err := strconv.ParseFloat(val, 64); err == nil {
-			node.SetPrice(price)
-			return
+	// and use the value here. The new prefix wins over the upstream one, and a
+	// value that doesn't parse falls through to the next source.
+	labels := node.Labels()
+	for _, key := range []string{model.LabelPrefix + "instance-price", model.LegacyLabelPrefix + "instance-price"} {
+		if val, ok := labels[key]; ok {
+			if price, err := strconv.ParseFloat(val, 64); err == nil {
+				node.SetPrice(price)
+				return
+			}
 		}
 	}
 	// lookup our n price

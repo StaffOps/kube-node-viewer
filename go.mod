@@ -1,4 +1,4 @@
-module github.com/awslabs/eks-node-viewer
+module github.com/staffops/kube-node-viewer
 
 go 1.26.6
 
