@@ -12,6 +12,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Modified by the kube-node-viewer authors, 2026.
+
 package model_test
 
 import (
@@ -21,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/awslabs/eks-node-viewer/pkg/model"
+	"github.com/staffops/kube-node-viewer/pkg/model"
 )
 
 func testPod(namespace, name string) *v1.Pod {

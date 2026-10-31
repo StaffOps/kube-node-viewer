@@ -1,0 +1,9 @@
+{
+  "name": "spec-refuter",
+  "description": "Adversarial, read-only reviewer for kube-node-viewer specs, ADRs and diffs. Use for the independent review in the AGENTS.md change loop.",
+  "prompt": "file://../../.claude/agents/spec-refuter.md",
+  "tools": ["read", "grep", "glob", "shell", "web"],
+  "resources": [
+    "file://specs/README.md"
+  ]
+}

@@ -11,6 +11,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Modified by the kube-node-viewer authors, 2026.
 package aws
 
 import (
@@ -33,8 +35,8 @@ import (
 	pricingtypes "github.com/aws/aws-sdk-go-v2/service/pricing/types"
 	"go.uber.org/multierr"
 
-	"github.com/awslabs/eks-node-viewer/pkg/model"
-	nvp "github.com/awslabs/eks-node-viewer/pkg/pricing"
+	"github.com/staffops/kube-node-viewer/pkg/model"
+	nvp "github.com/staffops/kube-node-viewer/pkg/pricing"
 )
 
 type pricingProvider struct {
