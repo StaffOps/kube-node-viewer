@@ -63,6 +63,29 @@ type UIModel struct {
 	printer        *message.Printer
 	bars           map[barKey]string
 	DisablePricing bool
+
+	// gen is the cluster generation on screen, kept here so handling a message
+	// never takes the cluster lock
+	gen uint64
+	// stats is the last snapshot of the cluster. View renders from it and never
+	// takes the cluster lock, so keys stay responsive while events are applied.
+	stats Stats
+	// frame is the last rendered view, reused until something changes
+	frame string
+	dirty bool
+}
+
+// ChangedMsg tells the UI that cluster data or prices changed. Gen is the
+// cluster generation the change belongs to; changes from a cluster the UI no
+// longer shows are dropped.
+type ChangedMsg struct {
+	Gen uint64
+}
+
+// snapshotMsg carries a snapshot taken off the UI goroutine.
+type snapshotMsg struct {
+	gen   uint64
+	stats Stats
 }
 
 type barKey struct {
@@ -101,10 +124,12 @@ func NewUIModel(extraLabels []string, nodeSort string, style *Style) *UIModel {
 	pager.Type = paginator.Dots
 	pager.ActiveDot = activeDot
 	pager.InactiveDot = inactiveDot
+	cluster := NewCluster()
 	return &UIModel{
+		gen: cluster.Generation(),
 		// red to green
 		progress:    progress.New(style.gradient),
-		cluster:     NewCluster(),
+		cluster:     cluster,
 		extraLabels: extraLabels,
 		paginator:   pager,
 		nodeSorter:  newNodeSorter(nodeSort),
@@ -112,6 +137,7 @@ func NewUIModel(extraLabels []string, nodeSort string, style *Style) *UIModel {
 		showNodes:   true,
 		printer:     message.NewPrinter(language.English),
 		bars:        map[barKey]string{},
+		dirty:       true,
 	}
 }
 
@@ -147,13 +173,39 @@ func (u *UIModel) toggleNodes() {
 }
 
 func (u *UIModel) Init() tea.Cmd {
-	return nil
+	return tea.Batch(tickCmd(), u.snapshotCmd())
+}
+
+// Refresh takes a snapshot of the cluster now, on the calling goroutine.
+func (u *UIModel) Refresh() {
+	u.stats = u.cluster.Stats()
+	u.dirty = true
+}
+
+// snapshotCmd takes the snapshot off the UI goroutine, which may wait for the
+// cluster lock while events are applied.
+func (u *UIModel) snapshotCmd() tea.Cmd {
+	cluster, gen := u.cluster, u.gen
+	return func() tea.Msg {
+		return snapshotMsg{gen: gen, stats: cluster.Stats()}
+	}
 }
 
 func (u *UIModel) View() string {
+	if !u.dirty {
+		return u.frame
+	}
+	u.frame = u.render()
+	u.dirty = false
+	return u.frame
+}
+
+func (u *UIModel) render() string {
 	b := strings.Builder{}
 
-	stats := u.cluster.Stats()
+	// sorting reorders the node slice, work on a copy of the snapshot's
+	stats := u.stats
+	stats.Nodes = append([]*Node(nil), u.stats.Nodes...)
 
 	u.nodeSorter.sort(stats.Nodes)
 
@@ -411,17 +463,33 @@ func (u *UIModel) itemsPerPage(header *strings.Builder, linesPerItem int) int {
 
 type tickMsg time.Time
 
+// tickInterval only keeps node ages and NotReady durations moving; cluster
+// changes arrive as ChangedMsg.
+const tickInterval = time.Second
+
 func tickCmd() tea.Cmd {
-	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
+	return tea.Tick(tickInterval, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
 
 func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// anything reaching Update may change what is on screen
+	u.dirty = true
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		u.height = msg.Height
-		return u, tickCmd()
+		return u, nil
+	case ChangedMsg:
+		if msg.Gen != u.gen {
+			return u, nil
+		}
+		return u, u.snapshotCmd()
+	case snapshotMsg:
+		if msg.gen == u.gen {
+			u.stats = msg.stats
+		}
+		return u, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "esc", "ctrl+c":
