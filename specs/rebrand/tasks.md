@@ -20,7 +20,7 @@
   - _Covers: R2 · Depends on: T2, T5 · Verified by: `grep -c eks-node-viewer ATTRIBUTION.md cmd/kube-node-viewer/ATTRIBUTION.md` is 0 for both_
 - [x] T6. Governance files: `CODEOWNERS` = `* @karlipegomes @sule26`, delete `CODE_OF_CONDUCT.md`, rewrite `CONTRIBUTING.md`
   - _Covers: R6 · Depends on: T0 · Verified by: GitHub shows no CODEOWNERS errors on the file page_
-- [-] T7. CI: `test.yaml` runs `scripts/verify.sh` + `scripts/build.sh`; `release.yaml` drops `make generate` and `git diff-index` (D6)
+- [x] T7. CI: `test.yaml` runs `scripts/verify.sh` + `scripts/build.sh`; `release.yaml` drops `make generate` and `git diff-index` (D6)
   - _Covers: R7 · Depends on: T2 · Verified by: `goreleaser check && goreleaser build --snapshot --clean` → `dist/kube-node-viewer_*`_
 - [x] T8. New `README.md` (usage, install, credits, badges) + `CHANGELOG.md` entry
   - _Covers: R5 · Depends on: T2–T7 · Verified by: review_
