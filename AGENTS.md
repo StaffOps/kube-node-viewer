@@ -96,6 +96,10 @@ The loop (skill `change-loop`):
 
 ## Conventions
 
+- Language: everything in the repository and the product is English — TUI
+  text, help, errors and logs, code and comments, specs, docs, commits, PR
+  and issue text. The owner may talk to agents in Portuguese; reply in the
+  language they use, but write repository content in English.
 - Go: `gofmt -s`, `go vet` clean, table-driven tests in `pkg/model`
   (`*_test.go` next to the code). Errors wrapped with `%w`.
 - UI: rendering stays in `pkg/model`; Kubernetes I/O stays in `pkg/client`;
