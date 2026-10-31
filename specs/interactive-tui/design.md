@@ -205,6 +205,13 @@ only and count `Equivalent` nodes.
 
 **Reversal action**: drop the kind; reserved shows unknown again.
 
+> **Corrected 2026-10-31 (T7).** The kind lives on `model.Node`
+> (`SetEquivalentPrice`, `PriceIsEquivalent`), set by the controller from the
+> node's capacity type, instead of in `pricing.Provider`. Whether a price is
+> real depends on how the node is bought, not on the price source, and stage 2
+> providers then need no extra method. An `instance-price` override label
+> stays an actual price.
+
 ## Invariants
 
 - Requests vs allocatable only, never actual usage.

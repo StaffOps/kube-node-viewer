@@ -270,8 +270,10 @@ func (c *Cluster) Stats() Stats {
 		}
 		// only add the price if it's not NaN which is used to indicate an unknown
 		// price
-		if n.HasPrice() {
+		if n.HasActualPrice() {
 			st.TotalPrice += n.Price()
+		} else if n.PriceIsEquivalent() {
+			st.UnpricedReserved++
 		}
 		st.NumNodes++
 		st.Nodes = append(st.Nodes, n)

@@ -308,6 +308,10 @@ func (u *UIModel) writeNodeInfo(n *Node, w io.Writer, resources []v1.ResourceNam
 
 		if firstLine {
 			priceLabel := fmt.Sprintf("/$%0.4f", n.Price())
+			if n.PriceIsEquivalent() {
+				// not what the node costs, see R8
+				priceLabel = fmt.Sprintf("/~$%0.4f", n.Price())
+			}
 			if !n.HasPrice() || u.DisablePricing {
 				priceLabel = ""
 			}
@@ -388,6 +392,9 @@ func (u *UIModel) writeGroupSummary(groups []GroupStats, w io.Writer) {
 						groupPrice = ">= " + groupPrice
 					}
 				}
+				if !u.DisablePricing && g.ReservedNodes > 0 {
+					groupPrice += u.printer.Sprintf(" (+%d reserved, not priced)", g.ReservedNodes)
+				}
 				u.printer.Fprintf(w, "%s\t%d nodes\t%d pods\t(%s/%s)\t%s\t%s\t%s\t%s\n",
 					g.Name, g.NumNodes, g.NumPods, formatQuantity(res, used), formatQuantity(res, allocatable),
 					pctUsedStr, res, u.progressBar(pctUsed/100.0), groupPrice)
@@ -425,6 +432,9 @@ func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, 
 		u.progress.ShowPercentage = false
 		monthlyPrice := stats.TotalPrice * avgHoursPerMonth
 		clusterPrice := u.printer.Sprintf("$%0.3f/hour | $%0.3f/month", stats.TotalPrice, monthlyPrice)
+		if stats.UnpricedReserved > 0 {
+			clusterPrice += u.printer.Sprintf(" (+%d reserved, not priced)", stats.UnpricedReserved)
+		}
 		if u.DisablePricing {
 			clusterPrice = ""
 		}
