@@ -99,6 +99,111 @@ func (n *Node) IsAuto() bool {
 	return n.node.Labels["eks.amazonaws.com/compute-type"] == "auto"
 }
 
+// CapacityType is how a node is bought.
+type CapacityType string
+
+const (
+	CapacityOnDemand CapacityType = "OnDemand"
+	CapacitySpot     CapacityType = "Spot"
+	// CapacityReserved covers Karpenter reserved capacity and EKS capacity
+	// blocks: prepaid, so its price is only an on-demand equivalent.
+	CapacityReserved CapacityType = "Reserved"
+	CapacityFargate  CapacityType = "Fargate"
+	CapacityUnknown  CapacityType = "Unknown"
+)
+
+// CapacityType reads the Karpenter and EKS capacity labels. EKS Auto Mode nodes
+// carry the Karpenter label too, so they report spot or on-demand; IsAuto tells
+// them apart.
+func (n *Node) CapacityType() CapacityType {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	labels := n.node.Labels
+	if labels["eks.amazonaws.com/compute-type"] == "fargate" {
+		return CapacityFargate
+	}
+	switch labels["karpenter.sh/capacity-type"] {
+	case "on-demand":
+		return CapacityOnDemand
+	case "spot":
+		return CapacitySpot
+	case "reserved":
+		return CapacityReserved
+	}
+	switch labels["eks.amazonaws.com/capacityType"] {
+	case "ON_DEMAND":
+		return CapacityOnDemand
+	case "SPOT":
+		return CapacitySpot
+	case "CAPACITY_BLOCK":
+		return CapacityReserved
+	}
+	return CapacityUnknown
+}
+
+// NodeGroup is the Karpenter NodePool, or the EKS managed node group as
+// "ManagedNodeGroup:<name>", or "-".
+func (n *Node) NodeGroup() string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	if pool := n.node.Labels["karpenter.sh/nodepool"]; pool != "" {
+		return pool
+	}
+	if group := n.node.Labels["eks.amazonaws.com/nodegroup"]; group != "" {
+		return "ManagedNodeGroup:" + group
+	}
+	return "-"
+}
+
+// Region is the node's region label, empty when unset.
+func (n *Node) Region() string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.node.Labels[v1.LabelTopologyRegion]
+}
+
+// InternalIP is the node's first internal address, "-" for a node known only
+// from its NodeClaim.
+func (n *Node) InternalIP() string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	for _, addr := range n.node.Status.Addresses {
+		if addr.Type == v1.NodeInternalIP {
+			return addr.Address
+		}
+	}
+	return "-"
+}
+
+// Status flags a node can carry at the same time.
+const (
+	StatusReady     = "Ready"
+	StatusNotReady  = "NotReady"
+	StatusCordoned  = "Cordoned"
+	StatusDeleting  = "Deleting"
+	StatusLaunching = "Launching"
+)
+
+// StatusFlags lists the node's status: Ready or NotReady, then Cordoned,
+// Deleting and Launching (a NodeClaim whose node hasn't registered) as they
+// apply.
+func (n *Node) StatusFlags() []string {
+	flags := []string{StatusNotReady}
+	if n.Ready() {
+		flags[0] = StatusReady
+	}
+	if n.Cordoned() {
+		flags = append(flags, StatusCordoned)
+	}
+	if n.Deleting() {
+		flags = append(flags, StatusDeleting)
+	}
+	if n.RegisteredName() == "" {
+		flags = append(flags, StatusLaunching)
+	}
+	return flags
+}
+
 func (n *Node) Labels() map[string]string {
 	return n.node.Labels
 }
@@ -317,8 +422,8 @@ func (n *Node) Show() {
 }
 
 func (n *Node) Deleting() bool {
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.mu.RLock()
+	defer n.mu.RUnlock()
 	return !n.node.DeletionTimestamp.IsZero()
 }
 
