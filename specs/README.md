@@ -10,7 +10,12 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    docs away from the upstream name.
    [requirements](rebrand/requirements.md) · [design](rebrand/design.md) ·
    [tasks](rebrand/tasks.md)
-2. [`decisions/`](decisions/) — decision records (index below).
+2. [`interactive-tui/`](interactive-tui/) — **draft**. Stage 1 of the
+   sofka-style rework: no-flag start, Filters / Group by / Sort / Columns
+   panels, per-context state, change-driven redraw.
+   [requirements](interactive-tui/requirements.md) ·
+   [design](interactive-tui/design.md) · [tasks](interactive-tui/tasks.md)
+3. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
