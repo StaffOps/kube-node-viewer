@@ -10,7 +10,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    docs away from the upstream name.
    [requirements](rebrand/requirements.md) · [design](rebrand/design.md) ·
    [tasks](rebrand/tasks.md)
-2. [`interactive-tui/`](interactive-tui/) — **draft**. Stage 1 of the
+2. [`interactive-tui/`](interactive-tui/) — **active**. Stage 1 of the
    sofka-style rework: no-flag start, Filters / Group by / Sort / Columns
    panels, per-context state, change-driven redraw.
    [requirements](interactive-tui/requirements.md) ·
