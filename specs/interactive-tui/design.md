@@ -6,183 +6,216 @@
 
 | Area | Today | Where |
 |------|-------|-------|
-| Watches | three `cache.NewInformer` (nodes with server-side selector, all pods cluster-wide, nodeclaims if the CRD answers); handlers write straight into `model.Cluster` | `pkg/client/controller.go:70-160` |
-| Locking | one global `sync.RWMutex` on `Cluster`, one per `Node`; `GetPod` takes the write lock for a read; `SetPrice` writes `n.Price` unlocked while the view reads it | `pkg/model/cluster.go:25-30,128`, `node.go` `SetPrice` |
-| Lookups | `GetNodeByName` is a linear scan, called on every pod add/delete; `DeleteNode` scans all pods | `cluster.go:59-63,85-94,105,116` |
+| Watches | three `cache.NewInformer` (deprecated in client-go v0.37): nodes and nodeclaims with the server-side selector, all pods cluster-wide; handlers write straight into `model.Cluster`; nodes with an empty `providerID` are dropped | `pkg/client/controller.go:69-194,72,116,125` |
+| Startup | `controller.Start` runs before the Bubble Tea program exists and does a blocking nodeclaims `Get` | `main.go:106-110`, `controller.go:64` |
+| Locking | one global `sync.RWMutex` on `Cluster`, one per `Node`; `GetPod` takes the write lock for a read; `SetPrice` writes `n.Price` unlocked while the view reads it | `cluster.go:25-30,128`, `node.go` `SetPrice` |
+| Lookups | `GetNodeByName` is a linear scan per pod event; `DeleteNode` scans all pods; a pod seen before its node is never bound to it | `cluster.go:39-48,59-63,85-94,105-108,116` |
 | Redraw | `tickCmd` every 100 ms; each `View()` runs `Stats()` over all pods and nodes, re-sorts, regroups and renders an extra node to measure page size | `uimodel.go:158,175,392-396,410-437` |
-| Filters | only `--node-selector` (server-side); `--group-by a=b,c` values are merged into it; `Node.Visible`/`Hide` exists but is unused | `main.go:93,139-161`, `cluster_test.go:268` |
-| Runtime keys | `q`, `g` (toggle summary), `n` (toggle nodes), paging | `uimodel.go:423-434` |
-| Capacity type | `IsSpot`/`IsOnDemand` from Karpenter or EKS labels; `reserved` unknown; managed node group not shown | `node.go:81-97` |
-| Config | read-only `~/.kube-node-viewer` (or legacy), flag > config | `cmd/kube-node-viewer/flag.go` |
+| Pod fields used | requests incl. init containers and pod-level `Spec.Resources`; `deletionTimestamp`; annotation `CapacityProvisioned` for Fargate type and price | `pod.go` `Requested`, `FargateCapacityProvisioned`; `controller.go:224`; `node.go:257-260`; `pkg/aws/pricing.go:79-85` |
+| Filters | only `--node-selector` (server-side); `--group-by a=b,c` values are merged into it | `main.go:93,139-161` |
+| Runtime keys | `q`/`esc`/`ctrl+c` quit, `g` toggle summary, `n` toggle nodes, paging | `uimodel.go:423-434` |
+| Flags vs config | config values become flag defaults, so explicit flags are indistinguishable after parsing; built-in defaults `resources=cpu`, `node-sort=creation=dsc` | `flag.go:76-105` |
+| Pricing | `Provider.NodePrice → (float64, bool)`; reserved returns NaN; region from the AWS SDK config | `pkg/pricing/pricing.go`, `pkg/aws/pricing.go:60-87,145-158` |
 
 ## Target state
 
 ```
-client-go informers ──events──► model.Store (indexed, own lock)
-        │                             │
-        └── coalescer: 1 "changed" msg per ≤100 ms burst ──► tea.Program.Send
-                                      │
-UI (Bubble Tea) ◄─────────────────────┘
-  ViewState {filters, groupBy[≤3], sort, resources, columns, search}
-  on change msg or key: snapshot = store.Snapshot()  (O(nodes), pod totals precomputed)
-                        rows = filter → group → sort → page   (O(nodes log nodes))
-  panels: f Filters · g Group by · s Sort · o Columns · c Context · / search · r resources · n nodes · ? help
-state file ◄── debounced writer (goroutine) ── ViewState per context
+main: program := tea.NewProgram(ui)  ──►  controller.Start(ctx, sender=program.Send) in a goroutine
+client-go informers (WithOptions + Transform) ──events{gen}──► model.Store (indexed, one lock)
+        │                                                              │
+        └── coalescer: ≤1 "changed{gen}" per 100 ms burst ──► program.Send
+pricing OnUpdate ─────────────────────────────────────────────────────┘
+UI (Bubble Tea): ViewState{filters, groupBy[≤3], sort, resources, columns, search, showNodes}
+  on changed{gen==current} or key: rows = filter → group → sort over store.Snapshot()
+  1 s tick: re-render ages/durations only
+  panels: f g s o c / r n ? ; esc closes; q/ctrl+c quit from main view
+state: debounced atomic writer ◄── ViewState per cluster key
 ```
 
-- **Pod totals are maintained incrementally**: on pod add/update/delete the
-  store adjusts the owning node's request totals and pod count. Rendering never
-  walks pods.
-- **Node rows carry derived facts** computed once per node update: capacity
-  type, node group, zone, region, internal IP, instance type, status.
-- **Filters, grouping, sort and search run over the node snapshot** in the UI
-  goroutine. Watches are untouched by view changes.
+- Pod totals are maintained incrementally per node; rendering never walks pods.
+- Pods whose node is not known yet are indexed by node name and bound when the node (or its nodeclaim's registered name) appears.
+- Derived node facts (capacity type, node group, zone, region, IP, status flags) are computed once per node update.
 
 ## Components touched
 
 | Path | Change |
 |------|--------|
-| `pkg/model/store.go` (new) | indexed store: nodes by name and providerID, pods by key → node, per-node running totals; one lock; `Snapshot()` |
-| `pkg/model/cluster.go`, `node.go`, `pod.go` | fold into the store; fix `SetPrice` race; derived node facts (`CapacityType`, `NodeGroup`, zone, region, IP, status) |
-| `pkg/model/view.go` (new) | `ViewState`, filter evaluation (AND across fields, OR within), nested grouping ≤3, sort by column/label, search |
-| `pkg/model/uimodel.go` + `pkg/model/panels/` (new) | panels and keys from R3–R12, header line with active state, change-driven redraw |
-| `pkg/client/controller.go` | write to the store; coalesced change notification; pod informer transform that keeps only fields needed for totals; context switch = stop and restart watches |
-| `pkg/state/` (new) | per-context state file, debounced writer, tolerant reader |
-| `cmd/kube-node-viewer/main.go`, `flag.go` | flags become overrides of restored state; context picker wiring |
-| `README.md`, `CHANGELOG.md` | keys, panels, state file, changed meaning of `g` |
+| `pkg/model/store.go` (new) | indexes: nodes by providerID and name, pods by key, pending pods by node name; per-node totals; generation; `Snapshot()` |
+| `pkg/model/cluster.go`, `node.go`, `pod.go` | fold into the store; fix `SetPrice`/`GetPod` locking; derived facts |
+| `pkg/model/view.go` (new) | `ViewState`, filters, nested grouping, sort, search, column priority |
+| `pkg/model/uimodel.go`, `pkg/model/panels/` (new) | panels, keys, header, pagination by lines, 1 s tick |
+| `pkg/client/controller.go` | `cache.NewInformerWithOptions` with `Transform`; events tagged with generation; coalescer with a sender; nodeclaims probe moved off the UI path |
+| `pkg/pricing/pricing.go`, `pkg/aws/pricing.go` | price kind (actual vs equivalent); reserved → on-demand equivalent; provider re-created per region on context switch |
+| `pkg/state/` (new) | per-cluster state file, debounced atomic writer, tolerant reader |
+| `cmd/kube-node-viewer/main.go`, `flag.go` | program-first wiring; explicit-flag detection; flag table (D8) |
+| `README.md`, `CHANGELOG.md` | keys and panels, state file, changed `g` and `esc` |
 
 ## Decisions
 
 ### D1: View changes never restart watches
 
-**Choice**: watch all nodes (within `--node-selector` if given) and every
-pod; apply filters, grouping, sort and search in memory.
+**Choice**: watch all nodes (within `--node-selector`) and every pod; filters,
+grouping, sort and search work on memory.
 
 **Justification, strongest first**:
-1. Restarting informers on every filter change means a full re-list and seconds of blank screen on big clusters; in memory it is O(nodes).
-2. Value pickers need counts for values that are currently filtered out.
+1. Restarting informers re-lists everything: seconds of blank screen on big clusters; in memory it is O(nodes).
+2. Value pickers need counts for values currently filtered out.
 
 **Trade-offs accepted**: memory for nodes outside the current filter.
 
-**When this would be wrong**: clusters so large that watching all nodes is too
-heavy for a laptop — then make `--node-selector` (server-side) the documented
-way to scope.
+**When this would be wrong**: clusters too large to watch fully from a laptop — then `--node-selector` is the documented way to scope.
 
-**Reversal action**: push the label part of filters into the informer's
-`LabelSelector` and restart on change.
+**Reversal action**: push label filters into the informer `LabelSelector` and restart on change.
 
-### D2: Change-driven, coalesced redraw instead of a 100 ms tick
+### D2: Change-driven, coalesced redraw plus a slow tick
 
-**Choice**: the controller sends one `changed` message per burst (at most every
-100 ms) through `tea.Program.Send`; `View()` renders a cached row list rebuilt
-only on `changed` or a key.
+**Choice**: events update the store and mark it dirty; a coalescer sends one
+`changed{gen}` per burst (≤ every 100 ms) through `program.Send`; pricing
+`OnUpdate` does the same; a 1 s tick only re-renders ages and durations.
 
 **Justification, strongest first**:
-1. Today every tick recomputes stats over all pods; idle clusters cost CPU and big clusters lag.
-2. Same pattern as sofka (drain queued messages, then draw once).
+1. Today every 100 ms tick recomputes stats over all pods; idle clusters cost CPU and big clusters lag.
+2. Same pattern as sofka: drain queued changes, draw once.
 
-**Trade-offs accepted**: a ≤100 ms delay between a cluster event and the screen.
+**Trade-offs accepted**: ≤100 ms between an event and the screen.
 
-**When this would be wrong**: if Bubble Tea's own frame rate makes the coalescer redundant — then drop it and send on every event.
+**When this would be wrong**: if Bubble Tea's frame limiter makes the coalescer redundant — then send on every event.
 
-**Reversal action**: restore `tickCmd`.
+**Reversal action**: restore the 100 ms `tickCmd`.
 
-### D3: Pods are reduced to request totals at the informer
+### D3: Pods reduced at the informer to what totals need
 
-**Choice**: an informer `TransformFunc` keeps only namespace, name, node name,
-phase and container/init/overhead requests; the store keeps per-node totals.
+**Choice**: `cache.NewInformerWithOptions` with a `Transform` that keeps
+namespace, name, `spec.nodeName`, `status.phase`, `deletionTimestamp`, the
+`CapacityProvisioned` annotation, pod-level `spec.resources`, `spec.overhead`,
+and for containers and init containers only `resources.requests` and
+`restartPolicy`; tombstones (`DeletedFinalStateUnknown`) pass through.
 
 **Justification, strongest first**:
-1. The tool never shows pods; full pod objects are most of today's memory (they are stored twice: informer cache and `Cluster.pods`).
-2. Totals make render cost independent of pod count (R10).
+1. The tool never shows pods; full pod objects are most of the memory (stored twice today).
+2. Totals make render cost independent of pod count (R11).
 
-**Trade-offs accepted**: adding a pod view later means widening the transform.
+**Trade-offs accepted**: a future pod feature must widen the transform.
 
-**When this would be wrong**: if a later feature needs pod details (logs, owner) — then widen the transform for that feature only.
+**When this would be wrong**: if a feature needs pod details — then widen for that feature.
 
 **Reversal action**: remove the transform.
 
 ### D4: Filter model — AND across fields, OR within a field, toggleable
 
 **Choice**: a filter is `{field, values[], enabled}`; fields are a label key or
-a derived fact (capacity type, node group, zone, region, instance type,
-status).
+a derived fact; status matches on any selected flag.
 
-**Justification, strongest first**:
-1. Matches how people say it ("spot nodes in default or gpu"), and how Kubernetes `in` selectors work.
-2. Toggling without deleting makes comparisons quick.
+**Justification**: matches how people phrase it and Kubernetes `in` selectors; toggling keeps comparisons quick.
 
-**Trade-offs accepted**: no OR across different fields, no negation in stage 1.
+**Trade-offs accepted**: no OR across fields, no negation in stage 1.
 
-**When this would be wrong**: if real use needs "spot OR nodepool=gpu" or "NOT zone=a" — then add negation per filter first, OR groups later.
+**When this would be wrong**: real queries need negation or cross-field OR — add negation per filter first.
 
 **Reversal action**: none needed; the model extends.
 
-### D5: Node group column
+### D5: Node group and capacity type derivation
 
-**Choice**: `karpenter.sh/nodepool` value; else `ManagedNodeGroup:<eks.amazonaws.com/nodegroup>`; else `-`.
+**Choice**: node group = `karpenter.sh/nodepool`, else
+`ManagedNodeGroup:<eks.amazonaws.com/nodegroup>`, else `-`. Capacity type
+from the labels in R7, Fargate/Auto from `compute-type` first.
 
-**Justification**: those are the two ways EKS nodes get grouped; both are labels already on the node.
+**Justification**: these are the labels EKS and Karpenter v1 set (Karpenter `pkg/apis/v1/labels.go`).
 
-**When this would be wrong**: GKE/AKS node pools (stage 2) — then add their labels (`cloud.google.com/gke-nodepool`, `kubernetes.azure.com/agentpool`) to the same column.
+**When this would be wrong**: GKE/AKS pools (stage 2) — add `cloud.google.com/gke-nodepool`, `kubernetes.azure.com/agentpool`.
 
 **Reversal action**: drop the managed node group branch.
 
-### D6: State file per context, separate from config
+### D6: State file per cluster, separate from config
 
 **Choice**: `$XDG_STATE_HOME/kube-node-viewer/state.json` (default
-`~/.local/state/kube-node-viewer/state.json`), keyed by context name, written
-atomically (temp file + rename) by a debounced goroutine.
+`~/.local/state/kube-node-viewer/state.json`), keyed by context name plus API
+server URL (merged kubeconfigs can repeat context names), written atomically
+(temp file + rename) by a debounced goroutine.
 
 **Justification, strongest first**:
-1. The config file is user-owned (R2 counter-example); mixing generated state into it would rewrite their comments.
-2. Atomic write avoids a half-written file if the tool is killed.
+1. The config file is user-owned; generated state would rewrite their comments.
+2. Atomic write survives being killed mid-write.
 
-**Trade-offs accepted**: two files to know about; documented in README.
+**Trade-offs accepted**: a second file; documented in README.
 
-**When this would be wrong**: if users want to version their defaults — then
-they keep using the config file, which still applies under flags.
+**When this would be wrong**: users want versioned defaults — they keep the config file.
 
 **Reversal action**: stop writing; delete the file.
 
-### D7: `g` opens the Group by panel
+### D7: Key scheme
 
-**Choice**: `g` changes meaning from "toggle summary" to "Group by panel"; the
-summary shows whenever a group-by is set and `n` hides/shows the node list.
+**Choice**: `f` Filters, `g` Group by, `s` Sort, `o` Columns, `c` Context,
+`/` search, `r` resources, `n` node list, `?` help; panels and inputs capture
+keys; `esc` closes; `q`/`ctrl+c` quit from the main view only.
 
-**Justification**: the owner chose `f`/`g` as the main keys; one key per panel
-keeps the scheme learnable.
+**Justification**: the owner chose `f`/`g`; one key per panel; `esc` is needed to close panels.
 
-**Trade-offs accepted**: a key users of `--group-by` learned changes; noted in CHANGELOG and README.
+**Trade-offs accepted**: `g` (toggle summary) and `esc` (quit) change meaning; CHANGELOG and README say so.
 
-**When this would be wrong**: if hiding the summary alone is needed often —
-then add it to the Group by panel.
+**When this would be wrong**: if hiding the summary alone is needed often — add it to the Group by panel.
 
-**Reversal action**: map the toggle back to `g` and move the panel.
+**Reversal action**: remap keys in one table.
 
-### D8: Initial precedence
+### D8: Startup precedence and flag table
 
-**Choice**: flag > restored state > config file > defaults.
+**Choice**: explicit flag (detected with `flagSet.Visit`) > saved state >
+config file > built-in default. Explicit flags apply to the run and are saved
+only after a TUI change (R2).
 
-**Justification**: flags are explicit for this run; restored state is the
-user's last choice; the config file is a standing default.
+| Flag / config key | View state | Saved |
+|---|---|---|
+| `--node-selector` | server-side scope (not view state) | no |
+| `--group-by key` | group-by level 1 = `key` | via state |
+| `--group-by key=a,b` | group-by level 1 = `key` + filter `key ∈ {a,b}` (in memory, no longer merged into the selector) | via state |
+| `--groups-only` | `showNodes=false` | via state |
+| `--node-sort creation\|<label>[=asc\|dsc]` | sort | via state |
+| `--extra-labels a,b` (incl. computed names, both prefixes) | extra columns | via state |
+| `--resources list` | resources (R9 fourth entry when not cpu/memory) | via state |
+| `--context`, `--kubeconfig` | cluster selection | no |
+| `--style`, `--disable-pricing` | run options | no |
 
-**When this would be wrong**: if users expect the config file to win over
-remembered state — then add a `reset` key that clears state for the context.
+**Justification**: flags are explicit for this run; saved state is the last TUI choice; config is a standing default.
 
-**Reversal action**: swap the two middle layers.
+**When this would be wrong**: users expect the config file to win — add a reset key that clears the cluster's state.
+
+**Reversal action**: swap the middle layers.
+
+### D9: Generations against stale events
+
+**Choice**: each context gets a generation number; informer handlers, the
+coalescer and pricing tag what they send; the store and UI drop anything with
+an older generation. Watches start in a `tea.Cmd`, never inside `Update`.
+
+**Justification**: cancelling informers does not stop handlers already running; without tags old-cluster data can reappear (R10).
+
+**When this would be wrong**: never for correctness; only if switching is removed.
+
+**Reversal action**: remove context switching.
+
+### D10: Price kind
+
+**Choice**: `pricing.Provider` gains a price kind (`Actual`, `Equivalent`);
+reserved nodes get the on-demand price as `Equivalent`; totals sum `Actual`
+only and count `Equivalent` nodes.
+
+**Justification**: R8 forbids showing reserved cost as real; the current `(float64, bool)` can't express it.
+
+**When this would be wrong**: once billing data is integrated — then reserved gets `Actual`.
+
+**Reversal action**: drop the kind; reserved shows unknown again.
 
 ## Invariants
 
 - Requests vs allocatable only, never actual usage.
-- Existing flags, config keys, label prefixes (`kube-node-viewer/`, `eks-node-viewer/`) keep working.
-- Rendering cost does not depend on pod count.
-- No in-cluster dependency.
+- Existing flags, config keys and label prefixes keep working (D8).
+- Render cost does not depend on pod count.
+- No in-cluster dependency; no new runtime dependency beyond Bubble Tea `bubbles` components already used.
 
 ## Test plan
 
-- `scripts/verify.sh` green after every task; `go test -race ./pkg/... ./cmd/...` green (the `SetPrice` race is fixed in T2).
-- Unit: store totals under add/update/delete/move pods; filter AND/OR/disabled; grouping 1–3 levels with `<none>`; sort per column and label; search; capacity type and node group derivation; state round-trip, corrupt file.
-- UI: key-driven tests with `teatest` (or `Update` with `tea.KeyMsg`) for each panel.
-- Benchmark (T1 before, T9 after): synthetic store with 500 nodes / 15 000 pods and 5 000 nodes / 150 000 pods; event apply time, snapshot+render time, heap. Sizes are test inputs, not targets; results recorded in tasks.md.
-- Manual: one real cluster named by the owner.
+- `scripts/verify.sh` and `go test -race ./pkg/... ./cmd/...` green after every task.
+- Unit: store totals (add/update/delete/move, pod before node, nodeclaim then node, Fargate annotation kept); transform output; filters; grouping 1–3 with `<none>`; sort; search; derived facts incl. `CAPACITY_BLOCK`; price kind and totals; state round-trip, corrupt file, per-cluster key; flag table rows; generation drops stale events.
+- UI: key-driven tests through `Update(tea.KeyMsg)` (no `teatest` dependency); a held store lock does not block a panel opening.
+- Benchmark (T1 before, T12 after): synthetic store with 500 nodes and 15 000 / 150 000 pods; event apply time, snapshot+render time, heap.
+- Manual: a real cluster and a context switch, named by the owner.
