@@ -208,3 +208,24 @@ func TestComputeLabelPrefixes(t *testing.T) {
 		t.Errorf("unknown prefix computed %q, want -", got)
 	}
 }
+
+// TestNodePriceConcurrent fails under -race if the price is read and written
+// without the node lock, as the pricing goroutine and the view do.
+func TestNodePriceConcurrent(t *testing.T) {
+	node := model.NewNode(testNode("mynode"))
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 1000; i++ {
+			node.SetPrice(float64(i))
+		}
+	}()
+	for i := 0; i < 1000; i++ {
+		_ = node.HasPrice()
+		_ = node.Price()
+	}
+	<-done
+	if got := node.Price(); got != 999 {
+		t.Errorf("price = %v, want 999", got)
+	}
+}

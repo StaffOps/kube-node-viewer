@@ -126,9 +126,9 @@ func (c *Cluster) DeletePod(namespace, name string) (totalPods int) {
 }
 
 func (c *Cluster) GetPod(namespace string, name string) (*Pod, bool) {
-	c.mu.Lock()
+	c.mu.RLock()
 	pod, ok := c.pods[objectKey{namespace: namespace, name: name}]
-	c.mu.Unlock()
+	c.mu.RUnlock()
 	return pod, ok
 }
 
@@ -173,7 +173,7 @@ func (c *Cluster) Stats() Stats {
 		// only add the price if it's not NaN which is used to indicate an unknown
 		// price
 		if n.HasPrice() {
-			st.TotalPrice += n.Price
+			st.TotalPrice += n.Price()
 		}
 		st.NumNodes++
 		st.Nodes = append(st.Nodes, n)

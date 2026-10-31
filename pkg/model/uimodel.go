@@ -255,7 +255,7 @@ func (u *UIModel) writeNodeInfo(n *Node, w io.Writer, resources []v1.ResourceNam
 		}
 
 		if firstLine {
-			priceLabel := fmt.Sprintf("/$%0.4f", n.Price)
+			priceLabel := fmt.Sprintf("/$%0.4f", n.Price())
 			if !n.HasPrice() || u.DisablePricing {
 				priceLabel = ""
 			}

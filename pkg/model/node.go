@@ -18,6 +18,7 @@ package model
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"sync"
 	"time"
@@ -43,7 +44,7 @@ type Node struct {
 	node                  v1.Node
 	pods                  map[objectKey]*Pod
 	used                  v1.ResourceList
-	Price                 float64
+	price                 float64
 	nodeclaimCreationTime time.Time
 }
 
@@ -310,8 +311,17 @@ func (n *Node) Pods() []*Pod {
 }
 
 func (n *Node) HasPrice() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
 	// we use NaN for an unknown price, so if this is true the price is known
-	return n.Price == n.Price
+	return !math.IsNaN(n.price)
+}
+
+// Price is the node's hourly price, NaN when unknown.
+func (n *Node) Price() float64 {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.price
 }
 
 // LabelValue is the node's value for the label, falling back to a computed label
@@ -374,8 +384,12 @@ func (n *Node) NotReadyTime() time.Time {
 	return n.Created()
 }
 
+// SetPrice sets the hourly price, NaN for unknown. Prices are refreshed from
+// the pricing goroutine while the view reads them, so it locks.
 func (n *Node) SetPrice(price float64) {
-	n.Price = price
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.price = price
 }
 
 func pctUsage(allocatable v1.ResourceList, used v1.ResourceList, resource string) string {
