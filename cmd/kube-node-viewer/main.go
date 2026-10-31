@@ -11,6 +11,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Modified by the kube-node-viewer authors, 2026.
 package main
 
 import (
@@ -21,6 +23,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -28,9 +31,9 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 
-	"github.com/awslabs/eks-node-viewer/pkg/aws"
-	"github.com/awslabs/eks-node-viewer/pkg/client"
-	"github.com/awslabs/eks-node-viewer/pkg/model"
+	"github.com/staffops/kube-node-viewer/pkg/aws"
+	"github.com/staffops/kube-node-viewer/pkg/client"
+	"github.com/staffops/kube-node-viewer/pkg/model"
 )
 
 //go:generate cp -r ../../ATTRIBUTION.md ./
@@ -52,7 +55,9 @@ func main() {
 	}
 
 	if flags.Version {
-		fmt.Printf("eks-node-viewer version %s\n", version)
+		info, ok := debug.ReadBuildInfo()
+		version, commit := resolveVersion(version, commit, info, ok)
+		fmt.Printf("kube-node-viewer version %s\n", version)
 		fmt.Printf("commit: %s\n", commit)
 		fmt.Printf("built at: %s\n", date)
 		fmt.Printf("built by: %s\n", builtBy)

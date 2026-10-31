@@ -12,6 +12,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Modified by the kube-node-viewer authors, 2026.
+
 package model
 
 import (
@@ -328,12 +330,20 @@ func (n *Node) LabelValue(label string) string {
 	return UngroupedValue
 }
 
-var resourceLabelRe = regexp.MustCompile("eks-node-viewer/node-(.*?)-usage")
+// LabelPrefix prefixes the node labels and computed label names this tool
+// understands. LegacyLabelPrefix is the upstream eks-node-viewer prefix, still
+// accepted because clusters and saved configs carry it.
+const (
+	LabelPrefix       = "kube-node-viewer/"
+	LegacyLabelPrefix = "eks-node-viewer/"
+)
+
+var resourceLabelRe = regexp.MustCompile("(?:kube|eks)-node-viewer/node-(.*?)-usage")
 
 // ComputeLabel computes dynamic labels
 func (n *Node) ComputeLabel(labelName string) string {
 	switch labelName {
-	case "eks-node-viewer/node-age":
+	case LabelPrefix + "node-age", LegacyLabelPrefix + "node-age":
 		return duration.HumanDuration(time.Since(n.Created()))
 	}
 	// resource based custom labels
