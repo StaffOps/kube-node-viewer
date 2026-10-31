@@ -19,7 +19,6 @@ import (
 	"context"
 	"math"
 	"strconv"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,11 +70,11 @@ func (m Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clus
 		v1.NamespaceAll, func(options *metav1.ListOptions) {
 			options.LabelSelector = m.nodeSelector.String()
 		})
-	_, nodeClaimController := cache.NewInformer(
-		nodeClaimWatchList,
-		&karpv1.NodeClaim{},
-		time.Second*0,
-		cache.ResourceEventHandlerFuncs{
+	_, nodeClaimController := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: nodeClaimWatchList,
+		ObjectType:    &karpv1.NodeClaim{},
+		Transform:     slimNodeClaim,
+		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				nc := obj.(*karpv1.NodeClaim)
 				if nc.Status.ProviderID == "" {
@@ -106,7 +105,7 @@ func (m Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clus
 				n.Show()
 			},
 		},
-	)
+	})
 	go nodeClaimController.Run(ctx.Done())
 }
 
@@ -115,11 +114,11 @@ func (m Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) 
 		v1.NamespaceAll, func(options *metav1.ListOptions) {
 			options.LabelSelector = m.nodeSelector.String()
 		})
-	_, nodeController := cache.NewInformer(
-		nodeWatchList,
-		&v1.Node{},
-		time.Second*0,
-		cache.ResourceEventHandlerFuncs{
+	_, nodeController := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: nodeWatchList,
+		ObjectType:    &v1.Node{},
+		Transform:     slimNode,
+		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				node := model.NewNode(obj.(*v1.Node))
 				if node.ProviderID() == "" {
@@ -145,7 +144,7 @@ func (m Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) 
 				}
 			},
 		},
-	)
+	})
 	go nodeController.Run(ctx.Done())
 }
 
@@ -153,11 +152,11 @@ func (m Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
 	podWatchList := cache.NewListWatchFromClient(m.kubeClient.CoreV1().RESTClient(), "pods",
 		v1.NamespaceAll, fields.Everything())
 
-	_, podController := cache.NewInformer(
-		podWatchList,
-		&v1.Pod{},
-		time.Second*0,
-		cache.ResourceEventHandlerFuncs{
+	_, podController := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: podWatchList,
+		ObjectType:    &v1.Pod{},
+		Transform:     SlimPod,
+		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				p := obj.(*v1.Pod)
 				if !isTerminalPod(p) {
@@ -182,7 +181,7 @@ func (m Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
 				}
 			},
 		},
-	)
+	})
 	go podController.Run(ctx.Done())
 }
 

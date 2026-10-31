@@ -12,6 +12,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Modified by the kube-node-viewer authors, 2026.
+
 package model
 
 import (
@@ -25,71 +27,84 @@ import (
 	helperResource "k8s.io/component-helpers/resource"
 )
 
-// Pod is our pod model used for internal storage and display
+// Pod is what the viewer keeps of a pod: where it runs, its phase and the
+// resources it requests. The tool shows nodes, so the pod object itself is not
+// kept; at 150 000 pods its size dominates memory and garbage collection.
 type Pod struct {
-	mu  sync.RWMutex
-	pod v1.Pod
+	mu        sync.RWMutex
+	namespace string
+	name      string
+	nodeName  string
+	phase     v1.PodPhase
 	// requested is computed once per pod object, it is read on every bind and
 	// unbind
 	requested v1.ResourceList
+	// fargateCapacity is the CapacityProvisioned annotation, set on Fargate pods
+	fargateCapacity string
 }
 
 // NewPod constructs a pod model based off of the K8s pod object
-func NewPod(n *v1.Pod) *Pod {
-	p := &Pod{pod: *n}
-	p.requested = computeRequests(&p.pod)
+func NewPod(pod *v1.Pod) *Pod {
+	p := &Pod{}
+	p.set(pod)
 	return p
 }
 
-// Update updates the pod model, replacing it with a shallow copy of the
-// provided pod. Don't update a pod held by a Cluster: pass Cluster.AddPod a new
-// Pod instead, it needs the old one to take the old requests back out.
+// Update replaces the pod model with the provided pod. Don't update a pod held
+// by a Cluster: pass Cluster.AddPod a new Pod instead, it needs the old one to
+// take the old requests back out.
 func (p *Pod) Update(pod *v1.Pod) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.pod = *pod
-	p.requested = computeRequests(&p.pod)
+	p.set(pod)
+}
+
+func (p *Pod) set(pod *v1.Pod) {
+	p.namespace = pod.Namespace
+	p.name = pod.Name
+	p.nodeName = pod.Spec.NodeName
+	p.phase = pod.Status.Phase
+	p.requested = computeRequests(pod)
+	p.fargateCapacity = pod.Annotations["CapacityProvisioned"]
 }
 
 func (p *Pod) key() objectKey {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return objectKey{namespace: p.pod.Namespace, name: p.pod.Name}
+	return objectKey{namespace: p.namespace, name: p.name}
 }
 
 // IsScheduled returns true if the pod has been scheduled to a node
 func (p *Pod) IsScheduled() bool {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.pod.Spec.NodeName != ""
+	return p.NodeName() != ""
 }
 
 // NodeName returns the node that the pod is scheduled against, or an empty string
 func (p *Pod) NodeName() string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.pod.Spec.NodeName
+	return p.nodeName
 }
 
 // Namespace returns the namespace of the pod
 func (p *Pod) Namespace() string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.pod.Namespace
+	return p.namespace
 }
 
 // Name returns the name of the pod
 func (p *Pod) Name() string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.pod.Name
+	return p.name
 }
 
 // Phase returns the pod phase
 func (p *Pod) Phase() v1.PodPhase {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.pod.Status.Phase
+	return p.phase
 }
 
 // Requested returns the sum of the resources requested by the pod. The list is
@@ -115,8 +130,10 @@ func computeRequests(pod *v1.Pod) v1.ResourceList {
 var fargateCapacityRe = regexp.MustCompile("(.*?)vCPU (.*?)GB")
 
 func (p *Pod) FargateCapacityProvisioned() (float64, float64, bool) {
-	provisioned, ok := p.pod.Annotations["CapacityProvisioned"]
-	if !ok {
+	p.mu.RLock()
+	provisioned := p.fargateCapacity
+	p.mu.RUnlock()
+	if provisioned == "" {
 		return 0, 0, false
 	}
 

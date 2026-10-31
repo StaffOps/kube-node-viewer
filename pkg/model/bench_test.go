@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/staffops/kube-node-viewer/pkg/client"
 	"github.com/staffops/kube-node-viewer/pkg/model"
 )
 
@@ -60,10 +61,23 @@ func benchNode(i int) *v1.Node {
 	}
 }
 
-// benchPod carries roughly what a real pod carries (labels, annotations, env,
-// volumes, managed fields), so heap numbers are comparable before and after the
-// informer transform.
-func benchPod(i int) *v1.Pod {
+// benchPod is what the model receives for a pod: a realistic pod (labels,
+// annotations, env, volumes, managed fields) passed through the informer
+// transform, as the running tool does.
+func benchPod(i, pods int) *v1.Pod {
+	slim, err := client.SlimPod(fullBenchPod(i, pods))
+	if err != nil {
+		panic(err)
+	}
+	return slim.(*v1.Pod)
+}
+
+// fullBenchPod requests enough that nodes end up about 70% allocated whatever
+// the pod count, as on a real cluster where requests fit the node.
+func fullBenchPod(i, pods int) *v1.Pod {
+	perNode := pods / benchNodes
+	cpu := resource.NewMilliQuantity(int64(4000*0.7)/int64(2*perNode), resource.DecimalSI)
+	mem := resource.NewQuantity(int64(16<<30)*7/10/int64(2*perNode), resource.BinarySI)
 	env := make([]v1.EnvVar, 8)
 	for e := range env {
 		env[e] = v1.EnvVar{Name: fmt.Sprintf("ENV_%d", e), Value: "some-configuration-value"}
@@ -74,8 +88,8 @@ func benchPod(i int) *v1.Pod {
 			Image: "registry.example.com/team/app:1.2.3",
 			Env:   env,
 			Resources: v1.ResourceRequirements{Requests: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("50m"),
-				v1.ResourceMemory: resource.MustParse("64Mi"),
+				v1.ResourceCPU:    *cpu,
+				v1.ResourceMemory: *mem,
 			}},
 			VolumeMounts: []v1.VolumeMount{{Name: "config", MountPath: "/etc/app"}},
 		}
@@ -107,8 +121,10 @@ func populate(m *model.UIModel, pods int) {
 		cluster.AddNode(model.NewNode(benchNode(i))).Show()
 	}
 	for i := 0; i < pods; i++ {
-		cluster.AddPod(model.NewPod(benchPod(i)))
+		cluster.AddPod(model.NewPod(benchPod(i, pods)))
 	}
+	// leave the garbage of building the cluster out of the timed part
+	runtime.GC()
 }
 
 func newBenchUI(b *testing.B) *model.UIModel {
@@ -130,7 +146,7 @@ func BenchmarkPodEvent(b *testing.B) {
 			populate(m, pods)
 			extra := make([]*v1.Pod, b.N)
 			for i := range extra {
-				extra[i] = benchPod(pods + i)
+				extra[i] = benchPod(pods+i, pods)
 			}
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
