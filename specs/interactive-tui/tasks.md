@@ -12,7 +12,7 @@
   - _Covers: R11 · Depends on: T0 · Verified by: `go test -race`_
 - [x] T3. Indexed store with per-node totals, pending pods by node name, generation; fold `Cluster`
   - _Covers: R11 · Depends on: T1, T2 · Verified by: unit tests (pod before node, nodeclaim then node)_
-- [ ] T4. Informers with `NewInformerWithOptions` + pod `Transform` (D3), events tagged with generation
+- [x] T4. Informers with `NewInformerWithOptions` + pod `Transform` (D3), events tagged with generation
   - _Covers: R11 · Depends on: T3 · Verified by: transform tests incl. Fargate and tombstones_
 - [ ] T5. Program-first wiring, coalescer via `program.Send`, pricing `OnUpdate` notifies, 1 s tick replaces 100 ms
   - _Covers: R11 · Depends on: T4 · Verified by: unit tests; benchmark rerun_
@@ -24,7 +24,7 @@
   - _Covers: R3, R4, R5, R6, R14 · Depends on: T6 · Verified by: unit tests_
 - [ ] T9. Flag table (D8) with explicit-flag detection; per-cluster state file, debounced atomic writer
   - _Covers: R1, R2, R15 · Depends on: T8 · Verified by: one test per flag-table row; state tests_
-- [ ] T10. Key routing, help (`?`), header line, pagination by lines; Filters panel (`f`)
+- [ ] T10. Key routing, help (`?`), header line, pagination by lines; drop pod counts from the screen; Filters panel (`f`)
   - _Covers: R3, R12, R14 · Depends on: T8 · Verified by: key-driven tests_
 - [ ] T10b. Group by (`g`), Sort (`s`), Columns (`o`) panels; `/` search; `r`; `n`
   - _Covers: R4, R5, R6, R7, R9, R13 · Depends on: T10 · Verified by: key-driven tests_
@@ -35,25 +35,29 @@
 
 ## Benchmark results
 
-| Run | Nodes / pods | Event apply | Snapshot + render | Heap |
-|-----|--------------|-------------|-------------------|------|
-| Baseline (T1) | 500 / 15 000 | 7.7 µs | 1.9 ms | 94 MiB |
-| Baseline (T1) | 500 / 150 000 | 8.2 µs | 29.6 ms | 924 MiB |
-| After T3 (store) | 500 / 15 000 | 8.2 µs | 0.39 ms | — |
-| After T3 (store) | 500 / 150 000 | 17.4 µs | 1.31 ms | — |
+| Run | Nodes / pods | Event apply | Snapshot + render | Heap (model) |
+|-----|--------------|-------------|-------------------|--------------|
+| Baseline (T1, before T3) | 500 / 15 000 | 8.8 µs | 2.52 ms | 94 MiB |
+| Baseline (T1, before T3) | 500 / 150 000 | 11.1 µs | 29.9 ms | 924 MiB |
+| After T4 | 500 / 15 000 | 6.7 µs | 0.43 ms | 17 MiB |
+| After T4 | 500 / 150 000 | 5.1 µs | 0.39 ms | 149 MiB |
 | After (T12) | 500 / 15 000 | unmeasured | unmeasured | unmeasured |
 | After (T12) | 500 / 150 000 | unmeasured | unmeasured | unmeasured |
 
-Measured 2026-10-31 on darwin/arm64 with Go 1.27.3 with
+Measured 2026-10-31 on darwin/arm64 with Go 1.27.3:
 `go test -run x -bench 'PodEvent|Render' -benchtime 2s ./pkg/model/` and
-`-bench Heap -benchtime 1x`. Heap is the model only; the informer cache adds a
-second copy of every pod in the running tool. Render grows 15.7× from 15 000 to
-150 000 pods at the same node count, against R11's 1.2× limit.
+`-bench Heap -benchtime 1x`. Pods request enough for nodes to sit at about 70%
+allocation at both sizes, and the model gets pods through the informer
+transform as the running tool does. The baseline rows ran the same benchmark
+on commit 8cb94b6 with full pods. Heap is the model only; the informer cache
+holds its own (now slimmed) copy.
 
-After T3 render no longer walks pods; the remaining 3.4× gap is garbage
-collection over the pod objects held in memory (a CPU profile of
-`Render/pods=150000` is mostly `runtime.gcDrain`/`madvise`), which T4's pod
-transform targets.
+> **Corrected 2026-10-31.** The first baseline (7.7 µs, 1.9/29.6 ms) used pods
+> that overcommitted every node about 7.5×, so progress bars above 200% missed
+> their cache and dominated render time at 150 000 pods. Re-measured as above.
+
+R11 check after T4: render at 150 000 pods is 0.91× the 15 000-pod time
+(limit 1.2×).
 
 ## Deferred
 
