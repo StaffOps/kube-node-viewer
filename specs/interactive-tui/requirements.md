@@ -27,7 +27,7 @@ $ kube-node-viewer
 # current kube context; last filters/grouping/sort used on this context restored
 Filters: capacity=Spot · nodegroup∈{default,gpu} │ Group: nodegroup › zone │ Sort: price ↓ │ cpu+memory
 
-default › us-east-1a   3 nodes  cpu 61%  mem 48%  $0.312/h
+default › us-east-1a   3 nodes  41 pods  cpu 61%  mem 48%  $0.312/h
   ip-10-0-1-5   m6i.large  Spot  default  us-east-1a  10.0.1.5   cpu ███░ 72%  mem ██░░ 51%  $0.104/h  Ready
   ...
 ```
@@ -95,7 +95,7 @@ region, instance type, status.
 
 **R4** WHEN the user presses `g` THEN the system SHALL let them choose up to
 three ordered group-by keys (any field from R3) and show nested groups with
-node count, resource usage and cost subtotals per level.
+node count, pod count, resource usage and cost subtotals per level.
 
 - [ ] Nodes without a key value go to a `<none>` group that sorts last.
 
@@ -167,9 +167,8 @@ SHALL stay the only server-side scope.
 
 ## Counter-examples
 
-- SHALL NOT list pods or show pod counts (per node, per group or for the
-  cluster); pods only feed per-node request totals. The `pods` resource
-  (pod slots used vs allocatable) shows only if named in `--resources`.
+- SHALL NOT list or show individual pods; pods only feed per-node totals
+  (requests and pod counts).
 - SHALL NOT restart the node/pod watches when a filter, group or sort changes.
   Only `--node-selector` (set at start) and a context switch restart watches.
 - SHALL NOT write to `~/.kube-node-viewer` or `~/.eks-node-viewer`.
@@ -195,5 +194,8 @@ Answered by the owner on 2026-10-31.
 - No pod view; pods only feed per-node totals.
 - No command mode in stage 1; panels instead.
 - All product and repository text in English.
-- Pod counts are not shown anywhere (owner, 2026-10-31): the tool is about
-  nodes; pods are read only to sum their requests per node.
+- Pod counts stay on screen (per node, per group, cluster); individual pods
+  are never listed.
+
+> **Corrected 2026-10-31.** Pod counts were briefly removed from the screen,
+> then the owner asked to keep them.
