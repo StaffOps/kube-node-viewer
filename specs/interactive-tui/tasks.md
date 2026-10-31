@@ -10,7 +10,7 @@
   - _Covers: R11 · Depends on: T0 · Verified by: `go test -bench . ./pkg/model/...` output below_
 - [x] T2. Fix `SetPrice` and `GetPod` locking
   - _Covers: R11 · Depends on: T0 · Verified by: `go test -race`_
-- [ ] T3. Indexed store with per-node totals, pending pods by node name, generation; fold `Cluster`
+- [x] T3. Indexed store with per-node totals, pending pods by node name, generation; fold `Cluster`
   - _Covers: R11 · Depends on: T1, T2 · Verified by: unit tests (pod before node, nodeclaim then node)_
 - [ ] T4. Informers with `NewInformerWithOptions` + pod `Transform` (D3), events tagged with generation
   - _Covers: R11 · Depends on: T3 · Verified by: transform tests incl. Fargate and tombstones_
@@ -39,6 +39,8 @@
 |-----|--------------|-------------|-------------------|------|
 | Baseline (T1) | 500 / 15 000 | 7.7 µs | 1.9 ms | 94 MiB |
 | Baseline (T1) | 500 / 150 000 | 8.2 µs | 29.6 ms | 924 MiB |
+| After T3 (store) | 500 / 15 000 | 8.2 µs | 0.39 ms | — |
+| After T3 (store) | 500 / 150 000 | 17.4 µs | 1.31 ms | — |
 | After (T12) | 500 / 15 000 | unmeasured | unmeasured | unmeasured |
 | After (T12) | 500 / 150 000 | unmeasured | unmeasured | unmeasured |
 
@@ -47,6 +49,11 @@ Measured 2026-10-31 on darwin/arm64 with Go 1.27.3 with
 `-bench Heap -benchtime 1x`. Heap is the model only; the informer cache adds a
 second copy of every pod in the running tool. Render grows 15.7× from 15 000 to
 150 000 pods at the same node count, against R11's 1.2× limit.
+
+After T3 render no longer walks pods; the remaining 3.4× gap is garbage
+collection over the pod objects held in memory (a CPU profile of
+`Render/pods=150000` is mostly `runtime.gcDrain`/`madvise`), which T4's pod
+transform targets.
 
 ## Deferred
 

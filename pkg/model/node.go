@@ -44,15 +44,17 @@ type Node struct {
 	node                  v1.Node
 	pods                  map[objectKey]*Pod
 	used                  v1.ResourceList
+	podsByPhase           map[v1.PodPhase]int
 	price                 float64
 	nodeclaimCreationTime time.Time
 }
 
 func NewNode(n *v1.Node) *Node {
 	node := &Node{
-		node: *n,
-		pods: map[objectKey]*Pod{},
-		used: v1.ResourceList{},
+		node:        *n,
+		pods:        map[objectKey]*Pod{},
+		used:        v1.ResourceList{},
+		podsByPhase: map[v1.PodPhase]int{},
 	}
 
 	return node
@@ -144,23 +146,22 @@ func (n *Node) InstanceID() string {
 	return providerID
 }
 
+// BindPod counts the pod's requests and phase towards the node, replacing a
+// pod bound before under the same key.
 func (n *Node) BindPod(pod *Pod) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	key := objectKey{
-		namespace: pod.Namespace(),
-		name:      pod.Name(),
+	key := pod.key()
+	if old, ok := n.pods[key]; ok {
+		n.unbind(old)
 	}
-	_, alreadyBound := n.pods[key]
 	n.pods[key] = pod
-
-	if !alreadyBound {
-		for rn, q := range pod.Requested() {
-			existing := n.used[rn]
-			existing.Add(q)
-			n.used[rn] = existing
-		}
+	for rn, q := range pod.Requested() {
+		existing := n.used[rn]
+		existing.Add(q)
+		n.used[rn] = existing
 	}
+	n.podsByPhase[pod.Phase()]++
 }
 
 func (n *Node) DeletePod(namespace string, name string) {
@@ -168,14 +169,33 @@ func (n *Node) DeletePod(namespace string, name string) {
 	defer n.mu.Unlock()
 	key := objectKey{namespace: namespace, name: name}
 	if p, ok := n.pods[key]; ok {
-		// subtract the pod requests
-		for rn, q := range p.Requested() {
-			existing := n.used[rn]
-			existing.Sub(q)
-			n.used[rn] = existing
-		}
+		n.unbind(p)
 		delete(n.pods, key)
 	}
+}
+
+// unbind takes the pod's requests and phase back out. Called with the lock held.
+func (n *Node) unbind(p *Pod) {
+	for rn, q := range p.Requested() {
+		existing := n.used[rn]
+		existing.Sub(q)
+		n.used[rn] = existing
+	}
+	phase := p.Phase()
+	if n.podsByPhase[phase]--; n.podsByPhase[phase] <= 0 {
+		delete(n.podsByPhase, phase)
+	}
+}
+
+// AddPodPhasesTo adds the node's pod count per phase to phases and returns the
+// number of pods on the node.
+func (n *Node) AddPodPhasesTo(phases map[v1.PodPhase]int) int {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	for phase, count := range n.podsByPhase {
+		phases[phase] += count
+	}
+	return len(n.pods)
 }
 
 func (n *Node) Allocatable() v1.ResourceList {
@@ -302,6 +322,8 @@ func (n *Node) Deleting() bool {
 	return !n.node.DeletionTimestamp.IsZero()
 }
 
+// Pods lists the pods bound to the node. Callers hold no lock: InstanceType
+// reads it under the node's read lock.
 func (n *Node) Pods() []*Pod {
 	var pods []*Pod
 	for _, p := range n.pods {

@@ -137,9 +137,8 @@ func (m Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) 
 				if !n.DeletionTimestamp.IsZero() && len(n.Finalizers) == 0 {
 					cluster.DeleteNode(n.Spec.ProviderID)
 				} else {
-					node, ok := cluster.GetNode(n.Spec.ProviderID)
+					node, ok := cluster.UpdateNode(n)
 					if ok {
-						node.Update(n)
 						m.updatePrice(node)
 						node.Show()
 					}
@@ -179,13 +178,7 @@ func (m Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
 				if isTerminalPod(p) {
 					cluster.DeletePod(p.Namespace, p.Name)
 				} else {
-					pod, ok := cluster.GetPod(p.Namespace, p.Name)
-					if !ok {
-						cluster.AddPod(model.NewPod(p))
-					} else {
-						pod.Update(p)
-						cluster.AddPod(pod)
-					}
+					cluster.AddPod(model.NewPod(p))
 				}
 			},
 		},

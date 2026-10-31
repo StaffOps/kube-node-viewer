@@ -29,20 +29,32 @@ import (
 type Pod struct {
 	mu  sync.RWMutex
 	pod v1.Pod
+	// requested is computed once per pod object, it is read on every bind and
+	// unbind
+	requested v1.ResourceList
 }
 
 // NewPod constructs a pod model based off of the K8s pod object
 func NewPod(n *v1.Pod) *Pod {
-	return &Pod{
-		pod: *n,
-	}
+	p := &Pod{pod: *n}
+	p.requested = computeRequests(&p.pod)
+	return p
 }
 
-// Update updates the pod model, replacing it with a shallow copy of the provided pod
+// Update updates the pod model, replacing it with a shallow copy of the
+// provided pod. Don't update a pod held by a Cluster: pass Cluster.AddPod a new
+// Pod instead, it needs the old one to take the old requests back out.
 func (p *Pod) Update(pod *v1.Pod) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.pod = *pod
+	p.requested = computeRequests(&p.pod)
+}
+
+func (p *Pod) key() objectKey {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return objectKey{namespace: p.pod.Namespace, name: p.pod.Name}
 }
 
 // IsScheduled returns true if the pod has been scheduled to a node
@@ -80,13 +92,19 @@ func (p *Pod) Phase() v1.PodPhase {
 	return p.pod.Status.Phase
 }
 
-// Requested returns the sum of the resources requested by the pod.
-// Also include resources for init containers that are sidecars as described in
-// https://kubernetes.io/blog/2023/08/25/native-sidecar-containers .
+// Requested returns the sum of the resources requested by the pod. The list is
+// shared, callers must not modify it.
 func (p *Pod) Requested() v1.ResourceList {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	requested := helperResource.PodRequests(&p.pod, helperResource.PodResourcesOptions{
+	return p.requested
+}
+
+// computeRequests sums the pod's requests, including init containers that are
+// sidecars as described in
+// https://kubernetes.io/blog/2023/08/25/native-sidecar-containers .
+func computeRequests(pod *v1.Pod) v1.ResourceList {
+	requested := helperResource.PodRequests(pod, helperResource.PodResourcesOptions{
 		SkipPodLevelResources:       false,
 		SkipContainerLevelResources: false,
 	})
