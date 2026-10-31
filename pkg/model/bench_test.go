@@ -156,7 +156,7 @@ func BenchmarkPodEvent(b *testing.B) {
 	}
 }
 
-// BenchmarkRender is the cost of producing one frame.
+// BenchmarkRender is the cost of a snapshot and one frame.
 func BenchmarkRender(b *testing.B) {
 	for _, pods := range benchPodCounts {
 		b.Run(fmt.Sprintf("pods=%d", pods), func(b *testing.B) {
@@ -164,6 +164,7 @@ func BenchmarkRender(b *testing.B) {
 			populate(m, pods)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
+				m.Refresh()
 				_ = m.View()
 			}
 		})

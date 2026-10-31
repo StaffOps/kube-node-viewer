@@ -18,6 +18,7 @@ package model
 
 import (
 	"sync"
+	"sync/atomic"
 
 	v1 "k8s.io/api/core/v1"
 )
@@ -40,8 +41,12 @@ type Cluster struct {
 	resources          []v1.ResourceName
 }
 
+// generations hands out cluster generations, unique across Cluster instances so
+// a message tagged by one cluster never matches another.
+var generations atomic.Uint64
+
 func NewCluster() *Cluster {
-	c := &Cluster{resources: []v1.ResourceName{v1.ResourceCPU}}
+	c := &Cluster{resources: []v1.ResourceName{v1.ResourceCPU}, generation: generations.Add(1)}
 	c.clear()
 	return c
 }
@@ -66,7 +71,7 @@ func (c *Cluster) Reset() uint64 {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.clear()
-	c.generation++
+	c.generation = generations.Add(1)
 	return c.generation
 }
 

@@ -25,6 +25,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	tea "github.com/charmbracelet/bubbletea"
@@ -105,13 +106,23 @@ func main() {
 	}
 	controller := client.NewController(cs, nodeClaimClient, m, nodeSelector, pprov)
 
-	controller.Start(ctx)
+	// The program exists before the watches start: Send blocks until it runs,
+	// and Start makes a blocking API call, so it runs in its own goroutine.
+	program := tea.NewProgram(m, tea.WithAltScreen())
+	cluster := m.Cluster()
+	controller.SetNotifier(client.NewNotifier(ctx, changeInterval, func() {
+		program.Send(model.ChangedMsg{Gen: cluster.Generation()})
+	}))
+	go controller.Start(ctx)
 
-	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+	if _, err := program.Run(); err != nil {
 		log.Fatalf("error running tea: %s", err)
 	}
 	cancel()
 }
+
+// changeInterval is the most often cluster changes redraw the screen.
+const changeInterval = 100 * time.Millisecond
 
 // labelFilter is a --group-by value: 'label' or 'label=a,b,c'.
 type labelFilter struct {

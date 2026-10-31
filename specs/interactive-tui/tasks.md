@@ -14,7 +14,7 @@
   - _Covers: R11 · Depends on: T1, T2 · Verified by: unit tests (pod before node, nodeclaim then node)_
 - [x] T4. Informers with `NewInformerWithOptions` + pod `Transform` (D3), events tagged with generation
   - _Covers: R11 · Depends on: T3 · Verified by: transform tests incl. Fargate and tombstones_
-- [ ] T5. Program-first wiring, coalescer via `program.Send`, pricing `OnUpdate` notifies, 1 s tick replaces 100 ms
+- [x] T5. Program-first wiring, coalescer via `program.Send`, pricing `OnUpdate` notifies, 1 s tick replaces 100 ms
   - _Covers: R11 · Depends on: T4 · Verified by: unit tests; benchmark rerun_
 - [ ] T6. Derived node facts: capacity type (R7 table), node group, zone, region, IP, status flags
   - _Covers: R3, R7 · Depends on: T3 · Verified by: unit tests_

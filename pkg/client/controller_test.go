@@ -46,7 +46,7 @@ func TestUpdatePriceLabelPrefixes(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			node := model.NewNode(&v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "n", Labels: c.labels}})
-			Controller{pricing: fixedPricing(9)}.updatePrice(node)
+			(&Controller{pricing: fixedPricing(9)}).updatePrice(node)
 			if node.Price() != c.want {
 				t.Errorf("price = %v, want %v", node.Price(), c.want)
 			}

@@ -39,6 +39,8 @@ type Controller struct {
 	pricing         pricing.Provider
 	nodeSelector    labels.Selector
 	nodeClaimClient *rest.RESTClient
+	// notifier, when set, hears about every change to the cluster or prices
+	notifier *Notifier
 }
 
 func NewController(kubeClient *kubernetes.Clientset, nodeClaimClient *rest.RESTClient, uiModel *model.UIModel, nodeSelector labels.Selector, pricing pricing.Provider) *Controller {
@@ -53,7 +55,12 @@ func NewController(kubeClient *kubernetes.Clientset, nodeClaimClient *rest.RESTC
 	return c
 }
 
-func (m Controller) Start(ctx context.Context) {
+// SetNotifier makes the controller report changes to n. Set it before Start.
+func (m *Controller) SetNotifier(n *Notifier) {
+	m.notifier = n
+}
+
+func (m *Controller) Start(ctx context.Context) {
 	cluster := m.uiModel.Cluster()
 
 	m.startPodWatch(ctx, cluster)
@@ -65,7 +72,7 @@ func (m Controller) Start(ctx context.Context) {
 	}
 }
 
-func (m Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Cluster) {
+func (m *Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Cluster) {
 	nodeClaimWatchList := cache.NewFilteredListWatchFromClient(m.nodeClaimClient, "nodeclaims",
 		v1.NamespaceAll, func(options *metav1.ListOptions) {
 			options.LabelSelector = m.nodeSelector.String()
@@ -76,6 +83,7 @@ func (m Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clus
 		Transform:     slimNodeClaim,
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				nc := obj.(*karpv1.NodeClaim)
 				if nc.Status.ProviderID == "" {
 					return
@@ -89,9 +97,11 @@ func (m Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clus
 				n.Show()
 			},
 			DeleteFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				cluster.DeleteNode(ignoreDeletedFinalStateUnknown(obj).(*karpv1.NodeClaim).Status.ProviderID)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
+				defer m.notifier.Changed()
 				nc := newObj.(*karpv1.NodeClaim)
 				if nc.Status.ProviderID == "" {
 					return
@@ -109,7 +119,7 @@ func (m Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clus
 	go nodeClaimController.Run(ctx.Done())
 }
 
-func (m Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) {
+func (m *Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) {
 	nodeWatchList := cache.NewFilteredListWatchFromClient(m.kubeClient.CoreV1().RESTClient(), "nodes",
 		v1.NamespaceAll, func(options *metav1.ListOptions) {
 			options.LabelSelector = m.nodeSelector.String()
@@ -120,6 +130,7 @@ func (m Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) 
 		Transform:     slimNode,
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				node := model.NewNode(obj.(*v1.Node))
 				if node.ProviderID() == "" {
 					return
@@ -129,9 +140,11 @@ func (m Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) 
 				n.Show()
 			},
 			DeleteFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				cluster.DeleteNode(ignoreDeletedFinalStateUnknown(obj).(*v1.Node).Spec.ProviderID)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
+				defer m.notifier.Changed()
 				n := newObj.(*v1.Node)
 				if !n.DeletionTimestamp.IsZero() && len(n.Finalizers) == 0 {
 					cluster.DeleteNode(n.Spec.ProviderID)
@@ -148,7 +161,7 @@ func (m Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) 
 	go nodeController.Run(ctx.Done())
 }
 
-func (m Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
+func (m *Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
 	podWatchList := cache.NewListWatchFromClient(m.kubeClient.CoreV1().RESTClient(), "pods",
 		v1.NamespaceAll, fields.Everything())
 
@@ -158,6 +171,7 @@ func (m Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
 		Transform:     SlimPod,
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				p := obj.(*v1.Pod)
 				if !isTerminalPod(p) {
 					cluster.AddPod(model.NewPod(p))
@@ -169,10 +183,12 @@ func (m Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				p := ignoreDeletedFinalStateUnknown(obj).(*v1.Pod)
 				cluster.DeletePod(p.Namespace, p.Name)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
+				defer m.notifier.Changed()
 				p := newObj.(*v1.Pod)
 				if isTerminalPod(p) {
 					cluster.DeletePod(p.Namespace, p.Name)
@@ -185,7 +201,7 @@ func (m Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
 	go podController.Run(ctx.Done())
 }
 
-func (m Controller) updatePrice(node *model.Node) {
+func (m *Controller) updatePrice(node *model.Node) {
 	// If the node has the instance-price override label, don't look up pricing
 	// and use the value here. The new prefix wins over the upstream one, and a
 	// value that doesn't parse falls through to the next source.
@@ -206,10 +222,11 @@ func (m Controller) updatePrice(node *model.Node) {
 
 }
 
-func (m Controller) RefreshNodePrices() {
+func (m *Controller) RefreshNodePrices() {
 	m.uiModel.Cluster().ForEachNode(func(n *model.Node) {
 		m.updatePrice(n)
 	})
+	m.notifier.Changed()
 }
 
 // isTerminalPod returns true if the pod is deleting or in a terminal state
