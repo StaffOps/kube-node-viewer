@@ -207,7 +207,7 @@ func (m Controller) updatePrice(node *model.Node) {
 		}
 	}
 	// lookup our n price
-	node.Price = math.NaN()
+	node.SetPrice(math.NaN())
 	if price, ok := m.pricing.NodePrice(node); ok {
 		node.SetPrice(price)
 	}

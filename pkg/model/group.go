@@ -72,7 +72,7 @@ func GroupNodes(nodes []*Node, label string) []GroupStats {
 		n.AddAllocatableTo(group.AllocatableResources)
 		n.AddUsedTo(group.UsedResources)
 		if n.HasPrice() {
-			group.TotalPrice += n.Price
+			group.TotalPrice += n.Price()
 			group.PricedNodes++
 		}
 	}

@@ -8,7 +8,7 @@
   - _Covers: — · Depends on: — · Verified by: review date in the spec header_
 - [x] T1. Benchmark harness on a synthetic store; record baseline numbers below
   - _Covers: R11 · Depends on: T0 · Verified by: `go test -bench . ./pkg/model/...` output below_
-- [ ] T2. Fix `SetPrice` and `GetPod` locking
+- [x] T2. Fix `SetPrice` and `GetPod` locking
   - _Covers: R11 · Depends on: T0 · Verified by: `go test -race`_
 - [ ] T3. Indexed store with per-node totals, pending pods by node name, generation; fold `Cluster`
   - _Covers: R11 · Depends on: T1, T2 · Verified by: unit tests (pod before node, nodeclaim then node)_
@@ -42,7 +42,7 @@
 | After (T12) | 500 / 15 000 | unmeasured | unmeasured | unmeasured |
 | After (T12) | 500 / 150 000 | unmeasured | unmeasured | unmeasured |
 
-Measured 2026-10-31 on an Apple M-series laptop (darwin/arm64, Go 1.27.3) with
+Measured 2026-10-31 on darwin/arm64 with Go 1.27.3 with
 `go test -run x -bench 'PodEvent|Render' -benchtime 2s ./pkg/model/` and
 `-bench Heap -benchtime 1x`. Heap is the model only; the informer cache adds a
 second copy of every pod in the running tool. Render grows 15.7× from 15 000 to

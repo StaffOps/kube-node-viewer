@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local gate before every commit: gofmt, go vet, go test, spec lint.
+# Local gate before every commit: gofmt, go vet, go test -race, spec lint.
 # `hack/` is excluded: several upstream main packages share that directory.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -18,9 +18,9 @@ echo "==> go vet"
 # shellcheck disable=SC2086
 go vet $PKGS
 
-echo "==> go test"
+echo "==> go test -race"
 # shellcheck disable=SC2086
-go test $PKGS
+go test -race $PKGS
 
 echo "==> spec lint"
 scripts/spec-lint.sh
