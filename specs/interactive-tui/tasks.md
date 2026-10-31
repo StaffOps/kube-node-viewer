@@ -24,7 +24,7 @@
   - _Covers: R3, R4, R5, R6, R14 · Depends on: T6 · Verified by: unit tests_
 - [ ] T9. Flag table (D8) with explicit-flag detection; per-cluster state file, debounced atomic writer
   - _Covers: R1, R2, R15 · Depends on: T8 · Verified by: one test per flag-table row; state tests_
-- [ ] T10. Key routing, help (`?`), header line, pagination by lines; drop pod counts from the screen; Filters panel (`f`)
+- [ ] T10. Key routing, help (`?`), header line, pagination by lines; Filters panel (`f`)
   - _Covers: R3, R12, R14 · Depends on: T8 · Verified by: key-driven tests_
 - [ ] T10b. Group by (`g`), Sort (`s`), Columns (`o`) panels; `/` search; `r`; `n`
   - _Covers: R4, R5, R6, R7, R9, R13 · Depends on: T10 · Verified by: key-driven tests_
