@@ -193,7 +193,7 @@ func (u *UIModel) helpText() string {
 	case panelViews:
 		return u.viewsPanel.hint()
 	}
-	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context • v: views"
+	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context • v: views • e: export"
 	if len(u.view.GroupBy) > 0 {
 		keys += " • enter: fold group • n: fold"
 	}

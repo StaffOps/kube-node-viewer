@@ -103,6 +103,7 @@ func main() {
 	m.Connect(first)
 	m.SetSwitcher(conn)
 	m.SetViews(namedViews{states, saver})
+	m.SetExportFallback(filepath.Dir(state.DefaultPath(homeDir)))
 
 	// from here the TUI owns the terminal: client-go and pricing messages go
 	// to a file, and the header shows the latest one

@@ -87,6 +87,9 @@ type UIModel struct {
 	// notice is a short footer message, shown until noticeUntil
 	notice      string
 	noticeUntil time.Time
+	// exportFallback is where exports go when the current directory is not
+	// writable
+	exportFallback string
 	// cursor: the selected row (a group heading or a node) by key, the path
 	// when it is a group, a pending move, and the selected lines of the last
 	// frame (content line numbers, -1 when none)
@@ -483,6 +486,9 @@ func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case NoticeMsg:
 		u.notify(msg.Text)
 		return u, nil
+	case exportDoneMsg:
+		u.exported(msg)
+		return u, nil
 	case switchedMsg:
 		return u, u.switched(msg)
 	case tickMsg:
@@ -531,6 +537,8 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return u.openContexts()
 	case "v":
 		u.openViews()
+	case "e":
+		return u.export()
 	case "esc":
 		// esc in the main view clears a kept search
 		u.view.Search = ""
