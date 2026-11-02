@@ -152,6 +152,8 @@ With `ctrl+e` the header shrinks to two lines:
 | `n` | Fold one level per press when grouping: the nodes, then each sub-group level down to the top level; the next press unfolds all |
 | `d` | While folded: list the next group level under each group as one-line rows, or hide them |
 | `c` | Switch to another kubeconfig context |
+| `v` | Named views: apply one, save the current view under a name, delete |
+| `e` | Export the nodes on screen to CSV and JSON |
 | `ctrl+e` | Compact or expand the header |
 | `←`/`→`, `h`/`l`, `home` | Previous / next / first page |
 | `?` | All keys and colours |
@@ -173,7 +175,9 @@ Every field is listed (`capacity`, `nodegroup`, `zone`, `region`,
 already filtered first. `enter` (or `→`) opens a field in place and lists its
 values with the number of nodes having each; `space` ticks a value and the
 list filters at once. On a field row, `space` turns its filter off and on
-without losing the values, and `d` clears it. `←` or `esc` folds the field.
+without losing the values, `x` switches it between keeping and excluding
+the ticked values (`capacity≠Spot` keeps every node but Spot ones), and `d`
+clears it. `←` or `esc` folds the field.
 
 Values of one field combine with OR, fields with AND: `capacity ∈ {Spot}` and
 `zone ∈ {us-east-1a, us-east-1b}` keeps spot nodes in either zone. A status
@@ -228,6 +232,29 @@ Shown columns first, in screen order, then the others and every label.
 `space` shows or hides the column under the cursor (a new one goes at the
 end) and `K`/`J` move it left or right.
 
+### Views (`v`)
+
+![Views popup](.static/views.png)
+
+Named views are saved combinations of filters, group-by, folding, sort,
+resources and columns, shared by every cluster. `enter` applies one (it
+becomes the cluster's view, saved as usual), `d` deletes it, and
+`+ save current view as…` asks for a name: type it, `enter` saves, `esc`
+cancels. Saving under an existing name replaces it. A named view leaves out
+the search text, groups folded one by one and the header size.
+
+### Export (`e`)
+
+`e` writes every node the filters and search keep (all pages, folded groups
+included) to `kube-node-viewer-<context>-<YYYYMMDD-HHMMSS>.csv` and `.json`
+in the current directory, or next to the state file when the current
+directory is not writable; the footer says where. The CSV has one row per
+node: name, group path, instance type, capacity, node group, zone, region,
+IP, status, age, pods, requested / allocatable / percent per resource, price
+per hour, price kind (`actual`, `equivalent`, `unknown`, `disabled`) and the
+label columns you picked. The JSON adds the view, the totals of the exported
+nodes and of the cluster, the context and the time.
+
 ### Context (`c`)
 
 ![Context popup](.static/contexts.png)
@@ -241,7 +268,8 @@ stays in the panel and the current cluster keeps running.
 ## Saved view per cluster
 
 Filters, group-by, sort, resources, columns, folding depth, details, folded
-groups and the header size are saved per cluster (context name plus API server URL, since
+groups and the header size are saved per cluster, and named views (`v`) for
+all of them, (context name plus API server URL, since
 merged kubeconfigs can repeat context names) in
 `$XDG_STATE_HOME/kube-node-viewer/state.json`, by default
 `~/.local/state/kube-node-viewer/state.json`. Writes are batched and atomic,
