@@ -84,12 +84,6 @@ All notable changes to this project are documented here. Format:
 
 - AWS Homebrew tap tooling (`hack/homebrew.go`) and the Amazon code of conduct.
 
-### Deprecated
-
-- The `eks-node-viewer/` label prefix and `~/.eks-node-viewer` config file.
-  Both still work; `kube-node-viewer/` and `~/.kube-node-viewer` take
-  precedence.
-
 ### Fixed
 
 - A node's price is read and written under its lock; a pod seen before its
