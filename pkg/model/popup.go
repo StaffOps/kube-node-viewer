@@ -38,9 +38,19 @@ type panelView struct {
 	title  string
 	rows   []string
 	cursor int
+	// hint is the panel's keys, shown at the bottom of the box
+	hint string
 }
 
 func (u *UIModel) panelView() (panelView, bool) {
+	p, ok := u.panelContent()
+	if ok {
+		p.hint = u.helpText()
+	}
+	return p, ok
+}
+
+func (u *UIModel) panelContent() (panelView, bool) {
 	switch u.panel {
 	case panelHelp:
 		return u.helpPanel(), true
@@ -66,13 +76,16 @@ func (u *UIModel) popup(p panelView, height int) []string {
 	for _, r := range p.rows {
 		inner = max(inner, textWidth(r))
 	}
-	inner = max(inner, textWidth(p.title)+2)
+	inner = max(inner, textWidth(p.title)+2, textWidth(p.hint))
 	if u.width > 0 {
 		inner = min(inner, u.width-6)
 	}
 	inner = max(inner, 1)
 
 	visible := max(height-2, 1)
+	if p.hint != "" {
+		visible = max(height-4, 1)
+	}
 	start, end := window(len(p.rows), max(p.cursor, 0), visible)
 
 	title := " " + titleStyle(ansi.Truncate(p.title, inner-1, "…")) + " "
@@ -94,7 +107,26 @@ func (u *UIModel) popup(p panelView, height int) []string {
 		}
 		lines = append(lines, popupBorder("│")+" "+row+"\x1b[0m "+popupBorder("│"))
 	}
+	if p.hint != "" {
+		lines = append(lines,
+			popupBorder("├"+strings.Repeat("─", inner+2)+"┤"),
+			popupBorder("│")+" "+pad(keyHint(ansi.Truncate(p.hint, inner, "…")), inner)+"\x1b[0m "+popupBorder("│"))
+	}
 	return append(lines, bottom)
+}
+
+// keyHint shows "key: action • key: action" with the keys in bold and the
+// actions dimmed.
+func keyHint(hint string) string {
+	parts := strings.Split(hint, " • ")
+	for i, part := range parts {
+		if key, action, ok := strings.Cut(part, ": "); ok {
+			parts[i] = headerKey(key) + helpStyle(": "+action)
+		} else {
+			parts[i] = helpStyle(part)
+		}
+	}
+	return strings.Join(parts, helpStyle(" • "))
 }
 
 // overlay draws the box over the body, centred, one line below the body's
