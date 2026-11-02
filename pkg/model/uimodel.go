@@ -324,7 +324,9 @@ func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		u.width, u.height = msg.Width, msg.Height
-		return u, nil
+		// the terminal has already reflowed the old frame for the new size;
+		// redraw from a clean screen or its leftovers stay below the new one
+		return u, tea.ClearScreen
 	case ChangedMsg:
 		if msg.Gen != u.gen {
 			return u, nil
