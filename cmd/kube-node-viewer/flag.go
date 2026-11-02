@@ -59,6 +59,12 @@ type Flags struct {
 	DisablePricing  bool
 	ShowAttribution bool
 	Version         bool
+
+	// Explicit holds the flags given on the command line, by name, as typed.
+	// They win over saved view state for this run only (design D8).
+	Explicit map[string]string
+	// Config is the config file, a standing default below saved state.
+	Config configFile
 }
 
 func ParseFlags() (Flags, error) {
@@ -83,10 +89,10 @@ func ParseFlags() (Flags, error) {
 	flagSet.StringVar(&flags.ExtraLabels, "extra-labels", extraLabelsDefault, "A comma separated set of extra node labels to display")
 
 	groupByDefault := cfg.getValue("group-by", "")
-	flagSet.StringVar(&flags.GroupBy, "group-by", groupByDefault, "Node label to summarize usage and cost by, optionally restricted to a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. If empty no summary is displayed")
+	flagSet.StringVar(&flags.GroupBy, "group-by", groupByDefault, "Node label to summarize usage and cost by, optionally with a filter on a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. Applies to this run; the last view chosen in the TUI is restored per cluster")
 
 	groupsOnlyDefault := cfg.getBoolValue("groups-only", false)
-	flagSet.BoolVar(&flags.GroupsOnly, "groups-only", groupsOnlyDefault, "Start with the individual node list hidden, leaving only the --group-by summary. The summary is toggled at runtime with 'g' and the node list with 'n'")
+	flagSet.BoolVar(&flags.GroupsOnly, "groups-only", groupsOnlyDefault, "Start with the individual node list hidden, leaving only the --group-by summary. The node list is toggled at runtime with 'n'")
 
 	nodeSort := cfg.getValue("node-sort", "creation=dsc")
 	flagSet.StringVar(&flags.NodeSort, "node-sort", nodeSort, "Sort order for the nodes, either 'creation' or a label name. The sort order defaults to ascending and can be controlled by appending =asc or =dsc to the value.")
@@ -109,6 +115,11 @@ func ParseFlags() (Flags, error) {
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		return Flags{}, err
 	}
+	flags.Explicit = map[string]string{}
+	flagSet.Visit(func(f *flag.Flag) {
+		flags.Explicit[f.Name] = f.Value.String()
+	})
+	flags.Config = cfg
 	return flags, nil
 }
 

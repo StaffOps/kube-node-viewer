@@ -30,11 +30,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	tea "github.com/charmbracelet/bubbletea"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 
 	"github.com/staffops/kube-node-viewer/pkg/aws"
 	"github.com/staffops/kube-node-viewer/pkg/client"
 	"github.com/staffops/kube-node-viewer/pkg/model"
+	"github.com/staffops/kube-node-viewer/pkg/state"
 )
 
 //go:generate cp -r ../../ATTRIBUTION.md ./
@@ -80,20 +80,33 @@ func main() {
 	if err != nil {
 		log.Fatalf("creating style, %s", err)
 	}
-	m := model.NewUIModel(strings.Split(flags.ExtraLabels, ","), flags.NodeSort, style)
-	m.DisablePricing = flags.DisablePricing
-	m.SetResources(strings.FieldsFunc(flags.Resources, func(r rune) bool { return r == ',' }))
-	if flags.GroupBy != "" {
-		groupBy, err := parseLabelFilter(flags.GroupBy)
-		if err != nil {
-			log.Fatalf("parsing group-by: %s", err)
-		}
-		m.SetGrouping(groupBy.label, flags.GroupsOnly)
+	clusterKey, err := client.ClusterKey(flags.Kubeconfig, flags.Context)
+	if err != nil {
+		log.Fatalf("reading kubeconfig, %s", err)
 	}
-
-	nodeSelector, err := buildNodeSelector(flags.NodeSelector, flags.GroupBy)
+	// a bad state file is reported here, before the TUI takes the screen
+	states := state.Load(state.DefaultPath(homeDir), os.Stderr)
+	var saved *model.ViewState
+	if v, ok := states.Get(clusterKey); ok {
+		saved = &v
+	}
+	view, err := resolveView(flags.Config, saved, flags.Explicit)
 	if err != nil {
 		log.Fatalf("%s", err)
+	}
+
+	m := model.NewUIModel(style)
+	m.DisablePricing = flags.DisablePricing
+	m.SetView(view)
+	saver := state.NewSaver(states, stateSaveDelay, func(error) {
+		// the TUI has the screen; a failed save only loses the last choice
+	})
+	defer saver.Close()
+	m.OnViewChange(func(v model.ViewState) { saver.Save(clusterKey, v) })
+
+	nodeSelector, err := labels.Parse(flags.NodeSelector)
+	if err != nil {
+		log.Fatalf("parsing node selector: %s", err)
 	}
 
 	if !flags.DisablePricing {
@@ -115,11 +128,16 @@ func main() {
 	}))
 	go controller.Start(ctx)
 
-	if _, err := program.Run(); err != nil {
+	_, err = program.Run()
+	cancel()
+	if err != nil {
+		saver.Close()
 		log.Fatalf("error running tea: %s", err)
 	}
-	cancel()
 }
+
+// stateSaveDelay batches view changes made in quick succession into one write.
+const stateSaveDelay = 500 * time.Millisecond
 
 // changeInterval is the most often cluster changes redraw the screen.
 const changeInterval = 100 * time.Millisecond
@@ -142,31 +160,4 @@ func parseLabelFilter(s string) (labelFilter, error) {
 		}
 	}
 	return filter, nil
-}
-
-// buildNodeSelector combines --node-selector with the values listed in --group-by.
-// A --group-by without values only says how to aggregate and leaves the selection
-// alone, keeping nodes without the label visible in their own group.
-func buildNodeSelector(nodeSelector string, groupBy string) (labels.Selector, error) {
-	selector, err := labels.Parse(nodeSelector)
-	if err != nil {
-		return nil, fmt.Errorf("parsing node selector: %w", err)
-	}
-	if strings.TrimSpace(groupBy) == "" {
-		return selector, nil
-	}
-
-	filter, err := parseLabelFilter(groupBy)
-	if err != nil {
-		return nil, err
-	}
-	if len(filter.values) == 0 {
-		return selector, nil
-	}
-
-	req, err := labels.NewRequirement(filter.label, selection.In, filter.values)
-	if err != nil {
-		return nil, fmt.Errorf("building selector for label %q: %w", filter.label, err)
-	}
-	return selector.Add(*req), nil
 }

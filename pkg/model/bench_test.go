@@ -132,7 +132,7 @@ func newBenchUI(b *testing.B) *model.UIModel {
 	if err != nil {
 		b.Fatal(err)
 	}
-	m := model.NewUIModel(nil, "creation=dsc", style)
+	m := model.NewUIModel(style)
 	m.SetResources([]string{"cpu", "memory"})
 	m.Update(tea.WindowSizeMsg{Width: 200, Height: 60})
 	return m
