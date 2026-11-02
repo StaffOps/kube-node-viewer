@@ -17,6 +17,8 @@ limitations under the License.
 package client
 
 import (
+	"regexp"
+	"sort"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -100,4 +102,30 @@ func ResolveCluster(kubeconfig, context string) (Cluster, error) {
 		}
 	}
 	return c, nil
+}
+
+// Contexts lists the kubeconfig's context names, sorted, and the current one.
+func Contexts(kubeconfig string) (names []string, current string, err error) {
+	raw, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{Precedence: strings.Split(kubeconfig, ":")},
+		&clientcmd.ConfigOverrides{}).RawConfig()
+	if err != nil {
+		return nil, "", err
+	}
+	for name := range raw.Contexts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, raw.CurrentContext, nil
+}
+
+var eksServerRegion = regexp.MustCompile(`\.([a-z]{2}(?:-gov)?-[a-z]+-\d+)\.eks\.amazonaws\.com`)
+
+// RegionFromServer is the AWS region in an EKS API server URL
+// (https://<id>.gr7.us-east-1.eks.amazonaws.com), empty for any other server.
+func RegionFromServer(server string) string {
+	if m := eksServerRegion.FindStringSubmatch(server); m != nil {
+		return m[1]
+	}
+	return ""
 }

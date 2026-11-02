@@ -28,7 +28,7 @@
   - _Covers: R3, R12, R14, R16 · Depends on: T8 · Verified by: key-driven tests_
 - [x] T10b. Group by (`g`), Sort (`s`), Columns (`o`) panels; `/` search; `r`; `n`
   - _Covers: R4, R5, R6, R7, R9, R13 · Depends on: T10 · Verified by: key-driven tests_
-- [ ] T11. Context picker (`c`): stop watches, bump generation, clear store, restart in a `tea.Cmd`, load state, re-scope pricing region
+- [x] T11. Context picker (`c`): stop watches, bump generation, clear store, restart in a `tea.Cmd`, load state, re-scope pricing region
   - _Covers: R10 · Depends on: T5, T9 · Verified by: tests with fake clients; manual on two contexts_
 - [ ] T12. Benchmark rerun recorded below; README (keys, panels, state file, `g`/`esc` changes) and CHANGELOG
   - _Covers: R11, R12 · Depends on: T1–T11 · Verified by: numbers below; review_
