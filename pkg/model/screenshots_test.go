@@ -88,8 +88,14 @@ func demoUI(t *testing.T) *UIModel {
 			Spec:       v1.NodeSpec{ProviderID: fmt.Sprintf("aws:///%s/i-0demo%02d", d.zone, i), Unschedulable: d.cordoned},
 			Status: v1.NodeStatus{
 				Allocatable: v1.ResourceList{v1.ResourceCPU: allocCPU, v1.ResourceMemory: allocMem, v1.ResourcePods: resource.MustParse("58")},
-				Addresses:   []v1.NodeAddress{{Type: v1.NodeInternalIP, Address: fmt.Sprintf("10.0.%d.%d", 11+i%3, 10+i*7)}},
-				Conditions:  []v1.NodeCondition{{Type: v1.NodeReady, Status: v1.ConditionTrue}},
+				// whole cores and the memory kubelet and the OS keep back
+				Capacity: v1.ResourceList{
+					v1.ResourceCPU:    *resource.NewQuantity((allocCPU.MilliValue()+999)/1000, resource.DecimalSI),
+					v1.ResourceMemory: *resource.NewQuantity(allocMem.Value()+allocMem.Value()/8, resource.BinarySI),
+					v1.ResourcePods:   resource.MustParse("58"),
+				},
+				Addresses:  []v1.NodeAddress{{Type: v1.NodeInternalIP, Address: fmt.Sprintf("10.0.%d.%d", 11+i%3, 10+i*7)}},
+				Conditions: []v1.NodeCondition{{Type: v1.NodeReady, Status: v1.ConditionTrue}},
 			},
 		})
 		u.cluster.AddNode(n).Show()
@@ -170,6 +176,10 @@ func TestScreenshots(t *testing.T) {
 			u.advisor = fakeAdvisor{}
 			u.SetRecommendOptions(RecommendOptions{Headroom: 0.8, OldAge: 30 * 24 * time.Hour})
 			pressAll(u, "tab", "down", "down", "enter")
+		}},
+		{"node-details", 168, 52, func(u *UIModel) {
+			u.View()
+			press(u, "down", "down", "enter")
 		}},
 		// tall enough to start with the full panel, which ctrl+e compacts
 		{"header-compact", 168, 30, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},

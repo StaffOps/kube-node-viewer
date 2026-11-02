@@ -22,6 +22,8 @@ All notable changes to this project are documented here. Format:
 - `IDLE/H` column, sort by idle cost and idle cost in group headings.
 - An instance catalog generated from the AWS Price List (`hack/catalog`).
 - Config keys `recommend-headroom` and `recommend-node-age`.
+- Node details (`enter` on a node): instance, price, system, resources as
+  requested / allocatable / capacity, conditions, taints and labels, live.
 - AKS node prices from the public Azure Retail Prices API (pay-as-you-go,
   Spot and Windows meters), no Azure login needed.
 

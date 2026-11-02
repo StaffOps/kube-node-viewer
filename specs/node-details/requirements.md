@@ -1,0 +1,58 @@
+# Requirements: node-details
+
+> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-02 (owner)
+
+## Context
+
+The node list shows one line of facts per node. To see why a node holds
+pods, won't take one, or costs what it does, the owner leaves the viewer for
+`kubectl describe node`. A popup over the selected node answers that in place.
+Pods are left out: the list already counts them, and `kubectl` lists them.
+
+## Usage example
+
+```text
+↓ ↓ (cursor on ip-10-200-33-27.ec2.internal) → enter
+╭─ ip-10-200-33-27.ec2.internal ───────────────────────────╮
+│ Instance     r6g.large · OnDemand · $0.1008/h            │
+│ Node group   elasticsearch-sz                            │
+│ Zone         us-east-1a (us-east-1)                      │
+│ Status       Ready · age 2d5h · created 2026-10-31 15:23 │
+│ …                                                        │
+│ Resources    requested / allocatable / capacity          │
+│   cpu        1820m / 1930m (94%) / 2                     │
+│ Conditions                                               │
+│   Ready      True   KubeletReady                         │
+│ Taints       dedicated=elasticsearch:NoSchedule          │
+│ Labels (24)                                              │
+│   kubernetes.io/arch=arm64                               │
+├──────────────────────────────────────────────────────────┤
+│ ↑/↓: scroll • esc: close                                 │
+╰─────────────────────────────────────────── 1-20 of 52 ───╯
+```
+
+## Requirements
+
+**R1** WHEN the cursor is on a node row and the user presses `enter` THEN the
+system SHALL open a popup with that node's details; `enter` on a group
+heading still folds it.
+
+- [x] Sections: instance (type, capacity, price), node group, zone and
+  region, status (flags, age, creation time), system (kubelet, OS image,
+  kernel, architecture, runtime), provider ID and internal IP, resources
+  (requested / allocatable / capacity for cpu, memory, pods, ephemeral
+  storage and any extended resource such as `nvidia.com/gpu`), conditions
+  (type, status, reason; a condition in its bad state in red), taints, labels
+  sorted by key.
+- [x] The popup follows the live node: values update as the cluster changes;
+  a node that goes away says so instead of closing.
+- [x] `↑/↓` (`k/j`) scroll, `home` goes to the top, `esc` or `enter` closes.
+
+## Counter-examples
+
+- MUST NOT list pods or annotations (annotations are noise, often large).
+- MUST NOT call the API server: everything comes from the watched node.
+
+## Out of scope
+
+Editing labels or taints, cordon/drain, events.

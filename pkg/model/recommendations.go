@@ -60,7 +60,7 @@ func (u *UIModel) recKey() string {
 // input changed. The input is built here, on the UI goroutine, from the
 // snapshot; the rules run in the command (R3).
 func (u *UIModel) maybeAnalyze() tea.Cmd {
-	if !u.onRecommendations() || u.advisor == nil || u.recPending {
+	if !u.onRecommendations() || u.advisor == nil || u.recPending || u.shownCloud() != "aws" {
 		return nil
 	}
 	key := u.recKey()
@@ -132,11 +132,11 @@ func (u *UIModel) recommendationsBody(height int) (lines []string, selFrom, selT
 	if u.advisor == nil {
 		return []string{"Recommendations need the instance catalog; not available here."}, selFrom, selTo
 	}
-	if u.recFor == "" {
-		return []string{"Working out recommendations…"}, selFrom, selTo
-	}
 	if cloud := u.shownCloud(); cloud != "aws" {
 		return []string{"Recommendations cover EKS nodes only for now; the nodes shown run on " + cloudName(cloud) + "."}, selFrom, selTo
+	}
+	if u.recFor == "" {
+		return []string{"Working out recommendations…"}, selFrom, selTo
 	}
 	r := u.recs
 	saving := "—"
@@ -221,6 +221,10 @@ func cloudName(scheme string) string {
 // recsKey handles keys on the Recommendations screen; Overview-only keys do
 // nothing there (R3).
 func (u *UIModel) recsKey(key string) {
+	if u.shownCloud() != "aws" {
+		// the screen only says the rules cover EKS: nothing to select
+		return
+	}
 	switch key {
 	case "up", "k":
 		if u.recCursor > 0 {
