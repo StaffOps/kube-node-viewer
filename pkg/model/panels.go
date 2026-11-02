@@ -66,6 +66,8 @@ var helpKeys = [][2]string{
 	{"r", "resources: cpu → memory → cpu+memory"},
 	{"c", "switch to another kubeconfig context"},
 	{"d", "folded: list the next group level as one-line rows"},
+	{"↑/↓ k/j", "select a group or node (marked in the left margin)"},
+	{"enter", "fold or unfold the selected group on its own"},
 	{"n", "fold one level per press: nodes, then each sub-group level; then unfold all"},
 	{"←/→ h/l", "previous / next page"},
 	{"home", "first page"},

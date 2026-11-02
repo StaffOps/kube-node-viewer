@@ -81,6 +81,13 @@ type UIModel struct {
 	columns  columnsPanel
 	contexts contextsPanel
 	switcher Switcher
+	// cursor: the selected row (a group heading or a node) by key, the path
+	// when it is a group, a pending move, and the selected lines of the last
+	// frame (content line numbers, -1 when none)
+	cursorKey      string
+	cursorPath     []string
+	cursorDelta    int
+	selFrom, selTo int
 	// searching is true while the search text takes the keys
 	searching bool
 	// customResources is a resource list other than cpu, memory or both,
@@ -241,6 +248,7 @@ func (u *UIModel) OnViewChange(f func(ViewState)) {
 // setView applies a change the user made and reports it for saving.
 func (u *UIModel) setView(v ViewState) {
 	u.view = v
+	u.dirty = true
 	if len(u.view.GroupBy) == 0 {
 		u.view.ShowNodes = true
 	}
@@ -268,6 +276,26 @@ func (u *UIModel) toggleNodes() {
 		v.ShowNodes, v.GroupDepth = true, 0
 	}
 	u.setView(v)
+}
+
+// toggleGroupAtCursor folds or unfolds the group under the cursor on its own
+// (R17); on a node it does nothing. The page stays where it is.
+func (u *UIModel) toggleGroupAtCursor() {
+	if u.cursorDelta != 0 {
+		// keys can arrive faster than frames: lay out once so the pending
+		// move lands on its row before acting on it
+		u.dirty = true
+		u.View()
+	}
+	if u.cursorPath == nil {
+		return
+	}
+	v := u.view
+	v.Collapsed = append([]string(nil), v.Collapsed...)
+	v.ToggleCollapsed(u.cursorPath)
+	page := u.page
+	u.setView(v)
+	u.page = page
 }
 
 // canShowDetails tells whether a level is hidden below the barred one, which
@@ -479,6 +507,12 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		u.toggleNodes()
 	case "d":
 		u.toggleDetails()
+	case "up", "k":
+		u.cursorDelta--
+	case "down", "j":
+		u.cursorDelta++
+	case "enter", " ":
+		u.toggleGroupAtCursor()
 	case "right", "l", "pgdown":
 		u.page++
 	case "left", "h", "pgup":

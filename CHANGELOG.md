@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- A row cursor (`↑`/`↓`, `k`/`j`) over group headings and nodes, marked in the
+  left margin; `enter` folds or unfolds the selected group on its own, saved
+  with the view.
+
 ### Fixed
 
 - Errors from the Kubernetes client or pricing no longer print over the TUI:
