@@ -20,7 +20,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    named views (`v`), export of the screen to CSV and JSON (`e`).
    [requirements](views-and-export/requirements.md) ·
    [design](views-and-export/design.md) · [tasks](views-and-export/tasks.md)
-4. [`recommendations/`](recommendations/) — **draft**. A Recommendations
+4. [`recommendations/`](recommendations/) — **active**. A Recommendations
    page next to Overview, reached with `:` or `tab`: idle cost,
    consolidation, rightsizing, newer generation, Graviton, old nodes, Spot
    last; rules, no AI.
