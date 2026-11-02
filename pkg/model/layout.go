@@ -146,6 +146,9 @@ func (u *UIModel) helpText() string {
 	if len(u.view.GroupBy) > 0 {
 		keys += " • n: fold"
 	}
+	if u.canShowDetails() {
+		keys += " • d: details"
+	}
 	return keys + " • ?: help • q: quit"
 }
 
@@ -188,12 +191,26 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 	var blocks []block
 	groups := u.view.Groups(nodes)
 	// with the node list hidden the groups carry their own usage bars
+	// Folded, the deepest level shown carries the usage bars and the levels
+	// above it are one-line summaries. With details on (d), the level below
+	// the barred one follows as one-line rows.
 	depth := u.view.VisibleDepth()
-	var collapsed map[*Group][]string
-	if table == nil {
-		collapsed = u.groupTable(groups, depth)
+	shownDepth := depth
+	if u.canShowDetails() && u.view.Details {
+		shownDepth = depth + 1
 	}
-	tree := treeOf(groups, depth)
+	tree := treeOf(groups, shownDepth)
+	var barred map[*Group][]string
+	if table == nil {
+		barred = u.groupTable(groups, tree, depth)
+	}
+	// one-line headings line up their name, node and pod columns
+	var cols groupLineWidths
+	for g := range tree {
+		if _, ok := barred[g]; !ok {
+			cols.fit(u, g, tree[g])
+		}
+	}
 	var walk func(groups []*Group)
 	walk = func(groups []*Group) {
 		for _, g := range groups {
@@ -204,9 +221,10 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 			if _, shown := tree[g]; !shown {
 				continue
 			}
-			lines = append(lines, u.groupLine(g, tree[g]))
-			if collapsed != nil {
-				lines = collapsed[g]
+			if bars, ok := barred[g]; ok {
+				lines = bars
+			} else {
+				lines = append(lines, u.groupLine(g, tree[g], cols))
 			}
 			blocks = append(blocks, block{path: g.Path, heading: true, lines: lines})
 			walk(g.Groups)
@@ -269,12 +287,23 @@ func paginate(blocks []block, top []string, height int) [][]block {
 }
 
 // groupLine is a group heading with its subtotals (R4).
-func (u *UIModel) groupLine(g *Group, t groupTree) string {
+// groupLineWidths are the column widths shared by one-line group headings.
+type groupLineWidths struct {
+	name, nodes, pods int
+}
+
+func (w *groupLineWidths) fit(u *UIModel, g *Group, t groupTree) {
+	w.name = max(w.name, textWidth(t.branch)+textWidth(g.Name()))
+	w.nodes = max(w.nodes, len(u.printer.Sprintf("%d nodes", g.Stats.NumNodes)))
+	w.pods = max(w.pods, len(u.printer.Sprintf("%d pods", g.Stats.NumPods)))
+}
+
+func (u *UIModel) groupLine(g *Group, t groupTree, w groupLineWidths) string {
 	s := g.Stats
 	var b strings.Builder
-	b.WriteString(treeStyle(t.branch))
-	b.WriteString(groupName(g))
-	u.printer.Fprintf(&b, "  %d nodes  %d pods", s.NumNodes, s.NumPods)
+	b.WriteString(pad(treeStyle(t.branch)+groupName(g), w.name))
+	b.WriteString("  " + pad(u.printer.Sprintf("%d nodes", s.NumNodes), w.nodes))
+	b.WriteString("  " + pad(u.printer.Sprintf("%d pods", s.NumPods), w.pods))
 	for _, res := range u.cluster.resources {
 		pct := s.PercentUsed(res)
 		fmt.Fprintf(&b, "  %s %s", res, u.colorizeUsage(pct, fmt.Sprintf("%0.0f%%", pct)))
@@ -349,14 +378,15 @@ func groupName(g *Group) string {
 // groupTable lays out every group, nested ones included, for the collapsed
 // view: name, node and pod counts, then a usage bar per resource, one line
 // each, and the cost on the first line. Columns line up across all groups.
-func (u *UIModel) groupTable(groups []*Group, depth int) map[*Group][]string {
-	tree := treeOf(groups, depth)
+func (u *UIModel) groupTable(groups []*Group, tree map[*Group]groupTree, depth int) map[*Group][]string {
+	// only the groups at the barred level; the levels around them are one line
 	var all []*Group
 	var collect func([]*Group)
 	collect = func(gs []*Group) {
 		for _, g := range gs {
-			if _, shown := tree[g]; shown {
+			if len(g.Path) == depth {
 				all = append(all, g)
+			} else if len(g.Path) < depth {
 				collect(g.Groups)
 			}
 		}

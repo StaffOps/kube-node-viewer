@@ -542,4 +542,22 @@ func TestNFoldsOneLevelPerPress(t *testing.T) {
 			t.Errorf("after %d presses: %+v, want %+v\n%s", i, got, w, u.View())
 		}
 	}
+
+	// at the most folded step, d lists the sub-groups as one-line rows
+	press(u, "n", "n")
+	press(u, "d")
+	if got := look(); got != (screen{nodes: false, sub: true, top: true}) {
+		t.Errorf("details on: %+v\n%s", got, u.View())
+	}
+	if out := u.View(); strings.Contains(out, "└─ default") && strings.Count(out, "░") > 0 {
+		for _, line := range strings.Split(out, "\n") {
+			if strings.Contains(line, "└─ default") && strings.Contains(line, "░") {
+				t.Errorf("a detail row has a bar: %q", line)
+			}
+		}
+	}
+	press(u, "d")
+	if got := look(); got.sub {
+		t.Error("d did not hide the details again")
+	}
 }
