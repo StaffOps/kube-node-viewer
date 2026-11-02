@@ -2,7 +2,7 @@
 
 > Implements [design](design.md). Status: `[ ]` todo · `[-]` in progress · `[x]` done
 
-- [ ] T1. Excluding filters: `Filter.Exclude`, matching, `x` in the Filters panel, header and panel text
+- [x] T1. Excluding filters: `Filter.Exclude`, matching, `x` in the Filters panel, header and panel text
   - _Covers: R1 · Depends on: — · Verified by: unit and key-driven tests_
 - [ ] T2. Named views: state file `views`, Views popup (`v`) with name input, apply / save / delete
   - _Covers: R2 · Depends on: — · Verified by: state and key-driven tests_

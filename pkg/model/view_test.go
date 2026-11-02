@@ -15,6 +15,7 @@ limitations under the License.
 package model_test
 
 import (
+	"encoding/json"
 	"math"
 	"reflect"
 	"testing"
@@ -253,5 +254,45 @@ func TestDefaultViewState(t *testing.T) {
 	s := model.DefaultViewState()
 	if !s.ShowNodes || s.Sort.Field != model.FieldCreation || !s.Sort.Descending || len(s.GroupBy) != 0 {
 		t.Errorf("unexpected default: %+v", s)
+	}
+}
+
+func TestExcludingFilter(t *testing.T) {
+	s := model.ViewState{Sort: byName(), Filters: []model.Filter{
+		{Field: model.FieldCapacity, Excluded: []string{"Spot"}, Enabled: true},
+	}}
+	expectNames(t, s.Select(viewNodes()), "b", "d")
+
+	// any of the flags excluded drops the node: c is Ready and Cordoned
+	s.Filters = []model.Filter{{Field: model.FieldStatus, Excluded: []string{model.StatusCordoned}, Enabled: true}}
+	expectNames(t, s.Select(viewNodes()), "a", "b", "d")
+}
+
+func TestExcludedValuesAreNoFilterToOlderCode(t *testing.T) {
+	// the filter as written now, read with the shape v0.8.x knows
+	saved, err := json.Marshal(model.Filter{Field: model.FieldCapacity, Excluded: []string{"Spot"}, Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var old struct {
+		Field   model.Field `json:"field"`
+		Values  []string    `json:"values"`
+		Enabled bool        `json:"enabled"`
+	}
+	if err := json.Unmarshal(saved, &old); err != nil {
+		t.Fatal(err)
+	}
+	s := model.ViewState{Sort: byName(), Filters: []model.Filter{{Field: old.Field, Values: old.Values, Enabled: old.Enabled}}}
+	expectNames(t, s.Select(viewNodes()), "a", "b", "c", "d")
+}
+
+func TestFlippedFilter(t *testing.T) {
+	f := model.Filter{Field: model.FieldCapacity, Values: []string{"Spot"}, Enabled: true}
+	ex := f.Flipped()
+	if !ex.Excludes() || len(ex.Values) != 0 || ex.Ticked()[0] != "Spot" {
+		t.Errorf("flipped: %+v", ex)
+	}
+	if back := ex.Flipped(); back.Excludes() || back.Values[0] != "Spot" {
+		t.Errorf("flipped back: %+v", back)
 	}
 }

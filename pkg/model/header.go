@@ -247,13 +247,18 @@ func fieldName(f Field) string {
 func (u *UIModel) viewSummary() string {
 	var filters []string
 	for _, f := range u.view.Filters {
-		if !f.Enabled || len(f.Values) == 0 {
+		values := f.Ticked()
+		if !f.Enabled || len(values) == 0 {
 			continue
 		}
-		if len(f.Values) == 1 {
-			filters = append(filters, fieldName(f.Field)+"="+f.Values[0])
+		eq, in := "=", "∈"
+		if f.Excludes() {
+			eq, in = "≠", "∉"
+		}
+		if len(values) == 1 {
+			filters = append(filters, fieldName(f.Field)+eq+values[0])
 		} else {
-			filters = append(filters, fieldName(f.Field)+"∈{"+strings.Join(f.Values, ",")+"}")
+			filters = append(filters, fieldName(f.Field)+in+"{"+strings.Join(values, ",")+"}")
 		}
 	}
 	filterText := "none"
