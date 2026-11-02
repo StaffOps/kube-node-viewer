@@ -40,6 +40,7 @@ All notable changes to this project are documented here. Format:
   with some unknown prices are marked `>=`; exported totals leave the price
   out and count the unpriced nodes.
 - Recommendations on clusters without EKS nodes say they cover EKS only.
+- A node without the zone label takes the zone its EC2 provider ID names.
 
 - The static on-demand price tables, used until the first live lookup and
   when AWS can't be reached, are refreshed (from April 2025 to October 2026).
