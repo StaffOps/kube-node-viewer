@@ -26,7 +26,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    last; rules, no AI.
    [requirements](recommendations/requirements.md) ·
    [design](recommendations/design.md) · [tasks](recommendations/tasks.md)
-5. [`decisions/`](decisions/) — decision records (index below).
+5. [`aks-pricing/`](aks-pricing/) — **active**. AKS node prices from the
+   public Azure Retail Prices API, per node by provider-ID cloud.
+   [requirements](aks-pricing/requirements.md) ·
+   [design](aks-pricing/design.md) · [tasks](aks-pricing/tasks.md)
+6. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated

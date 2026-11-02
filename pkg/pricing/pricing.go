@@ -23,3 +23,27 @@ type Provider interface {
 	NodePrice(n *model.Node) (float64, bool)
 	OnUpdate(onUpdate func())
 }
+
+// ByCloud sends each node to the provider of its cloud, the scheme of its
+// provider ID ("aws", "azure"); nodes of any other cloud go to Fallback
+// (aks-pricing D1).
+type ByCloud struct {
+	Clouds   map[string]Provider
+	Fallback Provider
+}
+
+func (b ByCloud) NodePrice(n *model.Node) (float64, bool) {
+	if p, ok := b.Clouds[n.Cloud()]; ok {
+		return p.NodePrice(n)
+	}
+	return b.Fallback.NodePrice(n)
+}
+
+func (b ByCloud) OnUpdate(f func()) {
+	b.Fallback.OnUpdate(f)
+	for _, p := range b.Clouds {
+		if p != b.Fallback {
+			p.OnUpdate(f)
+		}
+	}
+}

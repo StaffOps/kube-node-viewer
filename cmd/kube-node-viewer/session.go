@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/staffops/kube-node-viewer/pkg/aws"
+	"github.com/staffops/kube-node-viewer/pkg/azure"
 	"github.com/staffops/kube-node-viewer/pkg/client"
 	"github.com/staffops/kube-node-viewer/pkg/model"
 	"github.com/staffops/kube-node-viewer/pkg/pricing"
@@ -117,22 +118,32 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 }
 
 // pricing builds the price provider for a cluster and the region to show.
-// EKS API server URLs name their region; other clusters look prices up in the
-// AWS SDK's configured region, and the header shows their nodes' region
-// label instead. AKS clusters have no AWS prices, so nothing is fetched.
+// EKS API server URLs name their region; other clusters look AWS prices up in
+// the AWS SDK's configured region, and the header shows their nodes' region
+// label instead. AKS clusters make no AWS lookup. Azure nodes are priced from
+// the public Retail Prices API, fetched only once one is seen (aks-pricing).
 func (s *sessions) pricing(ctx context.Context, server string) (pricing.Provider, string, error) {
 	region := client.RegionFromServer(server)
-	if s.flags.DisablePricing || client.IsAKSServer(server) {
+	if s.flags.DisablePricing {
 		return aws.NewStaticPricingProvider(), region, nil
 	}
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile(""))
-	if err != nil {
-		return nil, "", fmt.Errorf("loading AWS SDK config: %w", err)
+	var awsPrices pricing.Provider
+	if client.IsAKSServer(server) {
+		awsPrices = aws.NewStaticPricingProvider()
+	} else {
+		cfg, err := config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile(""))
+		if err != nil {
+			return nil, "", fmt.Errorf("loading AWS SDK config: %w", err)
+		}
+		if region != "" {
+			cfg.Region = region
+		}
+		awsPrices = aws.NewPricingProvider(ctx, cfg)
 	}
-	if region != "" {
-		cfg.Region = region
-	}
-	return aws.NewPricingProvider(ctx, cfg), region, nil
+	return pricing.ByCloud{
+		Clouds:   map[string]pricing.Provider{"aws": awsPrices, "azure": azure.NewProvider(ctx, azure.Endpoint)},
+		Fallback: awsPrices,
+	}, region, nil
 }
 
 // Close stops the current connection.
@@ -155,6 +166,9 @@ type awsAdvisor struct {
 
 // newAdvisor is nil when the provider can't answer list prices.
 func newAdvisor(p pricing.Provider) model.Advisor {
+	if b, ok := p.(pricing.ByCloud); ok {
+		p = b.Clouds["aws"]
+	}
 	ap, ok := p.(interface {
 		OnDemandPrice(ec2types.InstanceType) (float64, bool)
 		SpotPriceInZone(ec2types.InstanceType, string) (float64, bool)
