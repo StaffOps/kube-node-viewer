@@ -483,9 +483,11 @@ func TestCollapsedGroupsShowUsageBars(t *testing.T) {
 		t.Fatal("nodes listed while collapsed")
 	}
 	// one bar line per resource per group, each ending in its percentage
+	// count from the first group heading, past the cluster summary
 	bars := 0
-	for _, line := range strings.Split(out, "\n") {
-		if strings.Contains(line, "░") && strings.Contains(line, "%") && !strings.Contains(line, "nodes (") && !strings.Contains(line, "Mi/") {
+	groups := out[strings.Index(out, "OnDemand"):]
+	for _, line := range strings.Split(groups, "\n") {
+		if strings.Contains(line, "░") && strings.Contains(line, "%") {
 			bars++
 		}
 	}
