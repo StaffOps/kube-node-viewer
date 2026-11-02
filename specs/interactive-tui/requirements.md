@@ -180,6 +180,11 @@ hidden at once.
 > groups are left (each level with its usage bars); the next press unfolds
 > everything. With one group-by level it toggles the node list as before. The
 > depth is saved with the view.
+>
+> Folded, only the deepest level shown carries usage bars; the levels above it
+> are one-line summaries, as in the unfolded view. `d` (details) lists the
+> level below the barred one as one-line rows, aligned in columns, and hides
+> them again; off by default, saved with the view.
 
 **R14** WHEN the screen is smaller than the content THEN the system SHALL
 paginate by lines, repeat the group path on a page that continues a group
