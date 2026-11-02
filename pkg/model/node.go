@@ -439,6 +439,14 @@ func (n *Node) Deleting() bool {
 	return !n.node.DeletionTimestamp.IsZero()
 }
 
+// PodsCopy lists the pods bound to the node under its lock, for readers
+// outside the node such as the recommendations.
+func (n *Node) PodsCopy() []*Pod {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.Pods()
+}
+
 // Pods lists the pods bound to the node. Callers hold no lock: InstanceType
 // reads it under the node's read lock.
 func (n *Node) Pods() []*Pod {

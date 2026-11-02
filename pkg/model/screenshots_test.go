@@ -161,6 +161,16 @@ func TestScreenshots(t *testing.T) {
 			u.SetViews(memViews{"cost per nodepool": DefaultViewState(), "spot by zone": DefaultViewState()})
 			press(u, "v")
 		}},
+		{"recommendations", 168, 40, func(u *UIModel) {
+			u.advisor = fakeAdvisor{}
+			u.SetRecommendOptions(RecommendOptions{Headroom: 0.8, OldAge: 30 * 24 * time.Hour})
+			pressAll(u, "tab")
+		}},
+		{"recommendation-why", 168, 40, func(u *UIModel) {
+			u.advisor = fakeAdvisor{}
+			u.SetRecommendOptions(RecommendOptions{Headroom: 0.8, OldAge: 30 * 24 * time.Hour})
+			pressAll(u, "tab", "down", "down", "enter")
+		}},
 		// tall enough to start with the full panel, which ctrl+e compacts
 		{"header-compact", 168, 30, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
 	}

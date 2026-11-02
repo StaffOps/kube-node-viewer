@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	tea "github.com/charmbracelet/bubbletea"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/staffops/kube-node-viewer/pkg/client"
 	"github.com/staffops/kube-node-viewer/pkg/model"
 	"github.com/staffops/kube-node-viewer/pkg/pricing"
+	"github.com/staffops/kube-node-viewer/pkg/recommend"
 	"github.com/staffops/kube-node-viewer/pkg/state"
 )
 
@@ -110,6 +112,7 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 		Info:    info,
 		View:    view,
 		Save:    func(v model.ViewState) { s.saver.Save(key, v) },
+		Advisor: newAdvisor(prices),
 	}, nil
 }
 
@@ -138,3 +141,42 @@ func (s *sessions) Close() {
 		s.cancel()
 	}
 }
+
+// awsAdvisor answers the recommendations from the instance catalog and the
+// session's prices (recommendations D2).
+type awsAdvisor struct {
+	prices interface {
+		OnDemandPrice(ec2types.InstanceType) (float64, bool)
+		SpotPriceInZone(ec2types.InstanceType, string) (float64, bool)
+	}
+}
+
+// newAdvisor is nil when the provider can't answer list prices.
+func newAdvisor(p pricing.Provider) model.Advisor {
+	ap, ok := p.(interface {
+		OnDemandPrice(ec2types.InstanceType) (float64, bool)
+		SpotPriceInZone(ec2types.InstanceType, string) (float64, bool)
+	})
+	if !ok {
+		return nil
+	}
+	return awsAdvisor{prices: ap}
+}
+
+func (a awsAdvisor) Spec(t string) (recommend.Spec, bool) {
+	s, ok := aws.LookupInstance(t)
+	if !ok {
+		return recommend.Spec{}, false
+	}
+	return recommend.Spec{VCPU: s.VCPU, MemGiB: s.MemoryGiB, Arch: s.Arch, Class: s.Class, Current: s.CurrentGeneration}, true
+}
+
+func (a awsAdvisor) OnDemand(t string) (float64, bool) {
+	return a.prices.OnDemandPrice(ec2types.InstanceType(t))
+}
+
+func (a awsAdvisor) SpotIn(t, zone string) (float64, bool) {
+	return a.prices.SpotPriceInZone(ec2types.InstanceType(t), zone)
+}
+
+func (a awsAdvisor) Types() []string { return aws.InstanceTypes() }

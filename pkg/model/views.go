@@ -157,7 +157,7 @@ func indexOf(names []string, name string) int {
 // forSaving is the view as a named view keeps it: no search text, no groups
 // folded one by one (their paths are one cluster's values), no header size.
 func (s ViewState) forSaving() ViewState {
-	s.Search, s.Collapsed, s.Header = "", nil, ""
+	s.Search, s.Collapsed, s.Header, s.Screen = "", nil, "", ""
 	return s
 }
 
@@ -169,7 +169,7 @@ func (u *UIModel) applyView(name string) {
 	if !ok {
 		return
 	}
-	v.Search, v.Collapsed, v.Header = u.view.Search, u.view.Collapsed, u.view.Header
+	v.Search, v.Collapsed, v.Header, v.Screen = u.view.Search, u.view.Collapsed, u.view.Header, u.view.Screen
 	u.SetView(v)
 	if u.onViewChange != nil {
 		u.onViewChange(u.view)
