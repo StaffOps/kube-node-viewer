@@ -63,7 +63,12 @@ func TestExportWritesTheFilteredNodes(t *testing.T) {
 	t.Chdir(dir)
 	u := demoUI(t)
 	// one node without a price, one reserved (equivalent price)
-	u.stats.Nodes[0].SetPrice(math.NaN())
+	// stats.Nodes comes from a map: pick a node by name, not by position
+	for _, n := range u.stats.Nodes {
+		if n.Name() == "ip-10-0-12-15.ec2.internal" {
+			n.SetPrice(math.NaN())
+		}
+	}
 	v := u.view
 	v.Filters = []Filter{{Field: FieldZone, Values: []string{"us-east-1b"}, Enabled: true}}
 	v.SetGroupBy(FieldNodeGroup)

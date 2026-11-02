@@ -29,6 +29,19 @@ All notable changes to this project are documented here. Format:
   those of the nodes on screen, marked `(filtered: N of M nodes)`.
 - The header keeps the whole cluster's monthly cost after the node and pod
   counts, marked `(global cluster)`, whatever the filters.
+- AKS clusters read right: capacity (`OnDemand`, or `Spot` from the scale set
+  priority), the agent pool as node group, the region from the nodes, and no
+  zone for VMs outside availability zones. No AWS price lookups are made.
+- Prices nobody knows read `prices unknown` instead of `$0.000`, and totals
+  with some unknown prices are marked `>=`; exported totals leave the price
+  out and count the unpriced nodes.
+- Recommendations on clusters without EKS nodes say they cover EKS only.
+
+### Fixed
+
+- The pending pod count, and the recommendations it holds back, counted pods
+  already on a node (pulling an image, waiting on a secret); only pods waiting
+  for a node count now.
 
 ## [0.8.2] - 2026-11-02
 

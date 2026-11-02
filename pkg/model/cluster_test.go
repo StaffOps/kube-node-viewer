@@ -259,6 +259,9 @@ func TestClusterStatsCountsOnlyPodsOnVisibleNodes(t *testing.T) {
 	if got := st.PodsByPhase[v1.PodPending]; got != 2 {
 		t.Errorf("expected 2 pending, got %d", got)
 	}
+	if got := st.Unscheduled; got != 2 {
+		t.Errorf("expected 2 unscheduled, got %d", got)
+	}
 
 	// hiding a node drops its pods from the counts too
 	node, ok := cluster.GetNodeByName("node-a")
@@ -276,5 +279,26 @@ func TestClusterStatsCountsOnlyPodsOnVisibleNodes(t *testing.T) {
 	}
 	if got := st.TotalPods; got != 3 {
 		t.Errorf("expected 3 pods, got %d", got)
+	}
+}
+
+// a Pending pod already on a node (pulling its image, waiting on a secret) is
+// not waiting for capacity, so it is not unscheduled
+func TestClusterStatsUnscheduledLeavesOutBoundPendingPods(t *testing.T) {
+	cluster := model.NewCluster()
+	n := testNode("node-a")
+	n.Spec.ProviderID = "aws:///us-west-2a/i-node-a"
+	node := model.NewNode(n)
+	node.Show()
+	cluster.AddNode(node)
+	for name, nodeName := range map[string]string{"starting": "node-a", "waiting": ""} {
+		p := testPod("default", name)
+		p.Spec.NodeName = nodeName
+		p.Status.Phase = v1.PodPending
+		cluster.AddPod(model.NewPod(p))
+	}
+	st := cluster.Stats()
+	if st.Unscheduled != 1 || st.PodsByPhase[v1.PodPending] != 2 {
+		t.Errorf("unscheduled %d (want 1), pending %d (want 2)", st.Unscheduled, st.PodsByPhase[v1.PodPending])
 	}
 }
