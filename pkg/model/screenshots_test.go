@@ -157,7 +157,8 @@ func TestScreenshots(t *testing.T) {
 		{"group-by", 168, 38, func(u *UIModel) { press(u, "g", "down", " ", "down", "down", " ") }},
 		{"columns", 168, 38, func(u *UIModel) { press(u, "o") }},
 		{"contexts", 168, 38, func(u *UIModel) { apply(u, press(u, "c")) }},
-		{"header-compact", 168, 22, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
+		// tall enough to start with the full panel, which ctrl+e compacts
+		{"header-compact", 168, 30, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
