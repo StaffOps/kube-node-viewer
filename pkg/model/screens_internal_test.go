@@ -136,7 +136,7 @@ func TestRecommendationsScreen(t *testing.T) {
 		}
 	}
 	// spot rows never come before others
-	if strings.Index(out, "spot  ") >= 0 && strings.Index(out, "spot  ") < strings.Index(out, "graviton") {
+	if strings.Contains(out, "spot  ") && strings.Index(out, "spot  ") < strings.Index(out, "graviton") {
 		t.Error("spot listed before graviton")
 	}
 	// Overview-only keys do nothing; enter opens the math

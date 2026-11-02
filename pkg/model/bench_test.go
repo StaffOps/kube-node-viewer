@@ -104,7 +104,7 @@ func fullBenchPod(i, pods int) *v1.Pod {
 				"prometheus.io/scrape":              "true",
 			},
 			ManagedFields: []metav1.ManagedFieldsEntry{{Manager: "kube-controller-manager", Operation: metav1.ManagedFieldsOperationUpdate,
-				FieldsV1: &metav1.FieldsV1{Raw: make([]byte, 1024)}}},
+				FieldsV1: metav1.NewFieldsV1(string(make([]byte, 1024)))}},
 		},
 		Spec: v1.PodSpec{
 			NodeName:   benchNode(i % benchNodes).Name,

@@ -206,7 +206,7 @@ func total(recs []Rec) float64 {
 }
 
 // comparable tells whether catalog-based advice applies to the node (R15).
-func comparable(in Input, n Node) (Spec, bool) {
+func comparableSpec(in Input, n Node) (Spec, bool) {
 	if n.Capacity == Fargate || n.Auto || n.Type == "" {
 		return Spec{}, false
 	}
@@ -442,7 +442,7 @@ func listPrice(in Input, n Node, typ string) (float64, bool) {
 }
 
 // currentPrice is what the node pays now: its own price, override included.
-func currentPrice(in Input, n Node) (float64, bool, string) {
+func currentPrice(n Node) (float64, bool, string) {
 	if n.PriceKnown && !n.Equivalent {
 		if n.Override {
 			return n.Price, true, " (instance-price label)"
@@ -463,11 +463,11 @@ func rightsize(in Input) []Rec {
 	}
 	var out []Rec
 	for _, n := range in.Nodes {
-		spec, ok := comparable(in, n)
+		spec, ok := comparableSpec(in, n)
 		if !ok || n.Capacity == Reserved {
 			continue
 		}
-		cur, ok, note := currentPrice(in, n)
+		cur, ok, note := currentPrice(n)
 		if !ok {
 			continue
 		}
@@ -536,7 +536,7 @@ func swapFamily(in Input, kind Kind) []Rec {
 	groups := map[string]*acc{}
 	var order []string
 	for _, n := range in.Nodes {
-		spec, ok := comparable(in, n)
+		spec, ok := comparableSpec(in, n)
 		if !ok || n.Capacity == Reserved {
 			continue
 		}
@@ -625,7 +625,7 @@ func spot(in Input) []Rec {
 	groups := map[string]*acc{}
 	var order []string
 	for _, n := range in.Nodes {
-		if _, ok := comparable(in, n); !ok || n.Capacity != OnDemand {
+		if _, ok := comparableSpec(in, n); !ok || n.Capacity != OnDemand {
 			continue
 		}
 		_, label := groupOf(n)

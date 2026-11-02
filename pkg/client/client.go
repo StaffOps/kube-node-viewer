@@ -57,7 +57,7 @@ func NewNodeClaims(kubeconfig, context string) (*rest.RESTClient, error) {
 		&karpv1.NodeClaimList{})
 
 	config := *c
-	config.ContentConfig.GroupVersion = &gv
+	config.GroupVersion = &gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()

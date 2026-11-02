@@ -1,10 +1,12 @@
-.PHONY: help clean verify boilerplate licenses download coverage generate test
+.PHONY: help clean verify lint boilerplate licenses download coverage generate test
 
 NO_COLOR=\033[0m
 GREEN=\033[32;01m
 YELLOW=\033[33;01m
 RED=\033[31;01m
 TEST_PKGS=./pkg/... ./cmd/...
+# keep in step with .github/workflows/test.yaml
+GOLANGCI_LINT_VERSION=v2.14.0
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[33m%-20s\033[0m %s\n", $$1, $$2}'
@@ -26,9 +28,12 @@ licenses: download ## Check licenses
 boilerplate: ## Add license headers
 	go run hack/boilerplate.go ./
 
+lint: ## Lint with the pinned golangci-lint (built on first use)
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...
+
 verify: boilerplate licenses download ## Format and Lint
 	gofmt -w -s ./.
-	golangci-lint run
+	$(MAKE) lint
 
 coverage: ## Run tests w/ coverage
 	go test -coverprofile=coverage.out $(TEST_PKGS)
