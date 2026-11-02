@@ -201,6 +201,12 @@ showing how many are hidden.
 > ones included, shows a usage bar with its percentage per resource, aligned
 > across groups and sized like the node bars (owner's request).
 
+> **Corrected 2026-11-02.** Headings that repeated the full path
+> (`us-east-1a › t4g.large`) made it hard to see what belongs to what. Group
+> headings are now a tree: top-level groups in an accent colour, set apart by
+> a blank line, sub-groups by their own value under `├─`/`└─`. A page that
+> continues a group still repeats its full path.
+
 **R15** WHEN existing flags or config keys are used THEN they SHALL map to
 the view state as in the design's flag table (D8), and `--node-selector`
 SHALL stay the only server-side scope.
