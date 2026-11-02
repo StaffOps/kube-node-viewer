@@ -3,20 +3,61 @@
 
 # kube-node-viewer
 
-`kube-node-viewer` is a terminal UI for watching node usage in a Kubernetes
-cluster. It shows the scheduled pod resource requests against each node's
-allocatable capacity, plus the node price. It *does not* look at actual pod
-resource usage.
+`kube-node-viewer` is a terminal UI for watching node usage and cost in a
+Kubernetes cluster. For every node it shows the resources requested by the
+pods scheduled on it against the node's allocatable capacity, the pod count
+and the node price, and it sums them per group and for the whole cluster.
 
-Prices come from AWS (on-demand, spot and Fargate). On other clouds, run with
-`--disable-pricing`, or set prices per node with the
-`kube-node-viewer/instance-price` label.
+It reads **requests**, not actual usage: it answers "how full are my nodes
+from the scheduler's point of view, and what do they cost", which is what
+drives node count and the bill. It needs nothing installed in the cluster,
+only read access through your kubeconfig.
 
-![](./.static/screenshot.png)
+Start it with no flags and drive it from inside: filter, group and sort the
+nodes, pick columns and resources, search, fold groups and switch cluster
+without restarting. The last view used on each cluster comes back the next
+time.
 
-Start it with no flags and drive it from inside: filter, group and sort nodes,
-pick columns and resources, search, and switch cluster without restarting.
-The last view used on each cluster comes back the next time.
+```text
+╭────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer                                                                           │
+│ Context:  prod-eks                                                 f filters    g group by │
+│ Cluster:  https://ABC123.gr7.us-east-1.eks.amazonaws.com           s sort       o columns  │
+│ Region:   us-east-1                                                / search     r resources│
+│ Nodes:    8 of 8 shown · 157 pods                                  c context    ? help     │
+│ View:     Filters: none │ Group: zone › instance-type │ Sort: creation ↓ │ cpu+memory        │
+╰────────────────────────────────────────────────────────────────────────────────────────────╯
+  14837m/21410m    69% cpu    ████████████████████░░░░░░░░░  $0.706/hour | $515.088/month
+  50592Mi/80138Mi  63% memory ██████████████████░░░░░░░░░░░
+
+  us-east-1a     7 nodes  145 pods  cpu 72%  memory 65%  $0.672/hour | $490.560/month
+  ├─ t4g.large   2 nodes   18 pods  cpu    █████████░░░░░░░░░░░  45%  $0.134/hour | $98.112/month
+  │                                 memory ████████░░░░░░░░░░░░  40%
+  └─ t4g.xlarge  3 nodes  100 pods  cpu    █████████████████░░░  88%  $0.403/hour | $294.336/month
+                                    memory ███████████████░░░░░  75%
+
+  us-east-1b     1 nodes   12 pods  cpu 45%  memory 27%  $0.034/hour | $24.528/month
+  └─ t4g.medium  1 nodes   12 pods  cpu    █████████░░░░░░░░░░░  45%  $0.034/hour | $24.528/month
+                                    memory █████░░░░░░░░░░░░░░░  27%
+
+  f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context • n: fold • ?: help • q: quit
+```
+
+## Contents
+
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [What is on screen](#what-is-on-screen)
+- [Keys](#keys)
+- [Panels](#panels)
+- [Saved view per cluster](#saved-view-per-cluster)
+- [Flags and config file](#flags-and-config-file)
+- [Pricing](#pricing)
+- [Computed labels](#computed-labels)
+- [Coming from eks-node-viewer](#coming-from-eks-node-viewer)
+- [Troubleshooting](#troubleshooting)
+- [How it works](#how-it-works)
+- [Development](#development)
 
 ## Installation
 
@@ -34,7 +75,174 @@ To build from a checkout, run `scripts/build.sh` (binary in
 `bin/kube-node-viewer`); `scripts/build.sh -i` installs it and
 `scripts/build.sh -a` cross-compiles for every release platform.
 
-## Usage
+## Quick start
+
+```shell
+kube-node-viewer
+```
+
+It connects to the current kubeconfig context. Then:
+
+1. `r` until the header shows `cpu+memory`.
+2. `g`, tick `nodegroup` (or `zone`, `capacity`, any label) with `space`,
+   then `esc`: nodes are grouped, with subtotals.
+3. `n` to fold the list down to the groups, each with its usage bars.
+4. `f`, open `capacity` with `enter`, tick `Spot`: only spot nodes remain.
+5. `c` to look at another cluster.
+
+Quit with `q`. The next time you open the same cluster, the view is as you
+left it.
+
+## What is on screen
+
+**Header box.** The context, API server URL and pricing region; how many nodes
+the filters and search keep out of all watched nodes, with their pod count
+(and pending pods, when there are any); the active view (filters, group-by,
+sort, resources); the main keys. `ctrl+e` switches between this full panel
+and a two-line box. On a very short window it shrinks to one line.
+
+**Cluster summary.** Requested over allocatable, the percentage and a bar for
+each resource, and the cost per hour and per month. It covers every watched
+node, whatever the filters.
+
+**Node list.** One block per node: a usage bar per resource (stacked, with a
+blank line between nodes when more than one resource is shown), the pods on
+the node over its pod capacity, then the columns you picked. Default columns:
+
+| Column | What it shows |
+|--------|---------------|
+| `INSTANCE` | instance type (`<cpu>vCPU-<mem>GB` for a Fargate pod) |
+| `PRICE/H` | hourly price; `~$` marks an on-demand equivalent for a reserved node (see [Pricing](#pricing)); `-` when unknown |
+| `CAPACITY` | `OnDemand`, `Spot`, `Reserved`, `Fargate` or `Unknown`, with `/Auto` for EKS Auto Mode |
+| `NODEGROUP` | the Karpenter NodePool, or the EKS managed node group name in blue |
+| `ZONE` | availability zone |
+| `STATUS` | `Ready` or `NotReady/<for how long>`, plus `Cordoned`, `Deleting`, `Launching` (a Karpenter NodeClaim whose node has not registered yet) |
+
+The Columns panel (`o`) also offers `IP`, `REGION`, `AGE`, the computed labels
+and any node label.
+
+**Groups.** With a group-by, nodes nest under up to three levels. Top-level
+groups are in bold blue with a blank line between them; sub-groups hang off
+them with `├─`/`└─` and show only their own value. Every heading carries node
+and pod counts, usage per resource and cost; a cost prefixed with `>=` means
+some node in the group has no known price.
+
+**Colours.**
+
+| Colour | Meaning |
+|--------|---------|
+| green / yellow / red percentage and bar | usage above 80% / 60–80% / below 60%: an under-used node is the costly case |
+| green `Ready` · red `NotReady`, `Deleting` · yellow `Cordoned`, `Launching` | node status |
+| orange `Spot` · magenta `Reserved` · blue `Fargate` | capacity types that change what a node costs |
+| blue node group name | an EKS managed node group; plain is a Karpenter NodePool |
+
+The three usage colours come from `--style`.
+
+**Pages.** When the list is taller than the window it is cut into pages
+(`←`/`→`); a page that continues a group repeats its path with `(cont.)`. On
+a narrow window the least important columns are dropped first, and the footer
+says how many are hidden. Lines never run past the window edge.
+
+## Keys
+
+| Key | Action |
+|-----|--------|
+| `f` | Filters panel |
+| `g` | Group by panel |
+| `s` | Sort panel |
+| `o` | Columns panel |
+| `/` | Search name, IP, instance type and label values as you type; `enter` keeps it, `esc` clears it |
+| `r` | Resources: cpu → memory → cpu+memory (→ the `--resources` list, if different) |
+| `n` | Fold one level per press when grouping: the nodes, then each sub-group level down to the top level; the next press unfolds all |
+| `d` | While folded: list the next group level under each group as one-line rows, or hide them |
+| `c` | Switch to another kubeconfig context |
+| `ctrl+e` | Compact or expand the header |
+| `←`/`→`, `h`/`l`, `home` | Previous / next / first page |
+| `?` | All keys and colours |
+| `q`, `ctrl+c` | Quit |
+
+Panels open as a popup over the node list, with their own keys on their last
+line. While a panel or the search is open, keys go to it: `q` or `f` are typed,
+not commands, and `esc` closes the panel or steps back. `ctrl+c` and `ctrl+e`
+work everywhere. `esc` never quits.
+
+## Panels
+
+### Filters (`f`)
+
+Every field is listed (`capacity`, `nodegroup`, `zone`, `region`,
+`instance-type`, `status` and every label found on the nodes), the ones
+already filtered first. `enter` (or `→`) opens a field in place and lists its
+values with the number of nodes having each; `space` ticks a value and the
+list filters at once. On a field row, `space` turns its filter off and on
+without losing the values, and `d` clears it. `←` or `esc` folds the field.
+
+Values of one field combine with OR, fields with AND: `capacity ∈ {Spot}` and
+`zone ∈ {us-east-1a, us-east-1b}` keeps spot nodes in either zone. A status
+filter keeps a node that has any of the ticked flags.
+
+### Group by (`g`)
+
+The same list of fields. `space` ticks a field as the next level (the first
+ticked is the top level, each next one a sub-group of the previous), up to
+three; the rows show `[1]`, `[2]`, `[3]`. `K`/`J` move the level under the
+cursor up or down; unticking a level moves the ones below it up. Nodes
+without a value for a level go to a `<none>` group, always last.
+
+Folding with `n`: the deepest level on screen carries the usage bars and the
+levels above it are one-line summaries. With `zone › instance-type`:
+
+| Presses | On screen |
+|---------|-----------|
+| 0 | zones and instance types as one-line headings, nodes with bars |
+| 1 | zones as one-line headings, instance types with bars |
+| 2 | zones with bars (`d` adds their instance types as one-line rows) |
+| 3 | back to everything |
+
+### Sort (`s`)
+
+Creation time, name, IP, price, pods, usage of each resource, any derived
+field or label. `enter` sorts by the row under the cursor; on the current
+sort it flips the direction, and so does `space`. Price, pods, usage and
+creation start biggest or newest first. Nodes without a value sort last in
+either direction; ties break on the node name.
+
+### Columns (`o`)
+
+Shown columns first, in screen order, then the others and every label.
+`space` shows or hides the column under the cursor (a new one goes at the
+end) and `K`/`J` move it left or right.
+
+### Context (`c`)
+
+The kubeconfig contexts, the current one marked. Picking another connects to
+it without restarting: its watches start, the previous cluster's stop, the
+pricing region follows the new cluster, and its saved view comes back.
+Nothing from the previous cluster shows after the switch. A connection error
+stays in the panel and the current cluster keeps running.
+
+## Saved view per cluster
+
+Filters, group-by, sort, resources, columns, folding depth, details and the
+header size are saved per cluster (context name plus API server URL, since
+merged kubeconfigs can repeat context names) in
+`$XDG_STATE_HOME/kube-node-viewer/state.json`, by default
+`~/.local/state/kube-node-viewer/state.json`. Writes are batched and atomic,
+so the file survives the tool being killed. The search text is not saved.
+
+At start the view is built from, lowest to highest:
+
+1. built-in defaults;
+2. the config file `~/.kube-node-viewer`;
+3. the saved view for this cluster, which replaces both;
+4. flags given on the command line, for this run only: they are saved only
+   once you change the view from the TUI.
+
+A corrupt or unreadable state file is ignored with a warning before the TUI
+starts. To start a cluster over, delete its entry (or the whole file) while
+the tool is not running.
+
+## Flags and config file
 
 ```text
 Usage of kube-node-viewer:
@@ -49,7 +257,7 @@ Usage of kube-node-viewer:
   -group-by string
     	Node label to summarize usage and cost by, optionally with a filter on a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. Applies to this run; the last view chosen in the TUI is restored per cluster
   -groups-only
-    	Start with the individual node list hidden, leaving only the --group-by summary. The node list is toggled at runtime with 'n'
+    	Start folded to the --group-by groups, with the node list hidden. At runtime 'n' folds and unfolds one level per press
   -kubeconfig string
     	Absolute path to the kubeconfig file (default "~/.kube/config")
   -node-selector string
@@ -65,142 +273,42 @@ Usage of kube-node-viewer:
     	Display kube-node-viewer version
 ```
 
-### Keys
+How the flags map to the view:
 
-| Key | Action |
-|-----|--------|
-| `f` | Filters: every field and label is listed; `enter` opens one to tick its values (with node counts), `space` turns a filter on/off, `d` clears it |
-| `g` | Group by: tick up to three fields as nested levels (`K`/`J` reorder), each with node, pod, usage and cost subtotals |
-| `s` | Sort by creation, name, IP, price, pods, usage per resource or any label; `enter` on the current sort flips it |
-| `o` | Columns: show, hide and reorder (`K`/`J`) columns and labels |
-| `/` | Search name, IP, instance type and label values as you type; `enter` keeps it, `esc` clears it |
-| `r` | Resources: cpu → memory → cpu+memory (→ the `--resources` list, if different) |
-| `c` | Switch to another kubeconfig context |
-| `n` | Fold one level per press when grouping: the nodes, then each sub-group level down to the top level; the next press unfolds all. Folded, only the deepest level shown has usage bars |
-| `d` | Folded: list the next group level under each barred group as one-line rows, or hide them |
-| `ctrl+e` | Compact or expand the header |
-| `←/→` | Previous / next page |
-| `?` | All keys |
-| `q`, `ctrl+c` | Quit |
+| Flag | Effect |
+|------|--------|
+| `--node-selector` | the only server-side scope: nodes outside it are never watched |
+| `--group-by key` | group-by level 1 = the label `key` |
+| `--group-by key=a,b` | the same, plus a filter `key ∈ {a, b}` you can turn off in the Filters panel |
+| `--groups-only` | start folded to the groups |
+| `--node-sort` | the sort (`creation` or a label, `=asc` / `=dsc`) |
+| `--extra-labels` | label columns after the default ones |
+| `--resources` | the resources; a list other than cpu / memory / both becomes a fourth step of `r` |
+| `--context`, `--kubeconfig` | which cluster; view flags apply to the cluster the run starts on |
+| `--style`, `--disable-pricing` | run options, not saved |
 
-Panels open as a popup over the node list. While a panel or the search is
-open, keys go to it: `q` or `f` are typed, not
-commands, and `esc` closes the panel or steps back. `esc` no longer quits.
-Filters on different fields combine with AND, several values of one field with
-OR. In the node group column, EKS managed node groups are shown in their own
-colour; plain names are Karpenter NodePools. Usage is green above 80%, yellow
-from 60% to 80% and red below 60%, since an under-used node is the costly
-case; Spot capacity shows in orange, Reserved in magenta, Fargate in blue. A reserved node shows its
-on-demand price as an equivalent (`~$`), left out of the totals.
+`-kubeconfig` also reads `KUBECONFIG` (flag > env var > config file).
 
-### Saved view per cluster
-
-Filters, group-by, sort, resources, columns, the node list toggle and the
-header size are saved per cluster (context name plus API server URL) in
-`$XDG_STATE_HOME/kube-node-viewer/state.json`, by default
-`~/.local/state/kube-node-viewer/state.json`. At start the view is built from
-the built-in defaults, then `~/.kube-node-viewer`, then the saved state, then
-flags given on the command line. Those flags apply to that run only, until you
-change the view from the TUI. A corrupt state file is ignored with a warning;
-delete it to start over. The search text is not saved.
-
-### Examples
+Examples:
 
 ```shell
-# Standard usage
-kube-node-viewer
-# Karpenter nodes only
+# Karpenter nodes only, watched server-side
 kube-node-viewer --node-selector karpenter.sh/nodepool
-# Display both CPU and memory usage
-kube-node-viewer --resources cpu,memory
-# Display extra labels, i.e. AZ
-kube-node-viewer --extra-labels topology.kubernetes.io/zone
-# Sort by CPU usage in descending order
-kube-node-viewer --node-sort=kube-node-viewer/node-cpu-usage=dsc
-# Cost and usage per nodepool, without the per-node detail
-kube-node-viewer --group-by karpenter.sh/nodepool --groups-only
-# Cost and usage per team, using your own node label
-kube-node-viewer --group-by company.com/team
-# A few nodepools at once, instead of one terminal per nodepool
+# Start on cpu and memory, grouped by nodepool and folded to the groups
+kube-node-viewer --resources cpu,memory --group-by karpenter.sh/nodepool --groups-only
+# A few nodepools at once
 kube-node-viewer --group-by karpenter.sh/nodepool=default,gpu,spot
-# Specify a particular AWS profile and region for pricing
-AWS_PROFILE=myprofile AWS_REGION=us-west-2 kube-node-viewer
+# Sort by CPU usage, highest first
+kube-node-viewer --node-sort=kube-node-viewer/node-cpu-usage=dsc
+# Another cluster, AWS profile for pricing
+AWS_PROFILE=myprofile kube-node-viewer --context staging
 ```
 
-### Grouping by label
+### Config file
 
-`--group-by` adds a summary block that aggregates every node sharing a value
-for the given label. Each group shows its node count, pod count, resource
-requests vs allocatable, the percentage in use and the cost, which answers
-questions like "how much is this nodepool costing me" or "how much are the
-nodes belonging to this team costing me":
-
-```shell
-kube-node-viewer --group-by karpenter.sh/nodepool
-```
-
-```text
-6 nodes  (   98304Mi/377176Mi)  26.1% memory  ██████████░░░░░░░░░░░░  $4.608/hour | $3,363.840/month
-48 pods (0 pending 48 running 48 bound)
-
-default  4 nodes  32 pods  (65536Mi/251451Mi)  26.1% memory  ██████████░░░░░░░░░░░░  $3.072/hour | $2,242.560/month
-gpu      2 nodes  16 pods  (32768Mi/125725Mi)  26.1% memory  ██████████░░░░░░░░░░░░  $1.536/hour | $1,121.280/month
-```
-
-Appending a comma separated list of values adds a filter on them, so a single
-flag both picks the nodepools to look at and breaks the cost down by them. The
-filter can be turned off from the Filters panel (`f`):
-
-```shell
-kube-node-viewer --group-by karpenter.sh/nodepool=default,gpu
-```
-
-A few notes:
-
-- The label is any node label, written out in full. Grouping by team, zone,
-  instance type or capacity type is the same flag with a different key.
-- Values are optional. A bare `--group-by` label only says how to aggregate.
-  `--node-selector` is the only flag that limits which nodes are watched;
-  everything else filters in memory.
-- The percentage is the usage of the group as a whole, so it is weighted by
-  node size rather than being the plain average of each node's percentage. It
-  also covers every resource passed to `--resources`.
-- Nodes without the label are collected into a `<none>` group, which always
-  sorts last.
-- A cost prefixed with `>=` means at least one node in the group has an
-  unknown price, so the real cost is higher than the number shown. A group
-  with no known price at all shows no cost.
-- Add `--groups-only` to start with the per-node list hidden; `n` shows it
-  again. `g` opens the Group by panel for up to three levels.
-
-### Computed labels
-
-These label names can be passed to `--extra-labels`, `--node-sort` and
-`--group-by` to show computed node information:
-
-- `kube-node-viewer/node-age` - age of the node
-- `kube-node-viewer/node-cpu-usage` - CPU usage (requests)
-- `kube-node-viewer/node-memory-usage` - memory usage (requests)
-- `kube-node-viewer/node-pods-usage` - pod usage (requests)
-- `kube-node-viewer/node-ephemeral-storage-usage` - ephemeral storage usage (requests)
-
-### Pricing region
-
-For an EKS cluster the pricing region comes from its API server URL
-(`https://<id>.gr7.<region>.eks.amazonaws.com`), also after a context switch.
-For other servers it is the AWS SDK's configured region (`AWS_REGION` or the
-profile).
-
-### Price override label
-
-A node labeled `kube-node-viewer/instance-price=<price per hour>` uses that
-price instead of a pricing lookup.
-
-### Default options
-
-You can supply default options in a file named `.kube-node-viewer` in your
-home directory. The format is `option-name=value`, where the option names are
-the command line flags:
+`~/.kube-node-viewer` holds standing defaults, one `option-name=value` per
+line, option names being the flag names. A saved view for a cluster takes
+precedence over it.
 
 ```text
 # select only Karpenter managed nodes
@@ -209,34 +317,42 @@ node-selector=karpenter.sh/nodepool
 # display both CPU and memory
 resources=cpu,memory
 
-# show the zone and nodepool name by default
-extra-labels=topology.kubernetes.io/zone,karpenter.sh/nodepool
-
-# summarize cost and usage per nodepool, optionally only for some of them
+# group by nodepool, starting folded to the groups
 group-by=karpenter.sh/nodepool
-
-# and start with the node list hidden
 groups-only=true
 
-# sort so that the newest nodes are first
+# extra label columns
+extra-labels=topology.kubernetes.io/zone
+
+# newest nodes last
 node-sort=creation=asc
 
-# change default color style
+# change the good / ok / bad colours
 style=#2E91D2,#ffff00,#D55E00
 ```
 
-### Coming from eks-node-viewer
+## Pricing
 
-- If `~/.kube-node-viewer` doesn't exist, `~/.eks-node-viewer` is read instead
-  and a warning names the new path. The old file is never changed.
-- The `eks-node-viewer/` prefix still works for the price override label and
-  the computed label names. When a node carries both price labels,
-  `kube-node-viewer/instance-price` wins.
+Prices come from AWS: on-demand and Fargate from the Price List API, spot from
+the EC2 spot price history, refreshed periodically, with a static on-demand
+table as a fallback until the first lookup answers. On other clouds, run with
+`--disable-pricing` or set prices with the override label below.
 
-### AWS permissions for pricing
+**Region.** For an EKS cluster the pricing region comes from its API server
+URL (`https://<id>.gr7.<region>.eks.amazonaws.com`), also after a context
+switch. For other servers it is the AWS SDK's configured region (`AWS_REGION`
+or the profile).
 
-Node and pod data comes from the Kubernetes API through your kubeconfig. AWS
-is only called for pricing, which requires:
+**Reserved capacity.** Nodes on Karpenter reserved capacity or EKS capacity
+blocks are prepaid, so their real hourly cost is unknown here. They show the
+on-demand price as an equivalent (`~$0.1344`), and cluster and group totals
+leave them out and say so: `$12.10/hour (+1 reserved, not priced)`.
+
+**Override label.** A node labeled `kube-node-viewer/instance-price=<price per
+hour>` uses that price instead of a lookup, counted as a real price.
+
+**AWS permissions.** Node and pod data comes from the Kubernetes API. AWS is
+only called for pricing, which requires:
 
 ```json
 {
@@ -254,30 +370,75 @@ is only called for pricing, which requires:
 }
 ```
 
-`pricing:GetProducts` is used for on-demand and Fargate pricing, and
-`ec2:DescribeSpotPriceHistory` for spot pricing. Neither action supports
-resource-level scoping, so `Resource` is `*`. With `--disable-pricing`, no AWS
-permissions are needed.
+Neither action supports resource-level scoping, so `Resource` is `*`. With
+`--disable-pricing`, no AWS permissions are needed.
 
-### Troubleshooting
+## Computed labels
 
-#### NoCredentialProviders: no valid providers in chain
+These names work anywhere a label does: columns, sort, group-by, filters,
+`--extra-labels`, `--node-sort`, `--group-by`.
 
-Pricing needs AWS credentials unless you use `--disable-pricing`. Configure
-them through `~/.aws/credentials`, `~/.aws/config`, environment variables or
-another provider in the
+- `kube-node-viewer/node-age`: age of the node
+- `kube-node-viewer/node-cpu-usage`: CPU requests over allocatable
+- `kube-node-viewer/node-memory-usage`: memory requests over allocatable
+- `kube-node-viewer/node-pods-usage`: pods over pod capacity
+- `kube-node-viewer/node-ephemeral-storage-usage`: ephemeral storage requests over allocatable
+
+## Coming from eks-node-viewer
+
+- The screen is driven from inside now. `g` opens the Group by panel instead
+  of toggling the summary, `esc` closes panels instead of quitting, and
+  `--group-by key=a,b` filters in memory instead of narrowing what is
+  watched.
+- If `~/.kube-node-viewer` doesn't exist, `~/.eks-node-viewer` is read instead
+  and a warning names the new path. The old file is never changed.
+- The `eks-node-viewer/` prefix still works for the price override label and
+  the computed label names. When a node carries both price labels,
+  `kube-node-viewer/instance-price` wins.
+
+## Troubleshooting
+
+**The view is not what I expect on one cluster.** It is that cluster's saved
+view. Change it from the TUI, or quit and delete its entry from
+`~/.local/state/kube-node-viewer/state.json`.
+
+**A new default column or order does not show.** Columns saved for a cluster
+win over the defaults; adjust them with `o` (`space`, `K`/`J`).
+
+**NoCredentialProviders: no valid providers in chain.** Pricing needs AWS
+credentials unless you use `--disable-pricing`. Configure them through
+`~/.aws/credentials`, `~/.aws/config`, environment variables or another
+provider in the
 [default credential chain](https://docs.aws.amazon.com/sdk-for-go/v2/developer-guide/configure-gosdk.html).
 
-#### `creating client, exec plugin: invalid apiVersion "client.authentication.k8s.io/v1alpha1"`
-
+**`creating client, exec plugin: invalid apiVersion "client.authentication.k8s.io/v1alpha1"`.**
 Update the AWS CLI and
 [regenerate your kubeconfig](https://docs.aws.amazon.com/cli/latest/reference/eks/update-kubeconfig.html).
+
+**`could not open a new TTY`.** The TUI needs a real terminal; run it directly,
+not through a pipe or a tool without a TTY.
+
+## How it works
+
+- Three informers watch nodes and Karpenter NodeClaims (within
+  `--node-selector`) and all pods. Filters, grouping, sorting and search work
+  on memory and never restart them; only a context switch does.
+- Pods are slimmed at the informer to what the totals need (requests, phase,
+  node) and the store keeps running totals per node, so drawing a frame never
+  walks pods: with 500 nodes a frame takes about 1.7 ms whether the cluster
+  has 15,000 or 150,000 pods, and 150,000 pods take about 150 MiB of memory.
+- The screen redraws when the cluster or prices change (at most every
+  100 ms), plus a 1 s tick for ages and NotReady durations.
+- Each context switch builds a new store with its own watches and pricing;
+  late events from the previous cluster land in its own store, which is no
+  longer shown.
 
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). In short:
-`scripts/verify.sh` checks formatting, vet, tests and specs, and
-`scripts/build.sh` builds the binary.
+`scripts/verify.sh` checks formatting, vet, tests (with the race detector) and
+specs, and `scripts/build.sh` builds the binary. Design and history of the
+interactive TUI are in [`specs/interactive-tui/`](specs/interactive-tui/).
 
 ## Credits
 
