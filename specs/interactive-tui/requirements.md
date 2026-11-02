@@ -184,6 +184,12 @@ showing how many are hidden.
 > owner asked for 50% more than the first 24) and grows into width the columns
 > leave free, up to 60. Columns are dropped before the bar shrinks.
 
+> **Corrected 2026-11-02.** Resizing the window (zoom) left old lines below
+> the frame, and summary and group lines could be wider than the window, so
+> they wrapped and the frame scrolled. A resize now clears the screen and every
+> line is cut to the window width. Internal IP is no longer a default column;
+> it stays available in the Columns panel (owner's request).
+
 **R15** WHEN existing flags or config keys are used THEN they SHALL map to
 the view state as in the design's flag table (D8), and `--node-selector`
 SHALL stay the only server-side scope.
