@@ -20,7 +20,7 @@
   - _Covers: R3, R7 · Depends on: T3 · Verified by: unit tests_
 - [x] T7. Price kind in `pricing.Provider`; reserved as equivalent in `pkg/aws`; totals exclude equivalents
   - _Covers: R8 · Depends on: T6 · Verified by: unit tests_
-- [ ] T8. `ViewState`: filters, group-by ≤3 with subtotals, sort, search, column priority
+- [x] T8. `ViewState`: filters, group-by ≤3 with subtotals, sort, search, column priority
   - _Covers: R3, R4, R5, R6, R14 · Depends on: T6 · Verified by: unit tests_
 - [ ] T9. Flag table (D8) with explicit-flag detection; per-cluster state file, debounced atomic writer
   - _Covers: R1, R2, R15 · Depends on: T8 · Verified by: one test per flag-table row; state tests_
