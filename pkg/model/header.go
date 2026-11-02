@@ -19,8 +19,6 @@ import (
 	"strings"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -69,7 +67,14 @@ func (u *UIModel) clusterCost(stats Stats) string {
 	if u.DisablePricing {
 		return ""
 	}
+	if stats.NumNodes > 0 && stats.PricedNodes == 0 && stats.UnpricedReserved == 0 {
+		return headerLabel("prices unknown")
+	}
 	cost := costValue(u.printer.Sprintf("$%0.3f/month", stats.TotalPrice*avgHoursPerMonth))
+	if stats.PricedNodes < stats.NumNodes-stats.UnpricedReserved {
+		// an unknown price somewhere, so this is a lower bound
+		cost = costValue(">= ") + cost
+	}
 	if stats.UnpricedReserved > 0 {
 		cost += costValue(u.printer.Sprintf(" (+%d reserved, not priced)", stats.UnpricedReserved))
 	}
@@ -142,7 +147,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	}
 	counts := u.printer.Sprintf("%d of %d shown · %d pods", len(nodes), stats.NumNodes, pods)
 	// pods not on a node yet belong to no filtered set; say so when there are any
-	if pending := stats.PodsByPhase[v1.PodPending]; pending > 0 {
+	if pending := stats.Unscheduled; pending > 0 {
 		counts += u.printer.Sprintf(" (%d pending)", pending)
 	}
 	context := u.info.Context

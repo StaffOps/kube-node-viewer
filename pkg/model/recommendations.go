@@ -78,7 +78,7 @@ func (u *UIModel) recommendInput() recommend.Input {
 	a := u.advisor
 	in := recommend.Input{
 		Now: time.Now(), Headroom: u.recOpts.Headroom, OldAge: u.recOpts.OldAge,
-		PendingPods: u.stats.PodsByPhase[v1.PodPending],
+		PendingPods: u.stats.Unscheduled,
 		Spec:        a.Spec, OnDemand: a.OnDemand, SpotIn: a.SpotIn, Types: a.Types(),
 	}
 	for _, n := range u.view.Select(u.stats.Nodes) {
@@ -135,9 +135,12 @@ func (u *UIModel) recommendationsBody(height int) (lines []string, selFrom, selT
 	if u.recFor == "" {
 		return []string{"Working out recommendations…"}, selFrom, selTo
 	}
+	if cloud := u.shownCloud(); cloud != "aws" {
+		return []string{"Recommendations cover EKS nodes only for now; the nodes shown run on " + cloudName(cloud) + "."}, selFrom, selTo
+	}
 	r := u.recs
 	saving := "—"
-	if !u.DisablePricing {
+	if !u.DisablePricing && u.stats.PricedNodes > 0 {
 		saving = u.printer.Sprintf("$%0.2f/month", r.Total)
 	}
 	lines = append(lines,
@@ -186,6 +189,33 @@ func (u *UIModel) recommendationsBody(height int) (lines []string, selFrom, selT
 		lines = append(lines, line)
 	}
 	return lines, selFrom, selTo
+}
+
+// shownCloud is the cloud of the nodes the view keeps: "aws" when any runs
+// on AWS or none is shown, else the first node's.
+func (u *UIModel) shownCloud() string {
+	nodes := u.view.Select(u.stats.Nodes)
+	if len(nodes) == 0 {
+		return "aws" // nothing shown: the screen says so as usual
+	}
+	for _, n := range nodes {
+		if n.Cloud() == "aws" {
+			return "aws"
+		}
+	}
+	return nodes[0].Cloud()
+}
+
+func cloudName(scheme string) string {
+	switch scheme {
+	case "azure":
+		return "Azure"
+	case "gce":
+		return "Google Cloud"
+	case "":
+		return "an unknown provider"
+	}
+	return scheme
 }
 
 // recsKey handles keys on the Recommendations screen; Overview-only keys do

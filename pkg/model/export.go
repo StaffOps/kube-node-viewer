@@ -68,9 +68,11 @@ type exportNode struct {
 type exportTotals struct {
 	Nodes             int                       `json:"nodes"`
 	Resources         map[string]exportResource `json:"resources"`
-	PricePerHour      float64                   `json:"pricePerHour"`
-	PricePerMonth     float64                   `json:"pricePerMonth"`
+	PricePerHour      *float64                  `json:"pricePerHour,omitempty"`
+	PricePerMonth     *float64                  `json:"pricePerMonth,omitempty"`
 	ReservedNotPriced int                       `json:"reservedNotPriced"`
+	// UnknownPrice counts nodes with no price: the totals leave them out
+	UnknownPrice int `json:"unknownPrice"`
 }
 
 // exportDoc is the JSON export; its nodes are also the CSV rows.
@@ -129,20 +131,26 @@ func (u *UIModel) exportDoc(now time.Time) exportDoc {
 		shown.add(n)
 		doc.Nodes = append(doc.Nodes, u.exportNode(n, labels, now))
 	}
-	doc.Shown = u.exportTotals(shown.NumNodes, shown.AllocatableResources, shown.UsedResources, shown.TotalPrice, shown.ReservedNodes)
+	doc.Shown = u.exportTotals(shown.NumNodes, shown.AllocatableResources, shown.UsedResources, shown.TotalPrice, shown.PricedNodes, shown.ReservedNodes)
 	s := u.stats
-	doc.Cluster = u.exportTotals(s.NumNodes, s.AllocatableResources, s.UsedResources, s.TotalPrice, s.UnpricedReserved)
+	doc.Cluster = u.exportTotals(s.NumNodes, s.AllocatableResources, s.UsedResources, s.TotalPrice, s.PricedNodes, s.UnpricedReserved)
 	return doc
 }
 
-func (u *UIModel) exportTotals(nodes int, allocatable, used v1.ResourceList, price float64, reserved int) exportTotals {
+func (u *UIModel) exportTotals(nodes int, allocatable, used v1.ResourceList, price float64, priced, reserved int) exportTotals {
 	t := exportTotals{Nodes: nodes, Resources: map[string]exportResource{}, ReservedNotPriced: reserved}
 	for _, r := range u.cluster.resources {
 		a, us := allocatable[r], used[r]
 		t.Resources[string(r)] = exportResource{Requested: us.String(), Allocatable: a.String(), Percent: percent(us.AsApproximateFloat64(), a.AsApproximateFloat64())}
 	}
-	if !u.DisablePricing {
-		t.PricePerHour, t.PricePerMonth = price, price*avgHoursPerMonth
+	if u.DisablePricing {
+		return t
+	}
+	t.UnknownPrice = nodes - priced - reserved
+	// no node priced, as on a cloud without a price source: no total, not $0
+	if priced > 0 {
+		month := price * avgHoursPerMonth
+		t.PricePerHour, t.PricePerMonth = &price, &month
 	}
 	return t
 }
