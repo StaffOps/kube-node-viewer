@@ -66,7 +66,7 @@ func (demoSwitcher) Switch(string) (Session, error) { return Session{}, fmt.Erro
 func demoUI(t *testing.T) *UIModel {
 	u := newTestUI(t)
 	// the bar detects colours from the terminal, and tests have none
-	u.progress = progress.New(u.style.gradient, progress.WithColorProfile(termenv.TrueColor))
+	u.progress = newProgress(u.style, progress.WithColorProfile(termenv.TrueColor))
 	u.SetClusterInfo(ClusterInfo{Context: "demo-prod", Server: "https://0A1B2C3D4E5F.gr7.us-east-1.eks.amazonaws.com", Region: "us-east-1"})
 	u.SetSwitcher(demoSwitcher{})
 	for i, d := range demoNodes {
@@ -157,7 +157,8 @@ func TestScreenshots(t *testing.T) {
 		{"group-by", 168, 38, func(u *UIModel) { press(u, "g", "down", " ", "down", "down", " ") }},
 		{"columns", 168, 38, func(u *UIModel) { press(u, "o") }},
 		{"contexts", 168, 38, func(u *UIModel) { apply(u, press(u, "c")) }},
-		{"header-compact", 168, 22, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
+		// tall enough to start with the full panel, which ctrl+e compacts
+		{"header-compact", 168, 30, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)

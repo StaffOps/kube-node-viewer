@@ -194,6 +194,13 @@ hidden at once.
 > (under-used is the costly case). With stacked resources a blank line
 > separates nodes. The node list gets no frame of its own.
 
+> **Added 2026-11-02.** Nodes are set apart by a thin gap, not a blank line:
+> a node's (or group's) first bar uses a 7/8-high block, which leaves a gap
+> above it, and its other resources use the full block, joined to it. The
+> empty part of a bar is the same block in dark grey. README images are
+> rendered at line height 1, like a terminal. (Supersedes the blank line
+> between nodes added in the UX pass.)
+
 **R14** WHEN the screen is smaller than the content THEN the system SHALL
 paginate by lines, repeat the group path on a page that continues a group
 (`default › us-east-1a (cont.)`), and drop lowest-priority columns first,

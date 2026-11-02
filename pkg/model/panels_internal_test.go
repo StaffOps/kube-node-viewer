@@ -487,7 +487,7 @@ func TestCollapsedGroupsShowUsageBars(t *testing.T) {
 	bars := 0
 	groups := out[strings.Index(out, "OnDemand"):]
 	for _, line := range strings.Split(groups, "\n") {
-		if strings.Contains(line, "░") && strings.Contains(line, "%") {
+		if strings.ContainsAny(line, "▇█") && strings.Contains(line, "%") {
 			bars++
 		}
 	}
@@ -551,9 +551,9 @@ func TestNFoldsOneLevelPerPress(t *testing.T) {
 	if got := look(); got != (screen{nodes: false, sub: true, top: true}) {
 		t.Errorf("details on: %+v\n%s", got, u.View())
 	}
-	if out := u.View(); strings.Contains(out, "└─ default") && strings.Count(out, "░") > 0 {
+	if out := u.View(); strings.Contains(out, "└─ default") && strings.ContainsAny(out, "▇█") {
 		for _, line := range strings.Split(out, "\n") {
-			if strings.Contains(line, "└─ default") && strings.Contains(line, "░") {
+			if strings.Contains(line, "└─ default") && strings.ContainsAny(line, "▇█") {
 				t.Errorf("a detail row has a bar: %q", line)
 			}
 		}
