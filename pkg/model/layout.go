@@ -28,6 +28,10 @@ import (
 var (
 	titleStyle = lipgloss.NewStyle().Bold(true).Render
 	groupStyle = lipgloss.NewStyle().Bold(true).Render
+	// group headings: the top level stands out, sub-levels hang off it
+	topGroupStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#005f87", Dark: "#87d7ff"}).Render
+	subGroupStyle = lipgloss.NewStyle().Bold(true).Render
+	treeStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 	// managedNodeGroupStyle tells EKS managed node groups from Karpenter
 	// NodePools in the node group column
 	managedNodeGroupStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0087af", Dark: "#5fafff"}).Render
@@ -188,10 +192,15 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 	if table == nil {
 		collapsed = u.groupTable(groups)
 	}
+	tree := treeOf(groups)
 	var walk func(groups []*Group)
 	walk = func(groups []*Group) {
 		for _, g := range groups {
-			lines := []string{u.groupLine(g)}
+			var lines []string
+			if tree[g].spaced {
+				lines = append(lines, "")
+			}
+			lines = append(lines, u.groupLine(g, tree[g]))
 			if collapsed != nil {
 				lines = collapsed[g]
 			}
@@ -256,11 +265,11 @@ func paginate(blocks []block, top []string, height int) [][]block {
 }
 
 // groupLine is a group heading with its subtotals (R4).
-func (u *UIModel) groupLine(g *Group) string {
+func (u *UIModel) groupLine(g *Group, t groupTree) string {
 	s := g.Stats
 	var b strings.Builder
-	b.WriteString(strings.Repeat("  ", len(g.Path)-1))
-	b.WriteString(groupStyle(strings.Join(g.Path, pathSeparator)))
+	b.WriteString(treeStyle(t.branch))
+	b.WriteString(groupName(g))
 	u.printer.Fprintf(&b, "  %d nodes  %d pods", s.NumNodes, s.NumPods)
 	for _, res := range u.cluster.resources {
 		pct := s.PercentUsed(res)
@@ -282,6 +291,53 @@ func (u *UIModel) groupLine(g *Group) string {
 	return b.String()
 }
 
+// groupTree is how a group heading hangs in the tree: the connector before
+// its name, what continues below it on its own extra lines, and whether a
+// blank line sets it apart (top-level groups after the first).
+type groupTree struct {
+	branch, below string
+	spaced        bool
+}
+
+// treeOf lays out the group hierarchy: top-level groups by name, sub-groups
+// under them with ├─ / └─ connectors, so each heading shows only its own
+// value.
+func treeOf(groups []*Group) map[*Group]groupTree {
+	out := map[*Group]groupTree{}
+	var walk func(gs []*Group, prefix string, top bool)
+	walk = func(gs []*Group, prefix string, top bool) {
+		for i, g := range gs {
+			last := i == len(gs)-1
+			t := groupTree{spaced: top && i > 0}
+			childPrefix := ""
+			if !top {
+				connector, rest := "├─ ", "│  "
+				if last {
+					connector, rest = "└─ ", "   "
+				}
+				t.branch = prefix + connector
+				childPrefix = prefix + rest
+			}
+			t.below = childPrefix
+			if len(g.Groups) > 0 {
+				t.below += "│"
+			}
+			out[g] = t
+			walk(g.Groups, childPrefix, false)
+		}
+	}
+	walk(groups, "", true)
+	return out
+}
+
+// groupName is the heading's own value, styled by level.
+func groupName(g *Group) string {
+	if len(g.Path) == 1 {
+		return topGroupStyle(g.Name())
+	}
+	return subGroupStyle(g.Name())
+}
+
 // groupTable lays out every group, nested ones included, for the collapsed
 // view: name, node and pod counts, then a usage bar per resource, one line
 // each, and the cost on the first line. Columns line up across all groups.
@@ -295,6 +351,7 @@ func (u *UIModel) groupTable(groups []*Group) map[*Group][]string {
 		}
 	}
 	collect(groups)
+	tree := treeOf(groups)
 
 	type groupRow struct {
 		name, nodes, pods, price string
@@ -307,7 +364,7 @@ func (u *UIModel) groupTable(groups []*Group) map[*Group][]string {
 	for _, g := range all {
 		s := g.Stats
 		r := groupRow{
-			name:  strings.Repeat("  ", len(g.Path)-1) + strings.Join(g.Path, pathSeparator),
+			name:  treeStyle(tree[g].branch) + groupName(g),
 			nodes: u.printer.Sprintf("%d nodes", s.NumNodes),
 			pods:  u.printer.Sprintf("%d pods", s.NumPods),
 		}
@@ -343,19 +400,20 @@ func (u *UIModel) groupTable(groups []*Group) map[*Group][]string {
 	out := make(map[*Group][]string, len(all))
 	for _, g := range all {
 		r := rows[g]
-		lead := strings.Repeat("  ", len(g.Path)-1)
 		var lines []string
+		if tree[g].spaced {
+			lines = append(lines, "")
+		}
 		for i, res := range u.cluster.resources {
 			bar := pad(u.progressBar(g.Stats.PercentUsed(res)/100), barW)
 			if i == 0 {
-				name := lead + groupStyle(strings.TrimPrefix(r.name, lead))
-				line := pad(name, nameW) + "  " + pad(r.nodes, nodesW) + "  " + pad(r.pods, podsW) + "  " + pad(string(res), resW) + " " + bar
+				line := pad(r.name, nameW) + "  " + pad(r.nodes, nodesW) + "  " + pad(r.pods, podsW) + "  " + pad(string(res), resW) + " " + bar
 				if r.price != "" {
 					line += "  " + r.price
 				}
 				lines = append(lines, line)
 			} else {
-				lines = append(lines, strings.Repeat(" ", nameW+2+nodesW+2+podsW+2)+pad(string(res), resW)+" "+bar)
+				lines = append(lines, pad(treeStyle(tree[g].below), nameW+2+nodesW+2+podsW+2)+pad(string(res), resW)+" "+bar)
 			}
 		}
 		out[g] = lines

@@ -493,3 +493,22 @@ func TestCollapsedGroupsShowUsageBars(t *testing.T) {
 		t.Errorf("want 4 group bars (2 groups x cpu, memory), got %d:\n%s", bars, out)
 	}
 }
+
+func TestGroupHeadingsAreATree(t *testing.T) {
+	u := capacityUI(t, 4)
+	v := u.view
+	v.SetGroupBy(FieldCapacity, FieldNodeGroup)
+	u.SetView(v)
+	for _, collapsed := range []bool{false, true} {
+		if collapsed {
+			press(u, "n")
+		}
+		out := u.View()
+		if strings.Contains(out, "OnDemand › default") {
+			t.Errorf("collapsed=%v: sub-group repeats its parent:\n%s", collapsed, out)
+		}
+		if !strings.Contains(out, "└─ default") || !strings.Contains(out, "└─ gpu") {
+			t.Errorf("collapsed=%v: sub-groups not hung off their parent:\n%s", collapsed, out)
+		}
+	}
+}
