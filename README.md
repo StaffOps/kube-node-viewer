@@ -76,7 +76,7 @@ Usage of kube-node-viewer:
 | `/` | Search name, IP, instance type and label values as you type; `enter` keeps it, `esc` clears it |
 | `r` | Resources: cpu → memory → cpu+memory (→ the `--resources` list, if different) |
 | `c` | Switch to another kubeconfig context |
-| `n` | Show or hide the node list when grouping |
+| `n` | Fold one level per press when grouping: the nodes, then each sub-group level down to the top level; the next press unfolds all |
 | `ctrl+e` | Compact or expand the header |
 | `←/→` | Previous / next page |
 | `?` | All keys |

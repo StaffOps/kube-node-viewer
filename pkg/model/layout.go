@@ -144,7 +144,7 @@ func (u *UIModel) helpText() string {
 	}
 	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context"
 	if len(u.view.GroupBy) > 0 {
-		keys += " • n: nodes"
+		keys += " • n: fold"
 	}
 	return keys + " • ?: help • q: quit"
 }
@@ -188,17 +188,21 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 	var blocks []block
 	groups := u.view.Groups(nodes)
 	// with the node list hidden the groups carry their own usage bars
+	depth := u.view.VisibleDepth()
 	var collapsed map[*Group][]string
 	if table == nil {
-		collapsed = u.groupTable(groups)
+		collapsed = u.groupTable(groups, depth)
 	}
-	tree := treeOf(groups)
+	tree := treeOf(groups, depth)
 	var walk func(groups []*Group)
 	walk = func(groups []*Group) {
 		for _, g := range groups {
 			var lines []string
 			if tree[g].spaced {
 				lines = append(lines, "")
+			}
+			if _, shown := tree[g]; !shown {
+				continue
 			}
 			lines = append(lines, u.groupLine(g, tree[g]))
 			if collapsed != nil {
@@ -302,7 +306,8 @@ type groupTree struct {
 // treeOf lays out the group hierarchy: top-level groups by name, sub-groups
 // under them with ├─ / └─ connectors, so each heading shows only its own
 // value.
-func treeOf(groups []*Group) map[*Group]groupTree {
+// Groups deeper than depth are left out; 0 keeps every level.
+func treeOf(groups []*Group, depth int) map[*Group]groupTree {
 	out := map[*Group]groupTree{}
 	var walk func(gs []*Group, prefix string, top bool)
 	walk = func(gs []*Group, prefix string, top bool) {
@@ -318,12 +323,15 @@ func treeOf(groups []*Group) map[*Group]groupTree {
 				t.branch = prefix + connector
 				childPrefix = prefix + rest
 			}
+			shown := depth == 0 || len(g.Path) < depth
 			t.below = childPrefix
-			if len(g.Groups) > 0 {
+			if len(g.Groups) > 0 && shown {
 				t.below += "│"
 			}
 			out[g] = t
-			walk(g.Groups, childPrefix, false)
+			if shown {
+				walk(g.Groups, childPrefix, false)
+			}
 		}
 	}
 	walk(groups, "", true)
@@ -341,17 +349,19 @@ func groupName(g *Group) string {
 // groupTable lays out every group, nested ones included, for the collapsed
 // view: name, node and pod counts, then a usage bar per resource, one line
 // each, and the cost on the first line. Columns line up across all groups.
-func (u *UIModel) groupTable(groups []*Group) map[*Group][]string {
+func (u *UIModel) groupTable(groups []*Group, depth int) map[*Group][]string {
+	tree := treeOf(groups, depth)
 	var all []*Group
 	var collect func([]*Group)
 	collect = func(gs []*Group) {
 		for _, g := range gs {
-			all = append(all, g)
-			collect(g.Groups)
+			if _, shown := tree[g]; shown {
+				all = append(all, g)
+				collect(g.Groups)
+			}
 		}
 	}
 	collect(groups)
-	tree := treeOf(groups)
 
 	type groupRow struct {
 		name, nodes, pods, price string
