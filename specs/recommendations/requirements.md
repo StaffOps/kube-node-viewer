@@ -99,9 +99,13 @@ saving or `info`/`—`, and a reason; and the header SHALL show the total
 saving defined in R14.
 
 - [ ] Spot recommendations are always last, whatever their saving.
-- [ ] Keys: `↑`/`↓` select, `enter` opens the row's math, `←`/`→` page,
+- [ ] Keys: `↑`/`↓` select (the list scrolls with the cursor), `enter`
+  opens the row's math,
   `f`, `/`, `c`, `v`, `e`, `?`, `:`, `tab`, `q` as in Overview; `g`, `s`,
-  `o`, `n`, `d`, `r` and `space` do nothing there.
+  `o`, `n`, `d`, `r`, `space` and `←`/`→` do nothing there.
+
+  > **Corrected 2026-11-02 (T6).** The rows scroll with the cursor instead
+  > of paging with `←`/`→`, like the popups.
 - [ ] A saving that can't be priced shows `—`, never `$0`.
 - [ ] With nothing to recommend the screen says so.
 - [ ] Analysis runs off the UI goroutine and is reused until the snapshot or

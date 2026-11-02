@@ -82,8 +82,14 @@ func main() {
 	})
 	defer saver.Close()
 
+	recOpts, err := recommendOptions(flags.Config)
+	if err != nil {
+		log.Fatalf("config file: %s", err)
+	}
+
 	m := model.NewUIModel(style)
 	m.DisablePricing = flags.DisablePricing
+	m.SetRecommendOptions(recOpts)
 	// The program exists before the watches start: Send blocks until it runs.
 	program := tea.NewProgram(m, tea.WithAltScreen())
 	running.Store(program)

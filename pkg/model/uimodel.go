@@ -32,6 +32,7 @@ import (
 	"golang.org/x/text/message"
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/staffops/kube-node-viewer/pkg/recommend"
 	"github.com/staffops/kube-node-viewer/pkg/text"
 )
 
@@ -90,6 +91,19 @@ type UIModel struct {
 	// exportFallback is where exports go when the current directory is not
 	// writable
 	exportFallback string
+	// the : command line
+	commanding bool
+	command    string
+	// recommendations: the cloud's catalog and prices, the settings, the last
+	// result and what it was computed for, the selected row
+	advisor    Advisor
+	recOpts    RecommendOptions
+	recs       recommend.Result
+	recFor     string
+	recPending bool
+	recCursor  int
+	// snapSeq counts snapshots, to know when recommendations are stale
+	snapSeq uint64
 	// cursor: the selected row (a group heading or a node) by key, the path
 	// when it is a group, a pending move, and the selected lines of the last
 	// frame (content line numbers, -1 when none)
@@ -460,6 +474,11 @@ func tickCmd() tea.Cmd {
 }
 
 func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m, cmd := u.update(msg)
+	return m, tea.Batch(cmd, u.maybeAnalyze())
+}
+
+func (u *UIModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// anything reaching Update may change what is on screen
 	u.dirty = true
 	switch msg := msg.(type) {
@@ -476,7 +495,11 @@ func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case snapshotMsg:
 		if msg.gen == u.gen {
 			u.stats = msg.stats
+			u.snapSeq++
 		}
+		return u, nil
+	case recsMsg:
+		u.recsDone(msg)
 		return u, nil
 	case tea.KeyMsg:
 		return u, u.handleKey(msg)
@@ -513,10 +536,28 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		u.searchKey(key)
 		return nil
 	}
+	if u.commanding {
+		u.commandKey(key)
+		return nil
+	}
 	if u.panel != panelNone {
 		return u.panelKey(key)
 	}
+	if u.onRecommendations() {
+		switch key {
+		case "up", "k", "down", "j", "enter":
+			u.recsKey(key)
+			return nil
+		case "g", "s", "o", "n", "d", "r", " ", "home", "left", "right", "h", "l", "pgup", "pgdown":
+			// Overview-only keys do nothing here
+			return nil
+		}
+	}
 	switch key {
+	case ":":
+		u.commanding, u.command = true, ""
+	case "tab":
+		u.toggleScreen()
 	case "q":
 		return tea.Quit
 	case "?":

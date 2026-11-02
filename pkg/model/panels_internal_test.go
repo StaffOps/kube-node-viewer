@@ -47,6 +47,10 @@ func press(u *UIModel, keys ...string) tea.Cmd {
 			msg = tea.KeyMsg{Type: tea.KeyCtrlC}
 		case "backspace":
 			msg = tea.KeyMsg{Type: tea.KeyBackspace}
+		case "tab":
+			msg = tea.KeyMsg{Type: tea.KeyTab}
+		case "ctrl+u":
+			msg = tea.KeyMsg{Type: tea.KeyCtrlU}
 		default:
 			msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
 		}

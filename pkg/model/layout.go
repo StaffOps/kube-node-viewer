@@ -107,6 +107,10 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 	var body []string
 	status := ""
 	switch {
+	case u.onRecommendations():
+		var from, to int
+		body, from, to = u.recommendationsBody(avail)
+		u.selFrom, u.selTo = from, to
 	case stats.NumNodes == 0:
 		body = []string{"Waiting for update or no nodes found..."}
 	case len(nodes) == 0:
@@ -143,6 +147,9 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 	}
 	if u.searching {
 		status = "/" + u.view.Search + "█"
+	}
+	if u.commanding {
+		status = ":" + u.command + "█"
 	}
 	for _, line := range body {
 		b.WriteString(line)
@@ -192,8 +199,16 @@ func (u *UIModel) helpText() string {
 		return u.contexts.hint()
 	case panelViews:
 		return u.viewsPanel.hint()
+	case panelRecMath:
+		return "esc: close"
 	}
-	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context • v: views • e: export"
+	if u.commanding {
+		return "overview (ov) • recommendations (rec) • tab: complete • enter: run • esc: cancel"
+	}
+	if u.onRecommendations() {
+		return "↑/↓: select • enter: why • tab/:ov: Overview • f: filter • /: search • c: context • v: views • e: export • ?: help • q: quit"
+	}
+	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context • v: views • e: export • tab: recommendations"
 	if len(u.view.GroupBy) > 0 {
 		keys += " • enter: fold group • n: fold"
 	}

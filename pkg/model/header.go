@@ -189,7 +189,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		rows = append(rows, [2]string{"Issue:", u.style.red(issue) + headerLabel("  full log: "+u.issueLog)})
 	}
 	var left strings.Builder
-	left.WriteString(titleStyle("kube-node-viewer"))
+	left.WriteString(titleStyle("kube-node-viewer") + headerLabel(" · ") + headerContext(u.screenTitle()))
 	for _, r := range rows {
 		left.WriteString("\n" + headerLabel(fmt.Sprintf("%-9s", r[0])) + " " + r[1])
 	}
