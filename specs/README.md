@@ -10,9 +10,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    docs away from the upstream name.
    [requirements](rebrand/requirements.md) · [design](rebrand/design.md) ·
    [tasks](rebrand/tasks.md)
-2. [`interactive-tui/`](interactive-tui/) — **active**. Stage 1 of the
-   sofka-style rework: no-flag start, Filters / Group by / Sort / Columns
-   panels, per-context state, change-driven redraw.
+2. [`interactive-tui/`](interactive-tui/) — **active**, all tasks done;
+   shipped once the owner checks a context switch on two clusters. Stage 1
+   of the sofka-style rework: no-flag start, popup panels (Filters, Group by,
+   Sort, Columns, Context), folding, per-cluster state, change-driven
+   redraw. The owner's UX changes are dated notes in its requirements.
    [requirements](interactive-tui/requirements.md) ·
    [design](interactive-tui/design.md) · [tasks](interactive-tui/tasks.md)
 3. [`decisions/`](decisions/) — decision records (index below).
