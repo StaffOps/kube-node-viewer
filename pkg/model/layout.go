@@ -182,10 +182,20 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 	}
 
 	var blocks []block
+	groups := u.view.Groups(nodes)
+	// with the node list hidden the groups carry their own usage bars
+	var collapsed map[*Group][]string
+	if table == nil {
+		collapsed = u.groupTable(groups)
+	}
 	var walk func(groups []*Group)
 	walk = func(groups []*Group) {
 		for _, g := range groups {
-			blocks = append(blocks, block{path: g.Path, heading: true, lines: []string{u.groupLine(g)}})
+			lines := []string{u.groupLine(g)}
+			if collapsed != nil {
+				lines = collapsed[g]
+			}
+			blocks = append(blocks, block{path: g.Path, heading: true, lines: lines})
 			walk(g.Groups)
 			if table != nil {
 				for _, n := range g.Nodes {
@@ -194,7 +204,7 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 			}
 		}
 	}
-	if groups := u.view.Groups(nodes); groups != nil {
+	if groups != nil {
 		walk(groups)
 	} else {
 		for _, n := range nodes {
@@ -270,6 +280,87 @@ func (u *UIModel) groupLine(g *Group) string {
 		}
 	}
 	return b.String()
+}
+
+// groupTable lays out every group, nested ones included, for the collapsed
+// view: name, node and pod counts, then a usage bar per resource, one line
+// each, and the cost on the first line. Columns line up across all groups.
+func (u *UIModel) groupTable(groups []*Group) map[*Group][]string {
+	var all []*Group
+	var collect func([]*Group)
+	collect = func(gs []*Group) {
+		for _, g := range gs {
+			all = append(all, g)
+			collect(g.Groups)
+		}
+	}
+	collect(groups)
+
+	type groupRow struct {
+		name, nodes, pods, price string
+	}
+	rows := make(map[*Group]groupRow, len(all))
+	nameW, nodesW, podsW, resW := 0, 0, 0, 0
+	for _, res := range u.cluster.resources {
+		resW = max(resW, len(res))
+	}
+	for _, g := range all {
+		s := g.Stats
+		r := groupRow{
+			name:  strings.Repeat("  ", len(g.Path)-1) + strings.Join(g.Path, pathSeparator),
+			nodes: u.printer.Sprintf("%d nodes", s.NumNodes),
+			pods:  u.printer.Sprintf("%d pods", s.NumPods),
+		}
+		if !u.DisablePricing {
+			if s.PricedNodes > 0 {
+				r.price = u.printer.Sprintf("$%0.3f/hour | $%0.3f/month", s.TotalPrice, s.TotalPrice*avgHoursPerMonth)
+				if !s.FullyPriced() {
+					r.price = ">= " + r.price
+				}
+			}
+			if s.ReservedNodes > 0 {
+				r.price += u.printer.Sprintf(" (+%d reserved, not priced)", s.ReservedNodes)
+			}
+		}
+		nameW = max(nameW, textWidth(r.name))
+		nodesW = max(nodesW, len(r.nodes))
+		podsW = max(podsW, len(r.pods))
+		rows[g] = r
+	}
+
+	barW := nodeBarWidth
+	if u.width > 0 {
+		priceW := 0
+		for _, r := range rows {
+			priceW = max(priceW, textWidth(r.price))
+		}
+		spare := u.width - (nameW + 2 + nodesW + 2 + podsW + 2 + resW + 1) - 2 - priceW
+		barW = min(max(spare, nodeBarWidth), maxNodeBarWidth)
+	}
+	defer func(width int, pct bool) { u.progress.Width, u.progress.ShowPercentage = width, pct }(u.progress.Width, u.progress.ShowPercentage)
+	u.progress.Width, u.progress.ShowPercentage = barW, true
+
+	out := make(map[*Group][]string, len(all))
+	for _, g := range all {
+		r := rows[g]
+		lead := strings.Repeat("  ", len(g.Path)-1)
+		var lines []string
+		for i, res := range u.cluster.resources {
+			bar := pad(u.progressBar(g.Stats.PercentUsed(res)/100), barW)
+			if i == 0 {
+				name := lead + groupStyle(strings.TrimPrefix(r.name, lead))
+				line := pad(name, nameW) + "  " + pad(r.nodes, nodesW) + "  " + pad(r.pods, podsW) + "  " + pad(string(res), resW) + " " + bar
+				if r.price != "" {
+					line += "  " + r.price
+				}
+				lines = append(lines, line)
+			} else {
+				lines = append(lines, strings.Repeat(" ", nameW+2+nodesW+2+podsW+2)+pad(string(res), resW)+" "+bar)
+			}
+		}
+		out[g] = lines
+	}
+	return out
 }
 
 // nodeTable is the node list laid out in aligned columns: name, a bar per
