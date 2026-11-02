@@ -31,9 +31,10 @@ const (
 )
 
 var (
-	headerBox   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#626262")).Padding(0, 1)
-	headerLabel = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#5f5f87", Dark: "#afafd7"}).Render
-	headerValue = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f87", Dark: "#87d7ff"}).Render
+	headerBox     = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#626262")).Padding(0, 1)
+	headerLabel   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#5f5f87", Dark: "#afafd7"}).Render
+	headerValue   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f87", Dark: "#87d7ff"}).Render
+	headerContext = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#005f87", Dark: "#87d7ff"}).Render
 	// keys in bold yellow, what they do in plain grey, here and in popups
 	headerKey    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#875f00", Dark: "#ffd75f"}).Render
 	headerAction = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#4e4e4e", Dark: "#bcbcbc"}).Render
@@ -110,7 +111,8 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	}
 
 	if u.headerSize() == headerLine {
-		return fmt.Sprintf("%s │ %s │ %s\n", titleStyle(context), counts, u.viewSummary())
+		sep := viewSep(" │ ")
+		return headerContext(context) + sep + countsValue(counts) + sep + u.viewSummary() + "\n"
 	}
 
 	region := u.info.Region
@@ -118,13 +120,13 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		region = stats.Nodes[0].Region()
 	}
 	if u.headerSize() == headerCompact {
-		where := []string{titleStyle(context)}
+		where := []string{headerContext(context)}
 		for _, s := range []string{u.info.Server, region} {
 			if s != "" {
-				where = append(where, s)
+				where = append(where, headerValue(s))
 			}
 		}
-		where = append(where, counts)
+		where = append(where, countsValue(counts))
 		return u.boxed(strings.Join(where, headerLabel(" · ")) + "\n" + u.viewSummary())
 	}
 	rows := [][2]string{
