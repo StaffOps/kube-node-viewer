@@ -428,8 +428,7 @@ not through a pipe or a tool without a TTY.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). In short:
 `scripts/verify.sh` checks formatting, vet, tests (with the race detector) and
-specs, and `scripts/build.sh` builds the binary. Design and history of the
-interactive TUI are in [`specs/interactive-tui/`](specs/interactive-tui/).
+specs, and `scripts/build.sh` builds the binary.
 
 ## Credits
 
