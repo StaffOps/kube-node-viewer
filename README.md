@@ -89,8 +89,9 @@ sort, resources); the main keys. `ctrl+e` switches between this full panel
 and a two-line box. On a very short window it shrinks to one line.
 
 **Cluster summary.** Requested over allocatable, the percentage and a bar for
-each resource, and the cost per hour and per month. It covers every watched
-node, whatever the filters.
+each resource, and the cost per hour and per month, for the nodes on screen:
+with filters or a search it covers only the nodes they keep and says so,
+`(filtered: 3 of 10 nodes)`.
 
 **Node list.** One block per node: a usage bar per resource (stacked, with a
 blank line between nodes when more than one resource is shown), the pods on

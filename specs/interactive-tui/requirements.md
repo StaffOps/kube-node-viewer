@@ -271,6 +271,11 @@ folded groups SHALL be saved with the view.
 > **Added 2026-11-02.** The owner asked to fold a single group, which needs a
 > row cursor (suggestion 4 of the UX pass).
 
+> **Added 2026-11-02 (after v0.8.2).** The cluster summary covers the nodes
+> on screen: with filters or a search, usage and cost are those of the nodes
+> kept, marked `(filtered: N of M nodes)`; the owner wanted the cost of what
+> the filters show, not the cluster's.
+
 ## Counter-examples
 
 - SHALL NOT list or show individual pods; pods only feed per-node totals

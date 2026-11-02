@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Changed
+
+- The cluster summary follows the filters and search: usage and cost are
+  those of the nodes on screen, marked `(filtered: N of M nodes)`.
+
 ## [0.8.2] - 2026-11-02
 
 ### Added
