@@ -41,6 +41,12 @@ All notable changes to this project are documented here. Format:
   out and count the unpriced nodes.
 - Recommendations on clusters without EKS nodes say they cover EKS only.
 
+- The static on-demand price tables, used until the first live lookup and
+  when AWS can't be reached, are refreshed (from April 2025 to October 2026).
+- golangci-lint v2 runs in CI (`make lint` locally); a monthly workflow
+  refreshes the price tables and, with an AWS role configured, the instance
+  catalog, and opens a PR.
+
 ### Fixed
 
 - The pending pod count, and the recommendations it holds back, counted pods
