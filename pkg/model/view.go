@@ -415,7 +415,7 @@ func ValueCounts(nodes []*Node, field Field) []ValueCount {
 
 // DefaultColumns are shown when nothing is saved, in screen order.
 // IP is offered in the Columns panel but not shown by default.
-var DefaultColumns = []Field{FieldInstanceType, FieldCapacity, FieldNodeGroup, FieldZone, FieldPrice, FieldStatus}
+var DefaultColumns = []Field{FieldInstanceType, FieldPrice, FieldCapacity, FieldNodeGroup, FieldZone, FieldStatus}
 
 // columnPriority ranks columns by what to keep when the screen is narrow, most
 // important first (R14). Labels and anything unlisted go after these.

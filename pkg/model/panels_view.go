@@ -25,14 +25,10 @@ import (
 
 // --- Group by (g) -----------------------------------------------------------
 
-// groupPanel edits the up to three group-by levels (R4): pick a field per
-// level, remove a level, move it up or down.
+// groupPanel lists every field, the group-by levels first in level order;
+// ticking a field adds it as the next level, up to three (R4).
 type groupPanel struct {
-	picking bool
-	// level is the level being picked for; len(GroupBy) adds one
-	level  int
 	cursor int
-	fields []Field
 }
 
 func (u *UIModel) openGroupBy() {
@@ -41,74 +37,51 @@ func (u *UIModel) openGroupBy() {
 }
 
 func (p *groupPanel) hint() string {
-	if p.picking {
-		return "↑/↓: move • enter: choose • esc: back"
+	return "↑/↓: move • space/enter: add/remove level • K/J: move level up/down • esc: close"
+}
+
+// groupChoices are the levels in order, then every other field and label.
+func (u *UIModel) groupChoices() []Field {
+	fields := slices.Clone(u.view.GroupBy)
+	for _, f := range filterFieldChoices(u.stats.Nodes) {
+		if !slices.Contains(fields, f) {
+			fields = append(fields, f)
+		}
 	}
-	return "↑/↓: move • enter: change/add • d: remove • K/J: move level up/down • esc: close"
+	return fields
 }
 
 func (u *UIModel) groupByKey(key string) {
 	p := &u.group
-	levels := u.view.GroupBy
-	if p.picking {
-		var moved bool
-		if p.cursor, moved = moveCursor(p.cursor, len(p.fields), key); moved {
-			return
-		}
-		switch key {
-		case "esc":
-			p.picking, p.cursor = false, p.level
-		case "enter":
-			next := slices.Clone(levels)
-			field := p.fields[p.cursor]
-			if p.level < len(next) {
-				next[p.level] = field
-			} else {
-				next = append(next, field)
-			}
-			// a field picked again moves to this level
-			for i := len(next) - 1; i >= 0; i-- {
-				if i != p.level && next[i] == field {
-					next = slices.Delete(next, i, i+1)
-				}
-			}
-			u.setGroupBy(next)
-			p.picking, p.cursor = false, min(p.level, len(u.view.GroupBy)-1)
-		}
-		return
-	}
-
-	rows := len(levels)
-	if rows < MaxGroupLevels {
-		rows++ // "+ add level"
-	}
+	fields := u.groupChoices()
 	var moved bool
-	if p.cursor, moved = moveCursor(p.cursor, rows, key); moved {
+	if p.cursor, moved = moveCursor(p.cursor, len(fields), key); moved || len(fields) == 0 {
 		return
 	}
+	field := fields[p.cursor]
+	levels := u.view.GroupBy
+	at := slices.Index(levels, field)
 	switch key {
 	case "esc":
 		u.panel = panelNone
-	case "enter":
-		p.picking, p.level = true, p.cursor
-		p.fields = filterFieldChoices(u.stats.Nodes)
-		p.cursor = 0
-		if p.level < len(levels) {
-			p.cursor = max(slices.Index(p.fields, levels[p.level]), 0)
+	case " ", "enter":
+		switch {
+		case at >= 0:
+			u.setGroupBy(slices.Delete(slices.Clone(levels), at, at+1))
+		case len(levels) < MaxGroupLevels:
+			u.setGroupBy(append(slices.Clone(levels), field))
+		default:
+			return
 		}
-	case "d", "delete", "backspace":
-		if p.cursor < len(levels) {
-			u.setGroupBy(slices.Delete(slices.Clone(levels), p.cursor, p.cursor+1))
-			p.cursor = min(p.cursor, len(u.view.GroupBy))
-		}
+		p.cursor = max(slices.Index(u.groupChoices(), field), 0)
 	case "K", "J":
-		to := p.cursor - 1
+		to := at - 1
 		if key == "J" {
-			to = p.cursor + 1
+			to = at + 1
 		}
-		if p.cursor < len(levels) && to >= 0 && to < len(levels) {
+		if at >= 0 && to >= 0 && to < len(levels) {
 			next := slices.Clone(levels)
-			next[p.cursor], next[to] = next[to], next[p.cursor]
+			next[at], next[to] = next[to], next[at]
 			u.setGroupBy(next)
 			p.cursor = to
 		}
@@ -121,23 +94,21 @@ func (u *UIModel) setGroupBy(fields []Field) {
 	u.setView(v)
 }
 
-func (u *UIModel) groupByLines(height int) []string {
-	p := &u.group
-	if p.picking {
-		rows := make([]string, len(p.fields))
-		for i, f := range p.fields {
-			rows[i] = marker(i == p.cursor) + fieldName(f)
+func (u *UIModel) groupByPanel() panelView {
+	fields := u.groupChoices()
+	rows := make([]string, len(fields))
+	for i, f := range fields {
+		level := "[ ]"
+		if at := slices.Index(u.view.GroupBy, f); at >= 0 {
+			level = fmt.Sprintf("[%d]", at+1)
 		}
-		return panelLines(fmt.Sprintf("Group by, level %d: pick a field", p.level+1), rows, p.cursor, height)
+		rows[i] = level + " " + fieldName(f)
 	}
-	var rows []string
-	for i, f := range u.view.GroupBy {
-		rows = append(rows, fmt.Sprintf("%s%d. %s", marker(i == p.cursor), i+1, fieldName(f)))
+	title := fmt.Sprintf("Group by (up to %d levels)", MaxGroupLevels)
+	if len(u.view.GroupBy) == MaxGroupLevels {
+		title = "Group by (3 of 3 levels)"
 	}
-	if len(u.view.GroupBy) < MaxGroupLevels {
-		rows = append(rows, marker(p.cursor == len(u.view.GroupBy))+"+ add level")
-	}
-	return panelLines(fmt.Sprintf("Group by (up to %d levels)", MaxGroupLevels), rows, p.cursor, height)
+	return panelView{title: title, rows: rows, cursor: u.group.cursor}
 }
 
 // --- Sort (s) ---------------------------------------------------------------
@@ -209,7 +180,7 @@ func (u *UIModel) sortKey(key string) {
 	}
 }
 
-func (u *UIModel) sortLines(height int) []string {
+func (u *UIModel) sortPanel() panelView {
 	p := &u.sort
 	rows := make([]string, len(p.fields))
 	for i, f := range p.fields {
@@ -220,9 +191,9 @@ func (u *UIModel) sortLines(height int) []string {
 				current = "  ↓"
 			}
 		}
-		rows[i] = marker(i == p.cursor) + fieldName(f) + current
+		rows[i] = fieldName(f) + current
 	}
-	return panelLines("Sort by", rows, p.cursor, height)
+	return panelView{title: "Sort by", rows: rows, cursor: p.cursor}
 }
 
 // --- Columns (o) ------------------------------------------------------------
@@ -312,7 +283,7 @@ func (u *UIModel) reorderColumnChoices() {
 	p.cursor = max(slices.Index(p.fields, field), 0)
 }
 
-func (u *UIModel) columnLines(height int) []string {
+func (u *UIModel) columnsPanel() panelView {
 	p := &u.columns
 	rows := make([]string, len(p.fields))
 	for i, f := range p.fields {
@@ -320,9 +291,9 @@ func (u *UIModel) columnLines(height int) []string {
 		if f.Label() == "" {
 			name = columnTitle(f)
 		}
-		rows[i] = marker(i == p.cursor) + check(slices.Contains(u.view.Columns, f)) + " " + name
+		rows[i] = check(slices.Contains(u.view.Columns, f)) + " " + name
 	}
-	return panelLines("Columns (shown first, in screen order)", rows, p.cursor, height)
+	return panelView{title: "Columns (shown first, in screen order)", rows: rows, cursor: p.cursor}
 }
 
 // --- Search (/) -------------------------------------------------------------
@@ -377,10 +348,4 @@ func (u *UIModel) cycleResources() {
 	u.setView(v)
 	// snapshots already sum every resource; only the list shown changes
 	u.SetResources(v.Resources)
-}
-
-// panelLines draws a panel's title and the rows that fit around the cursor.
-func panelLines(title string, rows []string, cursor, height int) []string {
-	start, end := window(len(rows), cursor, height-2)
-	return append([]string{titleStyle(title), ""}, rows[start:end]...)
 }

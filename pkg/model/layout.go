@@ -44,8 +44,8 @@ const (
 // pathSeparator joins group-by values in group headings.
 const pathSeparator = " › "
 
-// render draws the whole screen: header, cluster summary, then the open panel
-// or one page of the node list, then the footer.
+// render draws the whole screen: header, cluster summary, one page of the
+// node list with the open panel floating over it, then the footer.
 func (u *UIModel) render() string {
 	stats := u.stats
 	nodes := u.view.Select(stats.Nodes)
@@ -64,18 +64,6 @@ func (u *UIModel) render() string {
 	var body []string
 	status := ""
 	switch {
-	case u.panel == panelHelp:
-		body = u.helpLines()
-	case u.panel == panelFilters:
-		body = u.filterLines(avail)
-	case u.panel == panelGroupBy:
-		body = u.groupByLines(avail)
-	case u.panel == panelSort:
-		body = u.sortLines(avail)
-	case u.panel == panelColumns:
-		body = u.columnLines(avail)
-	case u.panel == panelContexts:
-		body = u.contextLines(avail)
 	case stats.NumNodes == 0:
 		body = []string{"Waiting for update or no nodes found..."}
 	case len(nodes) == 0:
@@ -96,11 +84,18 @@ func (u *UIModel) render() string {
 	if len(body) > avail {
 		body = body[:avail]
 	}
+	for i := range body {
+		body[i] = u.fit(body[i])
+	}
+	if p, ok := u.panelView(); ok {
+		// the panel floats over the node list, which stays in view around it
+		body = u.overlay(body, u.popup(p, avail), avail)
+	}
 	if u.searching {
 		status = "/" + u.view.Search + "█"
 	}
 	for _, line := range body {
-		b.WriteString(u.fit(line))
+		b.WriteString(line)
 		b.WriteString("\n")
 	}
 	b.WriteString(u.fit(status))

@@ -16,10 +16,11 @@ package model
 
 import (
 	"fmt"
-
-	tea "github.com/charmbracelet/bubbletea"
+	"slices"
 	"sort"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type panelKind int
@@ -57,8 +58,8 @@ func (u *UIModel) panelKey(key string) tea.Cmd {
 
 // helpKeys lists every key, for the help panel.
 var helpKeys = [][2]string{
-	{"f", "filters: add, edit, turn on/off, remove"},
-	{"g", "group by: up to 3 levels"},
+	{"f", "filters: open a field, tick values; space turns a filter on/off"},
+	{"g", "group by: tick up to 3 fields, K/J to reorder levels"},
 	{"s", "sort: any column, usage or label; flip ↑/↓"},
 	{"o", "columns: show, hide, reorder"},
 	{"/", "search name, IP, instance type, labels; esc clears"},
@@ -73,49 +74,87 @@ var helpKeys = [][2]string{
 	{"esc", "close a panel or go back a step"},
 }
 
-func (u *UIModel) helpLines() []string {
-	lines := []string{titleStyle("Keys"), ""}
+func (u *UIModel) helpPanel() panelView {
+	var lines []string
 	for _, k := range helpKeys {
-		lines = append(lines, fmt.Sprintf("  %s  %s", headerKey(fmt.Sprintf("%-10s", k[0])), k[1]))
+		lines = append(lines, fmt.Sprintf("%s  %s", headerKey(fmt.Sprintf("%-10s", k[0])), k[1]))
 	}
-	return append(lines, "", titleStyle("Colours"), "",
-		"  NODEGROUP  "+managedNodeGroupStyle("name")+" is an EKS managed node group; plain is a Karpenter NodePool")
+	lines = append(lines, "", titleStyle("Colours"),
+		"NODEGROUP   "+managedNodeGroupStyle("name")+" is an EKS managed node group; plain is a Karpenter NodePool")
+	return panelView{title: "Keys", rows: lines, cursor: -1}
 }
 
-type filterStep int
-
-const (
-	stepList filterStep = iota
-	stepField
-	stepValues
-)
-
-// filtersPanel is the Filters panel (R3): the list of filters, then a field
-// picker and a value picker to add or edit one.
+// filtersPanel is the Filters panel (R3): every field is listed, those with a
+// filter first; opening a field lists its values, with node counts, to tick.
+// Each tick filters right away.
 type filtersPanel struct {
-	step   filterStep
 	cursor int
-	// editing is the index of the filter being edited, -1 for a new one
-	editing  int
-	field    Field
-	fields   []Field
-	values   []ValueCount
-	selected map[string]bool
+	// open is the field whose values are listed under it, empty for none
+	open Field
+}
+
+// filterRow is a field, or one of the open field's values.
+type filterRow struct {
+	field Field
+	value string
+	count int
+	// isValue tells a value row from its field's row
+	isValue bool
 }
 
 func (p *filtersPanel) hint() string {
-	switch p.step {
-	case stepField:
-		return "↑/↓: move • enter: choose • esc: back"
-	case stepValues:
-		return "↑/↓: move • space: select • enter: apply • esc: back"
+	if p.open != "" {
+		return "↑/↓: move • space/enter: tick value • ←: close field • d: clear field • esc: close field"
 	}
-	return "↑/↓: move • space: on/off • d: remove • enter: edit/add • esc: close"
+	return "↑/↓: move • enter/→: open field • space: filter on/off • d: clear field • esc: close"
 }
 
 func (u *UIModel) openFilters() {
 	u.panel = panelFilters
-	u.filters = filtersPanel{editing: -1}
+	u.filters = filtersPanel{}
+}
+
+// filterIndex is the position of the field's filter, -1 when it has none.
+func (u *UIModel) filterIndex(field Field) int {
+	return slices.IndexFunc(u.view.Filters, func(f Filter) bool { return f.Field == field })
+}
+
+// filterRows lists the fields with a filter in filter order, then the other
+// fields and labels, with the open field's values under it.
+func (u *UIModel) filterRows() []filterRow {
+	var fields []Field
+	for _, f := range u.view.Filters {
+		fields = append(fields, f.Field)
+	}
+	for _, f := range filterFieldChoices(u.stats.Nodes) {
+		if !slices.Contains(fields, f) {
+			fields = append(fields, f)
+		}
+	}
+	var rows []filterRow
+	for _, f := range fields {
+		rows = append(rows, filterRow{field: f})
+		if f != u.filters.open {
+			continue
+		}
+		values := ValueCounts(u.stats.Nodes, f)
+		listed := map[string]bool{}
+		for _, v := range values {
+			listed[v.Value] = true
+		}
+		// values the filter has stay listed even when no node has them now
+		if i := u.filterIndex(f); i >= 0 {
+			for _, v := range u.view.Filters[i].Values {
+				if !listed[v] {
+					values = append(values, ValueCount{Value: v})
+				}
+			}
+		}
+		for _, v := range values {
+			rows = append(rows, filterRow{field: f, value: v.Value, count: v.Count, isValue: true})
+		}
+	}
+	return rows
 }
 
 // moveCursor handles up and down, wrapping at both ends.
@@ -134,126 +173,91 @@ func moveCursor(cursor, n int, key string) (int, bool) {
 
 func (u *UIModel) filtersKey(key string) {
 	p := &u.filters
-	switch p.step {
-	case stepList:
-		filters := u.view.Filters
-		var moved bool
-		if p.cursor, moved = moveCursor(p.cursor, len(filters)+1, key); moved {
-			return
-		}
-		switch key {
-		case "esc":
+	rows := u.filterRows()
+	var moved bool
+	if p.cursor, moved = moveCursor(p.cursor, len(rows), key); moved || len(rows) == 0 {
+		return
+	}
+	row := rows[min(p.cursor, len(rows)-1)]
+	switch key {
+	case "esc":
+		if p.open == "" {
 			u.panel = panelNone
-		case " ":
-			if p.cursor < len(filters) {
-				changed := append([]Filter(nil), filters...)
-				changed[p.cursor].Enabled = !changed[p.cursor].Enabled
-				u.setFilters(changed)
-			}
-		case "d", "delete", "backspace":
-			if p.cursor < len(filters) {
-				changed := append(append([]Filter(nil), filters[:p.cursor]...), filters[p.cursor+1:]...)
-				u.setFilters(changed)
-				p.cursor = min(p.cursor, len(changed))
-			}
-		case "enter":
-			if p.cursor == len(filters) {
-				p.step, p.cursor, p.editing = stepField, 0, -1
-				p.fields = filterFieldChoices(u.stats.Nodes)
-				return
-			}
-			p.editing = p.cursor
-			u.openValues(filters[p.cursor].Field)
-		}
-	case stepField:
-		var moved bool
-		if p.cursor, moved = moveCursor(p.cursor, len(p.fields), key); moved {
 			return
 		}
-		switch key {
-		case "esc":
-			p.step, p.cursor = stepList, len(u.view.Filters)
-		case "enter":
-			if len(p.fields) == 0 {
-				return
-			}
-			field := p.fields[p.cursor]
-			p.editing = -1
-			// a field has one filter: adding it again edits that one
-			for i, f := range u.view.Filters {
-				if f.Field == field {
-					p.editing = i
-				}
-			}
-			u.openValues(field)
+		u.closeField()
+	case "left", "h":
+		if p.open != "" {
+			u.closeField()
 		}
-	case stepValues:
-		var moved bool
-		if p.cursor, moved = moveCursor(p.cursor, len(p.values), key); moved {
-			return
+	case "enter", "right", "l":
+		if row.isValue {
+			u.tickValue(row.field, row.value)
+		} else if p.open == row.field {
+			u.closeField()
+		} else {
+			p.open = row.field
+			u.focusFilterRow(row.field, "")
 		}
-		switch key {
-		case "esc":
-			p.step, p.cursor = stepList, max(p.editing, 0)
-		case " ":
-			if len(p.values) > 0 {
-				v := p.values[p.cursor].Value
-				p.selected[v] = !p.selected[v]
-			}
-		case "enter":
-			u.applyValues()
+	case " ":
+		if row.isValue {
+			u.tickValue(row.field, row.value)
+		} else if i := u.filterIndex(row.field); i >= 0 {
+			filters := slices.Clone(u.view.Filters)
+			filters[i].Enabled = !filters[i].Enabled
+			u.setFilters(filters)
+			u.focusFilterRow(row.field, "")
+		}
+	case "d", "delete", "backspace":
+		if i := u.filterIndex(row.field); i >= 0 {
+			u.setFilters(slices.Delete(slices.Clone(u.view.Filters), i, i+1))
+			u.focusFilterRow(row.field, row.value)
 		}
 	}
 }
 
-// openValues starts the value picker for the field, with the values present
-// among all watched nodes and their node counts. Values the filter already
-// has stay listed even when no node has them now.
-func (u *UIModel) openValues(field Field) {
-	p := &u.filters
-	p.step, p.cursor, p.field = stepValues, 0, field
-	p.values = ValueCounts(u.stats.Nodes, field)
-	p.selected = map[string]bool{}
-	if p.editing >= 0 {
-		listed := map[string]bool{}
-		for _, v := range p.values {
-			listed[v.Value] = true
-		}
-		for _, v := range u.view.Filters[p.editing].Values {
-			p.selected[v] = true
-			if !listed[v] {
-				p.values = append(p.values, ValueCount{Value: v})
-			}
-		}
-	}
+// closeField folds the open field's values, the cursor back on the field.
+func (u *UIModel) closeField() {
+	field := u.filters.open
+	u.filters.open = ""
+	u.focusFilterRow(field, "")
 }
 
-// applyValues saves the picked values into the filter being edited or a new
-// one; picking none removes the filter.
-func (u *UIModel) applyValues() {
-	p := &u.filters
-	var values []string
-	for _, v := range p.values {
-		if p.selected[v.Value] {
-			values = append(values, v.Value)
+// tickValue adds the value to the field's filter, or removes it; a filter
+// left without values goes away. Ticking turns the filter on.
+func (u *UIModel) tickValue(field Field, value string) {
+	filters := slices.Clone(u.view.Filters)
+	i := u.filterIndex(field)
+	if i < 0 {
+		filters = append(filters, Filter{Field: field, Values: []string{value}, Enabled: true})
+	} else {
+		values := slices.Clone(filters[i].Values)
+		if at := slices.Index(values, value); at >= 0 {
+			values = slices.Delete(values, at, at+1)
+		} else {
+			values = append(values, value)
+		}
+		if len(values) == 0 {
+			filters = slices.Delete(filters, i, i+1)
+		} else {
+			filters[i] = Filter{Field: field, Values: values, Enabled: true}
 		}
 	}
-	filters := append([]Filter(nil), u.view.Filters...)
-	switch {
-	case p.editing >= 0 && len(values) == 0:
-		filters = append(filters[:p.editing], filters[p.editing+1:]...)
-		p.cursor = min(p.editing, len(filters))
-	case p.editing >= 0:
-		filters[p.editing] = Filter{Field: p.field, Values: values, Enabled: true}
-		p.cursor = p.editing
-	case len(values) > 0:
-		filters = append(filters, Filter{Field: p.field, Values: values, Enabled: true})
-		p.cursor = len(filters) - 1
-	default:
-		p.cursor = len(filters)
-	}
-	p.step, p.editing = stepList, -1
 	u.setFilters(filters)
+	u.focusFilterRow(field, value)
+}
+
+// focusFilterRow puts the cursor on a field's row, or one of its values, as
+// rows move when filters change.
+func (u *UIModel) focusFilterRow(field Field, value string) {
+	rows := u.filterRows()
+	for i, r := range rows {
+		if r.field == field && r.value == value {
+			u.filters.cursor = i
+			return
+		}
+	}
+	u.filters.cursor = min(u.filters.cursor, max(len(rows)-1, 0))
 }
 
 func (u *UIModel) setFilters(filters []Filter) {
@@ -294,13 +298,6 @@ func window(n, cursor, height int) (start, end int) {
 	return start, start + height
 }
 
-func marker(selected bool) string {
-	if selected {
-		return "> "
-	}
-	return "  "
-}
-
 func check(on bool) string {
 	if on {
 		return "[x]"
@@ -308,45 +305,35 @@ func check(on bool) string {
 	return "[ ]"
 }
 
-// filterLines draws the Filters panel in at most height lines.
-func (u *UIModel) filterLines(height int) []string {
+// filtersPanel lists the fields, and the open field's values, for the popup.
+func (u *UIModel) filtersPanelView() panelView {
 	p := &u.filters
-	var title string
-	var rows []string
-	switch p.step {
-	case stepList:
-		title = "Filters"
-		nameW := 0
-		for _, f := range u.view.Filters {
-			nameW = max(nameW, len(fieldName(f.Field)))
-		}
-		for i, f := range u.view.Filters {
-			state := ""
-			if !f.Enabled {
-				state = helpStyle("  (off)")
+	rows := u.filterRows()
+	lines := make([]string, len(rows))
+	for i, r := range rows {
+		if r.isValue {
+			selected := false
+			if fi := u.filterIndex(r.field); fi >= 0 {
+				selected = slices.Contains(u.view.Filters[fi].Values, r.value)
 			}
-			rows = append(rows, fmt.Sprintf("%s%s %-*s  %s%s", marker(i == p.cursor), check(f.Enabled), nameW, fieldName(f.Field), strings.Join(f.Values, ", "), state))
+			lines[i] = fmt.Sprintf("    %s %s  %s", check(selected), r.value, helpStyle(fmt.Sprint(r.count)))
+			continue
 		}
-		rows = append(rows, marker(p.cursor == len(u.view.Filters))+"+ add filter")
-	case stepField:
-		title = "Add filter: pick a field"
-		for i, f := range p.fields {
-			rows = append(rows, marker(i == p.cursor)+fieldName(f))
+		arrow := "▸"
+		if r.field == p.open {
+			arrow = "▾"
 		}
-	case stepValues:
-		title = fieldName(p.field) + ": pick values (nodes with each)"
-		valueW := 0
-		for _, v := range p.values {
-			valueW = max(valueW, len(v.Value))
+		state := "[ ]"
+		summary := ""
+		if fi := u.filterIndex(r.field); fi >= 0 {
+			f := u.view.Filters[fi]
+			state = check(f.Enabled)
+			summary = "  " + strings.Join(f.Values, ", ")
+			if !f.Enabled {
+				summary += helpStyle("  (off)")
+			}
 		}
-		for i, v := range p.values {
-			rows = append(rows, fmt.Sprintf("%s%s %-*s  %d", marker(i == p.cursor), check(p.selected[v.Value]), valueW, v.Value, v.Count))
-		}
-		if len(p.values) == 0 {
-			rows = append(rows, helpStyle("  no node has this field"))
-		}
+		lines[i] = fmt.Sprintf("%s %s %s%s", state, arrow, fieldName(r.field), summary)
 	}
-	start, end := window(len(rows), p.cursor, height-2)
-	lines := []string{titleStyle(title), ""}
-	return append(lines, rows[start:end]...)
+	return panelView{title: "Filters", rows: lines, cursor: p.cursor}
 }
