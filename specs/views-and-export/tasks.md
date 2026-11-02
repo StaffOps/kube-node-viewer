@@ -8,7 +8,7 @@
   - _Covers: R2 · Depends on: — · Verified by: state and key-driven tests_
 - [x] T3. Export (`e`): CSV and JSON of the nodes on screen, off the UI goroutine, footer notice
   - _Covers: R3 · Depends on: — · Verified by: unit tests writing to a temp dir_
-- [ ] T4. README (keys, files), CHANGELOG, screenshots
+- [x] T4. README (keys, files), CHANGELOG, screenshots
   - _Covers: — · Depends on: T1–T3 · Verified by: review_
 
 ## Deferred

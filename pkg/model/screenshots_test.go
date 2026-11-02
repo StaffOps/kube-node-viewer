@@ -157,6 +157,10 @@ func TestScreenshots(t *testing.T) {
 		{"group-by", 168, 38, func(u *UIModel) { press(u, "g", "down", " ", "down", "down", " ") }},
 		{"columns", 168, 38, func(u *UIModel) { press(u, "o") }},
 		{"contexts", 168, 38, func(u *UIModel) { apply(u, press(u, "c")) }},
+		{"views", 168, 38, func(u *UIModel) {
+			u.SetViews(memViews{"cost per nodepool": DefaultViewState(), "spot by zone": DefaultViewState()})
+			press(u, "v")
+		}},
 		// tall enough to start with the full panel, which ctrl+e compacts
 		{"header-compact", 168, 30, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
 	}
