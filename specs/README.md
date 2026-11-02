@@ -30,7 +30,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    public Azure Retail Prices API, per node by provider-ID cloud.
    [requirements](aks-pricing/requirements.md) ·
    [design](aks-pricing/design.md) · [tasks](aks-pricing/tasks.md)
-6. [`decisions/`](decisions/) — decision records (index below).
+6. [`node-details/`](node-details/) — **active**. `enter` on a node opens
+   a popup with its details: resources, conditions, taints, labels.
+   [requirements](node-details/requirements.md) ·
+   [design](node-details/design.md) · [tasks](node-details/tasks.md)
+7. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated

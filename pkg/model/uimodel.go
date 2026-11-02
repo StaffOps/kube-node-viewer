@@ -111,6 +111,10 @@ type UIModel struct {
 	cursorPath     []string
 	cursorDelta    int
 	selFrom, selTo int
+	// details popup: the node's name, the first row shown, the row count
+	detailsNode string
+	detailsTop  int
+	detailsRows int
 	// searching is true while the search text takes the keys
 	searching bool
 	// customResources is a resource list other than cpu, memory or both,
@@ -303,6 +307,16 @@ func (u *UIModel) toggleNodes() {
 
 // toggleGroupAtCursor folds or unfolds the group under the cursor on its own
 // (R17); on a node it does nothing. The page stays where it is.
+// cursorOnNode tells whether the cursor is on a node row, after laying out
+// any pending move (or the first frame, when none was drawn yet).
+func (u *UIModel) cursorOnNode() bool {
+	if u.cursorDelta != 0 || u.cursorKey == "" {
+		u.dirty = true
+		u.View()
+	}
+	return strings.HasPrefix(u.cursorKey, "n:")
+}
+
 func (u *UIModel) toggleGroupAtCursor() {
 	if u.cursorDelta != 0 {
 		// keys can arrive faster than frames: lay out once so the pending
@@ -600,6 +614,9 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 	case "down", "j":
 		u.cursorDelta++
 	case "enter", " ":
+		if key == "enter" && u.cursorOnNode() && u.openNodeDetails() {
+			return nil
+		}
 		u.toggleGroupAtCursor()
 	case "right", "l", "pgdown":
 		u.page++

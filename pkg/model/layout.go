@@ -201,6 +201,8 @@ func (u *UIModel) helpText() string {
 		return u.viewsPanel.hint()
 	case panelRecMath:
 		return "esc: close"
+	case panelNode:
+		return "↑/↓: scroll • home: top • esc: close"
 	}
 	if u.commanding {
 		return "overview (ov) • recommendations (rec) • tab: complete • enter: run • esc: cancel"

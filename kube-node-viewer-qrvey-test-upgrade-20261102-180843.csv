@@ -1,0 +1,11 @@
+name,group,instance_type,capacity,node_group,zone,region,ip,status,age,pods,max_pods,cpu_requested,cpu_allocatable,cpu_percent,memory_requested,memory_allocatable,memory_percent,price_per_hour,price_kind
+ip-10-110-42-137.ec2.internal,qrvey-ondemand-dependencies-critical-arm,t4g.large,OnDemand,qrvey-ondemand-dependencies-critical-arm,us-east-1a,us-east-1,10.110.42.137,Ready,53s,7,35,700m,1930m,36.3,2482Mi,7239524Ki,35.1,0.0672,actual
+ip-10-110-36-12.ec2.internal,qrvey-ondemand-arm,t4g.large,OnDemand,qrvey-ondemand-arm,us-east-1a,us-east-1,10.110.36.12,Ready,23m50s,16,35,1760m,1930m,91.2,2904Mi,7239524Ki,41.1,0.0672,actual
+ip-10-110-42-237.ec2.internal,qrvey-ondemand-arm,t4g.large,OnDemand,qrvey-ondemand-arm,us-east-1a,us-east-1,10.110.42.237,Ready,37m2s,17,35,1735m,1930m,89.9,3208Mi,7239524Ki,45.4,0.0672,actual
+ip-10-110-34-207.ec2.internal,qrvey-ondemand-arm,t4g.large,OnDemand,qrvey-ondemand-arm,us-east-1a,us-east-1,10.110.34.207,Ready,1h0m32s,20,35,1735m,1930m,89.9,3976Mi,7239524Ki,56.2,0.0672,actual
+ip-10-110-39-100.ec2.internal,qrvey-ondemand-arm,t4g.large,OnDemand,qrvey-ondemand-arm,us-east-1a,us-east-1,10.110.39.100,Ready,1h57m43s,17,35,1785m,1930m,92.5,3464Mi,7239524Ki,49.0,0.0672,actual
+ip-10-110-33-188.ec2.internal,qrvey-ondemand-cronjobs-arm,t4g.small,OnDemand,qrvey-ondemand-cronjobs-arm,us-east-1a,us-east-1,10.110.33.188,Ready,3h26m22s,7,34,235m,1930m,12.2,504Mi,1399552Ki,36.9,0.0168,actual
+ip-10-110-43-195.ec2.internal,qrvey-ondemand-dependencies-critical-arm,t4g.medium,OnDemand,qrvey-ondemand-dependencies-critical-arm,us-east-1a,us-east-1,10.110.43.195,Ready,3h26m42s,10,17,1400m,1930m,72.5,3210Mi,3368740Ki,97.6,0.0336,actual
+ip-10-110-44-205.ec2.internal,qrvey-ondemand-dependencies-critical-arm,t4g.medium,OnDemand,qrvey-ondemand-dependencies-critical-arm,us-east-1a,us-east-1,10.110.44.205,Ready,3h27m13s,10,17,800m,1930m,41.5,2610Mi,3368740Ki,79.3,0.0336,actual
+ip-10-110-32-53.ec2.internal,qrvey-ondemand-dependencies-critical-arm,t4g.large,OnDemand,qrvey-ondemand-dependencies-critical-arm,us-east-1a,us-east-1,10.110.32.53,Ready,3h27m20s,9,35,1200m,1930m,62.2,4530Mi,7239524Ki,64.1,0.0672,actual
+ip-10-110-38-111.ec2.internal,qrvey-ondemand-arm,t4g.xlarge,OnDemand,qrvey-ondemand-arm,us-east-1a,us-east-1,10.110.38.111,Ready,29h25m26s,31,58,3860m,3920m,98.5,7212Mi,15129296Ki,48.8,0.1344,actual

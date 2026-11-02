@@ -126,7 +126,7 @@ some node in the group has no known price.
 | green / yellow / red percentage and bar | usage above 80% / 60–80% / below 60%: an under-used node is the costly case |
 | green `Ready` · red `NotReady`, `Deleting` · yellow `Cordoned`, `Launching` | node status |
 | orange `Spot` · magenta `Reserved` · blue `Fargate` | capacity types that change what a node costs |
-| blue node group name | an EKS managed node group; plain is a Karpenter NodePool |
+| blue node group name | an EKS managed node group or an AKS agent pool; plain is a Karpenter NodePool |
 
 The three usage colours come from `--style`.
 
@@ -152,6 +152,7 @@ With `ctrl+e` the header shrinks to two lines:
 | `r` | Resources: cpu → memory → cpu+memory (→ the `--resources` list, if different) |
 | `↑`/`↓`, `k`/`j` | Select a group heading or a node; the selected row is marked in the left margin |
 | `enter`, `space` | Fold or unfold the selected group on its own (`▸` marks a folded group) |
+| `enter` on a node | Its details: instance, price, system, resources, conditions, taints, labels |
 | `n` | Fold one level per press when grouping: the nodes, then each sub-group level down to the top level; the next press unfolds all |
 | `d` | While folded: list the next group level under each group as one-line rows, or hide them |
 | `tab` | Switch between Overview and Recommendations |
@@ -201,6 +202,17 @@ without a value for a level go to a `<none>` group, always last.
 Folding one group: select its heading with `↑`/`↓` and press `enter`; it
 shows `▸` and its contents hide, the other groups stay as they are. Folded
 groups are saved with the view.
+
+### Node details
+
+Select a node with `↑`/`↓` and press `enter`: a popup shows what
+`kubectl describe node` would, minus pods and events: instance type,
+capacity and price, node group, zone, status and age, kubelet and OS,
+provider ID, resources as requested / allocatable / capacity (GPUs and other
+extended resources included), conditions (bad ones in red), taints and every
+label. It follows the live node; `↑`/`↓` scroll, `esc` closes.
+
+![Node details](.static/node-details.png)
 
 Folding with `n`: the deepest level on screen carries the usage bars and the
 levels above it are one-line summaries. With `zone › instance-type`:
