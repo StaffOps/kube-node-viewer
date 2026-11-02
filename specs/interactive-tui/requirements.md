@@ -1,6 +1,6 @@
 # Requirements: interactive-tui
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-10-31 (spec-refuter; 4 HIGH, 8 MEDIUM, all applied)
+> Status: shipped (v0.8.0, 2026-11-02) · Owner: Carlos Gomes · Reviewed: 2026-10-31 (spec-refuter; 4 HIGH, 8 MEDIUM, all applied)
 
 ## Context
 
@@ -258,6 +258,18 @@ back to one header line with the view only.
 > **Added 2026-11-02.** `ctrl+e` switches between the full panel and the
 > compact box, as in sofka, from the main view or a panel; the pick is saved
 > with the cluster's view state.
+
+**R17** WHEN the user presses `↑`/`↓` (or `k`/`j`) in the main view THEN the
+system SHALL move a cursor over group headings and nodes, marked in the left
+margin and followed across pages; WHEN they press `enter` on a group heading
+THEN that group alone SHALL fold (`▸`, contents hidden) or unfold, and the
+folded groups SHALL be saved with the view.
+
+- [x] Test: down/up select rows; enter folds and unfolds one group and saves it.
+- [x] Test: the page follows the cursor; a page change puts it on that page.
+
+> **Added 2026-11-02.** The owner asked to fold a single group, which needs a
+> row cursor (suggestion 4 of the UX pass).
 
 ## Counter-examples
 

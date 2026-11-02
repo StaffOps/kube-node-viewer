@@ -178,6 +178,9 @@ type ViewState struct {
 	// Details lists, while folded, the level below the barred one as
 	// one-line summaries.
 	Details bool `json:"details,omitempty"`
+	// Collapsed holds the groups folded one by one (enter on a heading), each
+	// as its path joined by " › ".
+	Collapsed []string `json:"collapsed,omitempty"`
 	// Header is HeaderFull or HeaderCompact once the user picks one with
 	// ctrl+e; empty picks by screen height.
 	Header string `json:"header,omitempty"`
@@ -212,6 +215,35 @@ func (s *ViewState) SetGroupBy(fields ...Field) {
 		seen[f] = true
 		s.GroupBy = append(s.GroupBy, f)
 	}
+}
+
+// IsCollapsed tells whether the group at path is folded on its own.
+func (s ViewState) IsCollapsed(path []string) bool {
+	key := strings.Join(path, pathSeparator)
+	for _, c := range s.Collapsed {
+		if c == key {
+			return true
+		}
+	}
+	return false
+}
+
+// ToggleCollapsed folds or unfolds the group at path.
+func (s *ViewState) ToggleCollapsed(path []string) {
+	key := strings.Join(path, pathSeparator)
+	kept := make([]string, 0, len(s.Collapsed)+1)
+	found := false
+	for _, c := range s.Collapsed {
+		if c == key {
+			found = true
+			continue
+		}
+		kept = append(kept, c)
+	}
+	if !found {
+		kept = append(kept, key)
+	}
+	s.Collapsed = kept
 }
 
 // VisibleDepth is how many group-by levels are on screen with the node list
