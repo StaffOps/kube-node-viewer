@@ -69,11 +69,13 @@ type UIModel struct {
 	onViewChange func(ViewState)
 
 	// panel is the open panel, if any; it gets the keys (R12)
-	panel   panelKind
-	filters filtersPanel
-	group   groupPanel
-	sort    sortPanel
-	columns columnsPanel
+	panel    panelKind
+	filters  filtersPanel
+	group    groupPanel
+	sort     sortPanel
+	columns  columnsPanel
+	contexts contextsPanel
+	switcher Switcher
 	// searching is true while the search text takes the keys
 	searching bool
 	// customResources is a resource list other than cpu, memory or both,
@@ -335,6 +337,11 @@ func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return u, nil
 	case tea.KeyMsg:
 		return u, u.handleKey(msg)
+	case contextsMsg:
+		u.contextsLoaded(msg)
+		return u, nil
+	case switchedMsg:
+		return u, u.switched(msg)
 	case tickMsg:
 		return u, tickCmd()
 	}
@@ -358,8 +365,7 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return nil
 	}
 	if u.panel != panelNone {
-		u.panelKey(key)
-		return nil
+		return u.panelKey(key)
 	}
 	switch key {
 	case "q":
@@ -378,6 +384,8 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		u.searching = true
 	case "r":
 		u.cycleResources()
+	case "c":
+		return u.openContexts()
 	case "esc":
 		// esc in the main view clears a kept search
 		u.view.Search = ""

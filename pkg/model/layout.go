@@ -73,6 +73,8 @@ func (u *UIModel) render() string {
 		body = u.sortLines(avail)
 	case u.panel == panelColumns:
 		body = u.columnLines(avail)
+	case u.panel == panelContexts:
+		body = u.contextLines(avail)
 	case stats.NumNodes == 0:
 		body = []string{"Waiting for update or no nodes found..."}
 	case len(nodes) == 0:
@@ -121,8 +123,10 @@ func (u *UIModel) helpText() string {
 		return u.sort.hint()
 	case panelColumns:
 		return u.columns.hint()
+	case panelContexts:
+		return u.contexts.hint()
 	}
-	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources"
+	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context"
 	if len(u.view.GroupBy) > 0 {
 		keys += " • n: nodes"
 	}

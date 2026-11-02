@@ -194,6 +194,11 @@ an older generation. Watches start in a `tea.Cmd`, never inside `Update`.
 
 **Reversal action**: remove context switching.
 
+> **Corrected 2026-11-02 (T11).** Each connection gets a new store instead of
+> resetting one: old watches keep a pointer to the old store, so their late
+> events land there, and the UI drops `ChangedMsg` from any other generation.
+> This gives the same guarantee without a generation check on every write.
+
 ### D10: Price kind
 
 **Choice**: `pricing.Provider` gains a price kind (`Actual`, `Equivalent`);
