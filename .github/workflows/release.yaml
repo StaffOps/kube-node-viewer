@@ -1,14 +1,26 @@
-# This workflow will build and release golang project
+# Builds and publishes a release: binaries on GitHub and the Homebrew cask.
+#
+# Two ways in:
+# - a push to main whose CHANGELOG names a released version with no tag yet
+#   (merging the release PR that turns [Unreleased] into [x.y.z]): the tag
+#   vx.y.z is created on that commit and released;
+# - pushing a tag by hand, as before.
+# Any other push to main finds the tag already there and does nothing.
 
 name: Binary release
 
 on:
   push:
+    branches: [ "main" ]
     tags:
       - '*'
 
 permissions:
   contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -20,23 +32,54 @@ jobs:
       with:
         fetch-depth: 0 # disable shallow clone - get all
 
+    - name: Version to release
+      id: version
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        # the newest released section: "## [0.9.0] - 2026-11-02"
+        latest=$(grep -m1 -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+        if [ -z "$latest" ]; then
+          echo "no released version in CHANGELOG.md"
+          echo "release=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        tag="v$latest"
+        if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+          echo "$tag is already tagged: nothing to release"
+          echo "release=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        {
+          echo "version=$tag"
+          echo "release=true"
+          echo "tag=true"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Tag the release
+      if: steps.version.outputs.tag == 'true'
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git tag -a "$VERSION" -m "$VERSION"
+        # pushed with GITHUB_TOKEN, so it doesn't start this workflow again
+        git push origin "$VERSION"
+
     - name: Set up Go
+      if: steps.version.outputs.release == 'true'
       uses: actions/setup-go@v5.0.1
       with:
         go-version-file: go.mod
-      id: go
-
-    - name: Fetch build tag
-      run: |
-        VERSION=${GITHUB_REF#refs/tags/}
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-      shell: /bin/bash -e {0}
-
-    - name: Print build tag
-      run: echo "Building release ${VERSION}"
-
 
     - name: Run GoReleaser
+      if: steps.version.outputs.release == 'true'
       uses: goreleaser/goreleaser-action@v6
       with:
         distribution: goreleaser
