@@ -104,7 +104,10 @@ func (u *UIModel) render() string {
 	}
 	b.WriteString(u.fit(status))
 	b.WriteString("\n")
-	b.WriteString(u.fit(helpStyle(u.helpText())))
+	if u.panel == panelNone {
+		// an open panel shows its keys inside its box
+		b.WriteString(u.fit(helpStyle(u.helpText())))
+	}
 	return b.String()
 }
 
