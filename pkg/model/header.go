@@ -19,8 +19,6 @@ import (
 	"strings"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -44,6 +42,8 @@ var (
 	viewOption  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8700af", Dark: "#d7afff"}).Render
 	viewValue   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f00", Dark: "#87d787"}).Render
 	viewSep     = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
+	// the cluster's cost, whatever the filters
+	costValue = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f5f", Dark: "#87d7af"}).Render
 )
 
 // issueWindow is how long a logged error stays in the header.
@@ -61,13 +61,42 @@ func (u *UIModel) recentIssue() string {
 	return msg
 }
 
+// clusterCost is the monthly cost of every watched node, whatever the
+// filters, shown after the node and pod counts; empty with pricing disabled.
+func (u *UIModel) clusterCost(stats Stats) string {
+	if u.DisablePricing {
+		return ""
+	}
+	if stats.NumNodes > 0 && stats.PricedNodes == 0 && stats.UnpricedReserved == 0 {
+		return headerLabel("prices unknown")
+	}
+	cost := costValue(u.printer.Sprintf("$%0.3f/month", stats.TotalPrice*avgHoursPerMonth))
+	if stats.PricedNodes < stats.NumNodes-stats.UnpricedReserved {
+		// an unknown price somewhere, so this is a lower bound
+		cost = costValue(">= ") + cost
+	}
+	if stats.UnpricedReserved > 0 {
+		cost += costValue(u.printer.Sprintf(" (+%d reserved, not priced)", stats.UnpricedReserved))
+	}
+	return cost + headerLabel(" (global cluster)")
+}
+
+// countsWithCost is the node and pod counts, then the cluster's cost.
+func (u *UIModel) countsWithCost(counts string, stats Stats) string {
+	out := countsValue(counts)
+	if cost := u.clusterCost(stats); cost != "" {
+		out += countsValue(" · ") + cost
+	}
+	return out
+}
+
 // headerKeys are the main keys shown in the header panel, as key and action.
 var headerKeys = [][2]string{
 	{"f", "filters"}, {"g", "group by"},
 	{"s", "sort"}, {"o", "columns"},
 	{"/", "search"}, {"r", "resources"},
-	{"c", "context"}, {"?", "help"},
-	{"^e", "compact"},
+	{"c", "context"}, {"v", "views"},
+	{"?", "help"}, {"^e", "compact"},
 }
 
 type headerSize int
@@ -118,7 +147,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	}
 	counts := u.printer.Sprintf("%d of %d shown · %d pods", len(nodes), stats.NumNodes, pods)
 	// pods not on a node yet belong to no filtered set; say so when there are any
-	if pending := stats.PodsByPhase[v1.PodPending]; pending > 0 {
+	if pending := stats.Unscheduled; pending > 0 {
 		counts += u.printer.Sprintf(" (%d pending)", pending)
 	}
 	context := u.info.Context
@@ -129,7 +158,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	issue := u.recentIssue()
 	if u.headerSize() == headerLine {
 		sep := viewSep(" │ ")
-		line := headerContext(context) + sep + countsValue(counts) + sep + u.viewSummary()
+		line := headerContext(context) + sep + u.countsWithCost(counts, stats) + sep + u.viewSummary()
 		if issue != "" {
 			line += sep + u.style.red("⚠ "+issue)
 		}
@@ -147,7 +176,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 				where = append(where, headerValue(s))
 			}
 		}
-		where = append(where, countsValue(counts))
+		where = append(where, u.countsWithCost(counts, stats))
 		body := strings.Join(where, headerLabel(" · ")) + "\n" + u.viewSummary()
 		if issue != "" {
 			body += "\n" + u.style.red("⚠ "+issue)
@@ -158,14 +187,14 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		{"Context:", headerValue(context)},
 		{"Cluster:", headerValue(orDash(u.info.Server))},
 		{"Region:", headerValue(orDash(region))},
-		{"Nodes:", countsValue(counts)},
+		{"Nodes:", u.countsWithCost(counts, stats)},
 		{"View:", u.viewSummary()},
 	}
 	if issue != "" {
 		rows = append(rows, [2]string{"Issue:", u.style.red(issue) + headerLabel("  full log: "+u.issueLog)})
 	}
 	var left strings.Builder
-	left.WriteString(titleStyle("kube-node-viewer"))
+	left.WriteString(titleStyle("kube-node-viewer") + headerLabel(" · ") + headerContext(u.screenTitle()))
 	for _, r := range rows {
 		left.WriteString("\n" + headerLabel(fmt.Sprintf("%-9s", r[0])) + " " + r[1])
 	}
@@ -174,7 +203,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	for i := 0; i < len(headerKeys); i += 2 {
 		right.WriteString("\n")
 		for _, k := range headerKeys[i:min(i+2, len(headerKeys))] {
-			right.WriteString(fmt.Sprintf("%s %s", headerKey(fmt.Sprintf("%3s", k[0])), headerAction(fmt.Sprintf("%-10s", k[1]))))
+			fmt.Fprintf(&right, "%s %s", headerKey(fmt.Sprintf("%3s", k[0])), headerAction(fmt.Sprintf("%-10s", k[1])))
 		}
 	}
 
@@ -223,13 +252,18 @@ func fieldName(f Field) string {
 func (u *UIModel) viewSummary() string {
 	var filters []string
 	for _, f := range u.view.Filters {
-		if !f.Enabled || len(f.Values) == 0 {
+		values := f.Ticked()
+		if !f.Enabled || len(values) == 0 {
 			continue
 		}
-		if len(f.Values) == 1 {
-			filters = append(filters, fieldName(f.Field)+"="+f.Values[0])
+		eq, in := "=", "∈"
+		if f.Excludes() {
+			eq, in = "≠", "∉"
+		}
+		if len(values) == 1 {
+			filters = append(filters, fieldName(f.Field)+eq+values[0])
 		} else {
-			filters = append(filters, fieldName(f.Field)+"∈{"+strings.Join(f.Values, ",")+"}")
+			filters = append(filters, fieldName(f.Field)+in+"{"+strings.Join(values, ",")+"}")
 		}
 	}
 	filterText := "none"

@@ -32,6 +32,7 @@ import (
 	"golang.org/x/text/message"
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/staffops/kube-node-viewer/pkg/recommend"
 	"github.com/staffops/kube-node-viewer/pkg/text"
 )
 
@@ -81,6 +82,28 @@ type UIModel struct {
 	columns  columnsPanel
 	contexts contextsPanel
 	switcher Switcher
+	// views: the named views and their popup
+	views      Views
+	viewsPanel viewsPanel
+	// notice is a short footer message, shown until noticeUntil
+	notice      string
+	noticeUntil time.Time
+	// exportFallback is where exports go when the current directory is not
+	// writable
+	exportFallback string
+	// the : command line
+	commanding bool
+	command    string
+	// recommendations: the cloud's catalog and prices, the settings, the last
+	// result and what it was computed for, the selected row
+	advisor    Advisor
+	recOpts    RecommendOptions
+	recs       recommend.Result
+	recFor     string
+	recPending bool
+	recCursor  int
+	// snapSeq counts snapshots, to know when recommendations are stale
+	snapSeq uint64
 	// cursor: the selected row (a group heading or a node) by key, the path
 	// when it is a group, a pending move, and the selected lines of the last
 	// frame (content line numbers, -1 when none)
@@ -88,6 +111,10 @@ type UIModel struct {
 	cursorPath     []string
 	cursorDelta    int
 	selFrom, selTo int
+	// details popup: the node's name, the first row shown, the row count
+	detailsNode string
+	detailsTop  int
+	detailsRows int
 	// searching is true while the search text takes the keys
 	searching bool
 	// customResources is a resource list other than cpu, memory or both,
@@ -280,6 +307,16 @@ func (u *UIModel) toggleNodes() {
 
 // toggleGroupAtCursor folds or unfolds the group under the cursor on its own
 // (R17); on a node it does nothing. The page stays where it is.
+// cursorOnNode tells whether the cursor is on a node row, after laying out
+// any pending move (or the first frame, when none was drawn yet).
+func (u *UIModel) cursorOnNode() bool {
+	if u.cursorDelta != 0 || u.cursorKey == "" {
+		u.dirty = true
+		u.View()
+	}
+	return strings.HasPrefix(u.cursorKey, "n:")
+}
+
 func (u *UIModel) toggleGroupAtCursor() {
 	if u.cursorDelta != 0 {
 		// keys can arrive faster than frames: lay out once so the pending
@@ -370,10 +407,28 @@ func (u *UIModel) usageBar(fill float64, width int, cell rune) string {
 // clusterSummary is the cluster-wide usage and cost, one line per resource.
 // It covers every watched node, whatever the filters; node and pod counts are
 // in the header.
-func (u *UIModel) clusterSummary(stats Stats) string {
+// The usage and cost are those of the nodes on screen: with filters or a
+// search they cover only the nodes kept, marked so they don't read as the
+// cluster's total.
+func (u *UIModel) clusterSummary(stats Stats, nodes []*Node) string {
+	shown := stats
+	if len(nodes) != stats.NumNodes {
+		g := newGroupStats("")
+		for _, n := range nodes {
+			g.add(n)
+		}
+		shown = Stats{
+			NumNodes:             g.NumNodes,
+			AllocatableResources: g.AllocatableResources,
+			UsedResources:        g.UsedResources,
+			TotalPrice:           g.TotalPrice,
+			PricedNodes:          g.PricedNodes,
+			UnpricedReserved:     g.ReservedNodes,
+		}
+	}
 	var b strings.Builder
 	ctw := text.NewColorTabWriter(&b, 0, 8, 1)
-	u.writeClusterSummary(u.cluster.resources, stats, ctw)
+	u.writeClusterSummary(u.cluster.resources, shown, ctw, len(nodes) != stats.NumNodes, stats.NumNodes)
 	ctw.Flush()
 	return b.String()
 }
@@ -383,7 +438,7 @@ func (u *UIModel) setBarCell(cell rune) {
 	u.progress.Full, u.progress.Empty = cell, cell
 }
 
-func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, w io.Writer) {
+func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, w io.Writer, filtered bool, total int) {
 	firstLine := true
 	defer u.setBarCell(u.progress.Full)
 
@@ -401,11 +456,21 @@ func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, 
 		u.progress.ShowPercentage = false
 		monthlyPrice := stats.TotalPrice * avgHoursPerMonth
 		clusterPrice := u.printer.Sprintf("$%0.3f/hour | $%0.3f/month", stats.TotalPrice, monthlyPrice)
+		if stats.PricedNodes < stats.NumNodes-stats.UnpricedReserved {
+			// an unknown price somewhere, so this is a lower bound
+			clusterPrice = ">= " + clusterPrice
+		}
 		if stats.UnpricedReserved > 0 {
 			clusterPrice += u.printer.Sprintf(" (+%d reserved, not priced)", stats.UnpricedReserved)
 		}
+		if stats.NumNodes > 0 && stats.PricedNodes == 0 && stats.UnpricedReserved == 0 {
+			clusterPrice = helpStyle("prices unknown")
+		}
 		if u.DisablePricing {
 			clusterPrice = ""
+		}
+		if filtered {
+			clusterPrice += helpStyle(u.printer.Sprintf("  (filtered: %d of %d nodes)", stats.NumNodes, total))
 		}
 		if firstLine {
 			u.printer.Fprintf(w, "%s/%s\t%s\t%s\t%s\t%s\n",
@@ -431,6 +496,11 @@ func tickCmd() tea.Cmd {
 }
 
 func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m, cmd := u.update(msg)
+	return m, tea.Batch(cmd, u.maybeAnalyze())
+}
+
+func (u *UIModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// anything reaching Update may change what is on screen
 	u.dirty = true
 	switch msg := msg.(type) {
@@ -447,12 +517,22 @@ func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case snapshotMsg:
 		if msg.gen == u.gen {
 			u.stats = msg.stats
+			u.snapSeq++
 		}
+		return u, nil
+	case recsMsg:
+		u.recsDone(msg)
 		return u, nil
 	case tea.KeyMsg:
 		return u, u.handleKey(msg)
 	case contextsMsg:
 		u.contextsLoaded(msg)
+		return u, nil
+	case NoticeMsg:
+		u.notify(msg.Text)
+		return u, nil
+	case exportDoneMsg:
+		u.exported(msg)
 		return u, nil
 	case switchedMsg:
 		return u, u.switched(msg)
@@ -478,10 +558,28 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		u.searchKey(key)
 		return nil
 	}
+	if u.commanding {
+		u.commandKey(key)
+		return nil
+	}
 	if u.panel != panelNone {
 		return u.panelKey(key)
 	}
+	if u.onRecommendations() {
+		switch key {
+		case "up", "k", "down", "j", "enter":
+			u.recsKey(key)
+			return nil
+		case "g", "s", "o", "n", "d", "r", " ", "home", "left", "right", "h", "l", "pgup", "pgdown":
+			// Overview-only keys do nothing here
+			return nil
+		}
+	}
 	switch key {
+	case ":":
+		u.commanding, u.command = true, ""
+	case "tab":
+		u.toggleScreen()
 	case "q":
 		return tea.Quit
 	case "?":
@@ -500,6 +598,10 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		u.cycleResources()
 	case "c":
 		return u.openContexts()
+	case "v":
+		u.openViews()
+	case "e":
+		return u.export()
 	case "esc":
 		// esc in the main view clears a kept search
 		u.view.Search = ""
@@ -512,6 +614,9 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 	case "down", "j":
 		u.cursorDelta++
 	case "enter", " ":
+		if key == "enter" && u.cursorOnNode() && u.openNodeDetails() {
+			return nil
+		}
 		u.toggleGroupAtCursor()
 	case "right", "l", "pgdown":
 		u.page++

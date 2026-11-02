@@ -20,13 +20,16 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	tea "github.com/charmbracelet/bubbletea"
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/staffops/kube-node-viewer/pkg/aws"
+	"github.com/staffops/kube-node-viewer/pkg/azure"
 	"github.com/staffops/kube-node-viewer/pkg/client"
 	"github.com/staffops/kube-node-viewer/pkg/model"
 	"github.com/staffops/kube-node-viewer/pkg/pricing"
+	"github.com/staffops/kube-node-viewer/pkg/recommend"
 	"github.com/staffops/kube-node-viewer/pkg/state"
 )
 
@@ -110,24 +113,37 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 		Info:    info,
 		View:    view,
 		Save:    func(v model.ViewState) { s.saver.Save(key, v) },
+		Advisor: newAdvisor(prices),
 	}, nil
 }
 
-// pricing builds the price provider for a cluster. EKS API server URLs name
-// their region; other clusters use the AWS SDK's configured region.
+// pricing builds the price provider for a cluster and the region to show.
+// EKS API server URLs name their region; other clusters look AWS prices up in
+// the AWS SDK's configured region, and the header shows their nodes' region
+// label instead. AKS clusters make no AWS lookup. Azure nodes are priced from
+// the public Retail Prices API, fetched only once one is seen (aks-pricing).
 func (s *sessions) pricing(ctx context.Context, server string) (pricing.Provider, string, error) {
 	region := client.RegionFromServer(server)
 	if s.flags.DisablePricing {
 		return aws.NewStaticPricingProvider(), region, nil
 	}
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile(""))
-	if err != nil {
-		return nil, "", fmt.Errorf("loading AWS SDK config: %w", err)
+	var awsPrices pricing.Provider
+	if client.IsAKSServer(server) {
+		awsPrices = aws.NewStaticPricingProvider()
+	} else {
+		cfg, err := config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile(""))
+		if err != nil {
+			return nil, "", fmt.Errorf("loading AWS SDK config: %w", err)
+		}
+		if region != "" {
+			cfg.Region = region
+		}
+		awsPrices = aws.NewPricingProvider(ctx, cfg)
 	}
-	if region != "" {
-		cfg.Region = region
-	}
-	return aws.NewPricingProvider(ctx, cfg), cfg.Region, nil
+	return pricing.ByCloud{
+		Clouds:   map[string]pricing.Provider{"aws": awsPrices, "azure": azure.NewProvider(ctx, azure.Endpoint)},
+		Fallback: awsPrices,
+	}, region, nil
 }
 
 // Close stops the current connection.
@@ -138,3 +154,45 @@ func (s *sessions) Close() {
 		s.cancel()
 	}
 }
+
+// awsAdvisor answers the recommendations from the instance catalog and the
+// session's prices (recommendations D2).
+type awsAdvisor struct {
+	prices interface {
+		OnDemandPrice(ec2types.InstanceType) (float64, bool)
+		SpotPriceInZone(ec2types.InstanceType, string) (float64, bool)
+	}
+}
+
+// newAdvisor is nil when the provider can't answer list prices.
+func newAdvisor(p pricing.Provider) model.Advisor {
+	if b, ok := p.(pricing.ByCloud); ok {
+		p = b.Clouds["aws"]
+	}
+	ap, ok := p.(interface {
+		OnDemandPrice(ec2types.InstanceType) (float64, bool)
+		SpotPriceInZone(ec2types.InstanceType, string) (float64, bool)
+	})
+	if !ok {
+		return nil
+	}
+	return awsAdvisor{prices: ap}
+}
+
+func (a awsAdvisor) Spec(t string) (recommend.Spec, bool) {
+	s, ok := aws.LookupInstance(t)
+	if !ok {
+		return recommend.Spec{}, false
+	}
+	return recommend.Spec{VCPU: s.VCPU, MemGiB: s.MemoryGiB, Arch: s.Arch, Class: s.Class, Current: s.CurrentGeneration}, true
+}
+
+func (a awsAdvisor) OnDemand(t string) (float64, bool) {
+	return a.prices.OnDemandPrice(ec2types.InstanceType(t))
+}
+
+func (a awsAdvisor) SpotIn(t, zone string) (float64, bool) {
+	return a.prices.SpotPriceInZone(ec2types.InstanceType(t), zone)
+}
+
+func (a awsAdvisor) Types() []string { return aws.InstanceTypes() }

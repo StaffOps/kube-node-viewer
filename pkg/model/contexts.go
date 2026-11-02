@@ -19,6 +19,8 @@ import (
 	"slices"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/staffops/kube-node-viewer/pkg/recommend"
 )
 
 // Switcher lists kubeconfig contexts and connects to one (R10). Both run off
@@ -36,6 +38,9 @@ type Session struct {
 	Info    ClusterInfo
 	View    ViewState
 	Save    func(ViewState)
+	// Advisor is the session's catalog and prices for Recommendations, nil
+	// when not available
+	Advisor Advisor
 }
 
 type contextsMsg struct {
@@ -81,6 +86,8 @@ func (u *UIModel) Connect(s Session) {
 	u.onViewChange = s.Save
 	u.SetView(s.View)
 	u.SetClusterInfo(s.Info)
+	u.advisor = s.Advisor
+	u.recFor, u.recPending, u.recs, u.recCursor = "", false, recommend.Result{}, 0
 }
 
 func (u *UIModel) openContexts() tea.Cmd {

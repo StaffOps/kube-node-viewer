@@ -6,6 +6,53 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- Filters can exclude their values: `x` in the Filters panel switches a
+  filter between keeping and excluding (`capacity≠Spot`).
+- Named views (`v`): save the current view under a name, apply or delete it;
+  shared by every cluster, kept in the state file.
+- Export (`e`): the nodes on screen to CSV and JSON in the current directory
+  (or next to the state file), with groups, prices and price kinds.
+- Recommendations screen (`tab`, `:rec`): idle cost, consolidation of
+  managed node groups, rightsizing, newer generation / Nitro, Graviton, old
+  nodes and, always last, Spot, with the math of each row and a total that
+  counts each node once. Fixed rules, no AI, no new AWS permission.
+- A `:` command line (`overview`, `recommendations`).
+- `IDLE/H` column, sort by idle cost and idle cost in group headings.
+- An instance catalog generated from the AWS Price List (`hack/catalog`).
+- Config keys `recommend-headroom` and `recommend-node-age`.
+- Node details (`enter` on a node): instance, price, system, resources as
+  requested / allocatable / capacity, conditions, taints and labels, live.
+- AKS node prices from the public Azure Retail Prices API (pay-as-you-go,
+  Spot and Windows meters), no Azure login needed.
+
+### Changed
+
+- The cluster summary follows the filters and search: usage and cost are
+  those of the nodes on screen, marked `(filtered: N of M nodes)`.
+- The header keeps the whole cluster's monthly cost after the node and pod
+  counts, marked `(global cluster)`, whatever the filters.
+- AKS clusters read right: capacity (`OnDemand`, or `Spot` from the scale set
+  priority), the agent pool as node group, the region from the nodes, and no
+  zone for VMs outside availability zones. No AWS price lookups are made.
+- Prices nobody knows read `prices unknown` instead of `$0.000`, and totals
+  with some unknown prices are marked `>=`; exported totals leave the price
+  out and count the unpriced nodes.
+- Recommendations on clusters without EKS nodes say they cover EKS only.
+
+- The static on-demand price tables, used until the first live lookup and
+  when AWS can't be reached, are refreshed (from April 2025 to October 2026).
+- golangci-lint v2 runs in CI (`make lint` locally); a monthly workflow
+  refreshes the price tables and, with an AWS role configured, the instance
+  catalog, and opens a PR.
+
+### Fixed
+
+- The pending pod count, and the recommendations it holds back, counted pods
+  already on a node (pulling an image, waiting on a secret); only pods waiting
+  for a node count now.
+
 ## [0.8.2] - 2026-11-02
 
 ### Added

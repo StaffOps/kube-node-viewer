@@ -34,6 +34,8 @@ var (
 	reservedStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#af00af", Dark: "#d787d7"}).Render
 	fargateStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005fd7", Dark: "#87afff"}).Render
 	groupStyle    = lipgloss.NewStyle().Bold(true).Render
+	// a footer notice
+	noticeStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f5f", Dark: "#87d7af"}).Render
 	// the cursor's mark in the left margin
 	cursorStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#5f5fd7", Dark: "#a8a8f0"}).Render
 	// group headings: the top level stands out, sub-levels hang off it
@@ -91,7 +93,7 @@ func (u *UIModel) render() string {
 // renderContent is everything below the header, headerLines tall.
 func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) string {
 	var b strings.Builder
-	b.WriteString(u.fit(u.clusterSummary(stats)))
+	b.WriteString(u.fit(u.clusterSummary(stats, nodes)))
 	b.WriteString("\n")
 
 	// what is left between the summary and the two footer lines
@@ -105,6 +107,10 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 	var body []string
 	status := ""
 	switch {
+	case u.onRecommendations():
+		var from, to int
+		body, from, to = u.recommendationsBody(avail)
+		u.selFrom, u.selTo = from, to
 	case stats.NumNodes == 0:
 		body = []string{"Waiting for update or no nodes found..."}
 	case len(nodes) == 0:
@@ -135,8 +141,15 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 		// the panel floats over the node list, which stays in view around it
 		body = u.overlay(body, u.popup(p, avail), avail)
 	}
+	// footer priority: the search line, then a notice, then the page dots
+	if notice := u.currentNotice(); notice != "" {
+		status = noticeStyle(notice)
+	}
 	if u.searching {
 		status = "/" + u.view.Search + "█"
+	}
+	if u.commanding {
+		status = ":" + u.command + "█"
 	}
 	for _, line := range body {
 		b.WriteString(line)
@@ -184,8 +197,20 @@ func (u *UIModel) helpText() string {
 		return u.columns.hint()
 	case panelContexts:
 		return u.contexts.hint()
+	case panelViews:
+		return u.viewsPanel.hint()
+	case panelRecMath:
+		return "esc: close"
+	case panelNode:
+		return "↑/↓: scroll • home: top • esc: close"
 	}
-	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context"
+	if u.commanding {
+		return "overview (ov) • recommendations (rec) • tab: complete • enter: run • esc: cancel"
+	}
+	if u.onRecommendations() {
+		return "↑/↓: select • enter: why • tab/:ov: Overview • f: filter • /: search • c: context • v: views • e: export • ?: help • q: quit"
+	}
+	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context • v: views • e: export • tab: recommendations"
 	if len(u.view.GroupBy) > 0 {
 		keys += " • enter: fold group • n: fold"
 	}
@@ -434,6 +459,9 @@ func (u *UIModel) groupLine(g *Group, t groupTree, w groupLineWidths) string {
 		if s.ReservedNodes > 0 {
 			u.printer.Fprintf(&b, " (+%d reserved, not priced)", s.ReservedNodes)
 		}
+		if s.IdlePrice >= 0.0005 {
+			b.WriteString(helpStyle(u.printer.Sprintf("  idle $%0.3f/month", s.IdlePrice*avgHoursPerMonth)))
+		}
 	}
 	return b.String()
 }
@@ -538,6 +566,9 @@ func (u *UIModel) groupTable(groups []*Group, tree map[*Group]groupTree, depth i
 			if s.ReservedNodes > 0 {
 				r.price += u.printer.Sprintf(" (+%d reserved, not priced)", s.ReservedNodes)
 			}
+			if s.IdlePrice >= 0.0005 {
+				r.price += helpStyle(u.printer.Sprintf("  idle $%0.3f/month", s.IdlePrice*avgHoursPerMonth))
+			}
 		}
 		nameW = max(nameW, textWidth(r.name))
 		nodesW = max(nodesW, len(r.nodes))
@@ -609,6 +640,8 @@ func columnTitle(f Field) string {
 		return "INSTANCE"
 	case FieldPrice:
 		return "PRICE/H"
+	case FieldIdle:
+		return "IDLE/H"
 	}
 	if key := f.Label(); key != "" {
 		return strings.ToUpper(key[strings.LastIndex(key, "/")+1:])
@@ -738,6 +771,11 @@ func (u *UIModel) cell(n *Node, f Field, now time.Time) string {
 		default:
 			return fmt.Sprintf("$%0.4f", n.Price())
 		}
+	case FieldIdle:
+		if idle, ok := n.IdleHourly(); ok {
+			return fmt.Sprintf("$%0.4f", idle)
+		}
+		return "-"
 	case FieldStatus:
 		flags := n.StatusFlags()
 		for i, f := range flags {

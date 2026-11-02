@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -141,12 +142,19 @@ func (n *Node) CapacityType() CapacityType {
 	case "CAPACITY_BLOCK":
 		return CapacityReserved
 	}
+	// AKS marks only Spot VMs; every other agent pool VM is regular pay-as-you-go
+	if strings.HasPrefix(n.node.Spec.ProviderID, "azure://") {
+		if labels["kubernetes.azure.com/scalesetpriority"] == "spot" {
+			return CapacitySpot
+		}
+		return CapacityOnDemand
+	}
 	return CapacityUnknown
 }
 
-// NodeGroup is the Karpenter NodePool or the EKS managed node group name, or
-// "-". IsManagedNodeGroup tells which: the screen colours managed node groups
-// rather than prefixing them.
+// NodeGroup is the Karpenter NodePool, the EKS managed node group or the AKS
+// agent pool name, or "-". IsManagedNodeGroup tells which: the screen colours
+// managed node groups and agent pools rather than prefixing them.
 func (n *Node) NodeGroup() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
@@ -156,15 +164,31 @@ func (n *Node) NodeGroup() string {
 	if group := n.node.Labels["eks.amazonaws.com/nodegroup"]; group != "" {
 		return group
 	}
+	if pool := n.node.Labels["kubernetes.azure.com/agentpool"]; pool != "" {
+		return pool
+	}
 	return "-"
 }
 
-// IsManagedNodeGroup tells whether NodeGroup is an EKS managed node group
-// rather than a Karpenter NodePool.
+// IsManagedNodeGroup tells whether NodeGroup is an EKS managed node group or an
+// AKS agent pool rather than a Karpenter NodePool.
 func (n *Node) IsManagedNodeGroup() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	return n.node.Labels["karpenter.sh/nodepool"] == "" && n.node.Labels["eks.amazonaws.com/nodegroup"] != ""
+	l := n.node.Labels
+	return l["karpenter.sh/nodepool"] == "" && (l["eks.amazonaws.com/nodegroup"] != "" || l["kubernetes.azure.com/agentpool"] != "")
+}
+
+// Cloud is the scheme of the node's provider ID ("aws", "azure", "gce",
+// "kind"…), empty when the node has none.
+func (n *Node) Cloud() string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	scheme, _, ok := strings.Cut(n.node.Spec.ProviderID, "://")
+	if !ok {
+		return ""
+	}
+	return scheme
 }
 
 // Region is the node's region label, empty when unset.
@@ -407,7 +431,13 @@ func (n *Node) InstanceType() ec2types.InstanceType {
 func (n *Node) Zone() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	return n.node.Labels[v1.LabelTopologyZone]
+	zone := n.node.Labels[v1.LabelTopologyZone]
+	// AKS VMs outside availability zones carry their fault domain ("0", "1"…)
+	// instead; zonal ones read "<region>-<n>"
+	if strings.HasPrefix(n.node.Spec.ProviderID, "azure://") && !strings.Contains(zone, "-") {
+		return ""
+	}
+	return zone
 }
 
 func (n *Node) NumPods() int {
@@ -437,6 +467,14 @@ func (n *Node) Deleting() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return !n.node.DeletionTimestamp.IsZero()
+}
+
+// PodsCopy lists the pods bound to the node under its lock, for readers
+// outside the node such as the recommendations.
+func (n *Node) PodsCopy() []*Pod {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.Pods()
 }
 
 // Pods lists the pods bound to the node. Callers hold no lock: InstanceType
@@ -575,4 +613,11 @@ func (n *Node) addLabelKeys(keys map[string]struct{}) {
 	for k := range n.node.Labels {
 		keys[k] = struct{}{}
 	}
+}
+
+// Object is a copy of the node's Kubernetes object, for the details popup.
+func (n *Node) Object() *v1.Node {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.node.DeepCopy()
 }
