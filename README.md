@@ -106,7 +106,7 @@ the node over its pod capacity, then the columns you picked. Default columns:
 | `INSTANCE` | instance type (`<cpu>vCPU-<mem>GB` for a Fargate pod) |
 | `PRICE/H` | hourly price; `~$` marks an on-demand equivalent for a reserved node (see [Pricing](#pricing)); `-` when unknown |
 | `CAPACITY` | `OnDemand`, `Spot`, `Reserved`, `Fargate` or `Unknown`, with `/Auto` for EKS Auto Mode |
-| `NODEGROUP` | the Karpenter NodePool, or the EKS managed node group name in blue |
+| `NODEGROUP` | the Karpenter NodePool, or the EKS managed node group or AKS agent pool name in blue |
 | `ZONE` | availability zone |
 | `STATUS` | `Ready` or `NotReady/<for how long>`, plus `Cordoned`, `Deleting`, `Launching` (a Karpenter NodeClaim whose node has not registered yet) |
 
@@ -296,8 +296,9 @@ The **Savings** line counts each node once, with its best non-Spot saving;
 idle, Karpenter consolidation and Spot stay out of it. Savings are estimates
 from requests and list prices; affinity, taints, spread constraints,
 disruption budgets and volumes are not considered. Nothing is recommended
-for Fargate, EKS Auto Mode or nodes of an unknown instance type; with pods
-pending, consolidation and rightsizing wait.
+for Fargate, EKS Auto Mode, nodes of an unknown instance type or nodes on
+other clouds; with pods waiting for a node, consolidation and rightsizing
+wait.
 
 Settings in `~/.kube-node-viewer`:
 
@@ -428,12 +429,15 @@ style=#2E91D2,#ffff00,#D55E00
 Prices come from AWS: on-demand and Fargate from the Price List API, spot from
 the EC2 spot price history, refreshed periodically, with a static on-demand
 table as a fallback until the first lookup answers. On other clouds, run with
-`--disable-pricing` or set prices with the override label below.
+`--disable-pricing` or set prices with the override label below. AKS clusters
+(`*.azmk8s.io`) are recognised: no AWS lookup is made and prices read
+`prices unknown`; nodes show their agent pool, capacity and region.
 
 **Region.** For an EKS cluster the pricing region comes from its API server
 URL (`https://<id>.gr7.<region>.eks.amazonaws.com`), also after a context
-switch. For other servers it is the AWS SDK's configured region (`AWS_REGION`
-or the profile).
+switch. For other servers prices are looked up in the AWS SDK's configured
+region (`AWS_REGION` or the profile), and the header shows the nodes'
+`topology.kubernetes.io/region`.
 
 **Reserved capacity.** Nodes on Karpenter reserved capacity or EKS capacity
 blocks are prepaid, so their real hourly cost is unknown here. They show the

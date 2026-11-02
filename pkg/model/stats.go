@@ -26,6 +26,11 @@ type Stats struct {
 	PodsByPhase          map[v1.PodPhase]int
 	BoundPodCount        int
 	TotalPrice           float64
+	// PricedNodes counts visible nodes whose price is in TotalPrice
+	PricedNodes int
+	// Unscheduled counts pods not on any node yet; a Pending pod already on a
+	// node (pulling its image, waiting on a secret) is not one
+	Unscheduled int
 	// UnpricedReserved counts visible reserved nodes, left out of TotalPrice
 	UnpricedReserved int
 }

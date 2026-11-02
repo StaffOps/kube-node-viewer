@@ -86,3 +86,18 @@ func TestRegionFromServer(t *testing.T) {
 		}
 	}
 }
+
+func TestIsAKSServer(t *testing.T) {
+	cases := map[string]bool{
+		"https://example1-demo1-a1b2c3d4.hcp.eastus2.azmk8s.io:443": true,
+		"https://cluster-abc.privatelink.eastus2.azmk8s.io:443":     true,
+		"https://ABCDEF01.gr7.us-east-1.eks.amazonaws.com":          false,
+		"https://evil.example.com/.azmk8s.io":                       false,
+		"https://kind.local:6443":                                   false,
+	}
+	for server, want := range cases {
+		if got := IsAKSServer(server); got != want {
+			t.Errorf("%s: got %v, want %v", server, got, want)
+		}
+	}
+}

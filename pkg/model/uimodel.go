@@ -408,6 +408,7 @@ func (u *UIModel) clusterSummary(stats Stats, nodes []*Node) string {
 			AllocatableResources: g.AllocatableResources,
 			UsedResources:        g.UsedResources,
 			TotalPrice:           g.TotalPrice,
+			PricedNodes:          g.PricedNodes,
 			UnpricedReserved:     g.ReservedNodes,
 		}
 	}
@@ -441,8 +442,15 @@ func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, 
 		u.progress.ShowPercentage = false
 		monthlyPrice := stats.TotalPrice * avgHoursPerMonth
 		clusterPrice := u.printer.Sprintf("$%0.3f/hour | $%0.3f/month", stats.TotalPrice, monthlyPrice)
+		if stats.PricedNodes < stats.NumNodes-stats.UnpricedReserved {
+			// an unknown price somewhere, so this is a lower bound
+			clusterPrice = ">= " + clusterPrice
+		}
 		if stats.UnpricedReserved > 0 {
 			clusterPrice += u.printer.Sprintf(" (+%d reserved, not priced)", stats.UnpricedReserved)
+		}
+		if stats.NumNodes > 0 && stats.PricedNodes == 0 && stats.UnpricedReserved == 0 {
+			clusterPrice = helpStyle("prices unknown")
 		}
 		if u.DisablePricing {
 			clusterPrice = ""
