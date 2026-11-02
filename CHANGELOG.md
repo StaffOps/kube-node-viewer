@@ -10,6 +10,7 @@ All notable changes to this project are documented here. Format:
 
 - The cluster summary follows the filters and search: usage and cost are
   those of the nodes on screen, marked `(filtered: N of M nodes)`.
+- The header keeps the whole cluster's cost (`Cost:`), whatever the filters.
 
 ## [0.8.2] - 2026-11-02
 
