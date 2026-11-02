@@ -196,14 +196,11 @@ type block struct {
 	// page is shown
 	node  *Node
 	count int
-	// gap is a blank line kept before the node when it follows another node,
-	// so stacked resource lines read as one node each
-	gap int
 }
 
 func (b block) height() int {
 	if b.node != nil {
-		return b.count + b.gap
+		return b.count
 	}
 	return len(b.lines)
 }
@@ -226,10 +223,6 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 
 	var blocks []block
 	groups := u.view.Groups(nodes)
-	gap := 0
-	if len(u.cluster.resources) > 1 {
-		gap = 1
-	}
 	// with the node list hidden the groups carry their own usage bars
 	// Folded, the deepest level shown carries the usage bars and the levels
 	// above it are one-line summaries. With details on (d), the level below
@@ -270,7 +263,7 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 			walk(g.Groups)
 			if table != nil {
 				for _, n := range g.Nodes {
-					blocks = append(blocks, block{path: g.Path, node: n, count: len(u.cluster.resources), gap: gap})
+					blocks = append(blocks, block{path: g.Path, node: n, count: len(u.cluster.resources)})
 				}
 			}
 		}
@@ -279,22 +272,18 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 		walk(groups)
 	} else {
 		for _, n := range nodes {
-			blocks = append(blocks, block{node: n, count: len(u.cluster.resources), gap: gap})
+			blocks = append(blocks, block{node: n, count: len(u.cluster.resources)})
 		}
 	}
 	pages := paginate(blocks, top, height)
 	u.page = min(u.page, len(pages)-1)
-	afterNode := false
+	// nodes are set apart by the gap above their first bar, not a blank line
 	for _, b := range pages[u.page] {
 		if b.node != nil {
-			if afterNode && b.gap > 0 {
-				lines = append(lines, "")
-			}
 			lines = append(lines, table.render(b.node)...)
 		} else {
 			lines = append(lines, b.lines...)
 		}
-		afterNode = b.node != nil
 	}
 	return lines, len(pages), hiddenColumns
 }
@@ -487,7 +476,7 @@ func (u *UIModel) groupTable(groups []*Group, tree map[*Group]groupTree, depth i
 			lines = append(lines, "")
 		}
 		for i, res := range u.cluster.resources {
-			bar := pad(u.usageBar(g.Stats.PercentUsed(res)/100, barW), barW)
+			bar := pad(u.usageBar(g.Stats.PercentUsed(res)/100, barW, barRune(i)), barW)
 			if i == 0 {
 				line := pad(r.name, nameW) + "  " + pad(r.nodes, nodesW) + "  " + pad(r.pods, podsW) + "  " + pad(string(res), resW) + " " + bar
 				if r.price != "" {
@@ -640,7 +629,7 @@ func (t *nodeTable) render(n *Node) []string {
 
 	lines := make([]string, 0, len(r.fills))
 	for j, res := range u.cluster.resources {
-		bar := pad(u.usageBar(r.fills[j], t.barW), t.barW)
+		bar := pad(u.usageBar(r.fills[j], t.barW, barRune(j)), t.barW)
 		if j == 0 {
 			lines = append(lines, t.indent+pad(r.name, t.nameW)+" "+pad(string(res), t.resW)+" "+bar+" "+pad(r.pods, t.podsW)+t.tail(r.cells))
 		} else {

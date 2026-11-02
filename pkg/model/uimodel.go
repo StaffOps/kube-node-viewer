@@ -116,6 +116,7 @@ type barKey struct {
 	fill           int
 	width          int
 	showPercentage bool
+	cell           rune
 }
 
 // every fill at or above 100% draws the same full bar
@@ -133,7 +134,7 @@ func (u *UIModel) progressBar(fill float64) string {
 	if rounded > maxCachedBarFill {
 		return u.progress.ViewAs(fill)
 	}
-	key := barKey{fill: rounded, width: u.progress.Width, showPercentage: u.progress.ShowPercentage}
+	key := barKey{fill: rounded, width: u.progress.Width, showPercentage: u.progress.ShowPercentage, cell: u.progress.Full}
 	if bar, ok := u.bars[key]; ok {
 		return bar
 	}
@@ -142,11 +143,13 @@ func (u *UIModel) progressBar(fill float64) string {
 	return bar
 }
 
-// barCell fills the usage bars: a block 7/8 high leaves a thin gap above it,
-// so bars stacked on consecutive lines (cpu, memory) read apart. The empty
-// part is the same block in dark grey, keeping the gap along the whole bar.
+// A node's (or group's) first bar is drawn with a block 7/8 high, which
+// leaves a thin gap above it, setting it apart from the one before; its other
+// resources use the full block and stay joined to it. The empty part is the
+// same block in dark grey, so the gap runs along the whole bar.
 const (
 	barCell       = '▇'
+	barJoinedCell = '█'
 	barEmptyColor = "#3a3a3a"
 )
 
@@ -155,6 +158,15 @@ func newProgress(style *Style, opts ...progress.Option) progress.Model {
 	p := progress.New(append([]progress.Option{style.gradient, progress.WithFillCharacters(barCell, barCell)}, opts...)...)
 	p.EmptyColor = barEmptyColor
 	return p
+}
+
+// barRune is the cell for the bar on the given line of a stacked block: the
+// first line keeps the gap above it, the next ones join it.
+func barRune(line int) rune {
+	if line == 0 {
+		return barCell
+	}
+	return barJoinedCell
 }
 
 // NewUIModel starts with the default view state; SetView replaces it.
@@ -304,9 +316,11 @@ func (u *UIModel) colorizeUsage(pctUsed float64, label string) string {
 
 // usageBar is a bar of the given total width followed by its percentage,
 // coloured like colorizeUsage.
-func (u *UIModel) usageBar(fill float64, width int) string {
+func (u *UIModel) usageBar(fill float64, width int, cell rune) string {
 	defer func(w int, pct bool) { u.progress.Width, u.progress.ShowPercentage = w, pct }(u.progress.Width, u.progress.ShowPercentage)
+	defer u.setBarCell(u.progress.Full)
 	u.progress.Width, u.progress.ShowPercentage = max(width-5, 1), false
+	u.setBarCell(cell)
 	pct := fill * 100
 	if math.IsNaN(pct) || pct < 0 {
 		pct = 0
@@ -325,10 +339,17 @@ func (u *UIModel) clusterSummary(stats Stats) string {
 	return b.String()
 }
 
+// setBarCell sets the cell the bar is drawn with, filled and empty part.
+func (u *UIModel) setBarCell(cell rune) {
+	u.progress.Full, u.progress.Empty = cell, cell
+}
+
 func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, w io.Writer) {
 	firstLine := true
+	defer u.setBarCell(u.progress.Full)
 
-	for _, res := range resources {
+	for i, res := range resources {
+		u.setBarCell(barRune(i))
 		allocatable := stats.AllocatableResources[res]
 		used := stats.UsedResources[res]
 		pctUsed := 0.0
