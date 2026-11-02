@@ -240,6 +240,8 @@ type ViewState struct {
 	// Collapsed holds the groups folded one by one (enter on a heading), each
 	// as its path joined by " › ".
 	Collapsed []string `json:"collapsed,omitempty"`
+	// Screen is Overview (empty) or Recommendations (recommendations R2)
+	Screen string `json:"screen,omitempty"`
 	// Header is HeaderFull or HeaderCompact once the user picks one with
 	// ctrl+e; empty picks by screen height.
 	Header string `json:"header,omitempty"`

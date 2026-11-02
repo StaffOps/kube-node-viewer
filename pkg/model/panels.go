@@ -34,6 +34,7 @@ const (
 	panelColumns
 	panelContexts
 	panelViews
+	panelRecMath
 )
 
 // panelKey handles a key while a panel is open; esc closes or steps back.
@@ -55,6 +56,10 @@ func (u *UIModel) panelKey(key string) tea.Cmd {
 		u.columnsKey(key)
 	case panelViews:
 		u.viewsKey(key)
+	case panelRecMath:
+		if key == "esc" || key == "enter" {
+			u.panel = panelNone
+		}
 	}
 	return nil
 }
@@ -68,6 +73,8 @@ var helpKeys = [][2]string{
 	{"/", "search name, IP, instance type, labels; esc clears"},
 	{"r", "resources: cpu → memory → cpu+memory"},
 	{"c", "switch to another kubeconfig context"},
+	{":", "command: overview (ov), recommendations (rec); tab completes"},
+	{"tab", "switch Overview ⇄ Recommendations"},
 	{"v", "named views: apply, save the current view, delete"},
 	{"e", "export the nodes on screen to CSV and JSON in the current directory"},
 	{"d", "folded: list the next group level as one-line rows"},
