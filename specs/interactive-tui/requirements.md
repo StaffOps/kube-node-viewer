@@ -84,6 +84,9 @@ where filters can be added, edited, toggled on/off and removed, on these
 fields: any node label (key, then values), capacity type, node group, zone,
 region, instance type, status.
 
+> **Note 2026-11-02.** Filters can also exclude their values (`x`); see
+> [`views-and-export`](../views-and-export/requirements.md) R1.
+
 - [ ] Value pickers list the values present among all watched nodes with the
   number of nodes for each.
 - [ ] Filters on different fields combine with AND; several values of one
