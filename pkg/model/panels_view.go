@@ -121,7 +121,7 @@ type sortPanel struct {
 // sortChoices are the fields the node list sorts on (R5): creation, the
 // columns, usage per resource, then every label.
 func (u *UIModel) sortChoices() []Field {
-	fields := []Field{FieldCreation, FieldName, FieldIP, FieldPrice, FieldPods}
+	fields := []Field{FieldCreation, FieldName, FieldIP, FieldPrice, FieldIdle, FieldPods}
 	resources := []string{string(v1.ResourceCPU), string(v1.ResourceMemory)}
 	for _, r := range u.view.Resources {
 		if !slices.Contains(resources, r) {
@@ -138,7 +138,7 @@ func (u *UIModel) sortChoices() []Field {
 // fullest.
 func descendingFirst(f Field) bool {
 	switch f {
-	case FieldCreation, FieldPrice, FieldPods:
+	case FieldCreation, FieldPrice, FieldIdle, FieldPods:
 		return true
 	}
 	return strings.HasPrefix(string(f), usageFieldPrefix)
@@ -215,6 +215,7 @@ func (u *UIModel) columnChoices() []Field {
 	for _, f := range DefaultColumns {
 		add(f)
 	}
+	add(FieldIdle)
 	add(FieldRegion)
 	add(FieldAge)
 	add(LabelField(LabelPrefix + "node-age"))

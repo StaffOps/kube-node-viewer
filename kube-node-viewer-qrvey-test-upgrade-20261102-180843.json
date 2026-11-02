@@ -1,0 +1,389 @@
+{
+  "context": "qrvey-test-upgrade",
+  "server": "https://87F7FBEF13B2DF60B170A02F69970772.gr7.us-east-1.eks.amazonaws.com",
+  "generated": "2026-11-02T18:08:43.898126-03:00",
+  "view": {
+    "filters": [
+      {
+        "field": "zone",
+        "values": [
+          "us-east-1b"
+        ],
+        "enabled": false
+      }
+    ],
+    "groupBy": [
+      "nodegroup"
+    ],
+    "sort": {
+      "field": "creation",
+      "descending": true
+    },
+    "resources": [
+      "cpu",
+      "memory"
+    ],
+    "columns": [
+      "instance-type",
+      "price",
+      "capacity",
+      "zone",
+      "status",
+      "nodegroup"
+    ],
+    "showNodes": true,
+    "details": true
+  },
+  "shown": {
+    "nodes": 10,
+    "resources": {
+      "cpu": {
+        "requested": "15210m",
+        "allocatable": "21290m",
+        "percent": 71.4
+      },
+      "memory": {
+        "requested": "34100Mi",
+        "allocatable": "66703472Ki",
+        "percent": 52.3
+      }
+    },
+    "pricePerHour": 0.6215999999999999,
+    "pricePerMonth": 453.768,
+    "reservedNotPriced": 0
+  },
+  "cluster": {
+    "nodes": 14,
+    "resources": {
+      "cpu": {
+        "requested": "20040m",
+        "allocatable": "29010m",
+        "percent": 69.1
+      },
+      "memory": {
+        "requested": "54872Mi",
+        "allocatable": "96137204Ki",
+        "percent": 58.4
+      }
+    },
+    "pricePerHour": 0.8568,
+    "pricePerMonth": 625.464,
+    "reservedNotPriced": 0
+  },
+  "resources": [
+    "cpu",
+    "memory"
+  ],
+  "nodes": [
+    {
+      "name": "ip-10-110-42-137.ec2.internal",
+      "group": [
+        "qrvey-ondemand-dependencies-critical-arm"
+      ],
+      "instanceType": "t4g.large",
+      "capacity": "OnDemand",
+      "nodeGroup": "qrvey-ondemand-dependencies-critical-arm",
+      "zone": "us-east-1a",
+      "region": "us-east-1",
+      "ip": "10.110.42.137",
+      "status": "Ready",
+      "created": "2026-11-02T18:07:51-03:00",
+      "age": "53s",
+      "pods": 7,
+      "maxPods": 35,
+      "resources": {
+        "cpu": {
+          "requested": "700m",
+          "allocatable": "1930m",
+          "percent": 36.3
+        },
+        "memory": {
+          "requested": "2482Mi",
+          "allocatable": "7239524Ki",
+          "percent": 35.1
+        }
+      },
+      "pricePerHour": 0.0672,
+      "priceKind": "actual"
+    },
+    {
+      "name": "ip-10-110-36-12.ec2.internal",
+      "group": [
+        "qrvey-ondemand-arm"
+      ],
+      "instanceType": "t4g.large",
+      "capacity": "OnDemand",
+      "nodeGroup": "qrvey-ondemand-arm",
+      "zone": "us-east-1a",
+      "region": "us-east-1",
+      "ip": "10.110.36.12",
+      "status": "Ready",
+      "created": "2026-11-02T17:44:54-03:00",
+      "age": "23m50s",
+      "pods": 16,
+      "maxPods": 35,
+      "resources": {
+        "cpu": {
+          "requested": "1760m",
+          "allocatable": "1930m",
+          "percent": 91.2
+        },
+        "memory": {
+          "requested": "2904Mi",
+          "allocatable": "7239524Ki",
+          "percent": 41.1
+        }
+      },
+      "pricePerHour": 0.0672,
+      "priceKind": "actual"
+    },
+    {
+      "name": "ip-10-110-42-237.ec2.internal",
+      "group": [
+        "qrvey-ondemand-arm"
+      ],
+      "instanceType": "t4g.large",
+      "capacity": "OnDemand",
+      "nodeGroup": "qrvey-ondemand-arm",
+      "zone": "us-east-1a",
+      "region": "us-east-1",
+      "ip": "10.110.42.237",
+      "status": "Ready",
+      "created": "2026-11-02T17:31:42-03:00",
+      "age": "37m2s",
+      "pods": 17,
+      "maxPods": 35,
+      "resources": {
+        "cpu": {
+          "requested": "1735m",
+          "allocatable": "1930m",
+          "percent": 89.9
+        },
+        "memory": {
+          "requested": "3208Mi",
+          "allocatable": "7239524Ki",
+          "percent": 45.4
+        }
+      },
+      "pricePerHour": 0.0672,
+      "priceKind": "actual"
+    },
+    {
+      "name": "ip-10-110-34-207.ec2.internal",
+      "group": [
+        "qrvey-ondemand-arm"
+      ],
+      "instanceType": "t4g.large",
+      "capacity": "OnDemand",
+      "nodeGroup": "qrvey-ondemand-arm",
+      "zone": "us-east-1a",
+      "region": "us-east-1",
+      "ip": "10.110.34.207",
+      "status": "Ready",
+      "created": "2026-11-02T17:08:12-03:00",
+      "age": "1h0m32s",
+      "pods": 20,
+      "maxPods": 35,
+      "resources": {
+        "cpu": {
+          "requested": "1735m",
+          "allocatable": "1930m",
+          "percent": 89.9
+        },
+        "memory": {
+          "requested": "3976Mi",
+          "allocatable": "7239524Ki",
+          "percent": 56.2
+        }
+      },
+      "pricePerHour": 0.0672,
+      "priceKind": "actual"
+    },
+    {
+      "name": "ip-10-110-39-100.ec2.internal",
+      "group": [
+        "qrvey-ondemand-arm"
+      ],
+      "instanceType": "t4g.large",
+      "capacity": "OnDemand",
+      "nodeGroup": "qrvey-ondemand-arm",
+      "zone": "us-east-1a",
+      "region": "us-east-1",
+      "ip": "10.110.39.100",
+      "status": "Ready",
+      "created": "2026-11-02T16:11:01-03:00",
+      "age": "1h57m43s",
+      "pods": 17,
+      "maxPods": 35,
+      "resources": {
+        "cpu": {
+          "requested": "1785m",
+          "allocatable": "1930m",
+          "percent": 92.5
+        },
+        "memory": {
+          "requested": "3464Mi",
+          "allocatable": "7239524Ki",
+          "percent": 49
+        }
+      },
+      "pricePerHour": 0.0672,
+      "priceKind": "actual"
+    },
+    {
+      "name": "ip-10-110-33-188.ec2.internal",
+      "group": [
+        "qrvey-ondemand-cronjobs-arm"
+      ],
+      "instanceType": "t4g.small",
+      "capacity": "OnDemand",
+      "nodeGroup": "qrvey-ondemand-cronjobs-arm",
+      "zone": "us-east-1a",
+      "region": "us-east-1",
+      "ip": "10.110.33.188",
+      "status": "Ready",
+      "created": "2026-11-02T14:42:22-03:00",
+      "age": "3h26m22s",
+      "pods": 7,
+      "maxPods": 34,
+      "resources": {
+        "cpu": {
+          "requested": "235m",
+          "allocatable": "1930m",
+          "percent": 12.2
+        },
+        "memory": {
+          "requested": "504Mi",
+          "allocatable": "1399552Ki",
+          "percent": 36.9
+        }
+      },
+      "pricePerHour": 0.0168,
+      "priceKind": "actual"
+    },
+    {
+      "name": "ip-10-110-43-195.ec2.internal",
+      "group": [
+        "qrvey-ondemand-dependencies-critical-arm"
+      ],
+      "instanceType": "t4g.medium",
+      "capacity": "OnDemand",
+      "nodeGroup": "qrvey-ondemand-dependencies-critical-arm",
+      "zone": "us-east-1a",
+      "region": "us-east-1",
+      "ip": "10.110.43.195",
+      "status": "Ready",
+      "created": "2026-11-02T14:42:02-03:00",
+      "age": "3h26m42s",
+      "pods": 10,
+      "maxPods": 17,
+      "resources": {
+        "cpu": {
+          "requested": "1400m",
+          "allocatable": "1930m",
+          "percent": 72.5
+        },
+        "memory": {
+          "requested": "3210Mi",
+          "allocatable": "3368740Ki",
+          "percent": 97.6
+        }
+      },
+      "pricePerHour": 0.0336,
+      "priceKind": "actual"
+    },
+    {
+      "name": "ip-10-110-44-205.ec2.internal",
+      "group": [
+        "qrvey-ondemand-dependencies-critical-arm"
+      ],
+      "instanceType": "t4g.medium",
+      "capacity": "OnDemand",
+      "nodeGroup": "qrvey-ondemand-dependencies-critical-arm",
+      "zone": "us-east-1a",
+      "region": "us-east-1",
+      "ip": "10.110.44.205",
+      "status": "Ready",
+      "created": "2026-11-02T14:41:31-03:00",
+      "age": "3h27m13s",
+      "pods": 10,
+      "maxPods": 17,
+      "resources": {
+        "cpu": {
+          "requested": "800m",
+          "allocatable": "1930m",
+          "percent": 41.5
+        },
+        "memory": {
+          "requested": "2610Mi",
+          "allocatable": "3368740Ki",
+          "percent": 79.3
+        }
+      },
+      "pricePerHour": 0.0336,
+      "priceKind": "actual"
+    },
+    {
+      "name": "ip-10-110-32-53.ec2.internal",
+      "group": [
+        "qrvey-ondemand-dependencies-critical-arm"
+      ],
+      "instanceType": "t4g.large",
+      "capacity": "OnDemand",
+      "nodeGroup": "qrvey-ondemand-dependencies-critical-arm",
+      "zone": "us-east-1a",
+      "region": "us-east-1",
+      "ip": "10.110.32.53",
+      "status": "Ready",
+      "created": "2026-11-02T14:41:24-03:00",
+      "age": "3h27m20s",
+      "pods": 9,
+      "maxPods": 35,
+      "resources": {
+        "cpu": {
+          "requested": "1200m",
+          "allocatable": "1930m",
+          "percent": 62.2
+        },
+        "memory": {
+          "requested": "4530Mi",
+          "allocatable": "7239524Ki",
+          "percent": 64.1
+        }
+      },
+      "pricePerHour": 0.0672,
+      "priceKind": "actual"
+    },
+    {
+      "name": "ip-10-110-38-111.ec2.internal",
+      "group": [
+        "qrvey-ondemand-arm"
+      ],
+      "instanceType": "t4g.xlarge",
+      "capacity": "OnDemand",
+      "nodeGroup": "qrvey-ondemand-arm",
+      "zone": "us-east-1a",
+      "region": "us-east-1",
+      "ip": "10.110.38.111",
+      "status": "Ready",
+      "created": "2026-11-01T12:43:18-03:00",
+      "age": "29h25m26s",
+      "pods": 31,
+      "maxPods": 58,
+      "resources": {
+        "cpu": {
+          "requested": "3860m",
+          "allocatable": "3920m",
+          "percent": 98.5
+        },
+        "memory": {
+          "requested": "7212Mi",
+          "allocatable": "15129296Ki",
+          "percent": 48.8
+        }
+      },
+      "pricePerHour": 0.1344,
+      "priceKind": "actual"
+    }
+  ]
+}

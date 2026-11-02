@@ -262,6 +262,7 @@ func (c *Cluster) Stats() Stats {
 	for phase, count := range c.unscheduledByPhase {
 		st.PodsByPhase[phase] += count
 		st.TotalPods += count
+		st.Unscheduled += count
 	}
 
 	for _, n := range c.nodes {
@@ -272,6 +273,7 @@ func (c *Cluster) Stats() Stats {
 		// price
 		if n.HasActualPrice() {
 			st.TotalPrice += n.Price()
+			st.PricedNodes++
 		} else if n.PriceIsEquivalent() {
 			st.UnpricedReserved++
 		}

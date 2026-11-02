@@ -1,0 +1,74 @@
+# Monthly refresh of the data compiled into the binary: the static on-demand
+# price tables (from Karpenter, no credentials) and the instance catalog
+# (from the AWS Price List, which needs pricing:GetProducts). Opens a PR when
+# anything changed.
+#
+# The catalog step runs only when the repository variable AWS_CATALOG_ROLE_ARN
+# names an IAM role this workflow may assume through GitHub OIDC, with
+# pricing:GetProducts and nothing else. Without it, only prices refresh.
+#
+# A PR opened with GITHUB_TOKEN does not trigger other workflows: close and
+# reopen it (or push to it) to run the tests.
+
+name: Refresh price data
+
+on:
+  schedule:
+    - cron: '17 6 1 * *' # 06:17 UTC on the 1st of each month
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write # only used when AWS_CATALOG_ROLE_ARN is set
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4.1.5
+
+    - name: Set up Go
+      uses: actions/setup-go@v5.0.1
+      with:
+        go-version-file: go.mod
+
+    - name: Price tables
+      run: make prices
+
+    - name: AWS credentials for the catalog
+      if: vars.AWS_CATALOG_ROLE_ARN != ''
+      uses: aws-actions/configure-aws-credentials@v4.1.0
+      with:
+        role-to-assume: ${{ vars.AWS_CATALOG_ROLE_ARN }}
+        aws-region: us-east-1
+
+    - name: Instance catalog
+      if: vars.AWS_CATALOG_ROLE_ARN != ''
+      run: make catalog
+
+    - name: Build and test
+      run: |
+        go build ./...
+        go test ./...
+
+    - name: Open a pull request
+      env:
+        GH_TOKEN: ${{ github.token }}
+        WITH_CATALOG: ${{ vars.AWS_CATALOG_ROLE_ARN != '' }}
+      run: |
+        if git diff --quiet; then
+          echo "nothing changed"
+          exit 0
+        fi
+        branch="chore/refresh-price-data-$(date -u +%Y%m%d)"
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git checkout -b "$branch"
+        git commit -am "chore: refresh price data $(date -u +%Y-%m-%d)"
+        git push origin "$branch"
+        what="\`make prices\`"
+        [ "$WITH_CATALOG" = true ] && what="$what and \`make catalog\`"
+        gh pr create --base main --head "$branch" \
+          --title "chore: refresh price data $(date -u +%Y-%m-%d)" \
+          --body "Monthly refresh from $what. Close and reopen to run the tests."

@@ -28,7 +28,7 @@ shoot() {
 }
 
 mkdir -p "$out"
-for name in main groups-folded groups-details filters group-by columns contexts header-compact; do
+for name in main groups-folded groups-details filters group-by columns contexts views recommendations recommendation-why node-details header-compact; do
   lines=$(wc -l <"$work/$name.ansi")
   shoot "$name" 1384 $(((lines + 1) * 14 + 36)) 2
   cp "$work/$name.png" "$out/$name.png"

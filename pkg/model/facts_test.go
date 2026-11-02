@@ -53,6 +53,46 @@ func TestCapacityType(t *testing.T) {
 	}
 }
 
+func aksNode(labels map[string]string) *model.Node {
+	n := testNode("aks-pool-1-vmss000000")
+	n.Spec.ProviderID = "azure:///subscriptions/s/resourceGroups/mc_rg/providers/Microsoft.Compute/virtualMachineScaleSets/aks-pool-1-vmss/virtualMachines/0"
+	n.Labels = labels
+	return model.NewNode(n)
+}
+
+// AKS: agent pools are the node groups, Spot is marked by the scale set
+// priority and every other VM is pay-as-you-go; a VM outside availability
+// zones has its fault domain as zone.
+func TestAKSNodeFacts(t *testing.T) {
+	regular := aksNode(map[string]string{"kubernetes.azure.com/agentpool": "system", v1.LabelTopologyZone: "0"})
+	if got := regular.CapacityType(); got != model.CapacityOnDemand {
+		t.Errorf("capacity %s, want OnDemand", got)
+	}
+	if got := regular.NodeGroup(); got != "system" || !regular.IsManagedNodeGroup() {
+		t.Errorf("node group %q managed %v, want system, true", got, regular.IsManagedNodeGroup())
+	}
+	if got := regular.Zone(); got != "" {
+		t.Errorf("fault domain read as zone %q", got)
+	}
+	if got := regular.Cloud(); got != "azure" {
+		t.Errorf("cloud %q", got)
+	}
+	spot := aksNode(map[string]string{"kubernetes.azure.com/scalesetpriority": "spot", v1.LabelTopologyZone: "eastus2-1"})
+	if got := spot.CapacityType(); got != model.CapacitySpot {
+		t.Errorf("capacity %s, want Spot", got)
+	}
+	if got := spot.Zone(); got != "eastus2-1" {
+		t.Errorf("zone %q, want eastus2-1", got)
+	}
+	// an EKS node keeps its zone and an unlabelled one stays Unknown
+	eks := testNode("ip-10-0-0-1")
+	eks.Spec.ProviderID = "aws:///us-east-1a/i-0abc"
+	eks.Labels = map[string]string{v1.LabelTopologyZone: "us-east-1a"}
+	if n := model.NewNode(eks); n.Zone() != "us-east-1a" || n.CapacityType() != model.CapacityUnknown || n.Cloud() != "aws" {
+		t.Errorf("EKS node: zone %q capacity %s cloud %q", n.Zone(), n.CapacityType(), n.Cloud())
+	}
+}
+
 func TestNodeGroup(t *testing.T) {
 	cases := []struct {
 		labels  map[string]string

@@ -42,6 +42,7 @@ func SlimPod(obj interface{}) (interface{}, error) {
 			UID:               p.UID,
 			ResourceVersion:   p.ResourceVersion,
 			DeletionTimestamp: p.DeletionTimestamp,
+			OwnerReferences:   slimOwners(p.OwnerReferences),
 		},
 		Spec: v1.PodSpec{
 			NodeName:       p.Spec.NodeName,
@@ -95,4 +96,15 @@ func slimNodeClaim(obj interface{}) (interface{}, error) {
 	slim := nc.DeepCopy()
 	slim.ManagedFields = nil
 	return slim, nil
+}
+
+// slimOwners keeps only the controller's kind, which tells DaemonSet and
+// static pods from movable ones (recommendations R6).
+func slimOwners(refs []metav1.OwnerReference) []metav1.OwnerReference {
+	for _, ref := range refs {
+		if ref.Controller != nil && *ref.Controller {
+			return []metav1.OwnerReference{{Kind: ref.Kind, Controller: ref.Controller}}
+		}
+	}
+	return nil
 }

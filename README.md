@@ -15,8 +15,10 @@ only read access through your kubeconfig.
 
 Start it with no flags and drive it from inside: filter, group and sort the
 nodes, pick columns and resources, search, fold groups and switch cluster
-without restarting. The last view used on each cluster comes back the next
-time.
+without restarting. A second screen, Recommendations, says what to do about
+the cost: consolidate, rightsize, move to a newer generation or Graviton,
+recycle old nodes and, last, Spot. The last view used on each cluster comes
+back the next time.
 
 ![kube-node-viewer: grouping by node group and zone, folding with n, details with d](.static/demo.gif)
 
@@ -30,6 +32,7 @@ with `scripts/screenshots.sh`.
 - [What is on screen](#what-is-on-screen)
 - [Keys](#keys)
 - [Panels](#panels)
+- [Recommendations](#recommendations)
 - [Saved view per cluster](#saved-view-per-cluster)
 - [Flags and config file](#flags-and-config-file)
 - [Pricing](#pricing)
@@ -84,13 +87,15 @@ left it.
 
 **Header box.** The context, API server URL and pricing region; how many nodes
 the filters and search keep out of all watched nodes, with their pod count
-(and pending pods, when there are any); the active view (filters, group-by,
+(and pending pods, when there are any); the cost of the whole cluster, which
+stays put whatever the filters; the active view (filters, group-by,
 sort, resources); the main keys. `ctrl+e` switches between this full panel
 and a two-line box. On a very short window it shrinks to one line.
 
 **Cluster summary.** Requested over allocatable, the percentage and a bar for
-each resource, and the cost per hour and per month. It covers every watched
-node, whatever the filters.
+each resource, and the cost per hour and per month, for the nodes on screen:
+with filters or a search it covers only the nodes they keep and says so,
+`(filtered: 3 of 10 nodes)`.
 
 **Node list.** One block per node: a usage bar per resource (stacked, with a
 blank line between nodes when more than one resource is shown), the pods on
@@ -101,7 +106,7 @@ the node over its pod capacity, then the columns you picked. Default columns:
 | `INSTANCE` | instance type (`<cpu>vCPU-<mem>GB` for a Fargate pod) |
 | `PRICE/H` | hourly price; `~$` marks an on-demand equivalent for a reserved node (see [Pricing](#pricing)); `-` when unknown |
 | `CAPACITY` | `OnDemand`, `Spot`, `Reserved`, `Fargate` or `Unknown`, with `/Auto` for EKS Auto Mode |
-| `NODEGROUP` | the Karpenter NodePool, or the EKS managed node group name in blue |
+| `NODEGROUP` | the Karpenter NodePool, or the EKS managed node group or AKS agent pool name in blue |
 | `ZONE` | availability zone |
 | `STATUS` | `Ready` or `NotReady/<for how long>`, plus `Cordoned`, `Deleting`, `Launching` (a Karpenter NodeClaim whose node has not registered yet) |
 
@@ -121,7 +126,7 @@ some node in the group has no known price.
 | green / yellow / red percentage and bar | usage above 80% / 60–80% / below 60%: an under-used node is the costly case |
 | green `Ready` · red `NotReady`, `Deleting` · yellow `Cordoned`, `Launching` | node status |
 | orange `Spot` · magenta `Reserved` · blue `Fargate` | capacity types that change what a node costs |
-| blue node group name | an EKS managed node group; plain is a Karpenter NodePool |
+| blue node group name | an EKS managed node group or an AKS agent pool; plain is a Karpenter NodePool |
 
 The three usage colours come from `--style`.
 
@@ -147,9 +152,14 @@ With `ctrl+e` the header shrinks to two lines:
 | `r` | Resources: cpu → memory → cpu+memory (→ the `--resources` list, if different) |
 | `↑`/`↓`, `k`/`j` | Select a group heading or a node; the selected row is marked in the left margin |
 | `enter`, `space` | Fold or unfold the selected group on its own (`▸` marks a folded group) |
+| `enter` on a node | Its details: instance, price, system, resources, conditions, taints, labels |
 | `n` | Fold one level per press when grouping: the nodes, then each sub-group level down to the top level; the next press unfolds all |
 | `d` | While folded: list the next group level under each group as one-line rows, or hide them |
+| `tab` | Switch between Overview and Recommendations |
+| `:` | Command line: `overview` (`ov`), `recommendations` (`rec`); `tab` completes |
 | `c` | Switch to another kubeconfig context |
+| `v` | Named views: apply one, save the current view under a name, delete |
+| `e` | Export the nodes on screen to CSV and JSON |
 | `ctrl+e` | Compact or expand the header |
 | `←`/`→`, `h`/`l`, `home` | Previous / next / first page |
 | `?` | All keys and colours |
@@ -171,7 +181,9 @@ Every field is listed (`capacity`, `nodegroup`, `zone`, `region`,
 already filtered first. `enter` (or `→`) opens a field in place and lists its
 values with the number of nodes having each; `space` ticks a value and the
 list filters at once. On a field row, `space` turns its filter off and on
-without losing the values, and `d` clears it. `←` or `esc` folds the field.
+without losing the values, `x` switches it between keeping and excluding
+the ticked values (`capacity≠Spot` keeps every node but Spot ones), and `d`
+clears it. `←` or `esc` folds the field.
 
 Values of one field combine with OR, fields with AND: `capacity ∈ {Spot}` and
 `zone ∈ {us-east-1a, us-east-1b}` keeps spot nodes in either zone. A status
@@ -190,6 +202,17 @@ without a value for a level go to a `<none>` group, always last.
 Folding one group: select its heading with `↑`/`↓` and press `enter`; it
 shows `▸` and its contents hide, the other groups stay as they are. Folded
 groups are saved with the view.
+
+### Node details
+
+Select a node with `↑`/`↓` and press `enter`: a popup shows what
+`kubectl describe node` would, minus pods and events: instance type,
+capacity and price, node group, zone, status and age, kubelet and OS,
+provider ID, resources as requested / allocatable / capacity (GPUs and other
+extended resources included), conditions (bad ones in red), taints and every
+label. It follows the live node; `↑`/`↓` scroll, `esc` closes.
+
+![Node details](.static/node-details.png)
 
 Folding with `n`: the deepest level on screen carries the usage bars and the
 levels above it are one-line summaries. With `zone › instance-type`:
@@ -226,6 +249,29 @@ Shown columns first, in screen order, then the others and every label.
 `space` shows or hides the column under the cursor (a new one goes at the
 end) and `K`/`J` move it left or right.
 
+### Views (`v`)
+
+![Views popup](.static/views.png)
+
+Named views are saved combinations of filters, group-by, folding, sort,
+resources and columns, shared by every cluster. `enter` applies one (it
+becomes the cluster's view, saved as usual), `d` deletes it, and
+`+ save current view as…` asks for a name: type it, `enter` saves, `esc`
+cancels. Saving under an existing name replaces it. A named view leaves out
+the search text, groups folded one by one and the header size.
+
+### Export (`e`)
+
+`e` writes every node the filters and search keep (all pages, folded groups
+included) to `kube-node-viewer-<context>-<YYYYMMDD-HHMMSS>.csv` and `.json`
+in the current directory, or next to the state file when the current
+directory is not writable; the footer says where. The CSV has one row per
+node: name, group path, instance type, capacity, node group, zone, region,
+IP, status, age, pods, requested / allocatable / percent per resource, price
+per hour, price kind (`actual`, `equivalent`, `unknown`, `disabled`) and the
+label columns you picked. The JSON adds the view, the totals of the exported
+nodes and of the cluster, the context and the time.
+
 ### Context (`c`)
 
 ![Context popup](.static/contexts.png)
@@ -236,10 +282,54 @@ pricing region follows the new cluster, and its saved view comes back.
 Nothing from the previous cluster shows after the switch. A connection error
 stays in the panel and the current cluster keeps running.
 
+## Recommendations
+
+![Recommendations screen](.static/recommendations.png)
+
+`tab` (or `:rec`) switches to Recommendations; `tab` again (or `:ov`) goes
+back to Overview. The filters and search apply: recommendations cover the
+nodes on screen. Every row is a fixed rule over requests, allocatable,
+prices, labels and node age — no AI, nothing installed in the cluster, no
+AWS permission beyond pricing — and `enter` shows its math:
+
+![The math behind a recommendation](.static/recommendation-why.png)
+
+| Kind | Rule |
+|------|------|
+| `idle` | what each NodePool or node group pays for capacity nothing requests (information) |
+| `consolidate` | a managed node group's pods fit on fewer nodes of its type at the headroom (first-fit decreasing; DaemonSet and static pods stay on every node). For a Karpenter NodePool it is information: Karpenter consolidates on its own |
+| `rightsize` | a node's requests fit a smaller size of the same family at the headroom |
+| `generation` | a previous-generation or Xen family (`t2`, `m4`, `c4`, `r4`, …) has a cheaper current, Nitro counterpart in the same size |
+| `graviton` | an x86 family has a cheaper arm64 counterpart in the same size (images must run on arm64) |
+| `old node` | a node is older than the age limit: recycle it for a fresh AMI |
+| `spot` | an On-Demand group would cost less on Spot, priced in each node's zone; always last, workloads must tolerate interruptions |
+
+The **Savings** line counts each node once, with its best non-Spot saving;
+idle, Karpenter consolidation and Spot stay out of it. Savings are estimates
+from requests and list prices; affinity, taints, spread constraints,
+disruption budgets and volumes are not considered. Nothing is recommended
+for Fargate, EKS Auto Mode, nodes of an unknown instance type or nodes on
+other clouds; with pods waiting for a node, consolidation and rightsizing
+wait.
+
+Settings in `~/.kube-node-viewer`:
+
+```text
+# highest share of allocatable a node may reach after a change (default 80)
+recommend-headroom=80
+# age after which a node is worth recycling (default 30d; 12h, 90m work too)
+recommend-node-age=30d
+```
+
+Instance sizes come from a catalog generated from the AWS Price List and
+embedded in the binary, refreshed at run time from the products the pricing
+lookup already reads.
+
 ## Saved view per cluster
 
 Filters, group-by, sort, resources, columns, folding depth, details, folded
-groups and the header size are saved per cluster (context name plus API server URL, since
+groups, the screen and the header size are saved per cluster, and named views (`v`) for
+all of them, (context name plus API server URL, since
 merged kubeconfigs can repeat context names) in
 `$XDG_STATE_HOME/kube-node-viewer/state.json`, by default
 `~/.local/state/kube-node-viewer/state.json`. Writes are batched and atomic,
@@ -353,10 +443,19 @@ the EC2 spot price history, refreshed periodically, with a static on-demand
 table as a fallback until the first lookup answers. On other clouds, run with
 `--disable-pricing` or set prices with the override label below.
 
+**AKS.** Azure nodes are priced from the public
+[Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)
+(pay-as-you-go list prices in USD; Spot and Windows meters where they apply),
+with no Azure login or permission. Prices show a second or two after start.
+Nodes show their agent pool, capacity and region; AKS clusters
+(`*.azmk8s.io`) make no AWS lookup. Reservations and Savings Plans are not
+taken into account.
+
 **Region.** For an EKS cluster the pricing region comes from its API server
 URL (`https://<id>.gr7.<region>.eks.amazonaws.com`), also after a context
-switch. For other servers it is the AWS SDK's configured region (`AWS_REGION`
-or the profile).
+switch. For other servers prices are looked up in the AWS SDK's configured
+region (`AWS_REGION` or the profile), and the header shows the nodes'
+`topology.kubernetes.io/region`.
 
 **Reserved capacity.** Nodes on Karpenter reserved capacity or EKS capacity
 blocks are prepaid, so their real hourly cost is unknown here. They show the
@@ -386,7 +485,8 @@ only called for pricing, which requires:
 ```
 
 Neither action supports resource-level scoping, so `Resource` is `*`. With
-`--disable-pricing`, no AWS permissions are needed.
+`--disable-pricing`, no AWS permissions are needed. AKS clusters need none
+at all.
 
 ## Computed labels
 
@@ -446,7 +546,15 @@ not through a pipe or a tool without a TTY.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). In short:
 `scripts/verify.sh` checks formatting, vet, tests (with the race detector) and
-specs, and `scripts/build.sh` builds the binary.
+specs, `make lint` runs the pinned golangci-lint (CI runs both), and
+`scripts/build.sh` builds the binary.
+
+Data compiled into the binary is refreshed by `make prices` (the static
+on-demand tables, from Karpenter, no credentials) and `make catalog` (the
+instance catalog, from the AWS Price List; needs `pricing:GetProducts`). The
+`Refresh price data` workflow runs both on the 1st of each month and opens a
+PR; the catalog step runs only when the repository variable
+`AWS_CATALOG_ROLE_ARN` names a role it can assume through GitHub OIDC.
 
 ## Credits
 

@@ -84,6 +84,9 @@ where filters can be added, edited, toggled on/off and removed, on these
 fields: any node label (key, then values), capacity type, node group, zone,
 region, instance type, status.
 
+> **Note 2026-11-02.** Filters can also exclude their values (`x`); see
+> [`views-and-export`](../views-and-export/requirements.md) R1.
+
 - [ ] Value pickers list the values present among all watched nodes with the
   number of nodes for each.
 - [ ] Filters on different fields combine with AND; several values of one
@@ -271,6 +274,14 @@ folded groups SHALL be saved with the view.
 > **Added 2026-11-02.** The owner asked to fold a single group, which needs a
 > row cursor (suggestion 4 of the UX pass).
 
+> **Added 2026-11-02 (after v0.8.2).** The cluster summary covers the nodes
+> on screen: with filters or a search, usage and cost are those of the nodes
+> kept, marked `(filtered: N of M nodes)`; the owner wanted the cost of what
+> the filters show, not the cluster's.
+> The header keeps the whole cluster's monthly cost after the node and pod
+> counts (`4 of 10 shown · 89 pods · $728.102/month (global cluster)`), in
+> every header size, so both are in view.
+
 ## Counter-examples
 
 - SHALL NOT list or show individual pods; pods only feed per-node totals
@@ -295,6 +306,10 @@ folded groups SHALL be saved with the view.
   `controller.go:125`) — stage 2.
 - GPU columns and allocation (stage 3, roadmap).
 - Saved named views (`v`), command mode (`:`), typed filter syntax in `/`.
+
+> **Note 2026-11-02.** Named views and the `:` command line came later, in
+> [`views-and-export`](../views-and-export/requirements.md) and
+> [`recommendations`](../recommendations/requirements.md).
 - Actual (metrics-server) usage; the tool stays on requests vs allocatable.
 
 ## Resolved questions

@@ -40,6 +40,8 @@ type panelView struct {
 	cursor int
 	// hint is the panel's keys, shown at the bottom of the box
 	hint string
+	// top is the first row shown when no row is selected (cursor < 0)
+	top int
 }
 
 func (u *UIModel) panelView() (panelView, bool) {
@@ -64,6 +66,12 @@ func (u *UIModel) panelContent() (panelView, bool) {
 		return u.columnsPanel(), true
 	case panelContexts:
 		return u.contextsPanel(), true
+	case panelViews:
+		return u.viewsPanelView(), true
+	case panelRecMath:
+		return u.recMathPanel(), true
+	case panelNode:
+		return u.nodeDetailsPanel(), true
 	}
 	return panelView{}, false
 }
@@ -87,6 +95,10 @@ func (u *UIModel) popup(p panelView, height int) []string {
 		visible = max(height-4, 1)
 	}
 	start, end := window(len(p.rows), max(p.cursor, 0), visible)
+	if p.cursor < 0 && p.top > 0 {
+		start = min(p.top, max(len(p.rows)-visible, 0))
+		end = min(start+visible, len(p.rows))
+	}
 
 	title := " " + titleStyle(ansi.Truncate(p.title, inner-1, "…")) + " "
 	top := popupBorder("╭─") + title + popupBorder(strings.Repeat("─", max(inner-textWidth(p.title)-1, 0))+"╮")
