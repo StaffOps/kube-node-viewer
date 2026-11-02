@@ -30,7 +30,7 @@ shoot() {
 mkdir -p "$out"
 for name in main groups-folded groups-details filters group-by columns contexts header-compact; do
   lines=$(wc -l <"$work/$name.ansi")
-  shoot "$name" 1384 $(((lines + 1) * 17 + 36)) 2
+  shoot "$name" 1384 $(((lines + 1) * 14 + 36)) 2
   cp "$work/$name.png" "$out/$name.png"
 done
 
@@ -39,7 +39,7 @@ frames=("$work"/demo-*.ansi)
 : >"$work/frames.txt"
 for i in "${!frames[@]}"; do
   name=$(basename "${frames[$i]}" .ansi)
-  shoot "$name" 1240 640 1
+  shoot "$name" 1240 540 1
   hold=2.6
   [[ $i -eq 0 || $i -eq $((${#frames[@]} - 1)) ]] && hold=3.5
   printf "file '%s'\nduration %s\n" "$work/$name.png" "$hold" >>"$work/frames.txt"
