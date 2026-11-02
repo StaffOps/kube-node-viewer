@@ -213,14 +213,23 @@ func (u *UIModel) setView(v ViewState) {
 	}
 }
 
-// toggleNodes shows or hides the node list, never leaving the screen empty:
-// without a group-by there is no group summary to show instead (R13).
+// toggleNodes folds the list one level per press: first the nodes go, then
+// the deepest group level, until only the top level is left; the next press
+// shows everything again. Without a group-by there is nothing to fold to
+// (R13).
 func (u *UIModel) toggleNodes() {
 	if len(u.view.GroupBy) == 0 {
 		return
 	}
 	v := u.view
-	v.ShowNodes = !v.ShowNodes
+	switch depth := v.VisibleDepth(); {
+	case depth == 0:
+		v.ShowNodes, v.GroupDepth = false, len(v.GroupBy)
+	case depth > 1:
+		v.GroupDepth = depth - 1
+	default:
+		v.ShowNodes, v.GroupDepth = true, 0
+	}
 	u.setView(v)
 }
 

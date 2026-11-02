@@ -175,6 +175,12 @@ view `q` and `ctrl+c` quit and `?` shows all keys. `esc` no longer quits.
 list; the group summary shows whenever a group-by is set. Both are never
 hidden at once.
 
+> **Corrected 2026-11-02.** `n` folds one level per press, as the owner asked:
+> first the nodes, then the deepest group level, until only the top-level
+> groups are left (each level with its usage bars); the next press unfolds
+> everything. With one group-by level it toggles the node list as before. The
+> depth is saved with the view.
+
 **R14** WHEN the screen is smaller than the content THEN the system SHALL
 paginate by lines, repeat the group path on a page that continues a group
 (`default › us-east-1a (cont.)`), and drop lowest-priority columns first,

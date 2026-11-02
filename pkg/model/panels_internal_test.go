@@ -512,3 +512,34 @@ func TestGroupHeadingsAreATree(t *testing.T) {
 		}
 	}
 }
+
+func TestNFoldsOneLevelPerPress(t *testing.T) {
+	u := capacityUI(t, 4)
+	v := u.view
+	v.SetGroupBy(FieldCapacity, FieldNodeGroup)
+	u.SetView(v)
+
+	type screen struct{ nodes, sub, top bool }
+	look := func() screen {
+		out := u.View()
+		return screen{
+			nodes: strings.Contains(out, "node-00"),
+			sub:   strings.Contains(out, "└─ default"),
+			top:   strings.Contains(out, "OnDemand  2 nodes") || strings.Contains(out, "OnDemand ") && strings.Contains(out, "2 nodes"),
+		}
+	}
+	want := []screen{
+		{nodes: true, sub: true, top: true},   // start: everything
+		{nodes: false, sub: true, top: true},  // n: groups and sub-groups
+		{nodes: false, sub: false, top: true}, // n: top-level groups only
+		{nodes: true, sub: true, top: true},   // n: everything again
+	}
+	for i, w := range want {
+		if i > 0 {
+			press(u, "n")
+		}
+		if got := look(); got != w {
+			t.Errorf("after %d presses: %+v, want %+v\n%s", i, got, w, u.View())
+		}
+	}
+}
