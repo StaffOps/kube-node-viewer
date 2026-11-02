@@ -429,9 +429,15 @@ style=#2E91D2,#ffff00,#D55E00
 Prices come from AWS: on-demand and Fargate from the Price List API, spot from
 the EC2 spot price history, refreshed periodically, with a static on-demand
 table as a fallback until the first lookup answers. On other clouds, run with
-`--disable-pricing` or set prices with the override label below. AKS clusters
-(`*.azmk8s.io`) are recognised: no AWS lookup is made and prices read
-`prices unknown`; nodes show their agent pool, capacity and region.
+`--disable-pricing` or set prices with the override label below.
+
+**AKS.** Azure nodes are priced from the public
+[Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)
+(pay-as-you-go list prices in USD; Spot and Windows meters where they apply),
+with no Azure login or permission. Prices show a second or two after start.
+Nodes show their agent pool, capacity and region; AKS clusters
+(`*.azmk8s.io`) make no AWS lookup. Reservations and Savings Plans are not
+taken into account.
 
 **Region.** For an EKS cluster the pricing region comes from its API server
 URL (`https://<id>.gr7.<region>.eks.amazonaws.com`), also after a context
@@ -467,7 +473,8 @@ only called for pricing, which requires:
 ```
 
 Neither action supports resource-level scoping, so `Resource` is `*`. With
-`--disable-pricing`, no AWS permissions are needed.
+`--disable-pricing`, no AWS permissions are needed. AKS clusters need none
+at all.
 
 ## Computed labels
 
