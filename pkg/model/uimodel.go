@@ -348,8 +348,9 @@ func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, 
 	firstLine := true
 	defer u.setBarCell(u.progress.Full)
 
-	for i, res := range resources {
-		u.setBarCell(barRune(i))
+	// each cluster-wide resource reads on its own, so every bar keeps its gap
+	u.setBarCell(barCell)
+	for _, res := range resources {
 		allocatable := stats.AllocatableResources[res]
 		used := stats.UsedResources[res]
 		pctUsed := 0.0
