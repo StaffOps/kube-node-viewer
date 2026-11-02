@@ -18,30 +18,10 @@ nodes, pick columns and resources, search, fold groups and switch cluster
 without restarting. The last view used on each cluster comes back the next
 time.
 
-```text
-╭────────────────────────────────────────────────────────────────────────────────────────────╮
-│ kube-node-viewer                                                                           │
-│ Context:  prod-eks                                                 f filters    g group by │
-│ Cluster:  https://ABC123.gr7.us-east-1.eks.amazonaws.com           s sort       o columns  │
-│ Region:   us-east-1                                                / search     r resources│
-│ Nodes:    8 of 8 shown · 157 pods                                  c context    ? help     │
-│ View:     Filters: none │ Group: zone › instance-type │ Sort: creation ↓ │ cpu+memory        │
-╰────────────────────────────────────────────────────────────────────────────────────────────╯
-  14837m/21410m    69% cpu    ████████████████████░░░░░░░░░  $0.706/hour | $515.088/month
-  50592Mi/80138Mi  63% memory ██████████████████░░░░░░░░░░░
+![kube-node-viewer: grouping by node group and zone, folding with n, details with d](.static/demo.gif)
 
-  us-east-1a     7 nodes  145 pods  cpu 72%  memory 65%  $0.672/hour | $490.560/month
-  ├─ t4g.large   2 nodes   18 pods  cpu    █████████░░░░░░░░░░░  45%  $0.134/hour | $98.112/month
-  │                                 memory ████████░░░░░░░░░░░░  40%
-  └─ t4g.xlarge  3 nodes  100 pods  cpu    █████████████████░░░  88%  $0.403/hour | $294.336/month
-                                    memory ███████████████░░░░░  75%
-
-  us-east-1b     1 nodes   12 pods  cpu 45%  memory 27%  $0.034/hour | $24.528/month
-  └─ t4g.medium  1 nodes   12 pods  cpu    █████████░░░░░░░░░░░  45%  $0.034/hour | $24.528/month
-                                    memory █████░░░░░░░░░░░░░░░  27%
-
-  f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context • n: fold • ?: help • q: quit
-```
+The screenshots and the animation use a made-up cluster; they are regenerated
+with `scripts/screenshots.sh`.
 
 ## Contents
 
@@ -95,6 +75,8 @@ left it.
 
 ## What is on screen
 
+![The main screen: header box, cluster summary and the node list](.static/main.png)
+
 **Header box.** The context, API server URL and pricing region; how many nodes
 the filters and search keep out of all watched nodes, with their pod count
 (and pending pods, when there are any); the active view (filters, group-by,
@@ -143,6 +125,11 @@ The three usage colours come from `--style`.
 a narrow window the least important columns are dropped first, and the footer
 says how many are hidden. Lines never run past the window edge.
 
+
+With `ctrl+e` the header shrinks to two lines:
+
+![Compact header](.static/header-compact.png)
+
 ## Keys
 
 | Key | Action |
@@ -170,6 +157,8 @@ work everywhere. `esc` never quits.
 
 ### Filters (`f`)
 
+![Filters popup with capacity open and Spot ticked](.static/filters.png)
+
 Every field is listed (`capacity`, `nodegroup`, `zone`, `region`,
 `instance-type`, `status` and every label found on the nodes), the ones
 already filtered first. `enter` (or `→`) opens a field in place and lists its
@@ -182,6 +171,8 @@ Values of one field combine with OR, fields with AND: `capacity ∈ {Spot}` and
 filter keeps a node that has any of the ticked flags.
 
 ### Group by (`g`)
+
+![Group by popup with node group and zone ticked as levels 1 and 2](.static/group-by.png)
 
 The same list of fields. `space` ticks a field as the next level (the first
 ticked is the top level, each next one a sub-group of the previous), up to
@@ -199,6 +190,15 @@ levels above it are one-line summaries. With `zone › instance-type`:
 | 2 | zones with bars (`d` adds their instance types as one-line rows) |
 | 3 | back to everything |
 
+
+One press of `n` (zones carry the bars):
+
+![Grouped by node group and zone, folded once](.static/groups-folded.png)
+
+Two presses and `d` (node groups carry the bars, their zones as one-line rows):
+
+![Folded to the node groups, with details](.static/groups-details.png)
+
 ### Sort (`s`)
 
 Creation time, name, IP, price, pods, usage of each resource, any derived
@@ -209,11 +209,15 @@ either direction; ties break on the node name.
 
 ### Columns (`o`)
 
+![Columns popup](.static/columns.png)
+
 Shown columns first, in screen order, then the others and every label.
 `space` shows or hides the column under the cursor (a new one goes at the
 end) and `K`/`J` move it left or right.
 
 ### Context (`c`)
+
+![Context popup](.static/contexts.png)
 
 The kubeconfig contexts, the current one marked. Picking another connects to
 it without restarting: its watches start, the previous cluster's stop, the
