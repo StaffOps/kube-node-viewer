@@ -8,7 +8,7 @@
   - _Covers: R6, R7 · Depends on: — · Verified by: transform tests_
 - [x] T3. `pkg/recommend`: idle, consolidate, rightsize, generation, graviton, old node, spot; targets; total; exclusions
   - _Covers: R3, R5, R6, R7, R8, R9, R10, R11, R13, R14, R15 · Depends on: T1, T2 · Verified by: fixture and table tests; benchmark_
-- [ ] T4. Overview: `IDLE/H` column, idle sort, idle in group headings
+- [x] T4. Overview: `IDLE/H` column, idle sort, idle in group headings
   - _Covers: R4 · Depends on: — · Verified by: unit tests_
 - [ ] T5. Screens and command line (`:`), `tab`, screen kept per cluster
   - _Covers: R1, R2 · Depends on: — · Verified by: key-driven tests_

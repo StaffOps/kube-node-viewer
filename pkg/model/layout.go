@@ -442,6 +442,9 @@ func (u *UIModel) groupLine(g *Group, t groupTree, w groupLineWidths) string {
 		if s.ReservedNodes > 0 {
 			u.printer.Fprintf(&b, " (+%d reserved, not priced)", s.ReservedNodes)
 		}
+		if s.IdlePrice >= 0.0005 {
+			b.WriteString(helpStyle(u.printer.Sprintf("  idle $%0.3f/month", s.IdlePrice*avgHoursPerMonth)))
+		}
 	}
 	return b.String()
 }
@@ -546,6 +549,9 @@ func (u *UIModel) groupTable(groups []*Group, tree map[*Group]groupTree, depth i
 			if s.ReservedNodes > 0 {
 				r.price += u.printer.Sprintf(" (+%d reserved, not priced)", s.ReservedNodes)
 			}
+			if s.IdlePrice >= 0.0005 {
+				r.price += helpStyle(u.printer.Sprintf("  idle $%0.3f/month", s.IdlePrice*avgHoursPerMonth))
+			}
 		}
 		nameW = max(nameW, textWidth(r.name))
 		nodesW = max(nodesW, len(r.nodes))
@@ -617,6 +623,8 @@ func columnTitle(f Field) string {
 		return "INSTANCE"
 	case FieldPrice:
 		return "PRICE/H"
+	case FieldIdle:
+		return "IDLE/H"
 	}
 	if key := f.Label(); key != "" {
 		return strings.ToUpper(key[strings.LastIndex(key, "/")+1:])
@@ -746,6 +754,11 @@ func (u *UIModel) cell(n *Node, f Field, now time.Time) string {
 		default:
 			return fmt.Sprintf("$%0.4f", n.Price())
 		}
+	case FieldIdle:
+		if idle, ok := n.IdleHourly(); ok {
+			return fmt.Sprintf("$%0.4f", idle)
+		}
+		return "-"
 	case FieldStatus:
 		flags := n.StatusFlags()
 		for i, f := range flags {

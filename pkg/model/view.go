@@ -42,6 +42,7 @@ const (
 	FieldIP       Field = "ip"
 	FieldAge      Field = "age"
 	FieldPrice    Field = "price"
+	FieldIdle     Field = "idle"
 	FieldPods     Field = "pods"
 
 	labelFieldPrefix = "label:"
@@ -116,6 +117,11 @@ func (f Field) number(n *Node) (value float64, ok bool) {
 		return float64(n.Created().UnixNano()), true
 	case FieldPrice:
 		return n.Price(), true
+	case FieldIdle:
+		if idle, ok := n.IdleHourly(); ok {
+			return idle, true
+		}
+		return math.NaN(), true
 	case FieldPods:
 		return float64(n.NumPods()), true
 	}
@@ -128,6 +134,25 @@ func (f Field) number(n *Node) (value float64, ok bool) {
 		return used.AsApproximateFloat64() / allocatable.AsApproximateFloat64(), true
 	}
 	return 0, false
+}
+
+// IdleHourly is what the node pays per hour for capacity nothing requests:
+// price × (1 − the larger of cpu and memory use) (recommendations R4). Nodes
+// without a real price (unknown, reserved equivalent) and Fargate have none.
+func (n *Node) IdleHourly() (float64, bool) {
+	if !n.HasActualPrice() || n.CapacityType() == CapacityFargate {
+		return 0, false
+	}
+	allocatable, used := n.Allocatable(), n.Used()
+	share := func(r v1.ResourceName) float64 {
+		a, u := allocatable[r], used[r]
+		if a.AsApproximateFloat64() == 0 {
+			return 0
+		}
+		return u.AsApproximateFloat64() / a.AsApproximateFloat64()
+	}
+	use := math.Min(math.Max(share(v1.ResourceCPU), share(v1.ResourceMemory)), 1)
+	return n.Price() * (1 - use), true
 }
 
 // Filter keeps nodes whose field has any of Values (interactive-tui R3), or,
@@ -503,7 +528,7 @@ var DefaultColumns = []Field{FieldInstanceType, FieldPrice, FieldCapacity, Field
 
 // columnPriority ranks columns by what to keep when the screen is narrow, most
 // important first (R14). Labels and anything unlisted go after these.
-var columnPriority = []Field{FieldStatus, FieldPrice, FieldCapacity, FieldInstanceType, FieldNodeGroup, FieldZone, FieldIP, FieldAge, FieldRegion}
+var columnPriority = []Field{FieldStatus, FieldPrice, FieldIdle, FieldCapacity, FieldInstanceType, FieldNodeGroup, FieldZone, FieldIP, FieldAge, FieldRegion}
 
 // FitColumns keeps the columns, in their given order, that fit in width,
 // dropping the lowest-priority ones first, and says how many were dropped.

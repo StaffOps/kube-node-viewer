@@ -35,6 +35,8 @@ type GroupStats struct {
 	PricedNodes int
 	// ReservedNodes have only an equivalent price, left out of TotalPrice
 	ReservedNodes int
+	// IdlePrice is the hourly price of capacity nothing requests
+	IdlePrice float64
 }
 
 // PercentUsed is the group's usage as a whole, so weighted by node size rather
@@ -68,6 +70,9 @@ func (g *GroupStats) add(n *Node) {
 	g.NumPods += n.NumPods()
 	n.AddAllocatableTo(g.AllocatableResources)
 	n.AddUsedTo(g.UsedResources)
+	if idle, ok := n.IdleHourly(); ok {
+		g.IdlePrice += idle
+	}
 	if n.HasActualPrice() {
 		g.TotalPrice += n.Price()
 		g.PricedNodes++

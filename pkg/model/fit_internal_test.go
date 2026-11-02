@@ -183,3 +183,37 @@ func TestHeaderKeepsTheClusterCost(t *testing.T) {
 		t.Error("cost shown with pricing disabled")
 	}
 }
+
+func TestIdleCost(t *testing.T) {
+	u := demoUI(t)
+	u.Update(tea.WindowSizeMsg{Width: 240, Height: 60})
+	v := u.view
+	v.Columns = append(v.Columns, FieldIdle)
+	v.Sort = SortSpec{Field: FieldIdle, Descending: true}
+	u.SetView(v)
+	out := u.View()
+	if !strings.Contains(out, "IDLE/H") {
+		t.Fatalf("no IDLE/H column:\n%s", out)
+	}
+	// the reserved gpu node has no idle cost and sorts last
+	nodes := u.view.Select(u.stats.Nodes)
+	if last := nodes[len(nodes)-1]; last.CapacityType() != CapacityReserved {
+		t.Errorf("last by idle: %s (%s)", last.Name(), last.CapacityType())
+	}
+	if _, ok := nodes[len(nodes)-1].IdleHourly(); ok {
+		t.Error("a reserved node has an idle cost")
+	}
+	// m6i.xlarge at 84% cpu / 66% mem: 0.192 × 0.16
+	for _, n := range nodes {
+		if n.Name() == "ip-10-0-11-87.ec2.internal" {
+			if idle, _ := n.IdleHourly(); idle < 0.029 || idle > 0.032 {
+				t.Errorf("idle %v", idle)
+			}
+		}
+	}
+	v.SetGroupBy(FieldNodeGroup)
+	u.SetView(v)
+	if !strings.Contains(u.View(), "idle $") {
+		t.Error("group headings without idle cost")
+	}
+}
