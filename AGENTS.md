@@ -27,9 +27,10 @@ files you change carry the line
 
 | Path | What lives there |
 |------|------------------|
-| `cmd/kube-node-viewer/` | `main.go` (wiring), `version.go`, `flag.go` (flag > `~/.kube-node-viewer` config file, falling back to `~/.eks-node-viewer`; only `-kubeconfig` also reads the `KUBECONFIG` env var, between the two) |
-| `pkg/client/` | kubeconfig loading; informers for pods, nodes and Karpenter `nodeclaims` feeding the model |
-| `pkg/model/` | `Cluster`/`Node`/`Pod` state, stats, and the Bubble Tea `UIModel` (rendering, keys) |
+| `cmd/kube-node-viewer/` | `main.go` (wiring), `session.go` (one connection per context: clients, store, controller, pricing; `c` switches), `view.go` (flag table D8: defaults < config file < saved state < explicit flags), `flag.go` (flags; `~/.kube-node-viewer`, falling back to `~/.eks-node-viewer`; only `-kubeconfig` also reads `KUBECONFIG`), `version.go` |
+| `pkg/client/` | kubeconfig (contexts, cluster key, EKS region from the server URL); informers for pods, nodes and Karpenter `nodeclaims` with slimming transforms; change notifier |
+| `pkg/model/` | store (`cluster.go`, `node.go`, `pod.go`: indexed, per-node totals, generations); `view.go` (`ViewState`: filters, group-by, sort, search, columns, folding); `uimodel.go` (Bubble Tea model, keys); `layout.go` (node list, groups, pages, columns); `header.go`; `panels*.go`, `popup.go`, `contexts.go` (popups for f g s o c ?) |
+| `pkg/state/` | per-cluster view state file, debounced atomic writer |
 | `pkg/pricing/` | `Provider` interface (`NodePrice`, `OnUpdate`) |
 | `pkg/aws/` | AWS pricing provider; `zz_generated_*.go` are static price tables copied from Karpenter by `make generate` — never hand-edit |
 | `pkg/text/` | color-aware tabwriter |

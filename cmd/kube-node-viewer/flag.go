@@ -92,7 +92,7 @@ func ParseFlags() (Flags, error) {
 	flagSet.StringVar(&flags.GroupBy, "group-by", groupByDefault, "Node label to summarize usage and cost by, optionally with a filter on a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. Applies to this run; the last view chosen in the TUI is restored per cluster")
 
 	groupsOnlyDefault := cfg.getBoolValue("groups-only", false)
-	flagSet.BoolVar(&flags.GroupsOnly, "groups-only", groupsOnlyDefault, "Start with the individual node list hidden, leaving only the --group-by summary. The node list is toggled at runtime with 'n'")
+	flagSet.BoolVar(&flags.GroupsOnly, "groups-only", groupsOnlyDefault, "Start folded to the --group-by groups, with the node list hidden. At runtime 'n' folds and unfolds one level per press")
 
 	nodeSort := cfg.getValue("node-sort", "creation=dsc")
 	flagSet.StringVar(&flags.NodeSort, "node-sort", nodeSort, "Sort order for the nodes, either 'creation' or a label name. The sort order defaults to ascending and can be controlled by appending =asc or =dsc to the value.")
