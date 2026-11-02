@@ -89,9 +89,9 @@ func TestFlagTableNodeSort(t *testing.T) {
 }
 
 func TestFlagTableExtraLabels(t *testing.T) {
-	got := flagsOnly(map[string]string{"extra-labels": "team, eks-node-viewer/node-age"})(t)
+	got := flagsOnly(map[string]string{"extra-labels": "team, kube-node-viewer/node-age"})(t)
 	want := append(append([]model.Field(nil), model.DefaultColumns...),
-		model.LabelField("team"), model.LabelField("eks-node-viewer/node-age"))
+		model.LabelField("team"), model.LabelField("kube-node-viewer/node-age"))
 	if !reflect.DeepEqual(got.Columns, want) {
 		t.Errorf("got %v", got.Columns)
 	}

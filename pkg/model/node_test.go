@@ -198,14 +198,12 @@ func TestComputeLabelPrefixes(t *testing.T) {
 	n.Status.Allocatable = v1.ResourceList{v1.ResourceCPU: resource.MustParse("4")}
 	node := model.NewNode(n)
 	for _, name := range []string{"node-age", "node-cpu-usage"} {
-		legacy := node.ComputeLabel(model.LegacyLabelPrefix + name)
-		current := node.ComputeLabel(model.LabelPrefix + name)
-		if legacy == "-" || legacy != current {
-			t.Errorf("%s: legacy %q, new %q; want equal and computed", name, legacy, current)
+		if got := node.ComputeLabel(model.LabelPrefix + name); got == "-" {
+			t.Errorf("%s not computed", name)
 		}
-	}
-	if got := node.ComputeLabel("other/node-age"); got != "-" {
-		t.Errorf("unknown prefix computed %q, want -", got)
+		if got := node.ComputeLabel("eks-node-viewer/" + name); got != "-" {
+			t.Errorf("another prefix computed %s: %q", name, got)
+		}
 	}
 }
 

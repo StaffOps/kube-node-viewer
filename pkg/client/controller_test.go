@@ -29,19 +29,16 @@ func (p fixedPricing) NodePrice(*model.Node) (float64, bool) { return float64(p)
 func (p fixedPricing) OnUpdate(func())                       {}
 
 func TestUpdatePriceLabelPrefixes(t *testing.T) {
-	const newKey = model.LabelPrefix + "instance-price"
-	const oldKey = model.LegacyLabelPrefix + "instance-price"
+	const key = model.LabelPrefix + "instance-price"
 	cases := []struct {
 		name   string
 		labels map[string]string
 		want   float64
 	}{
 		{"no label uses provider", nil, 9},
-		{"legacy key", map[string]string{oldKey: "0.0416"}, 0.0416},
-		{"new key", map[string]string{newKey: "0.5"}, 0.5},
-		{"both, new wins", map[string]string{newKey: "0.5", oldKey: "0.0416"}, 0.5},
-		{"new unparsable, legacy used", map[string]string{newKey: "abc", oldKey: "0.0416"}, 0.0416},
-		{"both unparsable, provider used", map[string]string{newKey: "abc", oldKey: "x"}, 9},
+		{"override label", map[string]string{key: "0.5"}, 0.5},
+		{"unparsable label, provider used", map[string]string{key: "abc"}, 9},
+		{"other tools' labels are ignored", map[string]string{"eks-node-viewer/instance-price": "0.0416"}, 9},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

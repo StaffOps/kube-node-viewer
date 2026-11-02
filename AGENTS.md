@@ -16,9 +16,9 @@ node allocatable capacity, plus node cost, for a Kubernetes cluster. It does
 Derived from [`awslabs/eks-node-viewer`](https://github.com/awslabs/eks-node-viewer)
 (Apache 2.0), imported verbatim at `fe35ed41e18b` —
 [ADR-001](specs/decisions/ADR-001-import-as-new-repo.md), then renamed
-([`specs/rebrand/`](specs/rebrand/)). The upstream name survives only as
-compatibility: the `eks-node-viewer/` label prefix and the
-`~/.eks-node-viewer` config fallback. Keep both working. Upstream `.go`/`.sh`
+([`specs/rebrand/`](specs/rebrand/)). It is a separate project: no behaviour
+depends on the upstream name (no `eks-node-viewer/` label prefix, no
+`~/.eks-node-viewer` config file). Upstream `.go`/`.sh`
 files you change carry the line
 `// Modified by the kube-node-viewer authors, 2026.` after the license block
 (rebrand design D5); add it if missing.
@@ -27,7 +27,7 @@ files you change carry the line
 
 | Path | What lives there |
 |------|------------------|
-| `cmd/kube-node-viewer/` | `main.go` (wiring), `session.go` (one connection per context: clients, store, controller, pricing; `c` switches), `view.go` (flag table D8: defaults < config file < saved state < explicit flags), `flag.go` (flags; `~/.kube-node-viewer`, falling back to `~/.eks-node-viewer`; only `-kubeconfig` also reads `KUBECONFIG`), `version.go` |
+| `cmd/kube-node-viewer/` | `main.go` (wiring), `session.go` (one connection per context: clients, store, controller, pricing; `c` switches), `view.go` (flag table D8: defaults < config file < saved state < explicit flags), `flag.go` (flags; config file `~/.kube-node-viewer`; only `-kubeconfig` also reads `KUBECONFIG`), `version.go` |
 | `pkg/client/` | kubeconfig (contexts, cluster key, EKS region from the server URL); informers for pods, nodes and Karpenter `nodeclaims` with slimming transforms; change notifier |
 | `pkg/model/` | store (`cluster.go`, `node.go`, `pod.go`: indexed, per-node totals, generations); `view.go` (`ViewState`: filters, group-by, sort, search, columns, folding); `uimodel.go` (Bubble Tea model, keys); `layout.go` (node list, groups, pages, columns); `header.go`; `panels*.go`, `popup.go`, `contexts.go` (popups for f g s o c ?) |
 | `pkg/state/` | per-cluster view state file, debounced atomic writer |
