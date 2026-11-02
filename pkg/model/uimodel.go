@@ -277,14 +277,27 @@ func (u *UIModel) View() string {
 	return u.frame
 }
 
-// colorizeUsage styles by how full a resource is, fuller being better.
+// colorizeUsage styles by how full a resource is, fuller being better for
+// cost: above 80% green, 60-80% yellow, below 60% red.
 func (u *UIModel) colorizeUsage(pctUsed float64, label string) string {
-	if pctUsed > 90 {
+	if pctUsed > 80 {
 		return u.style.green(label)
-	} else if pctUsed > 60 {
+	} else if pctUsed >= 60 {
 		return u.style.yellow(label)
 	}
 	return u.style.red(label)
+}
+
+// usageBar is a bar of the given total width followed by its percentage,
+// coloured like colorizeUsage.
+func (u *UIModel) usageBar(fill float64, width int) string {
+	defer func(w int, pct bool) { u.progress.Width, u.progress.ShowPercentage = w, pct }(u.progress.Width, u.progress.ShowPercentage)
+	u.progress.Width, u.progress.ShowPercentage = max(width-5, 1), false
+	pct := fill * 100
+	if math.IsNaN(pct) || pct < 0 {
+		pct = 0
+	}
+	return u.progressBar(fill) + " " + u.colorizeUsage(pct, fmt.Sprintf("%3.0f%%", pct))
 }
 
 // clusterSummary is the cluster-wide usage and cost, one line per resource.

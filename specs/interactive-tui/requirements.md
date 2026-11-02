@@ -186,6 +186,14 @@ hidden at once.
 > level below the barred one as one-line rows, aligned in columns, and hides
 > them again; off by default, saved with the view.
 
+> **Added 2026-11-02 (UX pass with the owner).** Colours carry meaning:
+> header labels lilac and values cyan, column titles yellow, status Ready
+> green / NotReady and Deleting red / Cordoned and Launching yellow, capacity
+> Spot orange / Reserved magenta / Fargate blue. Usage percentages are
+> coloured as well as bars: above 80% green, 60–80% yellow, below 60% red
+> (under-used is the costly case). With stacked resources a blank line
+> separates nodes. The node list gets no frame of its own.
+
 **R14** WHEN the screen is smaller than the content THEN the system SHALL
 paginate by lines, repeat the group path on a page that continues a group
 (`default › us-east-1a (cont.)`), and drop lowest-priority columns first,
