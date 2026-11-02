@@ -35,6 +35,7 @@ const (
 	panelContexts
 	panelViews
 	panelRecMath
+	panelNode
 )
 
 // panelKey handles a key while a panel is open; esc closes or steps back.
@@ -60,6 +61,8 @@ func (u *UIModel) panelKey(key string) tea.Cmd {
 		if key == "esc" || key == "enter" {
 			u.panel = panelNone
 		}
+	case panelNode:
+		u.nodeDetailsKey(key)
 	}
 	return nil
 }
@@ -79,7 +82,7 @@ var helpKeys = [][2]string{
 	{"e", "export the nodes on screen to CSV and JSON in the current directory"},
 	{"d", "folded: list the next group level as one-line rows"},
 	{"↑/↓ k/j", "select a group or node (marked in the left margin)"},
-	{"enter", "fold or unfold the selected group on its own"},
+	{"enter", "on a group: fold or unfold it on its own; on a node: its details"},
 	{"n", "fold one level per press: nodes, then each sub-group level; then unfold all"},
 	{"←/→ h/l", "previous / next page"},
 	{"home", "first page"},
@@ -95,7 +98,7 @@ func (u *UIModel) helpPanel() panelView {
 		lines = append(lines, fmt.Sprintf("%s  %s", headerKey(fmt.Sprintf("%-10s", k[0])), k[1]))
 	}
 	lines = append(lines, "", titleStyle("Colours"),
-		"NODEGROUP   "+managedNodeGroupStyle("name")+" is an EKS managed node group; plain is a Karpenter NodePool")
+		"NODEGROUP   "+managedNodeGroupStyle("name")+" is an EKS managed node group or AKS agent pool; plain is a Karpenter NodePool")
 	return panelView{title: "Keys", rows: lines, cursor: -1}
 }
 

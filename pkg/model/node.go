@@ -614,3 +614,10 @@ func (n *Node) addLabelKeys(keys map[string]struct{}) {
 		keys[k] = struct{}{}
 	}
 }
+
+// Object is a copy of the node's Kubernetes object, for the details popup.
+func (n *Node) Object() *v1.Node {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.node.DeepCopy()
+}

@@ -86,4 +86,14 @@ func TestAKSRecommendationsSayEKSOnly(t *testing.T) {
 	if strings.Contains(out, "Savings:") {
 		t.Errorf("a savings total for nodes the rules can't read:\n%s", out)
 	}
+	// with prices known, the rules would find idle cost: they must not run,
+	// and enter must not open the math of a row that isn't shown
+	for _, n := range u.stats.Nodes {
+		n.SetPrice(0.0918)
+	}
+	u.Refresh()
+	pressAll(u, "enter")
+	if u.panel != panelNone || u.recFor != "" {
+		t.Errorf("rules ran on Azure nodes: panel %v, analysed %q", u.panel, u.recFor)
+	}
 }
