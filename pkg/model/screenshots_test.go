@@ -176,6 +176,8 @@ func TestScreenshots(t *testing.T) {
 		{"space  ticks nodegroup as level 1", func(u *UIModel) { press(u, "down", " ") }},
 		{"space  ticks zone as level 2, a sub-group of nodegroup", func(u *UIModel) { press(u, "down", "down", " ") }},
 		{"esc  nodes nest under nodegroup › zone, with subtotals", func(u *UIModel) { press(u, "esc") }},
+		{"enter  folds the selected group on its own (↑/↓ select)", func(u *UIModel) { press(u, "enter") }},
+		{"enter  unfolds it", func(u *UIModel) { press(u, "enter") }},
 		{"n  folds the nodes: zones carry the usage bars", func(u *UIModel) { press(u, "n") }},
 		{"n  folds the zones: node groups carry the bars", func(u *UIModel) { press(u, "n") }},
 		{"d  details: each node group's zones as one-line rows", func(u *UIModel) { press(u, "d") }},
