@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"k8s.io/apimachinery/pkg/util/duration"
 )
 
@@ -50,8 +51,8 @@ func (u *UIModel) render() string {
 	nodes := u.view.Select(stats.Nodes)
 
 	var b strings.Builder
-	b.WriteString(u.header(stats, nodes))
-	b.WriteString(u.clusterSummary(stats))
+	b.WriteString(u.fit(u.header(stats, nodes)))
+	b.WriteString(u.fit(u.clusterSummary(stats)))
 	b.WriteString("\n")
 
 	// what is left between the summary and the two footer lines
@@ -99,13 +100,29 @@ func (u *UIModel) render() string {
 		status = "/" + u.view.Search + "█"
 	}
 	for _, line := range body {
-		b.WriteString(line)
+		b.WriteString(u.fit(line))
 		b.WriteString("\n")
 	}
-	b.WriteString(status)
+	b.WriteString(u.fit(status))
 	b.WriteString("\n")
-	b.WriteString(helpStyle(u.helpText()))
+	b.WriteString(u.fit(helpStyle(u.helpText())))
 	return b.String()
+}
+
+// fit cuts every line of s to the window width. A line wider than the window
+// wraps, the frame grows taller than the window and the terminal scrolls,
+// leaving old lines behind.
+func (u *UIModel) fit(s string) string {
+	if u.width <= 0 {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		if textWidth(line) > u.width {
+			lines[i] = ansi.Truncate(line, u.width, "…")
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (u *UIModel) helpText() string {
