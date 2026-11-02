@@ -332,8 +332,13 @@ func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // (R12). ctrl+c quits from anywhere.
 func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 	key := msg.String()
-	if key == "ctrl+c" {
+	switch key {
+	case "ctrl+c":
 		return tea.Quit
+	case "ctrl+e":
+		// not text in any panel, so it works everywhere like ctrl+c
+		u.toggleHeader()
+		return nil
 	}
 	if u.panel != panelNone {
 		u.panelKey(key)

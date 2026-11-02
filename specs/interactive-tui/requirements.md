@@ -190,6 +190,10 @@ back to one header line with the view only.
 > the full panel from 28 rows, a two-line box (cluster and counts, then the
 > view) from 14 rows, and one plain line only below that.
 
+> **Added 2026-11-02.** `ctrl+e` switches between the full panel and the
+> compact box, as in sofka, from the main view or a panel; the pick is saved
+> with the cluster's view state.
+
 ## Counter-examples
 
 - SHALL NOT list or show individual pods; pods only feed per-node totals

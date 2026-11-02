@@ -38,7 +38,46 @@ var (
 var headerKeys = [][2]string{
 	{"f", "filters"}, {"n", "nodes"},
 	{"←/→", "page"}, {"?", "help"},
-	{"q", "quit"},
+	{"q", "quit"}, {"^e", "compact"},
+}
+
+type headerSize int
+
+const (
+	headerLine headerSize = iota
+	headerCompact
+	headerFull
+)
+
+// headerSize is the header the screen shows: the user's pick from ctrl+e,
+// else by height. A screen too short for a box always gets one line.
+func (u *UIModel) headerSize() headerSize {
+	if u.height > 0 && u.height < headerCompactMinHeight {
+		return headerLine
+	}
+	switch u.view.Header {
+	case HeaderFull:
+		return headerFull
+	case HeaderCompact:
+		return headerCompact
+	}
+	if u.height > 0 && u.height < headerPanelMinHeight {
+		return headerCompact
+	}
+	return headerFull
+}
+
+// toggleHeader switches between the full panel and the compact box (ctrl+e)
+// and saves the pick with the view.
+func (u *UIModel) toggleHeader() {
+	if u.headerSize() == headerFull {
+		u.view.Header = HeaderCompact
+	} else {
+		u.view.Header = HeaderFull
+	}
+	if u.onViewChange != nil {
+		u.onViewChange(u.view)
+	}
 }
 
 // header shows which cluster this is, how many nodes the view keeps and the
@@ -54,7 +93,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		context = "-"
 	}
 
-	if u.height > 0 && u.height < headerCompactMinHeight {
+	if u.headerSize() == headerLine {
 		return fmt.Sprintf("%s │ %s │ %s\n", titleStyle(context), counts, u.viewSummary())
 	}
 
@@ -62,7 +101,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	if region == "" && len(stats.Nodes) > 0 {
 		region = stats.Nodes[0].Region()
 	}
-	if u.height > 0 && u.height < headerPanelMinHeight {
+	if u.headerSize() == headerCompact {
 		where := []string{titleStyle(context)}
 		for _, s := range []string{u.info.Server, region} {
 			if s != "" {
