@@ -546,9 +546,15 @@ not through a pipe or a tool without a TTY.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). In short:
 `scripts/verify.sh` checks formatting, vet, tests (with the race detector) and
-specs, and `scripts/build.sh` builds the binary. `go run ./hack/catalog`
-regenerates the instance catalog from the AWS Price List (needs
-`pricing:GetProducts`).
+specs, `make lint` runs the pinned golangci-lint (CI runs both), and
+`scripts/build.sh` builds the binary.
+
+Data compiled into the binary is refreshed by `make prices` (the static
+on-demand tables, from Karpenter, no credentials) and `make catalog` (the
+instance catalog, from the AWS Price List; needs `pricing:GetProducts`). The
+`Refresh price data` workflow runs both on the 1st of each month and opens a
+PR; the catalog step runs only when the repository variable
+`AWS_CATALOG_ROLE_ARN` names a role it can assume through GitHub OIDC.
 
 ## Credits
 
