@@ -80,14 +80,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("creating style, %s", err)
 	}
-	clusterKey, err := client.ClusterKey(flags.Kubeconfig, flags.Context)
+	cluster, err := client.ResolveCluster(flags.Kubeconfig, flags.Context)
 	if err != nil {
 		log.Fatalf("reading kubeconfig, %s", err)
 	}
 	// a bad state file is reported here, before the TUI takes the screen
 	states := state.Load(state.DefaultPath(homeDir), os.Stderr)
 	var saved *model.ViewState
-	if v, ok := states.Get(clusterKey); ok {
+	if v, ok := states.Get(cluster.Key()); ok {
 		saved = &v
 	}
 	view, err := resolveView(flags.Config, saved, flags.Explicit)
@@ -102,7 +102,8 @@ func main() {
 		// the TUI has the screen; a failed save only loses the last choice
 	})
 	defer saver.Close()
-	m.OnViewChange(func(v model.ViewState) { saver.Save(clusterKey, v) })
+	m.OnViewChange(func(v model.ViewState) { saver.Save(cluster.Key(), v) })
+	info := model.ClusterInfo{Context: cluster.Context, Server: cluster.Server}
 
 	nodeSelector, err := labels.Parse(flags.NodeSelector)
 	if err != nil {
@@ -116,15 +117,17 @@ func main() {
 			log.Fatalf("unable to load AWS SDK config: %s", err)
 		}
 		pprov = aws.NewPricingProvider(ctx, cfg)
+		info.Region = cfg.Region
 	}
+	m.SetClusterInfo(info)
 	controller := client.NewController(cs, nodeClaimClient, m, nodeSelector, pprov)
 
 	// The program exists before the watches start: Send blocks until it runs,
 	// and Start makes a blocking API call, so it runs in its own goroutine.
 	program := tea.NewProgram(m, tea.WithAltScreen())
-	cluster := m.Cluster()
+	store := m.Cluster()
 	controller.SetNotifier(client.NewNotifier(ctx, changeInterval, func() {
-		program.Send(model.ChangedMsg{Gen: cluster.Generation()})
+		program.Send(model.ChangedMsg{Gen: store.Generation()})
 	}))
 	go controller.Start(ctx)
 
