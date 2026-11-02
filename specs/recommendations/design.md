@@ -95,6 +95,10 @@ users lack); third-party catalogs (license, drift).
 
 **Reversal action**: delete the table; catalog rules show no rows.
 
+> **Corrected 2026-11-02 (T1).** The generated table holds 1,393 types and
+> weighs 156 KB, not ~60 KB. The Price List marks `t2` as current
+> generation, which confirms the fixed Xen list in R8 is needed.
+
 ### D3: Packing by first-fit decreasing, DaemonSets fixed
 
 **Choice**: per managed node group of one type, pods sorted by their larger

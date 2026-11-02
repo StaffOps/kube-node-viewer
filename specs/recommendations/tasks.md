@@ -2,7 +2,7 @@
 
 > Implements [design](design.md). Status: `[ ]` todo · `[-]` in progress · `[x]` done
 
-- [ ] T1. Catalog: `hack/catalog` generator, `zz_generated_instances.go`, refresh from Price List products; zone-aware spot lookup
+- [x] T1. Catalog: `hack/catalog` generator, `zz_generated_instances.go`, refresh from Price List products; zone-aware spot lookup
   - _Covers: R7, R8, R9, R11, R15 · Depends on: — · Verified by: catalog and pricing tests_
 - [ ] T2. Owner kind kept by `SlimPod` and on `model.Pod`
   - _Covers: R6, R7 · Depends on: — · Verified by: transform tests_
