@@ -12,12 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Modified by the kube-node-viewer authors, 2026.
+
 package model
 
 import (
-	"sort"
-
-	"github.com/facette/natsort"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -55,6 +54,28 @@ func (g GroupStats) FullyPriced() bool {
 	return g.PricedNodes+g.ReservedNodes == g.NumNodes
 }
 
+func newGroupStats(name string) GroupStats {
+	return GroupStats{
+		Name:                 name,
+		AllocatableResources: v1.ResourceList{},
+		UsedResources:        v1.ResourceList{},
+	}
+}
+
+// add counts the node towards the group's totals.
+func (g *GroupStats) add(n *Node) {
+	g.NumNodes++
+	g.NumPods += n.NumPods()
+	n.AddAllocatableTo(g.AllocatableResources)
+	n.AddUsedTo(g.UsedResources)
+	if n.HasActualPrice() {
+		g.TotalPrice += n.Price()
+		g.PricedNodes++
+	} else if n.PriceIsEquivalent() {
+		g.ReservedNodes++
+	}
+}
+
 // GroupNodes aggregates nodes by their value for the label, sorted by name with
 // the nodes missing the label last.
 func GroupNodes(nodes []*Node, label string) []GroupStats {
@@ -63,34 +84,17 @@ func GroupNodes(nodes []*Node, label string) []GroupStats {
 		value := n.LabelValue(label)
 		group, ok := byValue[value]
 		if !ok {
-			group = &GroupStats{
-				Name:                 value,
-				AllocatableResources: v1.ResourceList{},
-				UsedResources:        v1.ResourceList{},
-			}
+			g := newGroupStats(value)
+			group = &g
 			byValue[value] = group
 		}
-		group.NumNodes++
-		group.NumPods += n.NumPods()
-		n.AddAllocatableTo(group.AllocatableResources)
-		n.AddUsedTo(group.UsedResources)
-		if n.HasActualPrice() {
-			group.TotalPrice += n.Price()
-			group.PricedNodes++
-		} else if n.PriceIsEquivalent() {
-			group.ReservedNodes++
-		}
+		group.add(n)
 	}
 
 	groups := make([]GroupStats, 0, len(byValue))
 	for _, g := range byValue {
 		groups = append(groups, *g)
 	}
-	sort.Slice(groups, func(a, b int) bool {
-		if (groups[a].Name == UngroupedValue) != (groups[b].Name == UngroupedValue) {
-			return groups[b].Name == UngroupedValue
-		}
-		return natsort.Compare(groups[a].Name, groups[b].Name)
-	})
+	sortGroups(groups, func(g GroupStats) string { return g.Name })
 	return groups
 }
