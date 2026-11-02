@@ -185,6 +185,11 @@ back to one header line with the view only.
 > **Added 2026-11-02.** The owner asked for a sofka-like header panel; read-only
 > actions (cordon, drain) and the update check are left out.
 
+> **Corrected 2026-11-02 (T10).** The one-line header took over below 30 rows
+> and looked unseparated on a normal terminal. The header is now always boxed:
+> the full panel from 28 rows, a two-line box (cluster and counts, then the
+> view) from 14 rows, and one plain line only below that.
+
 ## Counter-examples
 
 - SHALL NOT list or show individual pods; pods only feed per-node totals

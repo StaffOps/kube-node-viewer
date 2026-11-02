@@ -21,9 +21,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// headerPanelMinHeight is the screen height below which the header shrinks to
-// one line, leaving the rows to the nodes (R16).
-const headerPanelMinHeight = 30
+// Screen heights below which the header shrinks, leaving rows to the nodes
+// (R16): the full panel, then a two-line box, then one plain line.
+const (
+	headerPanelMinHeight   = 28
+	headerCompactMinHeight = 14
+)
 
 var (
 	headerBox   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#626262")).Padding(0, 1)
@@ -51,13 +54,23 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		context = "-"
 	}
 
-	if u.height > 0 && u.height < headerPanelMinHeight {
+	if u.height > 0 && u.height < headerCompactMinHeight {
 		return fmt.Sprintf("%s │ %s │ %s\n", titleStyle(context), counts, u.viewSummary())
 	}
 
 	region := u.info.Region
 	if region == "" && len(stats.Nodes) > 0 {
 		region = stats.Nodes[0].Region()
+	}
+	if u.height > 0 && u.height < headerPanelMinHeight {
+		where := []string{titleStyle(context)}
+		for _, s := range []string{u.info.Server, region} {
+			if s != "" {
+				where = append(where, s)
+			}
+		}
+		where = append(where, counts)
+		return u.boxed(strings.Join(where, headerLabel(" · ")) + "\n" + u.viewSummary())
 	}
 	rows := [][2]string{
 		{"Context:", context},
@@ -80,7 +93,13 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		}
 	}
 
-	leftBlock, rightBlock := left.String(), right.String()
+	return u.boxed(left.String(), right.String())
+}
+
+// boxed draws the header box around a block of lines and, when it fits, the
+// keys on the right.
+func (u *UIModel) boxed(leftBlock string, rightBlocks ...string) string {
+	rightBlock := strings.Join(rightBlocks, "")
 	box := headerBox
 	if u.width > 0 {
 		inner := u.width - 4 // border and padding
@@ -90,6 +109,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 			rightBlock, gap = "", 0
 		}
 		leftBlock = lipgloss.NewStyle().MaxWidth(inner).Render(leftBlock)
+		gap = max(gap, 0)
 		box = box.Width(u.width - 2)
 		return box.Render(lipgloss.JoinHorizontal(lipgloss.Top, leftBlock, strings.Repeat(" ", gap), rightBlock)) + "\n"
 	}
