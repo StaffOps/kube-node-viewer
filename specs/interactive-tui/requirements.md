@@ -148,6 +148,12 @@ region (`topology.kubernetes.io/region` of its nodes).
 - [ ] No object from the previous cluster appears after the switch, even if
   its watches deliver late events.
 
+> **Corrected 2026-11-02 (T11).** The pricing region comes from the EKS API
+> server URL (`https://<id>.gr7.<region>.eks.amazonaws.com`), known before any
+> node is listed, and falls back to the AWS SDK's configured region for other
+> servers. Command-line view flags apply to the cluster the run starts on; a
+> switched-to cluster opens with its saved state, then the config file.
+
 **R11** WHEN cluster objects or prices change THEN the system SHALL redraw
 after a batched change notification instead of a 100 ms timer; node ages and
 NotReady durations SHALL still advance (1 s tick).

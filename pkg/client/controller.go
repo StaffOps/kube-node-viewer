@@ -35,7 +35,7 @@ import (
 
 type Controller struct {
 	kubeClient      *kubernetes.Clientset
-	uiModel         *model.UIModel
+	cluster         *model.Cluster
 	pricing         pricing.Provider
 	nodeSelector    labels.Selector
 	nodeClaimClient *rest.RESTClient
@@ -43,10 +43,13 @@ type Controller struct {
 	notifier *Notifier
 }
 
-func NewController(kubeClient *kubernetes.Clientset, nodeClaimClient *rest.RESTClient, uiModel *model.UIModel, nodeSelector labels.Selector, pricing pricing.Provider) *Controller {
+// NewController watches one cluster into its own store. A context switch
+// builds a new controller and store, so late events from the old watches can
+// only reach the old store.
+func NewController(kubeClient *kubernetes.Clientset, nodeClaimClient *rest.RESTClient, cluster *model.Cluster, nodeSelector labels.Selector, pricing pricing.Provider) *Controller {
 	c := &Controller{
 		kubeClient:      kubeClient,
-		uiModel:         uiModel,
+		cluster:         cluster,
 		pricing:         pricing,
 		nodeSelector:    nodeSelector,
 		nodeClaimClient: nodeClaimClient,
@@ -61,7 +64,7 @@ func (m *Controller) SetNotifier(n *Notifier) {
 }
 
 func (m *Controller) Start(ctx context.Context) {
-	cluster := m.uiModel.Cluster()
+	cluster := m.cluster
 
 	m.startPodWatch(ctx, cluster)
 	m.startNodeWatch(ctx, cluster)
@@ -227,7 +230,7 @@ func (m *Controller) updatePrice(node *model.Node) {
 }
 
 func (m *Controller) RefreshNodePrices() {
-	m.uiModel.Cluster().ForEachNode(func(n *model.Node) {
+	m.cluster.ForEachNode(func(n *model.Node) {
 		m.updatePrice(n)
 	})
 	m.notifier.Changed()

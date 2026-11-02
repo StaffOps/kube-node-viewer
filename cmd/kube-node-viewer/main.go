@@ -16,7 +16,6 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	_ "embed"
 	"errors"
 	"flag"
@@ -27,12 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	tea "github.com/charmbracelet/bubbletea"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/staffops/kube-node-viewer/pkg/aws"
-	"github.com/staffops/kube-node-viewer/pkg/client"
 	"github.com/staffops/kube-node-viewer/pkg/model"
 	"github.com/staffops/kube-node-viewer/pkg/state"
 )
@@ -65,75 +61,43 @@ func main() {
 		os.Exit(0)
 	}
 
-	cs, err := client.NewKubernetes(flags.Kubeconfig, flags.Context)
-	if err != nil {
-		log.Fatalf("creating client, %s", err)
-	}
-	nodeClaimClient, err := client.NewNodeClaims(flags.Kubeconfig, flags.Context)
-	if err != nil {
-		log.Fatalf("creating node claim client, %s", err)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-
-	pprov := aws.NewStaticPricingProvider()
 	style, err := model.ParseStyle(flags.Style)
 	if err != nil {
 		log.Fatalf("creating style, %s", err)
 	}
-	cluster, err := client.ResolveCluster(flags.Kubeconfig, flags.Context)
-	if err != nil {
-		log.Fatalf("reading kubeconfig, %s", err)
-	}
-	// a bad state file is reported here, before the TUI takes the screen
-	states := state.Load(state.DefaultPath(homeDir), os.Stderr)
-	var saved *model.ViewState
-	if v, ok := states.Get(cluster.Key()); ok {
-		saved = &v
-	}
-	view, err := resolveView(flags.Config, saved, flags.Explicit)
-	if err != nil {
-		log.Fatalf("%s", err)
-	}
-
-	m := model.NewUIModel(style)
-	m.DisablePricing = flags.DisablePricing
-	m.SetView(view)
-	saver := state.NewSaver(states, stateSaveDelay, func(error) {
-		// the TUI has the screen; a failed save only loses the last choice
-	})
-	defer saver.Close()
-	m.OnViewChange(func(v model.ViewState) { saver.Save(cluster.Key(), v) })
-	info := model.ClusterInfo{Context: cluster.Context, Server: cluster.Server}
-
 	nodeSelector, err := labels.Parse(flags.NodeSelector)
 	if err != nil {
 		log.Fatalf("parsing node selector: %s", err)
 	}
+	// a bad state file is reported here, before the TUI takes the screen
+	states := state.Load(state.DefaultPath(homeDir), os.Stderr)
+	saver := state.NewSaver(states, stateSaveDelay, func(error) {
+		// the TUI has the screen; a failed save only loses the last choice
+	})
+	defer saver.Close()
 
-	if !flags.DisablePricing {
-		// Use AWS SDK Go v2 for configuration
-		cfg, err := config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile(""))
-		if err != nil {
-			log.Fatalf("unable to load AWS SDK config: %s", err)
-		}
-		pprov = aws.NewPricingProvider(ctx, cfg)
-		info.Region = cfg.Region
-	}
-	m.SetClusterInfo(info)
-	controller := client.NewController(cs, nodeClaimClient, m, nodeSelector, pprov)
-
-	// The program exists before the watches start: Send blocks until it runs,
-	// and Start makes a blocking API call, so it runs in its own goroutine.
+	m := model.NewUIModel(style)
+	m.DisablePricing = flags.DisablePricing
+	// The program exists before the watches start: Send blocks until it runs.
 	program := tea.NewProgram(m, tea.WithAltScreen())
-	store := m.Cluster()
-	controller.SetNotifier(client.NewNotifier(ctx, changeInterval, func() {
-		program.Send(model.ChangedMsg{Gen: store.Generation()})
-	}))
-	go controller.Start(ctx)
-
-	_, err = program.Run()
-	cancel()
+	conn := &sessions{
+		flags:        flags,
+		nodeSelector: nodeSelector,
+		states:       states,
+		saver:        saver,
+		program:      program,
+		explicit:     flags.Explicit,
+	}
+	defer conn.Close()
+	first, err := conn.Switch(flags.Context)
 	if err != nil {
+		log.Fatalf("connecting: %s", err)
+	}
+	m.Connect(first)
+	m.SetSwitcher(conn)
+
+	if _, err := program.Run(); err != nil {
+		conn.Close()
 		saver.Close()
 		log.Fatalf("error running tea: %s", err)
 	}
