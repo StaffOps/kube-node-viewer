@@ -26,11 +26,11 @@ On start the prices show `-` for a second or two, then fill in.
 
 ## Requirements
 
-### R1. Azure node prices
+**R1** WHEN a node's provider ID starts with `azure://` THEN the system SHALL
+price it from the Retail Prices API by its region label
+(`topology.kubernetes.io/region`) and VM size
+(`node.kubernetes.io/instance-type`).
 
-- [x] A node whose provider ID starts with `azure://` is priced from the
-  Retail Prices API by its region label (`topology.kubernetes.io/region`) and
-  VM size (`node.kubernetes.io/instance-type`).
 - [x] Price used: `priceType eq 'Consumption'`, unit `1 Hour`, USD. A Spot
   node (`kubernetes.azure.com/scalesetpriority=spot`) takes the `… Spot`
   meter; any other node takes the regular meter. `Low Priority` meters are
@@ -40,7 +40,8 @@ On start the prices show `-` for a second or two, then fill in.
   `effectiveStartDate` not after now wins.
 - [x] The instance-price override label still wins over the API.
 
-### R2. Lookup behaviour
+**R2** WHEN an Azure node has no cached price THEN the system SHALL look it
+up in the background and re-price the nodes when the answer arrives.
 
 - [x] Lazy: nothing is fetched until an Azure node is seen, so EKS sessions
   make no call to Azure. One request per region asks for every unknown size
@@ -53,9 +54,8 @@ On start the prices show `-` for a second or two, then fill in.
 - [x] Timeout 20 s per request.
 - [x] With `--disable-pricing` nothing is fetched.
 
-### R3. Recommendations unchanged
-
-- [x] Recommendations stay EKS-only (no Azure catalog yet).
+**R3** WHEN only Azure nodes are shown THEN the Recommendations screen SHALL
+keep saying it covers EKS nodes only (no Azure catalog yet).
 
 ## Counter-examples
 
