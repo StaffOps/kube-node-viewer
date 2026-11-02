@@ -121,7 +121,7 @@ func keyHint(hint string) string {
 	parts := strings.Split(hint, " • ")
 	for i, part := range parts {
 		if key, action, ok := strings.Cut(part, ": "); ok {
-			parts[i] = headerKey(key) + helpStyle(": "+action)
+			parts[i] = headerKey(key) + headerAction(": "+action)
 		} else {
 			parts[i] = helpStyle(part)
 		}

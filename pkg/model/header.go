@@ -34,7 +34,14 @@ var (
 	headerBox   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#626262")).Padding(0, 1)
 	headerLabel = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#5f5f87", Dark: "#afafd7"}).Render
 	headerValue = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f87", Dark: "#87d7ff"}).Render
-	headerKey   = lipgloss.NewStyle().Bold(true).Render
+	// keys in bold yellow, what they do in plain grey, here and in popups
+	headerKey    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#875f00", Dark: "#ffd75f"}).Render
+	headerAction = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#4e4e4e", Dark: "#bcbcbc"}).Render
+	// one colour per kind of header value
+	countsValue = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#af5f00", Dark: "#ffaf5f"}).Render
+	viewOption  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8700af", Dark: "#d7afff"}).Render
+	viewValue   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f00", Dark: "#87d787"}).Render
+	viewSep     = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 )
 
 // headerKeys are the main keys shown in the header panel, as key and action.
@@ -121,23 +128,23 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		return u.boxed(strings.Join(where, headerLabel(" · ")) + "\n" + u.viewSummary())
 	}
 	rows := [][2]string{
-		{"Context:", context},
-		{"Cluster:", orDash(u.info.Server)},
-		{"Region:", orDash(region)},
-		{"Nodes:", counts},
+		{"Context:", headerValue(context)},
+		{"Cluster:", headerValue(orDash(u.info.Server))},
+		{"Region:", headerValue(orDash(region))},
+		{"Nodes:", countsValue(counts)},
 		{"View:", u.viewSummary()},
 	}
 	var left strings.Builder
 	left.WriteString(titleStyle("kube-node-viewer"))
 	for _, r := range rows {
-		left.WriteString("\n" + headerLabel(fmt.Sprintf("%-9s", r[0])) + " " + headerValue(r[1]))
+		left.WriteString("\n" + headerLabel(fmt.Sprintf("%-9s", r[0])) + " " + r[1])
 	}
 
 	var right strings.Builder
 	for i := 0; i < len(headerKeys); i += 2 {
 		right.WriteString("\n")
 		for _, k := range headerKeys[i:min(i+2, len(headerKeys))] {
-			right.WriteString(fmt.Sprintf("%s %-10s", headerKey(fmt.Sprintf("%3s", k[0])), k[1]))
+			right.WriteString(fmt.Sprintf("%s %s", headerKey(fmt.Sprintf("%3s", k[0])), headerAction(fmt.Sprintf("%-10s", k[1]))))
 		}
 	}
 
@@ -221,6 +228,9 @@ func (u *UIModel) viewSummary() string {
 		arrow = "↓"
 	}
 
-	return fmt.Sprintf("Filters: %s │ Group: %s │ Sort: %s %s │ %s",
-		filterText, groupText, fieldName(sortField), arrow, strings.Join(u.view.Resources, "+"))
+	sep := viewSep(" │ ")
+	return viewOption("Filters:") + " " + viewValue(filterText) + sep +
+		viewOption("Group:") + " " + viewValue(groupText) + sep +
+		viewOption("Sort:") + " " + viewValue(fieldName(sortField)+" "+arrow) + sep +
+		viewValue(strings.Join(u.view.Resources, "+"))
 }
