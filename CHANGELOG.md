@@ -6,8 +6,75 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- Interactive TUI: start with no flags and change the view from inside.
+  - Filters panel (`f`): every field (capacity type, node group, zone,
+    region, instance type, status) and every node label listed up front; open
+    a field to tick its values, shown with node counts; each tick filters at
+    once; turn a filter off and on or clear it.
+  - Group by panel (`g`): tick up to three fields as nested levels, reorder
+    them with `K`/`J`; every level has node, pod, usage and cost subtotals.
+  - Sort panel (`s`) on creation, name, IP, price, pods, usage per resource or
+    any label; Columns panel (`o`) to show, hide and reorder columns.
+  - Live search (`/`), resource cycle (`r`), context switch without
+    restarting (`c`), help with keys and colours (`?`).
+  - `n` folds the grouped list one level per press (nodes, then each
+    sub-group level) and unfolds on the next; folded, the deepest level shown
+    carries usage bars and `d` lists the level below as one-line rows.
+- Panels open as popups over the node list, with their keys on their last
+  line.
+- Header box with context, API server, pricing region, nodes shown of total,
+  pod count (and pending pods), the active view and the main keys; `ctrl+e`
+  compacts it to two lines.
+- Columns for capacity type (with `/Auto` for EKS Auto Mode), node group,
+  zone, region, internal IP, age, status and price; default columns are
+  instance, price, capacity, node group, zone and status.
+- View state saved per cluster (context plus API server URL) in
+  `$XDG_STATE_HOME/kube-node-viewer/state.json`.
+- Reserved nodes (Karpenter reserved capacity, EKS capacity blocks) show the
+  on-demand price as an equivalent (`~$`), left out of cluster and group
+  totals, which say how many reserved nodes were not priced.
+- Colours by meaning: usage green above 80%, yellow from 60% to 80%, red
+  below; node status, capacity type and EKS managed node groups each have a
+  colour; group headings form a tree.
+- `--group-by` and `--groups-only` (summary of usage and cost per node label),
+  by João Pedro Alcantara.
+- `kube-node-viewer/` label prefix for the price override label and computed
+  label names.
+- Spec-driven development setup: `AGENTS.md` (canonical agent guide),
+  `specs/` with format rules, templates, ADR-001 and the `rebrand` and
+  `interactive-tui` specs, shared skills for Claude Code and Kiro
+  (`spec-new`, `change-loop`, `upstream-sync`), `spec-refuter` review agent,
+  agent hooks, `scripts/verify.sh` and `scripts/spec-lint.sh`.
+- Homebrew install: releases publish a cask to `StaffOps/homebrew-tap`
+  (`brew install staffops/tap/kube-node-viewer`); release archives are
+  `tar.gz`, `zip` on Windows.
+- `scripts/build.sh` for local and cross-platform builds without
+  `make generate`.
+- Initial import of `awslabs/eks-node-viewer` at `fe35ed41e18b`
+  (Apache 2.0), see `specs/decisions/ADR-001-import-as-new-repo.md`.
+
 ### Changed
 
+- `g` opens the Group by panel instead of toggling the summary; `esc` closes
+  panels and clears the search instead of quitting.
+- `--group-by key=a,b` values filter in memory instead of narrowing the
+  server-side selector; `--node-selector` is the only server-side scope.
+- Command-line view flags apply to the run they are given on and to the
+  cluster it starts on; the last view chosen in the TUI is restored per
+  cluster.
+- The screen redraws when the cluster changes instead of every 100 ms. Render
+  time no longer depends on the number of pods (1.7 ms for 500 nodes at both
+  15,000 and 150,000 pods, from 2.5 ms and 29.9 ms), and the model holds pods
+  in a compact form (149 MiB at 150,000 pods, from 924 MiB).
+- The pricing region comes from the EKS API server URL when there is one.
+- Pages are cut by lines; a page that continues a group repeats its path; the
+  lowest-priority columns are dropped first on narrow windows, and no line
+  runs past the window edge. Resizing the window redraws from a clean screen.
+- Node usage bars are wider (36 to 60 cells) and stacked resources are
+  separated by a blank line between nodes.
+- Node and pod counts are shown once, in the header.
 - Renamed to `kube-node-viewer`: module `github.com/staffops/kube-node-viewer`,
   binary and `cmd/kube-node-viewer`, config file `~/.kube-node-viewer`,
   README, `CONTRIBUTING.md` and `CODEOWNERS`.
@@ -18,26 +85,10 @@ All notable changes to this project are documented here. Format:
 
 ### Removed
 
-- AWS Homebrew tap tooling (`hack/homebrew.go`) and the Amazon code of conduct.
+- The previous Homebrew tap tooling (`hack/homebrew.go`) and the inherited code
+  of conduct.
 
-### Deprecated
+### Fixed
 
-- The `eks-node-viewer/` label prefix and `~/.eks-node-viewer` config file.
-  Both still work; `kube-node-viewer/` and `~/.kube-node-viewer` take
-  precedence.
-
-### Added
-
-- `--group-by` and `--groups-only` (summary of usage and cost per node label),
-  by João Pedro Alcantara.
-- `kube-node-viewer/` label prefix for the price override label and computed
-  label names.
-- Spec-driven development setup: `AGENTS.md` (canonical agent guide),
-  `specs/` with format rules, templates, ADR-001 and the `rebrand` spec,
-  shared skills for Claude Code and Kiro (`spec-new`, `change-loop`,
-  `upstream-sync`), `spec-refuter` review agent, agent hooks,
-  `scripts/verify.sh` and `scripts/spec-lint.sh`.
-- `scripts/build.sh` for local and cross-platform builds without
-  `make generate`.
-- Initial import of `awslabs/eks-node-viewer` at `fe35ed41e18b`
-  (Apache 2.0), see `specs/decisions/ADR-001-import-as-new-repo.md`.
+- A node's price is read and written under its lock; a pod seen before its
+  node is counted once the node appears.

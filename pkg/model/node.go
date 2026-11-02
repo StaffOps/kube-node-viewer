@@ -18,6 +18,7 @@ package model
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"sync"
 	"time"
@@ -38,20 +39,25 @@ type objectKey struct {
 	name      string
 }
 type Node struct {
-	mu                    sync.RWMutex
-	visible               bool
-	node                  v1.Node
-	pods                  map[objectKey]*Pod
-	used                  v1.ResourceList
-	Price                 float64
+	mu          sync.RWMutex
+	visible     bool
+	node        v1.Node
+	pods        map[objectKey]*Pod
+	used        v1.ResourceList
+	podsByPhase map[v1.PodPhase]int
+	price       float64
+	// priceIsEquivalent marks a price that is not what the node costs, the
+	// on-demand price of a reserved node
+	priceIsEquivalent     bool
 	nodeclaimCreationTime time.Time
 }
 
 func NewNode(n *v1.Node) *Node {
 	node := &Node{
-		node: *n,
-		pods: map[objectKey]*Pod{},
-		used: v1.ResourceList{},
+		node:        *n,
+		pods:        map[objectKey]*Pod{},
+		used:        v1.ResourceList{},
+		podsByPhase: map[v1.PodPhase]int{},
 	}
 
 	return node
@@ -94,6 +100,120 @@ func (n *Node) IsFargate() bool {
 
 func (n *Node) IsAuto() bool {
 	return n.node.Labels["eks.amazonaws.com/compute-type"] == "auto"
+}
+
+// CapacityType is how a node is bought.
+type CapacityType string
+
+const (
+	CapacityOnDemand CapacityType = "OnDemand"
+	CapacitySpot     CapacityType = "Spot"
+	// CapacityReserved covers Karpenter reserved capacity and EKS capacity
+	// blocks: prepaid, so its price is only an on-demand equivalent.
+	CapacityReserved CapacityType = "Reserved"
+	CapacityFargate  CapacityType = "Fargate"
+	CapacityUnknown  CapacityType = "Unknown"
+)
+
+// CapacityType reads the Karpenter and EKS capacity labels. EKS Auto Mode nodes
+// carry the Karpenter label too, so they report spot or on-demand; IsAuto tells
+// them apart.
+func (n *Node) CapacityType() CapacityType {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	labels := n.node.Labels
+	if labels["eks.amazonaws.com/compute-type"] == "fargate" {
+		return CapacityFargate
+	}
+	switch labels["karpenter.sh/capacity-type"] {
+	case "on-demand":
+		return CapacityOnDemand
+	case "spot":
+		return CapacitySpot
+	case "reserved":
+		return CapacityReserved
+	}
+	switch labels["eks.amazonaws.com/capacityType"] {
+	case "ON_DEMAND":
+		return CapacityOnDemand
+	case "SPOT":
+		return CapacitySpot
+	case "CAPACITY_BLOCK":
+		return CapacityReserved
+	}
+	return CapacityUnknown
+}
+
+// NodeGroup is the Karpenter NodePool or the EKS managed node group name, or
+// "-". IsManagedNodeGroup tells which: the screen colours managed node groups
+// rather than prefixing them.
+func (n *Node) NodeGroup() string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	if pool := n.node.Labels["karpenter.sh/nodepool"]; pool != "" {
+		return pool
+	}
+	if group := n.node.Labels["eks.amazonaws.com/nodegroup"]; group != "" {
+		return group
+	}
+	return "-"
+}
+
+// IsManagedNodeGroup tells whether NodeGroup is an EKS managed node group
+// rather than a Karpenter NodePool.
+func (n *Node) IsManagedNodeGroup() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.node.Labels["karpenter.sh/nodepool"] == "" && n.node.Labels["eks.amazonaws.com/nodegroup"] != ""
+}
+
+// Region is the node's region label, empty when unset.
+func (n *Node) Region() string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.node.Labels[v1.LabelTopologyRegion]
+}
+
+// InternalIP is the node's first internal address, "-" for a node known only
+// from its NodeClaim.
+func (n *Node) InternalIP() string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	for _, addr := range n.node.Status.Addresses {
+		if addr.Type == v1.NodeInternalIP {
+			return addr.Address
+		}
+	}
+	return "-"
+}
+
+// Status flags a node can carry at the same time.
+const (
+	StatusReady     = "Ready"
+	StatusNotReady  = "NotReady"
+	StatusCordoned  = "Cordoned"
+	StatusDeleting  = "Deleting"
+	StatusLaunching = "Launching"
+)
+
+// StatusFlags lists the node's status: Ready or NotReady, then Cordoned,
+// Deleting and Launching (a NodeClaim whose node hasn't registered) as they
+// apply.
+func (n *Node) StatusFlags() []string {
+	flags := []string{StatusNotReady}
+	if n.Ready() {
+		flags[0] = StatusReady
+	}
+	if n.Cordoned() {
+		flags = append(flags, StatusCordoned)
+	}
+	if n.Deleting() {
+		flags = append(flags, StatusDeleting)
+	}
+	if n.RegisteredName() == "" {
+		flags = append(flags, StatusLaunching)
+	}
+	return flags
 }
 
 func (n *Node) Labels() map[string]string {
@@ -143,23 +263,22 @@ func (n *Node) InstanceID() string {
 	return providerID
 }
 
+// BindPod counts the pod's requests and phase towards the node, replacing a
+// pod bound before under the same key.
 func (n *Node) BindPod(pod *Pod) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	key := objectKey{
-		namespace: pod.Namespace(),
-		name:      pod.Name(),
+	key := pod.key()
+	if old, ok := n.pods[key]; ok {
+		n.unbind(old)
 	}
-	_, alreadyBound := n.pods[key]
 	n.pods[key] = pod
-
-	if !alreadyBound {
-		for rn, q := range pod.Requested() {
-			existing := n.used[rn]
-			existing.Add(q)
-			n.used[rn] = existing
-		}
+	for rn, q := range pod.Requested() {
+		existing := n.used[rn]
+		existing.Add(q)
+		n.used[rn] = existing
 	}
+	n.podsByPhase[pod.Phase()]++
 }
 
 func (n *Node) DeletePod(namespace string, name string) {
@@ -167,14 +286,33 @@ func (n *Node) DeletePod(namespace string, name string) {
 	defer n.mu.Unlock()
 	key := objectKey{namespace: namespace, name: name}
 	if p, ok := n.pods[key]; ok {
-		// subtract the pod requests
-		for rn, q := range p.Requested() {
-			existing := n.used[rn]
-			existing.Sub(q)
-			n.used[rn] = existing
-		}
+		n.unbind(p)
 		delete(n.pods, key)
 	}
+}
+
+// unbind takes the pod's requests and phase back out. Called with the lock held.
+func (n *Node) unbind(p *Pod) {
+	for rn, q := range p.Requested() {
+		existing := n.used[rn]
+		existing.Sub(q)
+		n.used[rn] = existing
+	}
+	phase := p.Phase()
+	if n.podsByPhase[phase]--; n.podsByPhase[phase] <= 0 {
+		delete(n.podsByPhase, phase)
+	}
+}
+
+// AddPodPhasesTo adds the node's pod count per phase to phases and returns the
+// number of pods on the node.
+func (n *Node) AddPodPhasesTo(phases map[v1.PodPhase]int) int {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	for phase, count := range n.podsByPhase {
+		phases[phase] += count
+	}
+	return len(n.pods)
 }
 
 func (n *Node) Allocatable() v1.ResourceList {
@@ -296,11 +434,13 @@ func (n *Node) Show() {
 }
 
 func (n *Node) Deleting() bool {
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.mu.RLock()
+	defer n.mu.RUnlock()
 	return !n.node.DeletionTimestamp.IsZero()
 }
 
+// Pods lists the pods bound to the node. Callers hold no lock: InstanceType
+// reads it under the node's read lock.
 func (n *Node) Pods() []*Pod {
 	var pods []*Pod
 	for _, p := range n.pods {
@@ -310,8 +450,33 @@ func (n *Node) Pods() []*Pod {
 }
 
 func (n *Node) HasPrice() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
 	// we use NaN for an unknown price, so if this is true the price is known
-	return n.Price == n.Price
+	return !math.IsNaN(n.price)
+}
+
+// PriceIsEquivalent tells whether Price is only an on-demand equivalent, as
+// for reserved nodes, rather than what the node costs. Totals leave it out.
+func (n *Node) PriceIsEquivalent() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.priceIsEquivalent
+}
+
+// HasActualPrice tells whether the node has a known price that counts towards
+// totals.
+func (n *Node) HasActualPrice() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return !math.IsNaN(n.price) && !n.priceIsEquivalent
+}
+
+// Price is the node's hourly price, NaN when unknown.
+func (n *Node) Price() float64 {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.price
 }
 
 // LabelValue is the node's value for the label, falling back to a computed label
@@ -331,19 +496,15 @@ func (n *Node) LabelValue(label string) string {
 }
 
 // LabelPrefix prefixes the node labels and computed label names this tool
-// understands. LegacyLabelPrefix is the upstream eks-node-viewer prefix, still
-// accepted because clusters and saved configs carry it.
-const (
-	LabelPrefix       = "kube-node-viewer/"
-	LegacyLabelPrefix = "eks-node-viewer/"
-)
+// understands.
+const LabelPrefix = "kube-node-viewer/"
 
-var resourceLabelRe = regexp.MustCompile("(?:kube|eks)-node-viewer/node-(.*?)-usage")
+var resourceLabelRe = regexp.MustCompile("^kube-node-viewer/node-(.*?)-usage$")
 
 // ComputeLabel computes dynamic labels
 func (n *Node) ComputeLabel(labelName string) string {
 	switch labelName {
-	case LabelPrefix + "node-age", LegacyLabelPrefix + "node-age":
+	case LabelPrefix + "node-age":
 		return duration.HumanDuration(time.Since(n.Created()))
 	}
 	// resource based custom labels
@@ -374,8 +535,21 @@ func (n *Node) NotReadyTime() time.Time {
 	return n.Created()
 }
 
+// SetPrice sets the hourly price, NaN for unknown. Prices are refreshed from
+// the pricing goroutine while the view reads them, so it locks.
 func (n *Node) SetPrice(price float64) {
-	n.Price = price
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.price = price
+	n.priceIsEquivalent = false
+}
+
+// SetEquivalentPrice sets a price that is only an on-demand equivalent.
+func (n *Node) SetEquivalentPrice(price float64) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.price = price
+	n.priceIsEquivalent = true
 }
 
 func pctUsage(allocatable v1.ResourceList, used v1.ResourceList, resource string) string {
@@ -392,4 +566,13 @@ func pctUsage(allocatable v1.ResourceList, used v1.ResourceList, resource string
 		pctUsed = 100 * (usedRes.AsApproximateFloat64() / allocRes.AsApproximateFloat64())
 	}
 	return fmt.Sprintf("%.0f%%", pctUsed)
+}
+
+// addLabelKeys adds the node's label keys to the set.
+func (n *Node) addLabelKeys(keys map[string]struct{}) {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	for k := range n.node.Labels {
+		keys[k] = struct{}{}
+	}
 }

@@ -15,55 +15,38 @@ limitations under the License.
 package main
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-func TestResolveConfigPath(t *testing.T) {
-	cases := []struct {
-		name     string
-		files    []string
-		want     string
-		wantWarn bool
-	}{
-		{"new only", []string{configFileName}, configFileName, false},
-		{"legacy only", []string{legacyConfigFileName}, legacyConfigFileName, true},
-		{"both", []string{configFileName, legacyConfigFileName}, configFileName, false},
-		{"neither", nil, configFileName, false},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			home := t.TempDir()
-			for _, f := range c.files {
-				if err := os.WriteFile(filepath.Join(home, f), []byte("style=#ff0000\n"), 0o600); err != nil {
-					t.Fatal(err)
-				}
-			}
-			var warn bytes.Buffer
-			got := resolveConfigPath(home, &warn)
-			if got != filepath.Join(home, c.want) {
-				t.Errorf("path = %q, want %q", got, filepath.Join(home, c.want))
-			}
-			if (warn.Len() > 0) != c.wantWarn {
-				t.Errorf("warning = %q, want warning: %v", warn.String(), c.wantWarn)
-			}
-		})
-	}
-}
-
-func TestLoadConfigFileLegacyContent(t *testing.T) {
+func TestConfigFile(t *testing.T) {
 	home := t.TempDir()
-	legacy := filepath.Join(home, legacyConfigFileName)
-	if err := os.WriteFile(legacy, []byte("node-sort=eks-node-viewer/node-cpu-usage=dsc\n"), 0o600); err != nil {
+	if err := os.WriteFile(configPath(home), []byte("# defaults\nnode-sort=kube-node-viewer/node-cpu-usage=dsc\nresources = cpu,memory\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := loadConfigFile(resolveConfigPath(home, &bytes.Buffer{}))
+	cfg, err := loadConfigFile(configPath(home))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := cfg.getValue("node-sort", ""); got != "eks-node-viewer/node-cpu-usage=dsc" {
+	if got := cfg.getValue("node-sort", ""); got != "kube-node-viewer/node-cpu-usage=dsc" {
 		t.Errorf("node-sort = %q", got)
+	}
+	if got := cfg.getValue("resources", ""); got != "cpu,memory" {
+		t.Errorf("resources = %q", got)
+	}
+}
+
+func TestOnlyTheKubeNodeViewerConfigFileIsRead(t *testing.T) {
+	home := t.TempDir()
+	if err := os.WriteFile(filepath.Join(home, ".eks-node-viewer"), []byte("style=#ff0000\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := loadConfigFile(configPath(home))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg) != 0 {
+		t.Errorf("read another tool's config file: %v", cfg)
 	}
 }
