@@ -83,6 +83,6 @@ if len(sys.argv) > 3:
 open(dst, "w", encoding="utf-8").write("""<!doctype html><meta charset="utf-8">
 <style>
 html,body{margin:0;background:%s}
-pre{margin:0;padding:14px 20px 18px;color:%s;font:13px/1.25 Menlo,"SF Mono",monospace;white-space:pre}
+pre{margin:0;padding:14px 20px 18px;color:%s;font:13px/1 Menlo,"SF Mono",monospace;white-space:pre}
 .cap{padding:9px 20px;background:#2a2a40;color:#ffd75f;font:bold 14px Menlo,"SF Mono",monospace}
 </style>%s<pre>%s</pre>""" % (BG, FG, caption, body))
