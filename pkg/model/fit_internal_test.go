@@ -167,19 +167,19 @@ func TestHeaderKeepsTheClusterCost(t *testing.T) {
 	u.SetView(v)
 	out := u.View()
 	header := out[:strings.Index(out, "╰")]
-	if !strings.Contains(header, "Cost:") || !strings.Contains(header, "$0.997/hour |") {
-		t.Errorf("cluster cost not in the header under a filter:\n%s", header)
+	if !strings.Contains(header, "3 of 10 shown · 45 pods · $728.102/month (+1 reserved, not priced) (global cluster)") {
+		t.Errorf("cluster cost not after the counts under a filter:\n%s", header)
 	}
 	if !strings.Contains(out, "$0.118/hour") {
 		t.Error("the summary lost the filtered cost")
 	}
 	u.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
-	if compact := u.View(); !strings.Contains(compact[:strings.Index(compact, "╰")], "$0.997/hour") {
+	if compact := u.View(); !strings.Contains(compact[:strings.Index(compact, "╰")], "(global cluster)") {
 		t.Errorf("compact header without the cluster cost:\n%s", compact)
 	}
 	u.DisablePricing = true
 	u.dirty = true
-	if strings.Contains(u.View(), "Cost:") {
+	if strings.Contains(u.View(), "global cluster") {
 		t.Error("cost shown with pricing disabled")
 	}
 }

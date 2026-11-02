@@ -275,8 +275,9 @@ folded groups SHALL be saved with the view.
 > on screen: with filters or a search, usage and cost are those of the nodes
 > kept, marked `(filtered: N of M nodes)`; the owner wanted the cost of what
 > the filters show, not the cluster's.
-> The header keeps the whole cluster's cost (`Cost:` in the full panel, the
-> hourly figure in the compact and one-line headers), so both are in view.
+> The header keeps the whole cluster's monthly cost after the node and pod
+> counts (`4 of 10 shown · 89 pods · $728.102/month (global cluster)`), in
+> every header size, so both are in view.
 
 ## Counter-examples
 
