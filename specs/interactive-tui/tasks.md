@@ -72,9 +72,12 @@ core.
 
 | Task | Promotion trigger |
 |------|-------------------|
-| Saved named views (`v`) | owner asks after using stage 1 |
+| ~~Saved named views (`v`)~~ | promoted 2026-11-02 to `specs/views-and-export/` |
 | Typed filter syntax in `/` (`cap:spot pool:gpu`) | panels feel slow for frequent filters |
-| Negation / OR across fields in filters | a real query the panels can't express |
+| Negation in filters (OR across fields stays deferred) | promoted 2026-11-02 to `specs/views-and-export/` |
+| Idle cost per node and group: `price × (1 − usage)`, in a column, group subtotals and the summary | owner asks (noted 2026-11-02 as a future item) |
+| Sort and filter by idle cost | with idle cost |
+| Node details popup on `enter` over a node: labels, taints, conditions, allocatable (no pods) | owner asks (noted 2026-11-02 as a future item) |
 | GKE/AKS node pool labels; nodes with empty `providerID` | stage 2 (multi-cloud) |
 | GPU resource and columns | stage 3 roadmap |
 
