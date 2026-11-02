@@ -31,7 +31,16 @@
 
 | Task | Promotion trigger |
 |------|-------------------|
-| Homebrew tap via goreleaser `brews:` | a `staffops/tap` repository exists |
+| ~~Homebrew tap via goreleaser `brews:`~~ | done 2026-11-02, see below |
 | Drop `eks-node-viewer/*` prefix fallback | a major release, and no known user carries the old names |
 | `golangci-lint run` in `scripts/verify.sh` | `golangci-lint` is installed locally and in CI |
 | Scheduled price-table refresh PR | stale prices are reported |
+
+> **Promoted 2026-11-02.** The owner asked for `brew install`. Releases now
+> publish a Homebrew cask (`homebrew_casks`, the successor of `brews` in
+> goreleaser 2.10+) to `StaffOps/homebrew-tap` with the
+> `HOMEBREW_TAP_GITHUB_TOKEN` secret, and archives are `tar.gz` (`zip` on
+> Windows) because a cask installs from an archive. The cask clears the macOS
+> quarantine attribute, as the binary is not notarised. Without the secret the
+> cask step is skipped and the release still succeeds. Verified by a snapshot
+> build installed from a temporary local tap with Homebrew 7.0.11.

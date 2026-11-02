@@ -198,13 +198,32 @@ func TestComputeLabelPrefixes(t *testing.T) {
 	n.Status.Allocatable = v1.ResourceList{v1.ResourceCPU: resource.MustParse("4")}
 	node := model.NewNode(n)
 	for _, name := range []string{"node-age", "node-cpu-usage"} {
-		legacy := node.ComputeLabel(model.LegacyLabelPrefix + name)
-		current := node.ComputeLabel(model.LabelPrefix + name)
-		if legacy == "-" || legacy != current {
-			t.Errorf("%s: legacy %q, new %q; want equal and computed", name, legacy, current)
+		if got := node.ComputeLabel(model.LabelPrefix + name); got == "-" {
+			t.Errorf("%s not computed", name)
+		}
+		if got := node.ComputeLabel("eks-node-viewer/" + name); got != "-" {
+			t.Errorf("another prefix computed %s: %q", name, got)
 		}
 	}
-	if got := node.ComputeLabel("other/node-age"); got != "-" {
-		t.Errorf("unknown prefix computed %q, want -", got)
+}
+
+// TestNodePriceConcurrent fails under -race if the price is read and written
+// without the node lock, as the pricing goroutine and the view do.
+func TestNodePriceConcurrent(t *testing.T) {
+	node := model.NewNode(testNode("mynode"))
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 1000; i++ {
+			node.SetPrice(float64(i))
+		}
+	}()
+	for i := 0; i < 1000; i++ {
+		_ = node.HasPrice()
+		_ = node.Price()
+	}
+	<-done
+	if got := node.Price(); got != 999 {
+		t.Errorf("price = %v, want 999", got)
 	}
 }

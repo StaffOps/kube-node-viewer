@@ -30,7 +30,7 @@ data, `cmd/*/flag.go` for flags). Then ask only the gaps:
 - Does it add a flag? Then: name, default, config-file key (flag > config file;
   an env var only if there is a standard one, like `KUBECONFIG`), and whether `-h` text changes.
 - What must not change (invariants: requests not usage, existing flags,
-  `eks-node-viewer/*` label compatibility).
+  the `kube-node-viewer/` label prefix).
 
 Mark anything unanswered `[TO CONFIRM]`; never invent numbers (`unmeasured`).
 

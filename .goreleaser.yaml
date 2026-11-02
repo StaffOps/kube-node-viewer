@@ -33,7 +33,33 @@ archives:
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
-    formats: [binary]
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+# Homebrew cask in StaffOps/homebrew-tap: brew install staffops/tap/kube-node-viewer
+# Skipped until the HOMEBREW_TAP_GITHUB_TOKEN secret exists, so a release
+# never fails for want of it.
+homebrew_casks:
+  - name: kube-node-viewer
+    repository:
+      owner: StaffOps
+      name: homebrew-tap
+      token: '{{ envOrDefault "HOMEBREW_TAP_GITHUB_TOKEN" "" }}'
+    directory: Casks
+    homepage: https://github.com/StaffOps/kube-node-viewer
+    description: Terminal UI for Kubernetes node usage and cost
+    license: Apache-2.0
+    skip_upload: '{{ if isEnvSet "HOMEBREW_TAP_GITHUB_TOKEN" }}false{{ else }}true{{ end }}'
+    hooks:
+      post:
+        # the binary is not notarised by Apple; without this Gatekeeper
+        # blocks its first run
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/kube-node-viewer"]
+          end
 
 release:
   prerelease: auto

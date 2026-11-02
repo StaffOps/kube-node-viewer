@@ -37,7 +37,7 @@ func groupTestNode(name, nodepool, cpu string, price float64) *model.Node {
 		v1.ResourcePods: resource.MustParse("110"),
 	}
 	node := model.NewNode(n)
-	node.Price = price
+	node.SetPrice(price)
 	node.Show()
 	return node
 }

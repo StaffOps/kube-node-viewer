@@ -19,7 +19,6 @@ import (
 	"context"
 	"math"
 	"strconv"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,16 +35,21 @@ import (
 
 type Controller struct {
 	kubeClient      *kubernetes.Clientset
-	uiModel         *model.UIModel
+	cluster         *model.Cluster
 	pricing         pricing.Provider
 	nodeSelector    labels.Selector
 	nodeClaimClient *rest.RESTClient
+	// notifier, when set, hears about every change to the cluster or prices
+	notifier *Notifier
 }
 
-func NewController(kubeClient *kubernetes.Clientset, nodeClaimClient *rest.RESTClient, uiModel *model.UIModel, nodeSelector labels.Selector, pricing pricing.Provider) *Controller {
+// NewController watches one cluster into its own store. A context switch
+// builds a new controller and store, so late events from the old watches can
+// only reach the old store.
+func NewController(kubeClient *kubernetes.Clientset, nodeClaimClient *rest.RESTClient, cluster *model.Cluster, nodeSelector labels.Selector, pricing pricing.Provider) *Controller {
 	c := &Controller{
 		kubeClient:      kubeClient,
-		uiModel:         uiModel,
+		cluster:         cluster,
 		pricing:         pricing,
 		nodeSelector:    nodeSelector,
 		nodeClaimClient: nodeClaimClient,
@@ -54,8 +58,13 @@ func NewController(kubeClient *kubernetes.Clientset, nodeClaimClient *rest.RESTC
 	return c
 }
 
-func (m Controller) Start(ctx context.Context) {
-	cluster := m.uiModel.Cluster()
+// SetNotifier makes the controller report changes to n. Set it before Start.
+func (m *Controller) SetNotifier(n *Notifier) {
+	m.notifier = n
+}
+
+func (m *Controller) Start(ctx context.Context) {
+	cluster := m.cluster
 
 	m.startPodWatch(ctx, cluster)
 	m.startNodeWatch(ctx, cluster)
@@ -66,17 +75,18 @@ func (m Controller) Start(ctx context.Context) {
 	}
 }
 
-func (m Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Cluster) {
+func (m *Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Cluster) {
 	nodeClaimWatchList := cache.NewFilteredListWatchFromClient(m.nodeClaimClient, "nodeclaims",
 		v1.NamespaceAll, func(options *metav1.ListOptions) {
 			options.LabelSelector = m.nodeSelector.String()
 		})
-	_, nodeClaimController := cache.NewInformer(
-		nodeClaimWatchList,
-		&karpv1.NodeClaim{},
-		time.Second*0,
-		cache.ResourceEventHandlerFuncs{
+	_, nodeClaimController := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: nodeClaimWatchList,
+		ObjectType:    &karpv1.NodeClaim{},
+		Transform:     slimNodeClaim,
+		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				nc := obj.(*karpv1.NodeClaim)
 				if nc.Status.ProviderID == "" {
 					return
@@ -90,9 +100,11 @@ func (m Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clus
 				n.Show()
 			},
 			DeleteFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				cluster.DeleteNode(ignoreDeletedFinalStateUnknown(obj).(*karpv1.NodeClaim).Status.ProviderID)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
+				defer m.notifier.Changed()
 				nc := newObj.(*karpv1.NodeClaim)
 				if nc.Status.ProviderID == "" {
 					return
@@ -106,21 +118,22 @@ func (m Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clus
 				n.Show()
 			},
 		},
-	)
+	})
 	go nodeClaimController.Run(ctx.Done())
 }
 
-func (m Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) {
+func (m *Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) {
 	nodeWatchList := cache.NewFilteredListWatchFromClient(m.kubeClient.CoreV1().RESTClient(), "nodes",
 		v1.NamespaceAll, func(options *metav1.ListOptions) {
 			options.LabelSelector = m.nodeSelector.String()
 		})
-	_, nodeController := cache.NewInformer(
-		nodeWatchList,
-		&v1.Node{},
-		time.Second*0,
-		cache.ResourceEventHandlerFuncs{
+	_, nodeController := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: nodeWatchList,
+		ObjectType:    &v1.Node{},
+		Transform:     slimNode,
+		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				node := model.NewNode(obj.(*v1.Node))
 				if node.ProviderID() == "" {
 					return
@@ -130,36 +143,38 @@ func (m Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) 
 				n.Show()
 			},
 			DeleteFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				cluster.DeleteNode(ignoreDeletedFinalStateUnknown(obj).(*v1.Node).Spec.ProviderID)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
+				defer m.notifier.Changed()
 				n := newObj.(*v1.Node)
 				if !n.DeletionTimestamp.IsZero() && len(n.Finalizers) == 0 {
 					cluster.DeleteNode(n.Spec.ProviderID)
 				} else {
-					node, ok := cluster.GetNode(n.Spec.ProviderID)
+					node, ok := cluster.UpdateNode(n)
 					if ok {
-						node.Update(n)
 						m.updatePrice(node)
 						node.Show()
 					}
 				}
 			},
 		},
-	)
+	})
 	go nodeController.Run(ctx.Done())
 }
 
-func (m Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
+func (m *Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
 	podWatchList := cache.NewListWatchFromClient(m.kubeClient.CoreV1().RESTClient(), "pods",
 		v1.NamespaceAll, fields.Everything())
 
-	_, podController := cache.NewInformer(
-		podWatchList,
-		&v1.Pod{},
-		time.Second*0,
-		cache.ResourceEventHandlerFuncs{
+	_, podController := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: podWatchList,
+		ObjectType:    &v1.Pod{},
+		Transform:     SlimPod,
+		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				p := obj.(*v1.Pod)
 				if !isTerminalPod(p) {
 					cluster.AddPod(model.NewPod(p))
@@ -171,34 +186,30 @@ func (m Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
+				defer m.notifier.Changed()
 				p := ignoreDeletedFinalStateUnknown(obj).(*v1.Pod)
 				cluster.DeletePod(p.Namespace, p.Name)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
+				defer m.notifier.Changed()
 				p := newObj.(*v1.Pod)
 				if isTerminalPod(p) {
 					cluster.DeletePod(p.Namespace, p.Name)
 				} else {
-					pod, ok := cluster.GetPod(p.Namespace, p.Name)
-					if !ok {
-						cluster.AddPod(model.NewPod(p))
-					} else {
-						pod.Update(p)
-						cluster.AddPod(pod)
-					}
+					cluster.AddPod(model.NewPod(p))
 				}
 			},
 		},
-	)
+	})
 	go podController.Run(ctx.Done())
 }
 
-func (m Controller) updatePrice(node *model.Node) {
+func (m *Controller) updatePrice(node *model.Node) {
 	// If the node has the instance-price override label, don't look up pricing
 	// and use the value here. The new prefix wins over the upstream one, and a
 	// value that doesn't parse falls through to the next source.
 	labels := node.Labels()
-	for _, key := range []string{model.LabelPrefix + "instance-price", model.LegacyLabelPrefix + "instance-price"} {
+	for _, key := range []string{model.LabelPrefix + "instance-price"} {
 		if val, ok := labels[key]; ok {
 			if price, err := strconv.ParseFloat(val, 64); err == nil {
 				node.SetPrice(price)
@@ -207,17 +218,22 @@ func (m Controller) updatePrice(node *model.Node) {
 		}
 	}
 	// lookup our n price
-	node.Price = math.NaN()
+	node.SetPrice(math.NaN())
 	if price, ok := m.pricing.NodePrice(node); ok {
-		node.SetPrice(price)
+		if node.CapacityType() == model.CapacityReserved {
+			node.SetEquivalentPrice(price)
+		} else {
+			node.SetPrice(price)
+		}
 	}
 
 }
 
-func (m Controller) RefreshNodePrices() {
-	m.uiModel.Cluster().ForEachNode(func(n *model.Node) {
+func (m *Controller) RefreshNodePrices() {
+	m.cluster.ForEachNode(func(n *model.Node) {
 		m.updatePrice(n)
 	})
+	m.notifier.Changed()
 }
 
 // isTerminalPod returns true if the pod is deleting or in a terminal state

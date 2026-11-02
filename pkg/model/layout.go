@@ -1,0 +1,708 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package model
+
+import (
+	"fmt"
+	"math"
+	"strings"
+	"time"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"k8s.io/apimachinery/pkg/util/duration"
+)
+
+var (
+	titleStyle = lipgloss.NewStyle().Bold(true).Render
+	// column titles of the node list
+	columnTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#875f00", Dark: "#ffd75f"}).Render
+	// capacity types that change what a node costs
+	spotStyle     = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#d75f00", Dark: "#ffaf5f"}).Render
+	reservedStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#af00af", Dark: "#d787d7"}).Render
+	fargateStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005fd7", Dark: "#87afff"}).Render
+	groupStyle    = lipgloss.NewStyle().Bold(true).Render
+	// group headings: the top level stands out, sub-levels hang off it
+	topGroupStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#005f87", Dark: "#87d7ff"}).Render
+	subGroupStyle = lipgloss.NewStyle().Bold(true).Render
+	treeStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
+	// managedNodeGroupStyle tells EKS managed node groups from Karpenter
+	// NodePools in the node group column
+	managedNodeGroupStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0087af", Dark: "#5fafff"}).Render
+)
+
+// A node's usage bar, percentage included, is at least nodeBarWidth wide and
+// grows into width the columns leave free, up to maxNodeBarWidth. Columns are
+// dropped before the bar shrinks.
+const (
+	nodeBarWidth    = 36
+	maxNodeBarWidth = 60
+)
+
+// pathSeparator joins group-by values in group headings.
+const pathSeparator = " › "
+
+// contentMargin indents everything below the header box to line up with the
+// text inside it (border plus padding).
+const contentMargin = 2
+
+// render draws the whole screen: header, cluster summary, one page of the
+// node list with the open panel floating over it, then the footer.
+func (u *UIModel) render() string {
+	stats := u.stats
+	nodes := u.view.Select(stats.Nodes)
+	header := u.fit(u.header(stats, nodes))
+
+	// below the box, lay out for the width left after the margin
+	full := u.width
+	if full > 0 {
+		u.width = max(full-contentMargin, 1)
+	}
+	content := u.renderContent(stats, nodes, strings.Count(header, "\n"))
+	u.width = full
+
+	margin := strings.Repeat(" ", contentMargin)
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if line != "" {
+			lines[i] = margin + line
+		}
+	}
+	return header + strings.Join(lines, "\n")
+}
+
+// renderContent is everything below the header, headerLines tall.
+func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) string {
+	var b strings.Builder
+	b.WriteString(u.fit(u.clusterSummary(stats)))
+	b.WriteString("\n")
+
+	// what is left between the summary and the two footer lines
+	avail := math.MaxInt
+	if u.height > 0 {
+		avail = max(u.height-headerLines-strings.Count(b.String(), "\n")-2, 3)
+	}
+
+	var body []string
+	status := ""
+	switch {
+	case stats.NumNodes == 0:
+		body = []string{"Waiting for update or no nodes found..."}
+	case len(nodes) == 0:
+		body = []string{"No nodes match the filters or search."}
+	default:
+		var pageCount, hidden int
+		body, pageCount, hidden = u.currentPage(nodes, avail)
+		u.paginator.PerPage = 1
+		u.paginator.SetTotalPages(pageCount)
+		u.paginator.Page = u.page
+		if pageCount > 1 {
+			status = u.paginator.View()
+		}
+		if hidden > 0 {
+			status += helpStyle(fmt.Sprintf("  %d columns hidden, widen the window", hidden))
+		}
+	}
+	if len(body) > avail {
+		body = body[:avail]
+	}
+	for i := range body {
+		body[i] = u.fit(body[i])
+	}
+	if p, ok := u.panelView(); ok {
+		// the panel floats over the node list, which stays in view around it
+		body = u.overlay(body, u.popup(p, avail), avail)
+	}
+	if u.searching {
+		status = "/" + u.view.Search + "█"
+	}
+	for _, line := range body {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	b.WriteString(u.fit(status))
+	b.WriteString("\n")
+	if u.panel == panelNone {
+		// an open panel shows its keys inside its box
+		b.WriteString(u.fit(helpStyle(u.helpText())))
+	}
+	return b.String()
+}
+
+// fit cuts every line of s to the window width. A line wider than the window
+// wraps, the frame grows taller than the window and the terminal scrolls,
+// leaving old lines behind.
+func (u *UIModel) fit(s string) string {
+	if u.width <= 0 {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		if textWidth(line) > u.width {
+			lines[i] = ansi.Truncate(line, u.width, "…")
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (u *UIModel) helpText() string {
+	if u.searching {
+		return "type to search • enter: keep • esc: clear"
+	}
+	switch u.panel {
+	case panelHelp:
+		return "esc: close"
+	case panelFilters:
+		return u.filters.hint()
+	case panelGroupBy:
+		return u.group.hint()
+	case panelSort:
+		return u.sort.hint()
+	case panelColumns:
+		return u.columns.hint()
+	case panelContexts:
+		return u.contexts.hint()
+	}
+	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context"
+	if len(u.view.GroupBy) > 0 {
+		keys += " • n: fold"
+	}
+	if u.canShowDetails() {
+		keys += " • d: details"
+	}
+	return keys + " • ?: help • q: quit"
+}
+
+// block is lines that stay together on a page: a group heading or a node's
+// lines. path is the group the block belongs to, or is, so a page that starts
+// inside a group can repeat it (R14).
+type block struct {
+	path    []string
+	heading bool
+	lines   []string
+	// node is set for a node's block, whose lines are built only when its
+	// page is shown
+	node  *Node
+	count int
+	// gap is a blank line kept before the node when it follows another node,
+	// so stacked resource lines read as one node each
+	gap int
+}
+
+func (b block) height() int {
+	if b.node != nil {
+		return b.count + b.gap
+	}
+	return len(b.lines)
+}
+
+// currentPage lays the selected nodes out under their groups, cuts them into pages
+// of at most height lines and returns the lines of the current page, the
+// page count and how many columns did not fit the width.
+func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCount, hiddenColumns int) {
+	var table *nodeTable
+	var top []string
+	if u.view.ShowNodes {
+		indent := 0
+		if len(u.view.GroupBy) > 0 {
+			indent = 2 * len(u.view.GroupBy)
+		}
+		table = u.newNodeTable(nodes, indent)
+		top = []string{table.title}
+		hiddenColumns = table.hidden
+	}
+
+	var blocks []block
+	groups := u.view.Groups(nodes)
+	gap := 0
+	if len(u.cluster.resources) > 1 {
+		gap = 1
+	}
+	// with the node list hidden the groups carry their own usage bars
+	// Folded, the deepest level shown carries the usage bars and the levels
+	// above it are one-line summaries. With details on (d), the level below
+	// the barred one follows as one-line rows.
+	depth := u.view.VisibleDepth()
+	shownDepth := depth
+	if u.canShowDetails() && u.view.Details {
+		shownDepth = depth + 1
+	}
+	tree := treeOf(groups, shownDepth)
+	var barred map[*Group][]string
+	if table == nil {
+		barred = u.groupTable(groups, tree, depth)
+	}
+	// one-line headings line up their name, node and pod columns
+	var cols groupLineWidths
+	for g := range tree {
+		if _, ok := barred[g]; !ok {
+			cols.fit(u, g, tree[g])
+		}
+	}
+	var walk func(groups []*Group)
+	walk = func(groups []*Group) {
+		for _, g := range groups {
+			var lines []string
+			if tree[g].spaced {
+				lines = append(lines, "")
+			}
+			if _, shown := tree[g]; !shown {
+				continue
+			}
+			if bars, ok := barred[g]; ok {
+				lines = bars
+			} else {
+				lines = append(lines, u.groupLine(g, tree[g], cols))
+			}
+			blocks = append(blocks, block{path: g.Path, heading: true, lines: lines})
+			walk(g.Groups)
+			if table != nil {
+				for _, n := range g.Nodes {
+					blocks = append(blocks, block{path: g.Path, node: n, count: len(u.cluster.resources), gap: gap})
+				}
+			}
+		}
+	}
+	if groups != nil {
+		walk(groups)
+	} else {
+		for _, n := range nodes {
+			blocks = append(blocks, block{node: n, count: len(u.cluster.resources), gap: gap})
+		}
+	}
+	pages := paginate(blocks, top, height)
+	u.page = min(u.page, len(pages)-1)
+	afterNode := false
+	for _, b := range pages[u.page] {
+		if b.node != nil {
+			if afterNode && b.gap > 0 {
+				lines = append(lines, "")
+			}
+			lines = append(lines, table.render(b.node)...)
+		} else {
+			lines = append(lines, b.lines...)
+		}
+		afterNode = b.node != nil
+	}
+	return lines, len(pages), hiddenColumns
+}
+
+// paginate fills pages with whole blocks, each page starting with the top
+// lines. A page that starts inside a group first repeats the group's path.
+func paginate(blocks []block, top []string, height int) [][]block {
+	var pages [][]block
+	topBlock := block{lines: top}
+	page, used := []block{topBlock}, len(top)
+	started := false
+	for i, b := range blocks {
+		need := b.height()
+		if b.heading && i+1 < len(blocks) {
+			// a heading never ends a page apart from what it heads
+			need += blocks[i+1].height()
+		}
+		if started && used+need > height {
+			pages = append(pages, page)
+			page, used = []block{topBlock}, len(top)
+			path := b.path
+			if b.heading {
+				path = path[:len(path)-1]
+			}
+			if len(path) > 0 {
+				page = append(page, block{lines: []string{groupStyle(strings.Join(path, pathSeparator)) + helpStyle(" (cont.)")}})
+				used++
+			}
+		}
+		page = append(page, b)
+		used += b.height()
+		started = true
+	}
+	return append(pages, page)
+}
+
+// groupLine is a group heading with its subtotals (R4).
+// groupLineWidths are the column widths shared by one-line group headings.
+type groupLineWidths struct {
+	name, nodes, pods int
+}
+
+func (w *groupLineWidths) fit(u *UIModel, g *Group, t groupTree) {
+	w.name = max(w.name, textWidth(t.branch)+textWidth(g.Name()))
+	w.nodes = max(w.nodes, len(u.printer.Sprintf("%d nodes", g.Stats.NumNodes)))
+	w.pods = max(w.pods, len(u.printer.Sprintf("%d pods", g.Stats.NumPods)))
+}
+
+func (u *UIModel) groupLine(g *Group, t groupTree, w groupLineWidths) string {
+	s := g.Stats
+	var b strings.Builder
+	b.WriteString(pad(treeStyle(t.branch)+groupName(g), w.name))
+	b.WriteString("  " + pad(u.printer.Sprintf("%d nodes", s.NumNodes), w.nodes))
+	b.WriteString("  " + pad(u.printer.Sprintf("%d pods", s.NumPods), w.pods))
+	for _, res := range u.cluster.resources {
+		pct := s.PercentUsed(res)
+		fmt.Fprintf(&b, "  %s %s", res, u.colorizeUsage(pct, fmt.Sprintf("%0.0f%%", pct)))
+	}
+	if !u.DisablePricing {
+		if s.PricedNodes > 0 {
+			price := u.printer.Sprintf("$%0.3f/hour | $%0.3f/month", s.TotalPrice, s.TotalPrice*avgHoursPerMonth)
+			if !s.FullyPriced() {
+				// an unknown price somewhere, so this is a lower bound
+				price = ">= " + price
+			}
+			b.WriteString("  " + price)
+		}
+		if s.ReservedNodes > 0 {
+			u.printer.Fprintf(&b, " (+%d reserved, not priced)", s.ReservedNodes)
+		}
+	}
+	return b.String()
+}
+
+// groupTree is how a group heading hangs in the tree: the connector before
+// its name, what continues below it on its own extra lines, and whether a
+// blank line sets it apart (top-level groups after the first).
+type groupTree struct {
+	branch, below string
+	spaced        bool
+}
+
+// treeOf lays out the group hierarchy: top-level groups by name, sub-groups
+// under them with ├─ / └─ connectors, so each heading shows only its own
+// value.
+// Groups deeper than depth are left out; 0 keeps every level.
+func treeOf(groups []*Group, depth int) map[*Group]groupTree {
+	out := map[*Group]groupTree{}
+	var walk func(gs []*Group, prefix string, top bool)
+	walk = func(gs []*Group, prefix string, top bool) {
+		for i, g := range gs {
+			last := i == len(gs)-1
+			t := groupTree{spaced: top && i > 0}
+			childPrefix := ""
+			if !top {
+				connector, rest := "├─ ", "│  "
+				if last {
+					connector, rest = "└─ ", "   "
+				}
+				t.branch = prefix + connector
+				childPrefix = prefix + rest
+			}
+			shown := depth == 0 || len(g.Path) < depth
+			t.below = childPrefix
+			if len(g.Groups) > 0 && shown {
+				t.below += "│"
+			}
+			out[g] = t
+			if shown {
+				walk(g.Groups, childPrefix, false)
+			}
+		}
+	}
+	walk(groups, "", true)
+	return out
+}
+
+// groupName is the heading's own value, styled by level.
+func groupName(g *Group) string {
+	if len(g.Path) == 1 {
+		return topGroupStyle(g.Name())
+	}
+	return subGroupStyle(g.Name())
+}
+
+// groupTable lays out every group, nested ones included, for the collapsed
+// view: name, node and pod counts, then a usage bar per resource, one line
+// each, and the cost on the first line. Columns line up across all groups.
+func (u *UIModel) groupTable(groups []*Group, tree map[*Group]groupTree, depth int) map[*Group][]string {
+	// only the groups at the barred level; the levels around them are one line
+	var all []*Group
+	var collect func([]*Group)
+	collect = func(gs []*Group) {
+		for _, g := range gs {
+			if len(g.Path) == depth {
+				all = append(all, g)
+			} else if len(g.Path) < depth {
+				collect(g.Groups)
+			}
+		}
+	}
+	collect(groups)
+
+	type groupRow struct {
+		name, nodes, pods, price string
+	}
+	rows := make(map[*Group]groupRow, len(all))
+	nameW, nodesW, podsW, resW := 0, 0, 0, 0
+	for _, res := range u.cluster.resources {
+		resW = max(resW, len(res))
+	}
+	for _, g := range all {
+		s := g.Stats
+		r := groupRow{
+			name:  treeStyle(tree[g].branch) + groupName(g),
+			nodes: u.printer.Sprintf("%d nodes", s.NumNodes),
+			pods:  u.printer.Sprintf("%d pods", s.NumPods),
+		}
+		if !u.DisablePricing {
+			if s.PricedNodes > 0 {
+				r.price = u.printer.Sprintf("$%0.3f/hour | $%0.3f/month", s.TotalPrice, s.TotalPrice*avgHoursPerMonth)
+				if !s.FullyPriced() {
+					r.price = ">= " + r.price
+				}
+			}
+			if s.ReservedNodes > 0 {
+				r.price += u.printer.Sprintf(" (+%d reserved, not priced)", s.ReservedNodes)
+			}
+		}
+		nameW = max(nameW, textWidth(r.name))
+		nodesW = max(nodesW, len(r.nodes))
+		podsW = max(podsW, len(r.pods))
+		rows[g] = r
+	}
+
+	barW := nodeBarWidth
+	if u.width > 0 {
+		priceW := 0
+		for _, r := range rows {
+			priceW = max(priceW, textWidth(r.price))
+		}
+		spare := u.width - (nameW + 2 + nodesW + 2 + podsW + 2 + resW + 1) - 2 - priceW
+		barW = min(max(spare, nodeBarWidth), maxNodeBarWidth)
+	}
+	out := make(map[*Group][]string, len(all))
+	for _, g := range all {
+		r := rows[g]
+		var lines []string
+		if tree[g].spaced {
+			lines = append(lines, "")
+		}
+		for i, res := range u.cluster.resources {
+			bar := pad(u.usageBar(g.Stats.PercentUsed(res)/100, barW), barW)
+			if i == 0 {
+				line := pad(r.name, nameW) + "  " + pad(r.nodes, nodesW) + "  " + pad(r.pods, podsW) + "  " + pad(string(res), resW) + " " + bar
+				if r.price != "" {
+					line += "  " + r.price
+				}
+				lines = append(lines, line)
+			} else {
+				lines = append(lines, pad(treeStyle(tree[g].below), nameW+2+nodesW+2+podsW+2)+pad(string(res), resW)+" "+bar)
+			}
+		}
+		out[g] = lines
+	}
+	return out
+}
+
+// nodeTable is the node list laid out in aligned columns: name, a bar per
+// resource, pods, then the view's columns that fit the width. Widths come from
+// every selected node so columns don't shift between pages; lines are built
+// only for the nodes shown.
+type nodeTable struct {
+	u      *UIModel
+	title  string
+	rows   map[*Node]*tableRow
+	shown  []Field
+	hidden int
+	indent string
+	nameW  int
+	resW   int
+	barW   int
+	podsW  int
+	colW   map[Field]int
+}
+
+type tableRow struct {
+	name, pods string
+	// fills are the usage of each resource, drawn as bars per page
+	fills []float64
+	cells map[Field]string
+}
+
+func columnTitle(f Field) string {
+	switch f {
+	case FieldInstanceType:
+		return "INSTANCE"
+	case FieldPrice:
+		return "PRICE/H"
+	}
+	if key := f.Label(); key != "" {
+		return strings.ToUpper(key[strings.LastIndex(key, "/")+1:])
+	}
+	return strings.ToUpper(string(f))
+}
+
+// textWidth is the screen width of s: its length for plain ASCII, as most
+// cells are, else what lipgloss measures.
+func textWidth(s string) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 || s[i] == 0x1b {
+			return lipgloss.Width(s)
+		}
+	}
+	return len(s)
+}
+
+func pad(s string, w int) string {
+	if gap := w - textWidth(s); gap > 0 {
+		return s + strings.Repeat(" ", gap)
+	}
+	return s
+}
+
+func (u *UIModel) newNodeTable(nodes []*Node, indent int) *nodeTable {
+	now := time.Now()
+	columns := make([]Field, 0, len(u.view.Columns))
+	for _, c := range u.view.Columns {
+		if c == FieldPrice && u.DisablePricing {
+			continue
+		}
+		columns = append(columns, c)
+	}
+
+	t := &nodeTable{
+		u:      u,
+		rows:   make(map[*Node]*tableRow, len(nodes)),
+		indent: strings.Repeat(" ", indent),
+		nameW:  len("NAME"),
+		podsW:  len("PODS"),
+		colW:   map[Field]int{},
+	}
+	for _, c := range columns {
+		t.colW[c] = textWidth(columnTitle(c))
+	}
+	for _, res := range u.cluster.resources {
+		t.resW = max(t.resW, len(res))
+	}
+
+	for _, n := range nodes {
+		allocatable, used := n.Allocatable(), n.Used()
+		maxPods, _ := allocatable.Pods().AsInt64()
+		r := &tableRow{name: n.Name(), pods: fmt.Sprintf("%d/%d", n.NumPods(), maxPods), cells: make(map[Field]string, len(columns))}
+		for _, res := range u.cluster.resources {
+			pct := 0.0
+			a, used := allocatable[res], used[res]
+			if a.AsApproximateFloat64() != 0 {
+				pct = used.AsApproximateFloat64() / a.AsApproximateFloat64()
+			}
+			r.fills = append(r.fills, pct)
+		}
+		for _, c := range columns {
+			cell := u.cell(n, c, now)
+			r.cells[c] = cell
+			t.colW[c] = max(t.colW[c], textWidth(cell))
+		}
+		t.nameW = max(t.nameW, textWidth(r.name))
+		t.podsW = max(t.podsW, len(r.pods))
+		t.rows[n] = r
+	}
+	t.barW = nodeBarWidth
+	fixed := indent + t.nameW + 1 + t.resW + 1 + t.barW + 1 + t.podsW
+	t.shown, t.hidden = columns, 0
+	if u.width > 0 {
+		t.shown, t.hidden = FitColumns(columns, u.width-fixed, func(f Field) int { return t.colW[f] + 2 })
+		spare := u.width - fixed
+		for _, c := range t.shown {
+			spare -= t.colW[c] + 2
+		}
+		t.barW += min(max(spare, 0), maxNodeBarWidth-nodeBarWidth)
+	}
+
+	titles := make(map[Field]string, len(t.shown))
+	for _, c := range t.shown {
+		titles[c] = columnTitle(c)
+	}
+	t.title = columnTitleStyle(t.indent + pad("NAME", t.nameW) + " " + pad("", t.resW) + " " + pad("", t.barW) + " " + pad("PODS", t.podsW) + t.tail(titles))
+	return t
+}
+
+func (t *nodeTable) tail(cells map[Field]string) string {
+	var b strings.Builder
+	for _, c := range t.shown {
+		b.WriteString("  ")
+		b.WriteString(pad(cells[c], t.colW[c]))
+	}
+	return strings.TrimRight(b.String(), " ")
+}
+
+// render is the node's lines: one per resource, the first with its columns.
+func (t *nodeTable) render(n *Node) []string {
+	u, r := t.u, t.rows[n]
+
+	lines := make([]string, 0, len(r.fills))
+	for j, res := range u.cluster.resources {
+		bar := pad(u.usageBar(r.fills[j], t.barW), t.barW)
+		if j == 0 {
+			lines = append(lines, t.indent+pad(r.name, t.nameW)+" "+pad(string(res), t.resW)+" "+bar+" "+pad(r.pods, t.podsW)+t.tail(r.cells))
+		} else {
+			lines = append(lines, strings.TrimRight(t.indent+pad("", t.nameW)+" "+pad(string(res), t.resW)+" "+bar, " "))
+		}
+	}
+	return lines
+}
+
+// cell is the node's value in a column.
+func (u *UIModel) cell(n *Node, f Field, now time.Time) string {
+	switch f {
+	case FieldPrice:
+		switch {
+		case !n.HasPrice():
+			return "-"
+		case n.PriceIsEquivalent():
+			// not what the node costs, see R8
+			return fmt.Sprintf("~$%0.4f", n.Price())
+		default:
+			return fmt.Sprintf("$%0.4f", n.Price())
+		}
+	case FieldStatus:
+		flags := n.StatusFlags()
+		for i, f := range flags {
+			switch f {
+			case StatusReady:
+				flags[i] = u.style.green(f)
+			case StatusNotReady:
+				flags[i] = u.style.red(f + "/" + duration.HumanDuration(now.Sub(n.NotReadyTime())))
+			case StatusDeleting:
+				flags[i] = u.style.red(f)
+			default: // Cordoned, Launching
+				flags[i] = u.style.yellow(f)
+			}
+		}
+		return strings.Join(flags, "/")
+	case FieldAge:
+		return duration.HumanDuration(now.Sub(n.Created()))
+	case FieldNodeGroup:
+		if n.IsManagedNodeGroup() {
+			return managedNodeGroupStyle(n.NodeGroup())
+		}
+		return n.NodeGroup()
+	case FieldCapacity:
+		capacity := n.CapacityType()
+		c := string(capacity)
+		switch capacity {
+		case CapacitySpot:
+			c = spotStyle(c)
+		case CapacityReserved:
+			c = reservedStyle(c)
+		case CapacityFargate:
+			c = fargateStyle(c)
+		}
+		if n.LabelValue("eks.amazonaws.com/compute-type") == "auto" {
+			c += "/Auto"
+		}
+		return c
+	}
+	if v := f.Value(n); v != UngroupedValue {
+		return v
+	}
+	return "-"
+}

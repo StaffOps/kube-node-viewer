@@ -16,7 +16,6 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	_ "embed"
 	"errors"
 	"flag"
@@ -25,15 +24,13 @@ import (
 	"os"
 	"runtime/debug"
 	"strings"
+	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	tea "github.com/charmbracelet/bubbletea"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 
-	"github.com/staffops/kube-node-viewer/pkg/aws"
-	"github.com/staffops/kube-node-viewer/pkg/client"
 	"github.com/staffops/kube-node-viewer/pkg/model"
+	"github.com/staffops/kube-node-viewer/pkg/state"
 )
 
 //go:generate cp -r ../../ATTRIBUTION.md ./
@@ -64,54 +61,53 @@ func main() {
 		os.Exit(0)
 	}
 
-	cs, err := client.NewKubernetes(flags.Kubeconfig, flags.Context)
-	if err != nil {
-		log.Fatalf("creating client, %s", err)
-	}
-	nodeClaimClient, err := client.NewNodeClaims(flags.Kubeconfig, flags.Context)
-	if err != nil {
-		log.Fatalf("creating node claim client, %s", err)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-
-	pprov := aws.NewStaticPricingProvider()
 	style, err := model.ParseStyle(flags.Style)
 	if err != nil {
 		log.Fatalf("creating style, %s", err)
 	}
-	m := model.NewUIModel(strings.Split(flags.ExtraLabels, ","), flags.NodeSort, style)
-	m.DisablePricing = flags.DisablePricing
-	m.SetResources(strings.FieldsFunc(flags.Resources, func(r rune) bool { return r == ',' }))
-	if flags.GroupBy != "" {
-		groupBy, err := parseLabelFilter(flags.GroupBy)
-		if err != nil {
-			log.Fatalf("parsing group-by: %s", err)
-		}
-		m.SetGrouping(groupBy.label, flags.GroupsOnly)
-	}
-
-	nodeSelector, err := buildNodeSelector(flags.NodeSelector, flags.GroupBy)
+	nodeSelector, err := labels.Parse(flags.NodeSelector)
 	if err != nil {
-		log.Fatalf("%s", err)
+		log.Fatalf("parsing node selector: %s", err)
 	}
+	// a bad state file is reported here, before the TUI takes the screen
+	states := state.Load(state.DefaultPath(homeDir), os.Stderr)
+	saver := state.NewSaver(states, stateSaveDelay, func(error) {
+		// the TUI has the screen; a failed save only loses the last choice
+	})
+	defer saver.Close()
 
-	if !flags.DisablePricing {
-		// Use AWS SDK Go v2 for configuration
-		cfg, err := config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile(""))
-		if err != nil {
-			log.Fatalf("unable to load AWS SDK config: %s", err)
-		}
-		pprov = aws.NewPricingProvider(ctx, cfg)
+	m := model.NewUIModel(style)
+	m.DisablePricing = flags.DisablePricing
+	// The program exists before the watches start: Send blocks until it runs.
+	program := tea.NewProgram(m, tea.WithAltScreen())
+	conn := &sessions{
+		flags:        flags,
+		nodeSelector: nodeSelector,
+		states:       states,
+		saver:        saver,
+		program:      program,
+		explicit:     flags.Explicit,
 	}
-	controller := client.NewController(cs, nodeClaimClient, m, nodeSelector, pprov)
+	defer conn.Close()
+	first, err := conn.Switch(flags.Context)
+	if err != nil {
+		log.Fatalf("connecting: %s", err)
+	}
+	m.Connect(first)
+	m.SetSwitcher(conn)
 
-	controller.Start(ctx)
-
-	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+	if _, err := program.Run(); err != nil {
+		conn.Close()
+		saver.Close()
 		log.Fatalf("error running tea: %s", err)
 	}
-	cancel()
 }
+
+// stateSaveDelay batches view changes made in quick succession into one write.
+const stateSaveDelay = 500 * time.Millisecond
+
+// changeInterval is the most often cluster changes redraw the screen.
+const changeInterval = 100 * time.Millisecond
 
 // labelFilter is a --group-by value: 'label' or 'label=a,b,c'.
 type labelFilter struct {
@@ -131,31 +127,4 @@ func parseLabelFilter(s string) (labelFilter, error) {
 		}
 	}
 	return filter, nil
-}
-
-// buildNodeSelector combines --node-selector with the values listed in --group-by.
-// A --group-by without values only says how to aggregate and leaves the selection
-// alone, keeping nodes without the label visible in their own group.
-func buildNodeSelector(nodeSelector string, groupBy string) (labels.Selector, error) {
-	selector, err := labels.Parse(nodeSelector)
-	if err != nil {
-		return nil, fmt.Errorf("parsing node selector: %w", err)
-	}
-	if strings.TrimSpace(groupBy) == "" {
-		return selector, nil
-	}
-
-	filter, err := parseLabelFilter(groupBy)
-	if err != nil {
-		return nil, err
-	}
-	if len(filter.values) == 0 {
-		return selector, nil
-	}
-
-	req, err := labels.NewRequirement(filter.label, selection.In, filter.values)
-	if err != nil {
-		return nil, fmt.Errorf("building selector for label %q: %w", filter.label, err)
-	}
-	return selector.Add(*req), nil
 }
