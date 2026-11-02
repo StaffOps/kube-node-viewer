@@ -81,6 +81,12 @@ type UIModel struct {
 	columns  columnsPanel
 	contexts contextsPanel
 	switcher Switcher
+	// views: the named views and their popup
+	views      Views
+	viewsPanel viewsPanel
+	// notice is a short footer message, shown until noticeUntil
+	notice      string
+	noticeUntil time.Time
 	// cursor: the selected row (a group heading or a node) by key, the path
 	// when it is a group, a pending move, and the selected lines of the last
 	// frame (content line numbers, -1 when none)
@@ -474,6 +480,9 @@ func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case contextsMsg:
 		u.contextsLoaded(msg)
 		return u, nil
+	case NoticeMsg:
+		u.notify(msg.Text)
+		return u, nil
 	case switchedMsg:
 		return u, u.switched(msg)
 	case tickMsg:
@@ -520,6 +529,8 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		u.cycleResources()
 	case "c":
 		return u.openContexts()
+	case "v":
+		u.openViews()
 	case "esc":
 		// esc in the main view clears a kept search
 		u.view.Search = ""

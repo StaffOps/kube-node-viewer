@@ -64,6 +64,8 @@ func (u *UIModel) panelContent() (panelView, bool) {
 		return u.columnsPanel(), true
 	case panelContexts:
 		return u.contextsPanel(), true
+	case panelViews:
+		return u.viewsPanelView(), true
 	}
 	return panelView{}, false
 }

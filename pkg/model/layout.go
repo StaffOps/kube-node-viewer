@@ -34,6 +34,8 @@ var (
 	reservedStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#af00af", Dark: "#d787d7"}).Render
 	fargateStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005fd7", Dark: "#87afff"}).Render
 	groupStyle    = lipgloss.NewStyle().Bold(true).Render
+	// a footer notice
+	noticeStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f5f", Dark: "#87d7af"}).Render
 	// the cursor's mark in the left margin
 	cursorStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#5f5fd7", Dark: "#a8a8f0"}).Render
 	// group headings: the top level stands out, sub-levels hang off it
@@ -135,6 +137,10 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 		// the panel floats over the node list, which stays in view around it
 		body = u.overlay(body, u.popup(p, avail), avail)
 	}
+	// footer priority: the search line, then a notice, then the page dots
+	if notice := u.currentNotice(); notice != "" {
+		status = noticeStyle(notice)
+	}
 	if u.searching {
 		status = "/" + u.view.Search + "█"
 	}
@@ -184,8 +190,10 @@ func (u *UIModel) helpText() string {
 		return u.columns.hint()
 	case panelContexts:
 		return u.contexts.hint()
+	case panelViews:
+		return u.viewsPanel.hint()
 	}
-	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context"
+	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context • v: views"
 	if len(u.view.GroupBy) > 0 {
 		keys += " • enter: fold group • n: fold"
 	}
