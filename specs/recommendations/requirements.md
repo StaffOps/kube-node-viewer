@@ -20,43 +20,53 @@ Ships in v0.9.0 with `views-and-export` and the filtered summary.
 
 ## Usage examples
 
-One fixture, us-east-1 static prices (`pkg/aws/zz_generated_aws.pricing.go`):
+One fixture (`pkg/recommend/fixture_test.go`), us-east-1 static prices:
 NodePool `default` with 4 × m6i.xlarge On-Demand ($0.192/h), one of them
-(ip-10-0-12-15) requesting 1.2 vCPU / 5 GiB; managed node group `system-ng`
-with 4 × t3.large at 35% cpu and memory ($0.0832/h); managed node group
-`legacy-ng` with 2 × t2.large ($0.0928/h); a Spot price for m6i.xlarge of
-$0.0768/h in every zone used.
+(ip-10-0-12-15) requesting 1.2 vCPU / 5 GiB plus 0.25 / 0.4 of DaemonSets;
+managed node group `system-ng` with 4 × t3.large ($0.0832/h), each holding
+three 0.2 vCPU / 1.3 GiB pods and a DaemonSet; managed node group
+`legacy-ng` with 2 × t2.large ($0.0928/h), one 40 days old; a Spot price for
+m6i.xlarge of $0.0768/h, none for the t types.
 
 ```text
 $ kube-node-viewer
 :rec↵
 ╭ kube-node-viewer · Recommendations ───────────────────────────────────────────╮
-│ Nodes:  10 of 10 shown · 220 pods · $… /month (global cluster)                │
-│ Savings: $268.64/month — best non-Spot option per node, estimates from        │
+│ Savings: $242.94/month — best non-Spot option per node; estimates from        │
 │          requests and list prices                                              │
 ╰───────────────────────────────────────────────────────────────────────────────╯
-  KIND         TARGET                              ACTION                                SAVES/MO
-  idle         NodePool default (4 nodes)          $X/mo requested by nothing            info
-  consolidate  node group system-ng (t3.large ×4)  4 nodes → 2 (pods fit at ≤80%)        $121.47
-  rightsize    ip-10-0-12-15 (m6i.xlarge)          → m6i.large (≈62% cpu, 70% mem)       $70.08
-  generation   node group legacy-ng (t2.large ×2)  → t3.large (Nitro, current gen)       $14.02
-  graviton     NodePool default (m6i.xlarge ×4)    allow m7g.xlarge (arm64 images!)      $84.10
-  old node     ip-10-0-11-70 (40 days)             recycle for a fresh AMI               —
-  spot         NodePool default (On-Demand ×4)     allow Spot (interruptions!)           $336.38
+  KIND         TARGET                                ACTION                               SAVES/MO
+  idle         NodePool default (4 nodes)            $168.69/mo requested by nothing      info
+  idle         node group system-ng (4 nodes)        $102.65/mo requested by nothing      info
+  idle         node group legacy-ng (2 nodes)        $44.23/mo requested by nothing       info
+  consolidate  node group system-ng (t3.large ×4)    4 nodes → 3 (pods fit at ≤80%)       $60.74
+  rightsize    ip-10-0-12-15 (m6i.xlarge)            → m6i.large (≈74% cpu, 77% mem)      $70.08
+  generation   node group legacy-ng (t2.large ×2)    → t3.large                           $14.02
+  graviton     NodePool default (m6i.xlarge ×4)      allow m7g.xlarge (arm64 images!)     $84.10
+  graviton     node group system-ng (t3.large ×4)    → t4g.large (arm64 images!)          $46.72
+  old node     ip-10-0-11-70 (40 days)               recycle for a fresh AMI              —
+  spot         NodePool default (On-Demand ×4)       allow spot (interruptions!)          $336.38
+  spot         node group system-ng (On-Demand ×4)   add a Spot node group (…)            —
+  spot         node group legacy-ng (On-Demand ×2)   add a Spot node group (…)            —
 ```
 
-The total is not the sum of the rows: rightsize, generation and Graviton on
-the same node are alternatives, so each node counts once, with its best
-non-Spot saving (ip-10-0-12-15: rightsize $70.08; the other three default
-nodes: Graviton 3 × $21.02; system-ng: two nodes removed $121.47; legacy-ng:
-$14.02 → $268.64). Idle and Spot never enter the total.
+The total is not the sum of the rows: each node counts once, with its best
+non-Spot saving. ip-10-0-12-15: rightsize $70.08; the other three default
+nodes: Graviton 3 × $21.02; system-ng: one node removed $60.74, the other
+three Graviton 3 × $11.68; legacy-ng: 2 × $7.01 → $242.94. Idle and Spot
+never enter it. Spot shows `—` where the node's zone has no Spot price.
+
+> **Corrected 2026-11-02 (T3).** The first example ($268.64) missed the
+> Graviton advice on system-ng's kept nodes and assumed a packing the rules
+> don't give; the numbers above are what the rules return on that fixture,
+> checked by hand.
 
 ```text
 # enter on the rightsize row
   ip-10-0-12-15: m6i.xlarge → m6i.large
   requests 1.2 vCPU / 5 GiB, DaemonSets 0.25 vCPU / 0.4 GiB per node
   m6i.large allocatable ≈ 1.93 vCPU / 7.1 GiB (ratio of this cluster's m6i nodes)
-  after the move: cpu 75%, memory 76% ≤ 80% headroom → fits
+  after the move: cpu 74%, memory 77% ≤ 80% headroom → fits
   saving: ($0.192 − $0.096) × 730 h = $70.08/month
 ```
 
@@ -179,7 +189,7 @@ with the best of its non-Spot savings (removed by a managed-node-group
 consolidation, rightsize, generation, Graviton share), leaving out idle,
 Karpenter consolidation and Spot.
 
-- [ ] Test: the usage-example fixture totals $268.64.
+- [ ] Test: the usage-example fixture totals $242.94.
 
 **R15** WHEN a node can't be compared THEN it SHALL get no catalog-based
 advice (rightsize, generation, Graviton, Spot): Fargate nodes, EKS Auto Mode

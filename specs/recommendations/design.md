@@ -177,7 +177,7 @@ spec brings it in (dated note there).
 
 ## Test plan
 
-- `pkg/recommend`: the usage-example fixture end to end (rows, order, $268.64
+- `pkg/recommend`: the usage-example fixture end to end (rows, order, $242.94
   total); per rule fits / doesn't fit at the headroom with DaemonSet overhead
   and pod count; consolidation 35% / 50% / 70%; pending pods block packing;
   generation and Graviton only when the size exists and is cheaper; spot zone
