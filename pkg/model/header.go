@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"strings"
 
+	v1 "k8s.io/api/core/v1"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -90,6 +92,10 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		pods += n.NumPods()
 	}
 	counts := u.printer.Sprintf("%d of %d shown · %d pods", len(nodes), stats.NumNodes, pods)
+	// pods not on a node yet belong to no filtered set; say so when there are any
+	if pending := stats.PodsByPhase[v1.PodPending]; pending > 0 {
+		counts += u.printer.Sprintf(" (%d pending)", pending)
+	}
 	context := u.info.Context
 	if context == "" {
 		context = "-"
