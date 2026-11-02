@@ -12,6 +12,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Modified by the kube-node-viewer authors, 2026.
+
 package client
 
 import (
@@ -65,4 +67,27 @@ func getConfig(kubeconfig, context string) (*rest.Config, error) {
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{Precedence: strings.Split(kubeconfig, ":")},
 		&clientcmd.ConfigOverrides{CurrentContext: context}).ClientConfig()
+}
+
+// ClusterKey names the cluster a kubeconfig context points at: the context
+// name and its API server URL, since merged kubeconfigs can repeat context
+// names. An empty context means the current one.
+func ClusterKey(kubeconfig, context string) (string, error) {
+	raw, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{Precedence: strings.Split(kubeconfig, ":")},
+		&clientcmd.ConfigOverrides{CurrentContext: context}).RawConfig()
+	if err != nil {
+		return "", err
+	}
+	name := context
+	if name == "" {
+		name = raw.CurrentContext
+	}
+	server := ""
+	if ctx, ok := raw.Contexts[name]; ok {
+		if cluster, ok := raw.Clusters[ctx.Cluster]; ok {
+			server = cluster.Server
+		}
+	}
+	return name + "@" + server, nil
 }

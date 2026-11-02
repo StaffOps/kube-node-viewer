@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"sort"
 	"strings"
 	"time"
 
@@ -49,16 +48,16 @@ var (
 const avgHoursPerMonth = (365 * 24) / 12
 
 type UIModel struct {
-	progress    progress.Model
-	cluster     *Cluster
-	extraLabels []string
-	paginator   paginator.Model
-	height      int
-	nodeSorter  *nodeSorter
-	style       *Style
-	groupBy     string
-	showGroups  bool
-	showNodes   bool
+	progress   progress.Model
+	cluster    *Cluster
+	paginator  paginator.Model
+	height     int
+	style      *Style
+	view       ViewState
+	showGroups bool
+	// onViewChange receives the view state after the user changes it, to save
+	// it for the cluster. It must not block.
+	onViewChange func(ViewState)
 	// printer formats numbers with commas, built once as the view is redrawn often
 	printer        *message.Printer
 	bars           map[barKey]string
@@ -119,7 +118,8 @@ func (u *UIModel) progressBar(fill float64) string {
 	return bar
 }
 
-func NewUIModel(extraLabels []string, nodeSort string, style *Style) *UIModel {
+// NewUIModel starts with the default view state; SetView replaces it.
+func NewUIModel(style *Style) *UIModel {
 	pager := paginator.New()
 	pager.Type = paginator.Dots
 	pager.ActiveDot = activeDot
@@ -128,16 +128,14 @@ func NewUIModel(extraLabels []string, nodeSort string, style *Style) *UIModel {
 	return &UIModel{
 		gen: cluster.Generation(),
 		// red to green
-		progress:    progress.New(style.gradient),
-		cluster:     cluster,
-		extraLabels: extraLabels,
-		paginator:   pager,
-		nodeSorter:  newNodeSorter(nodeSort),
-		style:       style,
-		showNodes:   true,
-		printer:     message.NewPrinter(language.English),
-		bars:        map[barKey]string{},
-		dirty:       true,
+		progress:  progress.New(style.gradient),
+		cluster:   cluster,
+		paginator: pager,
+		style:     style,
+		view:      DefaultViewState(),
+		printer:   message.NewPrinter(language.English),
+		bars:      map[barKey]string{},
+		dirty:     true,
 	}
 }
 
@@ -145,19 +143,41 @@ func (u *UIModel) Cluster() *Cluster {
 	return u.cluster
 }
 
-// SetGrouping summarizes nodes by their value for the label, empty to disable.
-// groupsOnly starts with the node list hidden. Both sections can be toggled at
-// runtime, the summary with 'g' and the node list with 'n'.
-func (u *UIModel) SetGrouping(label string, groupsOnly bool) {
-	u.groupBy = label
-	u.showGroups = label != ""
-	u.showNodes = label == "" || !groupsOnly
+// SetView replaces the view state, as loaded at start or for a new cluster.
+func (u *UIModel) SetView(v ViewState) {
+	u.view = v
+	if len(u.view.Resources) == 0 {
+		u.view.Resources = []string{string(v1.ResourceCPU)}
+	}
+	u.SetResources(u.view.Resources)
+	u.showGroups = len(u.view.GroupBy) > 0
+	if !u.showGroups {
+		u.view.ShowNodes = true
+	}
+	u.paginator.Page = 0
+	u.dirty = true
+}
+
+// View state as it is now.
+func (u *UIModel) ViewState() ViewState {
+	return u.view
+}
+
+// OnViewChange sets the function told about view changes made from the TUI.
+func (u *UIModel) OnViewChange(f func(ViewState)) {
+	u.onViewChange = f
+}
+
+func (u *UIModel) viewChanged() {
+	if u.onViewChange != nil {
+		u.onViewChange(u.view)
+	}
 }
 
 // toggleGroups and toggleNodes never leave both sections hidden, there would be
 // nothing left to look at.
 func (u *UIModel) toggleGroups() {
-	if u.groupBy == "" || (u.showGroups && !u.showNodes) {
+	if len(u.view.GroupBy) == 0 || (u.showGroups && !u.view.ShowNodes) {
 		return
 	}
 	u.showGroups = !u.showGroups
@@ -165,11 +185,12 @@ func (u *UIModel) toggleGroups() {
 }
 
 func (u *UIModel) toggleNodes() {
-	if u.showNodes && !u.showGroups {
+	if u.view.ShowNodes && !u.showGroups {
 		return
 	}
-	u.showNodes = !u.showNodes
+	u.view.ShowNodes = !u.view.ShowNodes
 	u.paginator.Page = 0
+	u.viewChanged()
 }
 
 func (u *UIModel) Init() tea.Cmd {
@@ -203,11 +224,9 @@ func (u *UIModel) View() string {
 func (u *UIModel) render() string {
 	b := strings.Builder{}
 
-	// sorting reorders the node slice, work on a copy of the snapshot's
+	// cluster totals stay whole; the lists below show the selected nodes
 	stats := u.stats
-	stats.Nodes = append([]*Node(nil), u.stats.Nodes...)
-
-	u.nodeSorter.sort(stats.Nodes)
+	nodes := u.view.Select(stats.Nodes)
 
 	ctw := text.NewColorTabWriter(&b, 0, 8, 1)
 	u.writeClusterSummary(u.cluster.resources, stats, ctw)
@@ -223,10 +242,13 @@ func (u *UIModel) render() string {
 		return b.String()
 	}
 
-	if u.showGroups && u.groupBy != "" {
-		groups := GroupNodes(stats.Nodes, u.groupBy)
+	if u.showGroups && len(u.view.GroupBy) > 0 {
+		var groups []GroupStats
+		for _, g := range u.view.Groups(nodes) {
+			groups = append(groups, g.Stats)
+		}
 		fmt.Fprintln(&b)
-		if u.showNodes {
+		if u.view.ShowNodes {
 			u.writeGroupSummary(groups, ctw)
 		} else {
 			// with no node list, the groups are the paginated content
@@ -240,7 +262,7 @@ func (u *UIModel) render() string {
 		ctw.Flush()
 	}
 
-	if !u.showNodes {
+	if !u.view.ShowNodes {
 		fmt.Fprintln(&b, u.paginator.View())
 		fmt.Fprintln(&b, helpStyle(u.helpText()))
 		return b.String()
@@ -248,12 +270,17 @@ func (u *UIModel) render() string {
 
 	fmt.Fprintln(&b)
 	u.progress.ShowPercentage = true
-	u.paginator.PerPage = u.computeItemsPerPage(stats.Nodes, &b)
-	u.paginator.SetTotalPages(stats.NumNodes)
-	u.clampPage(stats.NumNodes)
-	start, end := u.paginator.GetSliceBounds(stats.NumNodes)
+	if len(nodes) == 0 {
+		fmt.Fprintln(&b, "No nodes match the filters.")
+		fmt.Fprintln(&b, helpStyle(u.helpText()))
+		return b.String()
+	}
+	u.paginator.PerPage = u.computeItemsPerPage(nodes, &b)
+	u.paginator.SetTotalPages(len(nodes))
+	u.clampPage(len(nodes))
+	start, end := u.paginator.GetSliceBounds(len(nodes))
 	if start >= 0 && end >= start {
-		for _, n := range stats.Nodes[start:end] {
+		for _, n := range nodes[start:end] {
 			u.writeNodeInfo(n, ctw, u.cluster.resources)
 		}
 	}
@@ -275,20 +302,32 @@ func (u *UIModel) clampPage(totalItems int) {
 }
 
 func (u *UIModel) helpText() string {
-	if u.groupBy == "" {
+	if len(u.view.GroupBy) == 0 {
 		return "←/→ page • q: quit"
 	}
 	groups, nodes := "hide", "hide"
 	if !u.showGroups {
 		groups = "show"
 	}
-	if !u.showNodes {
+	if !u.view.ShowNodes {
 		nodes = "show"
 	}
 	return fmt.Sprintf("←/→ page • g: %s groups • n: %s nodes • q: quit", groups, nodes)
 }
 
+// extraLabels are the label columns, after the fixed ones.
+func (u *UIModel) extraLabels() []string {
+	var labels []string
+	for _, c := range u.view.Columns {
+		if key := c.Label(); key != "" {
+			labels = append(labels, key)
+		}
+	}
+	return labels
+}
+
 func (u *UIModel) writeNodeInfo(n *Node, w io.Writer, resources []v1.ResourceName) {
+	extraLabels := u.extraLabels()
 	allocatable := n.Allocatable()
 	used := n.Used()
 	firstLine := true
@@ -351,7 +390,7 @@ func (u *UIModel) writeNodeInfo(n *Node, w io.Writer, resources []v1.ResourceNam
 				fmt.Fprintf(w, "\tNotReady/%s", duration.HumanDuration(time.Since(n.NotReadyTime())))
 			}
 
-			for _, label := range u.extraLabels {
+			for _, label := range extraLabels {
 				labelValue, ok := n.node.Labels[label]
 				if !ok {
 					// support computed label values
@@ -362,7 +401,7 @@ func (u *UIModel) writeNodeInfo(n *Node, w io.Writer, resources []v1.ResourceNam
 
 		} else {
 			fmt.Fprintf(w, " \t%s\t%s\t\t\t\t\t", res, u.progressBar(pct))
-			for range u.extraLabels {
+			for range extraLabels {
 				fmt.Fprintf(w, "\t")
 			}
 		}
@@ -523,74 +562,5 @@ func (u *UIModel) SetResources(resources []string) {
 	u.cluster.resources = nil
 	for _, r := range resources {
 		u.cluster.resources = append(u.cluster.resources, v1.ResourceName(r))
-	}
-}
-
-// nodeSorter orders the node list for display, either by creation time or by the
-// value of a node label.
-type nodeSorter struct {
-	// label is the node label to sort on, empty to sort by creation time
-	label      string
-	descending bool
-}
-
-func newNodeSorter(nodeSort string) *nodeSorter {
-	s := &nodeSorter{}
-	if strings.HasSuffix(nodeSort, "=asc") {
-		nodeSort = strings.TrimSuffix(nodeSort, "=asc")
-	} else if strings.HasSuffix(nodeSort, "=dsc") {
-		nodeSort = strings.TrimSuffix(nodeSort, "=dsc")
-		s.descending = true
-	}
-	if nodeSort != "creation" {
-		s.label = nodeSort
-	}
-	return s
-}
-
-type nodeSortKey struct {
-	node       *Node
-	created    time.Time
-	value      string
-	tieBreaker string
-}
-
-// sort orders the nodes in place. Keys are built up front, not inside the
-// comparison: there are O(n) nodes but O(n log n) comparisons, and a key can be
-// costly, a computed label has to walk the node's resources to produce one.
-func (s *nodeSorter) sort(nodes []*Node) {
-	keys := make([]nodeSortKey, len(nodes))
-	for i, n := range nodes {
-		keys[i] = nodeSortKey{node: n}
-		if s.label == "" {
-			keys[i].created = n.Created()
-			keys[i].value = n.Name()
-		} else {
-			keys[i].value = n.LabelValue(s.label)
-			keys[i].tieBreaker = n.InstanceID()
-		}
-	}
-
-	order := func(less bool) bool { return less }
-	if s.descending {
-		order = func(less bool) bool { return !less }
-	}
-
-	sort.Slice(keys, func(a, b int) bool {
-		lhs, rhs := &keys[a], &keys[b]
-		if s.label == "" {
-			if lhs.created.Equal(rhs.created) {
-				return order(naturalLess(lhs.value, rhs.value))
-			}
-			return order(rhs.created.Before(lhs.created))
-		}
-		if lhs.value == rhs.value {
-			return order(naturalLess(lhs.tieBreaker, rhs.tieBreaker))
-		}
-		return order(naturalLess(lhs.value, rhs.value))
-	})
-
-	for i := range keys {
-		nodes[i] = keys[i].node
 	}
 }

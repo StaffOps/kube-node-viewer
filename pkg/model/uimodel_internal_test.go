@@ -31,7 +31,7 @@ func newTestUI(t *testing.T) *UIModel {
 	if err != nil {
 		t.Fatal(err)
 	}
-	u := NewUIModel(nil, "creation=dsc", style)
+	u := NewUIModel(style)
 	u.Update(tea.WindowSizeMsg{Width: 160, Height: 40})
 	return u
 }
@@ -104,5 +104,33 @@ func TestKeysDoNotWaitForClusterLock(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("a key waited for the cluster lock")
+	}
+}
+
+func TestNodeListToggleReportsViewChange(t *testing.T) {
+	u := newTestUI(t)
+	v := DefaultViewState()
+	v.SetGroupBy(FieldZone)
+	u.SetView(v)
+	var got []ViewState
+	u.OnViewChange(func(s ViewState) { got = append(got, s) })
+
+	u.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+	if len(got) != 1 || got[0].ShowNodes {
+		t.Fatalf("view changes: %+v", got)
+	}
+}
+
+func TestFilteredOutNodesLeaveTheList(t *testing.T) {
+	u := newTestUI(t)
+	addTestNode(u, "keep")
+	addTestNode(u, "drop")
+	v := DefaultViewState()
+	v.Search = "keep"
+	u.SetView(v)
+	u.Refresh()
+	out := u.View()
+	if !strings.Contains(out, "keep") || strings.Contains(out, "drop") {
+		t.Errorf("view:\n%s", out)
 	}
 }
