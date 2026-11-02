@@ -194,6 +194,11 @@ hidden at once.
 > (under-used is the costly case). With stacked resources a blank line
 > separates nodes. The node list gets no frame of its own.
 
+> **Added 2026-11-02.** Usage bars use a 7/8-high block for both the filled
+> and the empty part (dark grey), so bars stacked on consecutive lines keep a
+> thin gap in the terminal, as in the README images; those are rendered at a
+> terminal-like line height.
+
 **R14** WHEN the screen is smaller than the content THEN the system SHALL
 paginate by lines, repeat the group path on a page that continues a group
 (`default › us-east-1a (cont.)`), and drop lowest-priority columns first,
