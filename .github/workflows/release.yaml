@@ -20,10 +20,10 @@ jobs:
       with:
         fetch-depth: 0 # disable shallow clone - get all
 
-    - name: Set up Go 1.x
+    - name: Set up Go
       uses: actions/setup-go@v5.0.1
       with:
-        go-version: stable
+        go-version-file: go.mod
       id: go
 
     - name: Fetch build tag
@@ -37,11 +37,13 @@ jobs:
 
 
     - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@v4
+      uses: goreleaser/goreleaser-action@v6
       with:
         distribution: goreleaser
-        version: latest
+        version: "~> v2"
         args: release --clean
         workdir: .
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # write access to StaffOps/homebrew-tap; without it the cask is skipped
+        HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

@@ -40,7 +40,13 @@ with `scripts/screenshots.sh`.
 
 ## Installation
 
-Download a binary from the
+With [Homebrew](https://brew.sh) (macOS and Linux):
+
+```shell
+brew install staffops/tap/kube-node-viewer
+```
+
+Or download an archive from the
 [releases](https://github.com/StaffOps/kube-node-viewer/releases) page, or
 install with Go:
 
