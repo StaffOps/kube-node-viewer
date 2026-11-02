@@ -34,6 +34,8 @@ var (
 	reservedStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#af00af", Dark: "#d787d7"}).Render
 	fargateStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005fd7", Dark: "#87afff"}).Render
 	groupStyle    = lipgloss.NewStyle().Bold(true).Render
+	// the cursor's mark in the left margin
+	cursorStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#5f5fd7", Dark: "#a8a8f0"}).Render
 	// group headings: the top level stands out, sub-levels hang off it
 	topGroupStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#005f87", Dark: "#87d7ff"}).Render
 	subGroupStyle = lipgloss.NewStyle().Bold(true).Render
@@ -76,7 +78,10 @@ func (u *UIModel) render() string {
 	margin := strings.Repeat(" ", contentMargin)
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
-		if line != "" {
+		// the selected row is marked in the margin, out of the way of its colours
+		if u.panel == panelNone && i >= u.selFrom && i < u.selTo {
+			lines[i] = cursorStyle("▌") + " " + line
+		} else if line != "" {
 			lines[i] = margin + line
 		}
 	}
@@ -95,6 +100,8 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 		avail = max(u.height-headerLines-strings.Count(b.String(), "\n")-2, 3)
 	}
 
+	u.selFrom, u.selTo = -1, -1
+	bodyStart := strings.Count(b.String(), "\n")
 	var body []string
 	status := ""
 	switch {
@@ -117,6 +124,9 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 	}
 	if len(body) > avail {
 		body = body[:avail]
+	}
+	if u.selFrom >= 0 {
+		u.selFrom, u.selTo = bodyStart+u.selFrom, bodyStart+min(u.selTo, len(body))
 	}
 	for i := range body {
 		body[i] = u.fit(body[i])
@@ -177,7 +187,7 @@ func (u *UIModel) helpText() string {
 	}
 	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context"
 	if len(u.view.GroupBy) > 0 {
-		keys += " • n: fold"
+		keys += " • enter: fold group • n: fold"
 	}
 	if u.canShowDetails() {
 		keys += " • d: details"
@@ -196,6 +206,10 @@ type block struct {
 	// page is shown
 	node  *Node
 	count int
+	// key names the row for the cursor: a group heading or a node
+	key string
+	// lead is how many leading lines (a blank spacer) the cursor skips
+	lead int
 }
 
 func (b block) height() int {
@@ -232,7 +246,7 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 	if u.canShowDetails() && u.view.Details {
 		shownDepth = depth + 1
 	}
-	tree := treeOf(groups, shownDepth)
+	tree := treeOf(groups, shownDepth, u.view.IsCollapsed)
 	var barred map[*Group][]string
 	if table == nil {
 		barred = u.groupTable(groups, tree, depth)
@@ -254,16 +268,23 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 			if _, shown := tree[g]; !shown {
 				continue
 			}
+			lead := len(lines)
 			if bars, ok := barred[g]; ok {
 				lines = bars
+				if tree[g].spaced {
+					lead = 1
+				}
 			} else {
 				lines = append(lines, u.groupLine(g, tree[g], cols))
 			}
-			blocks = append(blocks, block{path: g.Path, heading: true, lines: lines})
+			blocks = append(blocks, block{path: g.Path, heading: true, lines: lines, key: groupCursorKey(g.Path), lead: lead})
+			if u.view.IsCollapsed(g.Path) {
+				continue
+			}
 			walk(g.Groups)
 			if table != nil {
 				for _, n := range g.Nodes {
-					blocks = append(blocks, block{path: g.Path, node: n, count: len(u.cluster.resources)})
+					blocks = append(blocks, block{path: g.Path, node: n, count: len(u.cluster.resources), key: nodeCursorKey(n)})
 				}
 			}
 		}
@@ -272,20 +293,79 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 		walk(groups)
 	} else {
 		for _, n := range nodes {
-			blocks = append(blocks, block{node: n, count: len(u.cluster.resources)})
+			blocks = append(blocks, block{node: n, count: len(u.cluster.resources), key: nodeCursorKey(n)})
 		}
 	}
 	pages := paginate(blocks, top, height)
 	u.page = min(u.page, len(pages)-1)
+	u.resolveCursor(pages)
+	u.selFrom, u.selTo = -1, -1
 	// nodes are set apart by the gap above their first bar, not a blank line
 	for _, b := range pages[u.page] {
+		var bl []string
 		if b.node != nil {
-			lines = append(lines, table.render(b.node)...)
+			bl = table.render(b.node)
 		} else {
-			lines = append(lines, b.lines...)
+			bl = b.lines
 		}
+		if b.key != "" && b.key == u.cursorKey {
+			u.selFrom, u.selTo = len(lines)+b.lead, len(lines)+len(bl)
+		}
+		lines = append(lines, bl...)
 	}
 	return lines, len(pages), hiddenColumns
+}
+
+func groupCursorKey(path []string) string { return "g:" + strings.Join(path, pathSeparator) }
+func nodeCursorKey(n *Node) string        { return "n:" + n.Name() }
+
+// resolveCursor applies pending cursor moves now that the order of the rows
+// and their pages are known: a move follows the cursor to its page, a page
+// change puts the cursor on that page's first row, and a cursor whose row
+// went away (filtered, folded) goes to the first row of the page.
+func (u *UIModel) resolveCursor(pages [][]block) {
+	type row struct {
+		page int
+		key  string
+		path []string
+	}
+	var rows []row
+	for p, pg := range pages {
+		for _, b := range pg {
+			if b.key != "" {
+				rows = append(rows, row{page: p, key: b.key, path: b.path})
+			}
+		}
+	}
+	if len(rows) == 0 {
+		u.cursorKey, u.cursorPath, u.cursorDelta = "", nil, 0
+		return
+	}
+	pos := -1
+	for i, r := range rows {
+		if r.key == u.cursorKey {
+			pos = i
+		}
+	}
+	switch {
+	case u.cursorDelta != 0 && pos >= 0:
+		pos = min(max(pos+u.cursorDelta, 0), len(rows)-1)
+		u.page = rows[pos].page
+	case pos < 0 || rows[pos].page != u.page:
+		pos = 0
+		for i, r := range rows {
+			if r.page == u.page {
+				pos = i
+				break
+			}
+		}
+	}
+	u.cursorDelta = 0
+	u.cursorKey = rows[pos].key
+	u.cursorPath = nil
+	if strings.HasPrefix(u.cursorKey, "g:") {
+		u.cursorPath = rows[pos].path
+	}
 }
 
 // paginate fills pages with whole blocks, each page starting with the top
@@ -327,7 +407,7 @@ type groupLineWidths struct {
 }
 
 func (w *groupLineWidths) fit(u *UIModel, g *Group, t groupTree) {
-	w.name = max(w.name, textWidth(t.branch)+textWidth(g.Name()))
+	w.name = max(w.name, textWidth(t.branch)+textWidth(u.groupName(g)))
 	w.nodes = max(w.nodes, len(u.printer.Sprintf("%d nodes", g.Stats.NumNodes)))
 	w.pods = max(w.pods, len(u.printer.Sprintf("%d pods", g.Stats.NumPods)))
 }
@@ -335,7 +415,7 @@ func (w *groupLineWidths) fit(u *UIModel, g *Group, t groupTree) {
 func (u *UIModel) groupLine(g *Group, t groupTree, w groupLineWidths) string {
 	s := g.Stats
 	var b strings.Builder
-	b.WriteString(pad(treeStyle(t.branch)+groupName(g), w.name))
+	b.WriteString(pad(treeStyle(t.branch)+u.groupName(g), w.name))
 	b.WriteString("  " + pad(u.printer.Sprintf("%d nodes", s.NumNodes), w.nodes))
 	b.WriteString("  " + pad(u.printer.Sprintf("%d pods", s.NumPods), w.pods))
 	for _, res := range u.cluster.resources {
@@ -369,8 +449,9 @@ type groupTree struct {
 // treeOf lays out the group hierarchy: top-level groups by name, sub-groups
 // under them with ├─ / └─ connectors, so each heading shows only its own
 // value.
-// Groups deeper than depth are left out; 0 keeps every level.
-func treeOf(groups []*Group, depth int) map[*Group]groupTree {
+// Groups deeper than depth, and the contents of collapsed groups, are left
+// out; depth 0 keeps every level.
+func treeOf(groups []*Group, depth int, collapsed func([]string) bool) map[*Group]groupTree {
 	out := map[*Group]groupTree{}
 	var walk func(gs []*Group, prefix string, top bool)
 	walk = func(gs []*Group, prefix string, top bool) {
@@ -386,7 +467,7 @@ func treeOf(groups []*Group, depth int) map[*Group]groupTree {
 				t.branch = prefix + connector
 				childPrefix = prefix + rest
 			}
-			shown := depth == 0 || len(g.Path) < depth
+			shown := (depth == 0 || len(g.Path) < depth) && !collapsed(g.Path)
 			t.below = childPrefix
 			if len(g.Groups) > 0 && shown {
 				t.below += "│"
@@ -401,12 +482,17 @@ func treeOf(groups []*Group, depth int) map[*Group]groupTree {
 	return out
 }
 
-// groupName is the heading's own value, styled by level.
-func groupName(g *Group) string {
-	if len(g.Path) == 1 {
-		return topGroupStyle(g.Name())
+// groupName is the heading's own value, styled by level, with ▸ when the
+// group is folded on its own.
+func (u *UIModel) groupName(g *Group) string {
+	name := g.Name()
+	if u.view.IsCollapsed(g.Path) {
+		name = "▸ " + name
 	}
-	return subGroupStyle(g.Name())
+	if len(g.Path) == 1 {
+		return topGroupStyle(name)
+	}
+	return subGroupStyle(name)
 }
 
 // groupTable lays out every group, nested ones included, for the collapsed
@@ -438,7 +524,7 @@ func (u *UIModel) groupTable(groups []*Group, tree map[*Group]groupTree, depth i
 	for _, g := range all {
 		s := g.Stats
 		r := groupRow{
-			name:  treeStyle(tree[g].branch) + groupName(g),
+			name:  treeStyle(tree[g].branch) + u.groupName(g),
 			nodes: u.printer.Sprintf("%d nodes", s.NumNodes),
 			pods:  u.printer.Sprintf("%d pods", s.NumPods),
 		}

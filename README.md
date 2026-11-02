@@ -145,6 +145,8 @@ With `ctrl+e` the header shrinks to two lines:
 | `o` | Columns panel |
 | `/` | Search name, IP, instance type and label values as you type; `enter` keeps it, `esc` clears it |
 | `r` | Resources: cpu → memory → cpu+memory (→ the `--resources` list, if different) |
+| `↑`/`↓`, `k`/`j` | Select a group heading or a node; the selected row is marked in the left margin |
+| `enter`, `space` | Fold or unfold the selected group on its own (`▸` marks a folded group) |
 | `n` | Fold one level per press when grouping: the nodes, then each sub-group level down to the top level; the next press unfolds all |
 | `d` | While folded: list the next group level under each group as one-line rows, or hide them |
 | `c` | Switch to another kubeconfig context |
@@ -184,6 +186,10 @@ ticked is the top level, each next one a sub-group of the previous), up to
 three; the rows show `[1]`, `[2]`, `[3]`. `K`/`J` move the level under the
 cursor up or down; unticking a level moves the ones below it up. Nodes
 without a value for a level go to a `<none>` group, always last.
+
+Folding one group: select its heading with `↑`/`↓` and press `enter`; it
+shows `▸` and its contents hide, the other groups stay as they are. Folded
+groups are saved with the view.
 
 Folding with `n`: the deepest level on screen carries the usage bars and the
 levels above it are one-line summaries. With `zone › instance-type`:
@@ -232,8 +238,8 @@ stays in the panel and the current cluster keeps running.
 
 ## Saved view per cluster
 
-Filters, group-by, sort, resources, columns, folding depth, details and the
-header size are saved per cluster (context name plus API server URL, since
+Filters, group-by, sort, resources, columns, folding depth, details, folded
+groups and the header size are saved per cluster (context name plus API server URL, since
 merged kubeconfigs can repeat context names) in
 `$XDG_STATE_HOME/kube-node-viewer/state.json`, by default
 `~/.local/state/kube-node-viewer/state.json`. Writes are batched and atomic,
