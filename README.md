@@ -15,8 +15,10 @@ only read access through your kubeconfig.
 
 Start it with no flags and drive it from inside: filter, group and sort the
 nodes, pick columns and resources, search, fold groups and switch cluster
-without restarting. The last view used on each cluster comes back the next
-time.
+without restarting. A second screen, Recommendations, says what to do about
+the cost: consolidate, rightsize, move to a newer generation or Graviton,
+recycle old nodes and, last, Spot. The last view used on each cluster comes
+back the next time.
 
 ![kube-node-viewer: grouping by node group and zone, folding with n, details with d](.static/demo.gif)
 
@@ -30,6 +32,7 @@ with `scripts/screenshots.sh`.
 - [What is on screen](#what-is-on-screen)
 - [Keys](#keys)
 - [Panels](#panels)
+- [Recommendations](#recommendations)
 - [Saved view per cluster](#saved-view-per-cluster)
 - [Flags and config file](#flags-and-config-file)
 - [Pricing](#pricing)
@@ -151,6 +154,8 @@ With `ctrl+e` the header shrinks to two lines:
 | `enter`, `space` | Fold or unfold the selected group on its own (`▸` marks a folded group) |
 | `n` | Fold one level per press when grouping: the nodes, then each sub-group level down to the top level; the next press unfolds all |
 | `d` | While folded: list the next group level under each group as one-line rows, or hide them |
+| `tab` | Switch between Overview and Recommendations |
+| `:` | Command line: `overview` (`ov`), `recommendations` (`rec`); `tab` completes |
 | `c` | Switch to another kubeconfig context |
 | `v` | Named views: apply one, save the current view under a name, delete |
 | `e` | Export the nodes on screen to CSV and JSON |
@@ -265,10 +270,52 @@ pricing region follows the new cluster, and its saved view comes back.
 Nothing from the previous cluster shows after the switch. A connection error
 stays in the panel and the current cluster keeps running.
 
+## Recommendations
+
+![Recommendations screen](.static/recommendations.png)
+
+`tab` (or `:rec`) switches to Recommendations; `tab` again (or `:ov`) goes
+back to Overview. The filters and search apply: recommendations cover the
+nodes on screen. Every row is a fixed rule over requests, allocatable,
+prices, labels and node age — no AI, nothing installed in the cluster, no
+AWS permission beyond pricing — and `enter` shows its math:
+
+![The math behind a recommendation](.static/recommendation-why.png)
+
+| Kind | Rule |
+|------|------|
+| `idle` | what each NodePool or node group pays for capacity nothing requests (information) |
+| `consolidate` | a managed node group's pods fit on fewer nodes of its type at the headroom (first-fit decreasing; DaemonSet and static pods stay on every node). For a Karpenter NodePool it is information: Karpenter consolidates on its own |
+| `rightsize` | a node's requests fit a smaller size of the same family at the headroom |
+| `generation` | a previous-generation or Xen family (`t2`, `m4`, `c4`, `r4`, …) has a cheaper current, Nitro counterpart in the same size |
+| `graviton` | an x86 family has a cheaper arm64 counterpart in the same size (images must run on arm64) |
+| `old node` | a node is older than the age limit: recycle it for a fresh AMI |
+| `spot` | an On-Demand group would cost less on Spot, priced in each node's zone; always last, workloads must tolerate interruptions |
+
+The **Savings** line counts each node once, with its best non-Spot saving;
+idle, Karpenter consolidation and Spot stay out of it. Savings are estimates
+from requests and list prices; affinity, taints, spread constraints,
+disruption budgets and volumes are not considered. Nothing is recommended
+for Fargate, EKS Auto Mode or nodes of an unknown instance type; with pods
+pending, consolidation and rightsizing wait.
+
+Settings in `~/.kube-node-viewer`:
+
+```text
+# highest share of allocatable a node may reach after a change (default 80)
+recommend-headroom=80
+# age after which a node is worth recycling (default 30d; 12h, 90m work too)
+recommend-node-age=30d
+```
+
+Instance sizes come from a catalog generated from the AWS Price List and
+embedded in the binary, refreshed at run time from the products the pricing
+lookup already reads.
+
 ## Saved view per cluster
 
 Filters, group-by, sort, resources, columns, folding depth, details, folded
-groups and the header size are saved per cluster, and named views (`v`) for
+groups, the screen and the header size are saved per cluster, and named views (`v`) for
 all of them, (context name plus API server URL, since
 merged kubeconfigs can repeat context names) in
 `$XDG_STATE_HOME/kube-node-viewer/state.json`, by default
@@ -476,7 +523,9 @@ not through a pipe or a tool without a TTY.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). In short:
 `scripts/verify.sh` checks formatting, vet, tests (with the race detector) and
-specs, and `scripts/build.sh` builds the binary.
+specs, and `scripts/build.sh` builds the binary. `go run ./hack/catalog`
+regenerates the instance catalog from the AWS Price List (needs
+`pricing:GetProducts`).
 
 ## Credits
 

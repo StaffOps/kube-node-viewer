@@ -14,6 +14,14 @@ All notable changes to this project are documented here. Format:
   shared by every cluster, kept in the state file.
 - Export (`e`): the nodes on screen to CSV and JSON in the current directory
   (or next to the state file), with groups, prices and price kinds.
+- Recommendations screen (`tab`, `:rec`): idle cost, consolidation of
+  managed node groups, rightsizing, newer generation / Nitro, Graviton, old
+  nodes and, always last, Spot, with the math of each row and a total that
+  counts each node once. Fixed rules, no AI, no new AWS permission.
+- A `:` command line (`overview`, `recommendations`).
+- `IDLE/H` column, sort by idle cost and idle cost in group headings.
+- An instance catalog generated from the AWS Price List (`hack/catalog`).
+- Config keys `recommend-headroom` and `recommend-node-age`.
 
 ### Changed
 

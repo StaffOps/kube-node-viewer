@@ -16,7 +16,7 @@
   - _Covers: R3 · Depends on: T3, T5 · Verified by: key-driven tests_
 - [x] T7. Config keys `recommend-headroom`, `recommend-node-age`
   - _Covers: R12 · Depends on: T3 · Verified by: config tests in cmd_
-- [ ] T8. README, CHANGELOG, screenshots and GIF; interactive-tui note on command mode
+- [x] T8. README, CHANGELOG, screenshots and GIF; interactive-tui note on command mode
   - _Covers: — · Depends on: T1–T7 · Verified by: review_
 
 ## Deferred

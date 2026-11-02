@@ -306,6 +306,10 @@ folded groups SHALL be saved with the view.
   `controller.go:125`) — stage 2.
 - GPU columns and allocation (stage 3, roadmap).
 - Saved named views (`v`), command mode (`:`), typed filter syntax in `/`.
+
+> **Note 2026-11-02.** Named views and the `:` command line came later, in
+> [`views-and-export`](../views-and-export/requirements.md) and
+> [`recommendations`](../recommendations/requirements.md).
 - Actual (metrics-server) usage; the tool stays on requests vs allocatable.
 
 ## Resolved questions
