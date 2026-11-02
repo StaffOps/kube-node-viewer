@@ -224,6 +224,19 @@ func (p *pricingProvider) FargatePrice(cpu, memory float64) (float64, bool) {
 	return cpu*p.fargateVCPUPricePerHour + memory*p.fargateGBPricePerHour, true
 }
 
+// SpotPriceInZone is the spot price of the type in that very zone; unlike
+// SpotPrice it never falls back to a default, so a zone without data reads as
+// unknown rather than free (recommendations R11).
+func (p *pricingProvider) SpotPriceInZone(instanceType ec2types.InstanceType, zone string) (float64, bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if val, ok := p.spotPrices[instanceType]; ok {
+		price, ok := val.prices[zone]
+		return price, ok && price > 0
+	}
+	return 0, false
+}
+
 // SpotPrice returns the last known spot price for a given instance type and zone, returning an error
 // if there is no known spot pricing for that instance type or zone
 func (p *pricingProvider) SpotPrice(instanceType ec2types.InstanceType, zone string) (float64, bool) {
@@ -443,9 +456,8 @@ func (p *pricingProvider) processInstancePricingPage(output *pricing.GetProducts
 	// this isn't the full pricing struct, just the portions we care about
 	type priceItem struct {
 		Product struct {
-			Attributes struct {
-				InstanceType string
-			}
+			// the catalog learns sizes from the same products (recommendations D2)
+			Attributes PriceListAttributes `json:"attributes"`
 		}
 		Terms struct {
 			OnDemand map[string]struct {
@@ -469,6 +481,7 @@ func (p *pricingProvider) processInstancePricingPage(output *pricing.GetProducts
 		if pItem.Product.Attributes.InstanceType == "" {
 			continue
 		}
+		learnInstance(pItem.Product.Attributes)
 		for _, term := range pItem.Terms.OnDemand {
 			for _, v := range term.PriceDimensions {
 				price, err := strconv.ParseFloat(v.PricePerUnit[currency], 64)
