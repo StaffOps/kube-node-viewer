@@ -58,7 +58,7 @@ func (u *UIModel) panelKey(key string) tea.Cmd {
 
 // helpKeys lists every key, for the help panel.
 var helpKeys = [][2]string{
-	{"f", "filters: open a field, tick values; space turns a filter on/off"},
+	{"f", "filters: open a field, tick values; space turns a filter on/off; x keeps or excludes"},
 	{"g", "group by: tick up to 3 fields, K/J to reorder levels"},
 	{"s", "sort: any column, usage or label; flip ↑/↓"},
 	{"o", "columns: show, hide, reorder"},
@@ -107,9 +107,9 @@ type filterRow struct {
 
 func (p *filtersPanel) hint() string {
 	if p.open != "" {
-		return "↑/↓: move • space/enter: tick value • ←: close field • d: clear field • esc: close field"
+		return "↑/↓: move • space/enter: tick value • x: keep/exclude • ←: close field • d: clear field • esc: close field"
 	}
-	return "↑/↓: move • enter/→: open field • space: filter on/off • d: clear field • esc: close"
+	return "↑/↓: move • enter/→: open field • space: filter on/off • x: keep/exclude • d: clear field • esc: close"
 }
 
 func (u *UIModel) openFilters() {
@@ -147,7 +147,7 @@ func (u *UIModel) filterRows() []filterRow {
 		}
 		// values the filter has stay listed even when no node has them now
 		if i := u.filterIndex(f); i >= 0 {
-			for _, v := range u.view.Filters[i].Values {
+			for _, v := range u.view.Filters[i].Ticked() {
 				if !listed[v] {
 					values = append(values, ValueCount{Value: v})
 				}
@@ -211,6 +211,14 @@ func (u *UIModel) filtersKey(key string) {
 			u.setFilters(filters)
 			u.focusFilterRow(row.field, "")
 		}
+	case "x":
+		// switch the field's filter between keeping and excluding its values
+		if i := u.filterIndex(row.field); i >= 0 {
+			filters := slices.Clone(u.view.Filters)
+			filters[i] = filters[i].Flipped()
+			u.setFilters(filters)
+			u.focusFilterRow(row.field, row.value)
+		}
 	case "d", "delete", "backspace":
 		if i := u.filterIndex(row.field); i >= 0 {
 			u.setFilters(slices.Delete(slices.Clone(u.view.Filters), i, i+1))
@@ -234,7 +242,7 @@ func (u *UIModel) tickValue(field Field, value string) {
 	if i < 0 {
 		filters = append(filters, Filter{Field: field, Values: []string{value}, Enabled: true})
 	} else {
-		values := slices.Clone(filters[i].Values)
+		values := slices.Clone(filters[i].Ticked())
 		if at := slices.Index(values, value); at >= 0 {
 			values = slices.Delete(values, at, at+1)
 		} else {
@@ -243,7 +251,9 @@ func (u *UIModel) tickValue(field Field, value string) {
 		if len(values) == 0 {
 			filters = slices.Delete(filters, i, i+1)
 		} else {
-			filters[i] = Filter{Field: field, Values: values, Enabled: true}
+			// ticking keeps the filter's mode, keeping or excluding
+			filters[i] = filters[i].withTicked(values)
+			filters[i].Enabled = true
 		}
 	}
 	u.setFilters(filters)
@@ -317,7 +327,7 @@ func (u *UIModel) filtersPanelView() panelView {
 		if r.isValue {
 			selected := false
 			if fi := u.filterIndex(r.field); fi >= 0 {
-				selected = slices.Contains(u.view.Filters[fi].Values, r.value)
+				selected = slices.Contains(u.view.Filters[fi].Ticked(), r.value)
 			}
 			lines[i] = fmt.Sprintf("    %s %s  %s", check(selected), r.value, helpStyle(fmt.Sprint(r.count)))
 			continue
@@ -331,7 +341,10 @@ func (u *UIModel) filtersPanelView() panelView {
 		if fi := u.filterIndex(r.field); fi >= 0 {
 			f := u.view.Filters[fi]
 			state = check(f.Enabled)
-			summary = "  " + strings.Join(f.Values, ", ")
+			summary = "  " + strings.Join(f.Ticked(), ", ")
+			if f.Excludes() {
+				summary = "  not " + strings.Join(f.Ticked(), ", ")
+			}
 			if !f.Enabled {
 				summary += helpStyle("  (off)")
 			}

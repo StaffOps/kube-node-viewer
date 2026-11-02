@@ -636,3 +636,36 @@ func TestNoCursorMarkWhileAPanelIsOpen(t *testing.T) {
 		t.Error("cursor mark drawn under a popup")
 	}
 }
+
+func TestXSwitchesKeepAndExclude(t *testing.T) {
+	u := capacityUI(t, 4)
+	v := u.view
+	v.Filters = []Filter{{Field: FieldCapacity, Values: []string{"Spot"}, Enabled: true}}
+	u.SetView(v)
+
+	press(u, "f", "x")
+	if !u.view.Filters[0].Excludes() {
+		t.Fatalf("x did not switch to excluding: %+v", u.view.Filters[0])
+	}
+	out := u.View()
+	if !strings.Contains(out, "not Spot") || !strings.Contains(out, "capacity≠Spot") {
+		t.Errorf("panel or header not marked:\n%s", out)
+	}
+	press(u, "esc")
+	if out := u.View(); strings.Contains(out, "node-01") || !strings.Contains(out, "node-00") {
+		t.Errorf("Spot nodes not excluded:\n%s", out)
+	}
+
+	// ticking another value keeps the mode: OnDemand is excluded too
+	press(u, "f", "enter", "down", " ")
+	if f := u.view.Filters[0]; !f.Excludes() || len(f.Excluded) != 2 {
+		t.Errorf("ticking changed the mode: %+v", f)
+	}
+
+	// x on a field with no filter does nothing
+	before := len(u.view.Filters)
+	press(u, "esc", "down", "x")
+	if len(u.view.Filters) != before {
+		t.Error("x created a filter")
+	}
+}
