@@ -125,28 +125,33 @@ func TestEscClosesPanels(t *testing.T) {
 
 func TestAddFilterFromPanel(t *testing.T) {
 	u := capacityUI(t, 4)
-	var saved []ViewState
-	u.OnViewChange(func(v ViewState) { saved = append(saved, v) })
+	var saved int
+	u.OnViewChange(func(ViewState) { saved++ })
 
-	// f → "+ add filter" → capacity (first field) → values listed with counts
-	press(u, "f", "enter", "enter")
+	// f lists every field; enter opens capacity (the first) with its values
+	press(u, "f")
 	out := u.View()
-	if !strings.Contains(out, "OnDemand  2") || !strings.Contains(out, "Spot      2") {
-		t.Fatalf("value picker:\n%s", out)
+	for _, want := range []string{"Filters", "capacity", "nodegroup", "karpenter.sh/nodepool"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("panel misses %q:\n%s", want, out)
+		}
 	}
-	// Spot is the second value
-	press(u, "down", " ", "enter")
-
+	press(u, "enter")
+	if out = u.View(); !strings.Contains(out, "OnDemand  2") || !strings.Contains(out, "Spot  2") {
+		t.Fatalf("values with counts:\n%s", out)
+	}
+	// Spot is the second value; ticking filters right away
+	press(u, "down", "down", " ")
 	want := []Filter{{Field: FieldCapacity, Values: []string{"Spot"}, Enabled: true}}
 	if !reflect.DeepEqual(u.view.Filters, want) {
 		t.Fatalf("filters %+v", u.view.Filters)
 	}
-	if len(saved) != 1 {
-		t.Errorf("view changes reported: %d", len(saved))
+	if saved != 1 {
+		t.Errorf("view changes reported: %d", saved)
 	}
-	press(u, "esc")
+	press(u, "esc", "esc")
 	out = u.View()
-	if strings.Contains(out, "node-00") || !strings.Contains(out, "node-01") {
+	if u.panel != panelNone || strings.Contains(out, "node-00") || !strings.Contains(out, "node-01") {
 		t.Errorf("filter not applied:\n%s", out)
 	}
 	if !strings.Contains(out, "capacity=Spot") {
@@ -154,12 +159,13 @@ func TestAddFilterFromPanel(t *testing.T) {
 	}
 }
 
-func TestToggleAndRemoveFilter(t *testing.T) {
+func TestToggleAndClearFilter(t *testing.T) {
 	u := capacityUI(t, 2)
 	v := u.view
 	v.Filters = []Filter{{Field: FieldCapacity, Values: []string{"Spot"}, Enabled: true}}
 	u.SetView(v)
 
+	// the field with a filter is listed first
 	press(u, "f", " ")
 	if u.view.Filters[0].Enabled {
 		t.Fatal("space did not turn the filter off")
@@ -173,24 +179,32 @@ func TestToggleAndRemoveFilter(t *testing.T) {
 	}
 	press(u, "f", "d")
 	if len(u.view.Filters) != 0 {
-		t.Errorf("d did not remove: %+v", u.view.Filters)
+		t.Errorf("d did not clear: %+v", u.view.Filters)
 	}
 }
 
-func TestEditFilterKeepsSelectionAndEmptyRemoves(t *testing.T) {
+func TestUntickingLastValueRemovesFilter(t *testing.T) {
 	u := capacityUI(t, 2)
 	v := u.view
 	v.Filters = []Filter{{Field: FieldCapacity, Values: []string{"Spot"}, Enabled: true}}
 	u.SetView(v)
 
-	press(u, "f", "enter")
-	if !u.filters.selected["Spot"] {
-		t.Fatal("editing lost the current values")
-	}
-	// unselect Spot (second row) and apply: no values left removes the filter
-	press(u, "down", " ", "enter")
+	press(u, "f", "enter", "down", "down", " ")
 	if len(u.view.Filters) != 0 {
 		t.Errorf("filters %+v", u.view.Filters)
+	}
+}
+
+func TestPanelIsAPopupOverTheNodeList(t *testing.T) {
+	u := capacityUI(t, 3)
+	u.Update(tea.WindowSizeMsg{Width: 140, Height: 30})
+	press(u, "s")
+	out := u.View()
+	if !strings.Contains(out, "╭─ Sort by") || !strings.Contains(out, "╰") {
+		t.Fatalf("no popup box:\n%s", out)
+	}
+	if !strings.Contains(out, "NAME") {
+		t.Errorf("node list hidden behind the popup:\n%s", out)
 	}
 }
 
@@ -304,23 +318,27 @@ func TestGroupByPanel(t *testing.T) {
 	var saved int
 	u.OnViewChange(func(ViewState) { saved++ })
 
-	// g → "+ add level" → capacity (first field)
-	press(u, "g", "enter", "enter")
+	// g lists every field; space ticks capacity (first) as level 1
+	press(u, "g", " ")
 	if !reflect.DeepEqual(u.view.GroupBy, []Field{FieldCapacity}) {
 		t.Fatalf("group-by %v", u.view.GroupBy)
 	}
-	// add nodegroup (second field) as level 2, then move it up
-	press(u, "down", "enter", "down", "enter")
+	// nodegroup is the second row: tick it as level 2, then move it up
+	press(u, "down", " ")
 	if !reflect.DeepEqual(u.view.GroupBy, []Field{FieldCapacity, FieldNodeGroup}) {
 		t.Fatalf("group-by %v", u.view.GroupBy)
+	}
+	if !strings.Contains(u.View(), "[2] nodegroup") {
+		t.Error("level number not shown")
 	}
 	press(u, "K")
 	if !reflect.DeepEqual(u.view.GroupBy, []Field{FieldNodeGroup, FieldCapacity}) {
 		t.Fatalf("after K: %v", u.view.GroupBy)
 	}
-	press(u, "d")
+	// untick nodegroup (cursor on it, level 1)
+	press(u, " ")
 	if !reflect.DeepEqual(u.view.GroupBy, []Field{FieldCapacity}) {
-		t.Fatalf("after d: %v", u.view.GroupBy)
+		t.Fatalf("after untick: %v", u.view.GroupBy)
 	}
 	if saved != 4 {
 		t.Errorf("saved %d changes, want 4", saved)
@@ -336,9 +354,10 @@ func TestGroupByPanelAtMostThreeLevels(t *testing.T) {
 	v := u.view
 	v.SetGroupBy(FieldCapacity, FieldNodeGroup, FieldZone)
 	u.SetView(v)
-	press(u, "g")
-	if strings.Contains(u.View(), "+ add level") {
-		t.Error("a fourth level is offered")
+	// the fourth row is the first field not grouped on
+	press(u, "g", "down", "down", "down", " ")
+	if len(u.view.GroupBy) != 3 {
+		t.Errorf("a fourth level was added: %v", u.view.GroupBy)
 	}
 }
 

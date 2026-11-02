@@ -151,7 +151,7 @@ func (u *UIModel) switched(msg switchedMsg) tea.Cmd {
 	return u.snapshotCmd()
 }
 
-func (u *UIModel) contextLines(height int) []string {
+func (u *UIModel) contextsPanel() panelView {
 	p := &u.contexts
 	var rows []string
 	switch {
@@ -160,12 +160,12 @@ func (u *UIModel) contextLines(height int) []string {
 	case p.switching != "":
 		rows = []string{"  connecting to " + p.switching + "…"}
 	default:
-		for i, name := range p.names {
+		for _, name := range p.names {
 			current := ""
 			if name == p.current {
 				current = helpStyle("  (current)")
 			}
-			rows = append(rows, marker(i == p.cursor)+name+current)
+			rows = append(rows, name+current)
 		}
 	}
 	if p.err != nil {
@@ -173,7 +173,7 @@ func (u *UIModel) contextLines(height int) []string {
 	}
 	cursor := p.cursor
 	if p.loading || p.switching != "" {
-		cursor = 0
+		cursor = -1
 	}
-	return panelLines("Context", rows, cursor, height)
+	return panelView{title: "Context", rows: rows, cursor: cursor}
 }

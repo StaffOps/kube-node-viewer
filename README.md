@@ -69,8 +69,8 @@ Usage of kube-node-viewer:
 
 | Key | Action |
 |-----|--------|
-| `f` | Filters: add a filter on any label, capacity type, node group, zone, region, instance type or status; edit, turn on/off (`space`) or remove (`d`) it |
-| `g` | Group by: up to three nested levels, each with node, pod, usage and cost subtotals |
+| `f` | Filters: every field and label is listed; `enter` opens one to tick its values (with node counts), `space` turns a filter on/off, `d` clears it |
+| `g` | Group by: tick up to three fields as nested levels (`K`/`J` reorder), each with node, pod, usage and cost subtotals |
 | `s` | Sort by creation, name, IP, price, pods, usage per resource or any label; `enter` on the current sort flips it |
 | `o` | Columns: show, hide and reorder (`K`/`J`) columns and labels |
 | `/` | Search name, IP, instance type and label values as you type; `enter` keeps it, `esc` clears it |
@@ -82,7 +82,8 @@ Usage of kube-node-viewer:
 | `?` | All keys |
 | `q`, `ctrl+c` | Quit |
 
-While a panel or the search is open, keys go to it: `q` or `f` are typed, not
+Panels open as a popup over the node list. While a panel or the search is
+open, keys go to it: `q` or `f` are typed, not
 commands, and `esc` closes the panel or steps back. `esc` no longer quits.
 Filters on different fields combine with AND, several values of one field with
 OR. In the node group column, EKS managed node groups are shown in their own
