@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	v1 "k8s.io/api/core/v1"
@@ -280,5 +281,17 @@ func TestCtrlETogglesHeaderAndSaves(t *testing.T) {
 	u.Update(ctrlE)
 	if u.panel != panelFilters || strings.Contains(u.View(), "Context:") {
 		t.Error("ctrl+e in a panel")
+	}
+}
+
+func TestManagedNodeGroupShownByNameInColour(t *testing.T) {
+	n := NewNode(&v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "n", Labels: map[string]string{"eks.amazonaws.com/nodegroup": "workers"}}})
+	u := newTestUI(t)
+	cell := u.cell(n, FieldNodeGroup, time.Now())
+	if !strings.Contains(cell, "workers") || strings.Contains(cell, "ManagedNodeGroup") {
+		t.Errorf("cell %q", cell)
+	}
+	if textWidth(cell) != len("workers") {
+		t.Errorf("colour codes counted in the width: %d", textWidth(cell))
 	}
 }

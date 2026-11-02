@@ -144,8 +144,9 @@ func (n *Node) CapacityType() CapacityType {
 	return CapacityUnknown
 }
 
-// NodeGroup is the Karpenter NodePool, or the EKS managed node group as
-// "ManagedNodeGroup:<name>", or "-".
+// NodeGroup is the Karpenter NodePool or the EKS managed node group name, or
+// "-". IsManagedNodeGroup tells which: the screen colours managed node groups
+// rather than prefixing them.
 func (n *Node) NodeGroup() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
@@ -153,9 +154,17 @@ func (n *Node) NodeGroup() string {
 		return pool
 	}
 	if group := n.node.Labels["eks.amazonaws.com/nodegroup"]; group != "" {
-		return "ManagedNodeGroup:" + group
+		return group
 	}
 	return "-"
+}
+
+// IsManagedNodeGroup tells whether NodeGroup is an EKS managed node group
+// rather than a Karpenter NodePool.
+func (n *Node) IsManagedNodeGroup() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.node.Labels["karpenter.sh/nodepool"] == "" && n.node.Labels["eks.amazonaws.com/nodegroup"] != ""
 }
 
 // Region is the node's region label, empty when unset.

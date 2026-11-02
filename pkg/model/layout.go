@@ -27,6 +27,9 @@ import (
 var (
 	titleStyle = lipgloss.NewStyle().Bold(true).Render
 	groupStyle = lipgloss.NewStyle().Bold(true).Render
+	// managedNodeGroupStyle tells EKS managed node groups from Karpenter
+	// NodePools in the node group column
+	managedNodeGroupStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0087af", Dark: "#5fafff"}).Render
 )
 
 // nodeBarWidth is the width of a node's usage bar, percentage included.
@@ -398,6 +401,11 @@ func (u *UIModel) cell(n *Node, f Field, now time.Time) string {
 		return strings.Join(flags, "/")
 	case FieldAge:
 		return duration.HumanDuration(now.Sub(n.Created()))
+	case FieldNodeGroup:
+		if n.IsManagedNodeGroup() {
+			return managedNodeGroupStyle(n.NodeGroup())
+		}
+		return n.NodeGroup()
 	case FieldCapacity:
 		c := string(n.CapacityType())
 		if n.LabelValue("eks.amazonaws.com/compute-type") == "auto" {
