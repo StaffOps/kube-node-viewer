@@ -32,8 +32,13 @@ var (
 	managedNodeGroupStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0087af", Dark: "#5fafff"}).Render
 )
 
-// nodeBarWidth is the width of a node's usage bar, percentage included.
-const nodeBarWidth = 24
+// A node's usage bar, percentage included, is at least nodeBarWidth wide and
+// grows into width the columns leave free, up to maxNodeBarWidth. Columns are
+// dropped before the bar shrinks.
+const (
+	nodeBarWidth    = 36
+	maxNodeBarWidth = 60
+)
 
 // pathSeparator joins group-by values in group headings.
 const pathSeparator = " › "
@@ -62,6 +67,12 @@ func (u *UIModel) render() string {
 		body = u.helpLines()
 	case u.panel == panelFilters:
 		body = u.filterLines(avail)
+	case u.panel == panelGroupBy:
+		body = u.groupByLines(avail)
+	case u.panel == panelSort:
+		body = u.sortLines(avail)
+	case u.panel == panelColumns:
+		body = u.columnLines(avail)
 	case stats.NumNodes == 0:
 		body = []string{"Waiting for update or no nodes found..."}
 	case len(nodes) == 0:
@@ -82,6 +93,9 @@ func (u *UIModel) render() string {
 	if len(body) > avail {
 		body = body[:avail]
 	}
+	if u.searching {
+		status = "/" + u.view.Search + "█"
+	}
 	for _, line := range body {
 		b.WriteString(line)
 		b.WriteString("\n")
@@ -93,17 +107,26 @@ func (u *UIModel) render() string {
 }
 
 func (u *UIModel) helpText() string {
+	if u.searching {
+		return "type to search • enter: keep • esc: clear"
+	}
 	switch u.panel {
 	case panelHelp:
 		return "esc: close"
 	case panelFilters:
 		return u.filters.hint()
+	case panelGroupBy:
+		return u.group.hint()
+	case panelSort:
+		return u.sort.hint()
+	case panelColumns:
+		return u.columns.hint()
 	}
-	keys := "f: filters • ←/→: page • ctrl+e: header • ?: help • q: quit"
+	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources"
 	if len(u.view.GroupBy) > 0 {
-		keys = "f: filters • n: nodes • ←/→: page • ctrl+e: header • ?: help • q: quit"
+		keys += " • n: nodes"
 	}
-	return keys
+	return keys + " • ?: help • q: quit"
 }
 
 // block is lines that stay together on a page: a group heading or a node's
@@ -253,8 +276,9 @@ type nodeTable struct {
 
 type tableRow struct {
 	name, pods string
-	bars       []string
-	cells      map[Field]string
+	// fills are the usage of each resource, drawn as bars per page
+	fills []float64
+	cells map[Field]string
 }
 
 func columnTitle(f Field) string {
@@ -313,10 +337,6 @@ func (u *UIModel) newNodeTable(nodes []*Node, indent int) *nodeTable {
 		t.resW = max(t.resW, len(res))
 	}
 
-	// node bars are narrower than the cluster's, to leave room for columns
-	defer func(width int) { u.progress.Width = width }(u.progress.Width)
-	u.progress.Width = nodeBarWidth
-	u.progress.ShowPercentage = true
 	for _, n := range nodes {
 		allocatable, used := n.Allocatable(), n.Used()
 		maxPods, _ := allocatable.Pods().AsInt64()
@@ -327,7 +347,7 @@ func (u *UIModel) newNodeTable(nodes []*Node, indent int) *nodeTable {
 			if a.AsApproximateFloat64() != 0 {
 				pct = used.AsApproximateFloat64() / a.AsApproximateFloat64()
 			}
-			r.bars = append(r.bars, u.progressBar(pct))
+			r.fills = append(r.fills, pct)
 		}
 		for _, c := range columns {
 			cell := u.cell(n, c, now)
@@ -338,15 +358,16 @@ func (u *UIModel) newNodeTable(nodes []*Node, indent int) *nodeTable {
 		t.podsW = max(t.podsW, len(r.pods))
 		t.rows[n] = r
 	}
-	// every bar has the same width; measure one
-	if len(nodes) > 0 && len(u.cluster.resources) > 0 {
-		t.barW = lipgloss.Width(t.rows[nodes[0]].bars[0])
-	}
-
+	t.barW = nodeBarWidth
 	fixed := indent + t.nameW + 1 + t.resW + 1 + t.barW + 1 + t.podsW
 	t.shown, t.hidden = columns, 0
 	if u.width > 0 {
 		t.shown, t.hidden = FitColumns(columns, u.width-fixed, func(f Field) int { return t.colW[f] + 2 })
+		spare := u.width - fixed
+		for _, c := range t.shown {
+			spare -= t.colW[c] + 2
+		}
+		t.barW += min(max(spare, 0), maxNodeBarWidth-nodeBarWidth)
 	}
 
 	titles := make(map[Field]string, len(t.shown))
@@ -368,13 +389,17 @@ func (t *nodeTable) tail(cells map[Field]string) string {
 
 // render is the node's lines: one per resource, the first with its columns.
 func (t *nodeTable) render(n *Node) []string {
-	r := t.rows[n]
-	lines := make([]string, 0, len(r.bars))
-	for j, res := range t.u.cluster.resources {
+	u, r := t.u, t.rows[n]
+	defer func(width int, pct bool) { u.progress.Width, u.progress.ShowPercentage = width, pct }(u.progress.Width, u.progress.ShowPercentage)
+	u.progress.Width, u.progress.ShowPercentage = t.barW, true
+
+	lines := make([]string, 0, len(r.fills))
+	for j, res := range u.cluster.resources {
+		bar := pad(u.progressBar(r.fills[j]), t.barW)
 		if j == 0 {
-			lines = append(lines, t.indent+pad(r.name, t.nameW)+" "+pad(string(res), t.resW)+" "+pad(r.bars[j], t.barW)+" "+pad(r.pods, t.podsW)+t.tail(r.cells))
+			lines = append(lines, t.indent+pad(r.name, t.nameW)+" "+pad(string(res), t.resW)+" "+bar+" "+pad(r.pods, t.podsW)+t.tail(r.cells))
 		} else {
-			lines = append(lines, strings.TrimRight(t.indent+pad("", t.nameW)+" "+pad(string(res), t.resW)+" "+r.bars[j], " "))
+			lines = append(lines, strings.TrimRight(t.indent+pad("", t.nameW)+" "+pad(string(res), t.resW)+" "+bar, " "))
 		}
 	}
 	return lines

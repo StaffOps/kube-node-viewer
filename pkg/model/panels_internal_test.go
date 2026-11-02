@@ -17,6 +17,7 @@ package model
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -44,6 +45,8 @@ func press(u *UIModel, keys ...string) tea.Cmd {
 			msg = tea.KeyMsg{Type: tea.KeySpace, Runes: []rune(" ")}
 		case "ctrl+c":
 			msg = tea.KeyMsg{Type: tea.KeyCtrlC}
+		case "backspace":
+			msg = tea.KeyMsg{Type: tea.KeyBackspace}
 		default:
 			msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
 		}
@@ -293,5 +296,158 @@ func TestManagedNodeGroupShownByNameInColour(t *testing.T) {
 	}
 	if textWidth(cell) != len("workers") {
 		t.Errorf("colour codes counted in the width: %d", textWidth(cell))
+	}
+}
+
+func TestGroupByPanel(t *testing.T) {
+	u := capacityUI(t, 4)
+	var saved int
+	u.OnViewChange(func(ViewState) { saved++ })
+
+	// g → "+ add level" → capacity (first field)
+	press(u, "g", "enter", "enter")
+	if !reflect.DeepEqual(u.view.GroupBy, []Field{FieldCapacity}) {
+		t.Fatalf("group-by %v", u.view.GroupBy)
+	}
+	// add nodegroup (second field) as level 2, then move it up
+	press(u, "down", "enter", "down", "enter")
+	if !reflect.DeepEqual(u.view.GroupBy, []Field{FieldCapacity, FieldNodeGroup}) {
+		t.Fatalf("group-by %v", u.view.GroupBy)
+	}
+	press(u, "K")
+	if !reflect.DeepEqual(u.view.GroupBy, []Field{FieldNodeGroup, FieldCapacity}) {
+		t.Fatalf("after K: %v", u.view.GroupBy)
+	}
+	press(u, "d")
+	if !reflect.DeepEqual(u.view.GroupBy, []Field{FieldCapacity}) {
+		t.Fatalf("after d: %v", u.view.GroupBy)
+	}
+	if saved != 4 {
+		t.Errorf("saved %d changes, want 4", saved)
+	}
+	press(u, "esc")
+	if out := u.View(); !strings.Contains(out, "OnDemand  2 nodes") {
+		t.Errorf("groups not shown:\n%s", out)
+	}
+}
+
+func TestGroupByPanelAtMostThreeLevels(t *testing.T) {
+	u := capacityUI(t, 2)
+	v := u.view
+	v.SetGroupBy(FieldCapacity, FieldNodeGroup, FieldZone)
+	u.SetView(v)
+	press(u, "g")
+	if strings.Contains(u.View(), "+ add level") {
+		t.Error("a fourth level is offered")
+	}
+}
+
+func TestSortPanel(t *testing.T) {
+	u := capacityUI(t, 3)
+	// s → name (second choice) sorts ascending
+	press(u, "s", "down", "enter")
+	if u.panel != panelNone || u.view.Sort != (SortSpec{Field: FieldName}) {
+		t.Fatalf("sort %+v panel %v", u.view.Sort, u.panel)
+	}
+	out := u.View()
+	if strings.Index(out, "node-00") > strings.Index(out, "node-02") {
+		t.Error("not sorted by name")
+	}
+	// enter on the current field flips it
+	press(u, "s", "enter")
+	if !u.view.Sort.Descending {
+		t.Error("enter on the sorted field did not flip it")
+	}
+	// price starts descending
+	press(u, "s", "down", "down", "enter")
+	if u.view.Sort != (SortSpec{Field: FieldPrice, Descending: true}) {
+		t.Errorf("sort %+v", u.view.Sort)
+	}
+}
+
+func TestColumnsPanel(t *testing.T) {
+	u := capacityUI(t, 2)
+	// the first row is the first shown column (instance-type): hide it
+	press(u, "o", " ")
+	if slices.Contains(u.view.Columns, FieldInstanceType) {
+		t.Fatal("space did not hide the column")
+	}
+	if u.columns.fields[u.columns.cursor] != FieldInstanceType {
+		t.Error("cursor left the column it toggled")
+	}
+	press(u, " ")
+	if u.view.Columns[len(u.view.Columns)-1] != FieldInstanceType {
+		t.Fatalf("shown again at the end: %v", u.view.Columns)
+	}
+	press(u, "K")
+	if u.view.Columns[len(u.view.Columns)-2] != FieldInstanceType {
+		t.Errorf("K did not move it left: %v", u.view.Columns)
+	}
+	press(u, "esc")
+	var title string
+	for _, line := range strings.Split(u.View(), "\n") {
+		if strings.Contains(line, "NAME") {
+			title = line
+		}
+	}
+	if !strings.HasSuffix(strings.TrimSpace(title), "INSTANCE  STATUS") {
+		t.Errorf("column order on screen: %q", title)
+	}
+}
+
+func TestSearchTypesKeysAndEscClears(t *testing.T) {
+	u := capacityUI(t, 12)
+	var saved int
+	u.OnViewChange(func(ViewState) { saved++ })
+
+	press(u, "/", "n", "o", "d", "e", "-", "1", "1")
+	if u.view.Search != "node-11" {
+		t.Fatalf("search %q", u.view.Search)
+	}
+	out := u.View()
+	if !strings.Contains(out, "node-11") || strings.Contains(out, "node-10") {
+		t.Errorf("not filtered while typing:\n%s", out)
+	}
+	// q and f are typed, not commands (R12)
+	if quits(press(u, "q")) || u.panel != panelNone {
+		t.Error("a command key acted while searching")
+	}
+	press(u, "backspace", "enter")
+	if u.searching || u.view.Search != "node-11" {
+		t.Errorf("enter: searching %v text %q", u.searching, u.view.Search)
+	}
+	press(u, "/", "esc")
+	if u.view.Search != "" {
+		t.Error("esc did not clear the search")
+	}
+	if saved != 0 {
+		t.Error("search text was saved")
+	}
+}
+
+func TestResourcesCycle(t *testing.T) {
+	u := capacityUI(t, 1)
+	var got []string
+	for i := 0; i < 4; i++ {
+		press(u, "r")
+		got = append(got, strings.Join(u.view.Resources, "+"))
+	}
+	want := []string{"memory", "cpu+memory", "cpu", "memory"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("cycle %v", got)
+	}
+
+	// a list from --resources is a fourth step
+	v := u.view
+	v.Resources = []string{"cpu", "nvidia.com/gpu"}
+	u.SetView(v)
+	got = nil
+	for i := 0; i < 4; i++ {
+		press(u, "r")
+		got = append(got, strings.Join(u.view.Resources, "+"))
+	}
+	want = []string{"cpu", "memory", "cpu+memory", "cpu+nvidia.com/gpu"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("cycle with custom list %v", got)
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -70,6 +71,14 @@ type UIModel struct {
 	// panel is the open panel, if any; it gets the keys (R12)
 	panel   panelKind
 	filters filtersPanel
+	group   groupPanel
+	sort    sortPanel
+	columns columnsPanel
+	// searching is true while the search text takes the keys
+	searching bool
+	// customResources is a resource list other than cpu, memory or both,
+	// from --resources or saved state: the fourth step of r (R9)
+	customResources []string
 
 	// printer formats numbers with commas, built once as the view is redrawn often
 	printer        *message.Printer
@@ -169,6 +178,10 @@ func (u *UIModel) SetView(v ViewState) {
 		u.view.Resources = []string{string(v1.ResourceCPU)}
 	}
 	u.SetResources(u.view.Resources)
+	u.customResources = nil
+	if !slices.ContainsFunc(u.resourceCycle(), func(r []string) bool { return slices.Equal(r, u.view.Resources) }) {
+		u.customResources = slices.Clone(u.view.Resources)
+	}
 	if len(u.view.GroupBy) == 0 {
 		u.view.ShowNodes = true
 	}
@@ -340,6 +353,10 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		u.toggleHeader()
 		return nil
 	}
+	if u.searching {
+		u.searchKey(key)
+		return nil
+	}
 	if u.panel != panelNone {
 		u.panelKey(key)
 		return nil
@@ -351,6 +368,19 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		u.panel = panelHelp
 	case "f":
 		u.openFilters()
+	case "g":
+		u.openGroupBy()
+	case "s":
+		u.openSort()
+	case "o":
+		u.openColumns()
+	case "/":
+		u.searching = true
+	case "r":
+		u.cycleResources()
+	case "esc":
+		// esc in the main view clears a kept search
+		u.view.Search = ""
 	case "n":
 		u.toggleNodes()
 	case "right", "l", "pgdown":

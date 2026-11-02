@@ -26,6 +26,9 @@ const (
 	panelNone panelKind = iota
 	panelHelp
 	panelFilters
+	panelGroupBy
+	panelSort
+	panelColumns
 )
 
 // panelKey handles a key while a panel is open; esc closes or steps back.
@@ -37,12 +40,23 @@ func (u *UIModel) panelKey(key string) {
 		}
 	case panelFilters:
 		u.filtersKey(key)
+	case panelGroupBy:
+		u.groupByKey(key)
+	case panelSort:
+		u.sortKey(key)
+	case panelColumns:
+		u.columnsKey(key)
 	}
 }
 
 // helpKeys lists every key, for the help panel.
 var helpKeys = [][2]string{
 	{"f", "filters: add, edit, turn on/off, remove"},
+	{"g", "group by: up to 3 levels"},
+	{"s", "sort: any column, usage or label; flip ↑/↓"},
+	{"o", "columns: show, hide, reorder"},
+	{"/", "search name, IP, instance type, labels; esc clears"},
+	{"r", "resources: cpu → memory → cpu+memory"},
 	{"n", "show or hide the node list (with a group-by)"},
 	{"←/→ h/l", "previous / next page"},
 	{"home", "first page"},
