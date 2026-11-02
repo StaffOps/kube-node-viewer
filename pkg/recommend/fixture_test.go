@@ -31,9 +31,9 @@ var fixturePrices = map[string]float64{
 var fixtureSpecs = map[string]Spec{
 	"m6i.large": {2, 8, "x86_64", "General purpose", true}, "m6i.xlarge": {4, 16, "x86_64", "General purpose", true},
 	"m6i.2xlarge": {8, 32, "x86_64", "General purpose", true},
-	"m7g.large": {2, 8, "arm64", "General purpose", true}, "m7g.xlarge": {4, 16, "arm64", "General purpose", true},
+	"m7g.large":   {2, 8, "arm64", "General purpose", true}, "m7g.xlarge": {4, 16, "arm64", "General purpose", true},
 	"t3.large": {2, 8, "x86_64", "General purpose", true}, "t3.medium": {2, 4, "x86_64", "General purpose", true},
-	"t3.small": {2, 2, "x86_64", "General purpose", true},
+	"t3.small":  {2, 2, "x86_64", "General purpose", true},
 	"t4g.large": {2, 8, "arm64", "General purpose", true}, "t4g.medium": {2, 4, "arm64", "General purpose", true},
 	"t2.large": {2, 8, "x86_64", "General purpose", true}, "t2.medium": {2, 4, "x86_64", "General purpose", true},
 	"t2.small": {1, 2, "x86_64", "General purpose", true},
