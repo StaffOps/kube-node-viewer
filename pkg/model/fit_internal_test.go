@@ -88,3 +88,20 @@ func TestFrameFitsWindow(t *testing.T) {
 		}
 	}
 }
+
+func TestPopupBordersLineUp(t *testing.T) {
+	u := realisticUI(t)
+	u.Update(tea.WindowSizeMsg{Width: 150, Height: 30})
+	for _, key := range []string{"f", "g", "s", "o", "?"} {
+		press(u, key)
+		p, _ := u.panelView()
+		box := u.popup(p, 20)
+		want := lipgloss.Width(box[0])
+		for i, line := range box {
+			if w := lipgloss.Width(line); w != want {
+				t.Errorf("%s: line %d is %d wide, top border %d", key, i, w, want)
+			}
+		}
+		press(u, "esc", "esc")
+	}
+}

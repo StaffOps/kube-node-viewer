@@ -190,6 +190,13 @@ showing how many are hidden.
 > line is cut to the window width. Internal IP is no longer a default column;
 > it stays available in the Columns panel (owner's request).
 
+> **Corrected 2026-11-02.** On the owner's request, panels float as a popup
+> over the node list (as in sofka), with the selected row highlighted. Filters
+> and Group by list every field up front, like Sort and Columns: Filters opens
+> a field in place to tick its values, each tick filtering at once; Group by
+> ticks up to three fields as levels and reorders them with `K`/`J`. Default
+> columns are instance, price, capacity, node group, zone, status.
+
 **R15** WHEN existing flags or config keys are used THEN they SHALL map to
 the view state as in the design's flag table (D8), and `--node-selector`
 SHALL stay the only server-side scope.
