@@ -172,6 +172,9 @@ type ViewState struct {
 	Resources []string `json:"resources,omitempty"`
 	Columns   []Field  `json:"columns,omitempty"`
 	ShowNodes bool     `json:"showNodes"`
+	// GroupDepth is how many group-by levels show while the node list is
+	// hidden; 0 shows them all.
+	GroupDepth int `json:"groupDepth,omitempty"`
 	// Header is HeaderFull or HeaderCompact once the user picks one with
 	// ctrl+e; empty picks by screen height.
 	Header string `json:"header,omitempty"`
@@ -206,6 +209,18 @@ func (s *ViewState) SetGroupBy(fields ...Field) {
 		seen[f] = true
 		s.GroupBy = append(s.GroupBy, f)
 	}
+}
+
+// VisibleDepth is how many group-by levels are on screen with the node list
+// hidden, 0 when the node list shows.
+func (s ViewState) VisibleDepth() int {
+	if s.ShowNodes || len(s.GroupBy) == 0 {
+		return 0
+	}
+	if s.GroupDepth <= 0 || s.GroupDepth > len(s.GroupBy) {
+		return len(s.GroupBy)
+	}
+	return s.GroupDepth
 }
 
 // Select returns the nodes passing every enabled filter and the search text,
