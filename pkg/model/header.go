@@ -63,20 +63,26 @@ func (u *UIModel) recentIssue() string {
 	return msg
 }
 
-// clusterCost is the cost of every watched node, whatever the filters, for
-// the header; empty with pricing disabled. short drops the monthly figure.
-func (u *UIModel) clusterCost(stats Stats, short bool) string {
+// clusterCost is the monthly cost of every watched node, whatever the
+// filters, shown after the node and pod counts; empty with pricing disabled.
+func (u *UIModel) clusterCost(stats Stats) string {
 	if u.DisablePricing {
 		return ""
 	}
-	cost := u.printer.Sprintf("$%0.3f/hour", stats.TotalPrice)
-	if !short {
-		cost += u.printer.Sprintf(" | $%0.3f/month", stats.TotalPrice*avgHoursPerMonth)
-	}
+	cost := costValue(u.printer.Sprintf("$%0.3f/month", stats.TotalPrice*avgHoursPerMonth))
 	if stats.UnpricedReserved > 0 {
-		cost += u.printer.Sprintf(" (+%d reserved, not priced)", stats.UnpricedReserved)
+		cost += costValue(u.printer.Sprintf(" (+%d reserved, not priced)", stats.UnpricedReserved))
 	}
-	return cost
+	return cost + headerLabel(" (global cluster)")
+}
+
+// countsWithCost is the node and pod counts, then the cluster's cost.
+func (u *UIModel) countsWithCost(counts string, stats Stats) string {
+	out := countsValue(counts)
+	if cost := u.clusterCost(stats); cost != "" {
+		out += countsValue(" · ") + cost
+	}
+	return out
 }
 
 // headerKeys are the main keys shown in the header panel, as key and action.
@@ -147,11 +153,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	issue := u.recentIssue()
 	if u.headerSize() == headerLine {
 		sep := viewSep(" │ ")
-		line := headerContext(context) + sep + countsValue(counts)
-		if cost := u.clusterCost(stats, true); cost != "" {
-			line += sep + costValue(cost)
-		}
-		line += sep + u.viewSummary()
+		line := headerContext(context) + sep + u.countsWithCost(counts, stats) + sep + u.viewSummary()
 		if issue != "" {
 			line += sep + u.style.red("⚠ "+issue)
 		}
@@ -169,10 +171,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 				where = append(where, headerValue(s))
 			}
 		}
-		where = append(where, countsValue(counts))
-		if cost := u.clusterCost(stats, true); cost != "" {
-			where = append(where, costValue(cost))
-		}
+		where = append(where, u.countsWithCost(counts, stats))
 		body := strings.Join(where, headerLabel(" · ")) + "\n" + u.viewSummary()
 		if issue != "" {
 			body += "\n" + u.style.red("⚠ "+issue)
@@ -183,12 +182,8 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		{"Context:", headerValue(context)},
 		{"Cluster:", headerValue(orDash(u.info.Server))},
 		{"Region:", headerValue(orDash(region))},
-		{"Nodes:", countsValue(counts)},
+		{"Nodes:", u.countsWithCost(counts, stats)},
 		{"View:", u.viewSummary()},
-	}
-	if cost := u.clusterCost(stats, false); cost != "" {
-		// after Nodes, before View: the cluster's figures together
-		rows = append(rows[:4], append([][2]string{{"Cost:", costValue(cost) + headerLabel("  whole cluster")}}, rows[4:]...)...)
 	}
 	if issue != "" {
 		rows = append(rows, [2]string{"Issue:", u.style.red(issue) + headerLabel("  full log: "+u.issueLog)})
