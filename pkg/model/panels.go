@@ -69,6 +69,7 @@ var helpKeys = [][2]string{
 	{"r", "resources: cpu → memory → cpu+memory"},
 	{"c", "switch to another kubeconfig context"},
 	{"v", "named views: apply, save the current view, delete"},
+	{"e", "export the nodes on screen to CSV and JSON in the current directory"},
 	{"d", "folded: list the next group level as one-line rows"},
 	{"↑/↓ k/j", "select a group or node (marked in the left margin)"},
 	{"enter", "fold or unfold the selected group on its own"},
