@@ -170,6 +170,17 @@ SHALL stay the only server-side scope.
 
 - [ ] One test per row of the flag table.
 
+**R16** WHEN the screen has room THEN the system SHALL show a header panel
+above the nodes with the context name, API server URL, pricing region, nodes
+shown of total with the pod count, the active view (filters, group-by, sort,
+resources) and the main keys; WHEN the screen is too short THEN it SHALL fall
+back to one header line with the view only.
+
+- [ ] No network call is made to fill it (no "new version" check, no logo).
+
+> **Added 2026-11-02.** The owner asked for a sofka-like header panel; read-only
+> actions (cordon, drain) and the update check are left out.
+
 ## Counter-examples
 
 - SHALL NOT list or show individual pods; pods only feed per-node totals
