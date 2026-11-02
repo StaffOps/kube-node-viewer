@@ -131,3 +131,29 @@ func TestHeaderShowsRecentIssueOnly(t *testing.T) {
 		t.Error("an old issue is still shown")
 	}
 }
+
+func TestSummaryCoversOnlyShownNodes(t *testing.T) {
+	u := demoUI(t)
+	u.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
+	all := u.View()
+	if !strings.Contains(all, "$0.997/hour") || strings.Contains(all, "filtered:") {
+		t.Fatalf("unfiltered summary:\n%s", all)
+	}
+	// spot-arm: three nodes at 0.031 + 0.029 + 0.058 = 0.118/hour
+	v := u.view
+	v.Filters = []Filter{{Field: FieldNodeGroup, Values: []string{"spot-arm"}, Enabled: true}}
+	u.SetView(v)
+	out := u.View()
+	if !strings.Contains(out, "$0.118/hour") || !strings.Contains(out, "(filtered: 3 of 10 nodes)") {
+		t.Errorf("filtered summary:\n%s", out)
+	}
+	if strings.Contains(out, "$0.997/hour") {
+		t.Error("the cluster total still shows under a filter")
+	}
+	// a reserved node filtered in is counted as not priced, not as cost
+	v.Filters = []Filter{{Field: FieldCapacity, Values: []string{"Reserved"}, Enabled: true}}
+	u.SetView(v)
+	if out := u.View(); !strings.Contains(out, "$0.000/hour") || !strings.Contains(out, "(+1 reserved, not priced)") {
+		t.Errorf("reserved only:\n%s", out)
+	}
+}

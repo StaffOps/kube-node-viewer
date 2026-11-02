@@ -370,10 +370,27 @@ func (u *UIModel) usageBar(fill float64, width int, cell rune) string {
 // clusterSummary is the cluster-wide usage and cost, one line per resource.
 // It covers every watched node, whatever the filters; node and pod counts are
 // in the header.
-func (u *UIModel) clusterSummary(stats Stats) string {
+// The usage and cost are those of the nodes on screen: with filters or a
+// search they cover only the nodes kept, marked so they don't read as the
+// cluster's total.
+func (u *UIModel) clusterSummary(stats Stats, nodes []*Node) string {
+	shown := stats
+	if len(nodes) != stats.NumNodes {
+		g := newGroupStats("")
+		for _, n := range nodes {
+			g.add(n)
+		}
+		shown = Stats{
+			NumNodes:             g.NumNodes,
+			AllocatableResources: g.AllocatableResources,
+			UsedResources:        g.UsedResources,
+			TotalPrice:           g.TotalPrice,
+			UnpricedReserved:     g.ReservedNodes,
+		}
+	}
 	var b strings.Builder
 	ctw := text.NewColorTabWriter(&b, 0, 8, 1)
-	u.writeClusterSummary(u.cluster.resources, stats, ctw)
+	u.writeClusterSummary(u.cluster.resources, shown, ctw, len(nodes) != stats.NumNodes, stats.NumNodes)
 	ctw.Flush()
 	return b.String()
 }
@@ -383,7 +400,7 @@ func (u *UIModel) setBarCell(cell rune) {
 	u.progress.Full, u.progress.Empty = cell, cell
 }
 
-func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, w io.Writer) {
+func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, w io.Writer, filtered bool, total int) {
 	firstLine := true
 	defer u.setBarCell(u.progress.Full)
 
@@ -406,6 +423,9 @@ func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, 
 		}
 		if u.DisablePricing {
 			clusterPrice = ""
+		}
+		if filtered {
+			clusterPrice += helpStyle(u.printer.Sprintf("  (filtered: %d of %d nodes)", stats.NumNodes, total))
 		}
 		if firstLine {
 			u.printer.Fprintf(w, "%s/%s\t%s\t%s\t%s\t%s\n",

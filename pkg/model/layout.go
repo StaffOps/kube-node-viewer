@@ -91,7 +91,7 @@ func (u *UIModel) render() string {
 // renderContent is everything below the header, headerLines tall.
 func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) string {
 	var b strings.Builder
-	b.WriteString(u.fit(u.clusterSummary(stats)))
+	b.WriteString(u.fit(u.clusterSummary(stats, nodes)))
 	b.WriteString("\n")
 
 	// what is left between the summary and the two footer lines
