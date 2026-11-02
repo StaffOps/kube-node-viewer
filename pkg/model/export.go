@@ -339,7 +339,9 @@ func writeJSON(path string, doc exportDoc) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o644)
+	// an export is a file for the user's spreadsheet or report, readable like
+	// any other they create
+	return os.WriteFile(path, append(data, '\n'), 0o644) //nolint:gosec // G306: see above
 }
 
 // exported tells, in the footer, where the files went or why they didn't.

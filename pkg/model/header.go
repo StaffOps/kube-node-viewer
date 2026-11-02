@@ -203,7 +203,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	for i := 0; i < len(headerKeys); i += 2 {
 		right.WriteString("\n")
 		for _, k := range headerKeys[i:min(i+2, len(headerKeys))] {
-			right.WriteString(fmt.Sprintf("%s %s", headerKey(fmt.Sprintf("%3s", k[0])), headerAction(fmt.Sprintf("%-10s", k[1]))))
+			fmt.Fprintf(&right, "%s %s", headerKey(fmt.Sprintf("%3s", k[0])), headerAction(fmt.Sprintf("%-10s", k[1])))
 		}
 	}
 
