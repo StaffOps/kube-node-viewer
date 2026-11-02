@@ -6,7 +6,7 @@
   - _Covers: R7, R8, R9, R11, R15 · Depends on: — · Verified by: catalog and pricing tests_
 - [x] T2. Owner kind kept by `SlimPod` and on `model.Pod`
   - _Covers: R6, R7 · Depends on: — · Verified by: transform tests_
-- [ ] T3. `pkg/recommend`: idle, consolidate, rightsize, generation, graviton, old node, spot; targets; total; exclusions
+- [x] T3. `pkg/recommend`: idle, consolidate, rightsize, generation, graviton, old node, spot; targets; total; exclusions
   - _Covers: R3, R5, R6, R7, R8, R9, R10, R11, R13, R14, R15 · Depends on: T1, T2 · Verified by: fixture and table tests; benchmark_
 - [ ] T4. Overview: `IDLE/H` column, idle sort, idle in group headings
   - _Covers: R4 · Depends on: — · Verified by: unit tests_
@@ -27,3 +27,10 @@
 | Pod-level rightsizing (requests too high) | owner asks |
 | Commitments (Savings Plans, RIs) | owner asks |
 | A second total including Spot | owner asks |
+
+## Benchmark
+
+`go test ./pkg/recommend -run x -bench Analyze -benchtime 20x` on
+darwin/arm64, 2026-11-02: 500 nodes / 15,000 pods, 10 groups → 9.1 ms per
+analysis. Rightsize candidates are indexed by family, so the catalog size
+(1,393 types) doesn't multiply the cost.
