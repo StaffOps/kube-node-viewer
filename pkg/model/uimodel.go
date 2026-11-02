@@ -287,15 +287,14 @@ func (u *UIModel) colorizeUsage(pctUsed float64, label string) string {
 	return u.style.red(label)
 }
 
-// clusterSummary is the cluster-wide usage and cost, one line per resource,
-// then the pod counts. It covers every watched node, whatever the filters.
+// clusterSummary is the cluster-wide usage and cost, one line per resource.
+// It covers every watched node, whatever the filters; node and pod counts are
+// in the header.
 func (u *UIModel) clusterSummary(stats Stats) string {
 	var b strings.Builder
 	ctw := text.NewColorTabWriter(&b, 0, 8, 1)
 	u.writeClusterSummary(u.cluster.resources, stats, ctw)
 	ctw.Flush()
-	u.printer.Fprintf(&b, "%d pods (%d pending %d running %d bound)\n", stats.TotalPods,
-		stats.PodsByPhase[v1.PodPending], stats.PodsByPhase[v1.PodRunning], stats.BoundPodCount)
 	return b.String()
 }
 
@@ -321,10 +320,10 @@ func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, 
 			clusterPrice = ""
 		}
 		if firstLine {
-			u.printer.Fprintf(w, "%d nodes\t(%10s/%s)\t%s\t%s\t%s\t%s\n",
-				stats.NumNodes, formatQuantity(res, used), formatQuantity(res, allocatable), pctUsedStr, res, u.progressBar(pctUsed/100.0), clusterPrice)
+			u.printer.Fprintf(w, "%s/%s\t%s\t%s\t%s\t%s\n",
+				formatQuantity(res, used), formatQuantity(res, allocatable), pctUsedStr, res, u.progressBar(pctUsed/100.0), clusterPrice)
 		} else {
-			u.printer.Fprintf(w, " \t%s/%s\t%s\t%s\t%s\t\n",
+			u.printer.Fprintf(w, "%s/%s\t%s\t%s\t%s\t\n",
 				formatQuantity(res, used), formatQuantity(res, allocatable), pctUsedStr, res, u.progressBar(pctUsed/100.0))
 		}
 		firstLine = false
