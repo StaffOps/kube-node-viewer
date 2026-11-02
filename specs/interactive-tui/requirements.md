@@ -1,6 +1,6 @@
 # Requirements: interactive-tui
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-10-31 (spec-refuter; 4 HIGH, 8 MEDIUM, all applied)
+> Status: shipped (v0.8.0, 2026-11-02) · Owner: Carlos Gomes · Reviewed: 2026-10-31 (spec-refuter; 4 HIGH, 8 MEDIUM, all applied)
 
 ## Context
 

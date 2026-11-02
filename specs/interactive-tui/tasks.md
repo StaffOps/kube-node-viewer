@@ -77,3 +77,8 @@ core.
 | Negation / OR across fields in filters | a real query the panels can't express |
 | GKE/AKS node pool labels; nodes with empty `providerID` | stage 2 (multi-cloud) |
 | GPU resource and columns | stage 3 roadmap |
+
+> **Shipped 2026-11-02.** Released in v0.8.0 (Homebrew from v0.8.1). The
+> owner ran it on `qrvey-test-upgrade` and checked a context switch (`c`) to
+> a local kind cluster and back: only the selected cluster's nodes showed,
+> each with its saved view.
