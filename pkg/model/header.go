@@ -90,8 +90,8 @@ var headerKeys = [][2]string{
 	{"f", "filters"}, {"g", "group by"},
 	{"s", "sort"}, {"o", "columns"},
 	{"/", "search"}, {"r", "resources"},
-	{"c", "context"}, {"?", "help"},
-	{"^e", "compact"},
+	{"c", "context"}, {"v", "views"},
+	{"?", "help"}, {"^e", "compact"},
 }
 
 type headerSize int
