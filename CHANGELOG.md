@@ -47,6 +47,9 @@ All notable changes to this project are documented here. Format:
   `interactive-tui` specs, shared skills for Claude Code and Kiro
   (`spec-new`, `change-loop`, `upstream-sync`), `spec-refuter` review agent,
   agent hooks, `scripts/verify.sh` and `scripts/spec-lint.sh`.
+- Homebrew install: releases publish a cask to `StaffOps/homebrew-tap`
+  (`brew install staffops/tap/kube-node-viewer`); release archives are
+  `tar.gz`, `zip` on Windows.
 - `scripts/build.sh` for local and cross-platform builds without
   `make generate`.
 - Initial import of `awslabs/eks-node-viewer` at `fe35ed41e18b`
@@ -82,7 +85,8 @@ All notable changes to this project are documented here. Format:
 
 ### Removed
 
-- AWS Homebrew tap tooling (`hack/homebrew.go`) and the Amazon code of conduct.
+- The previous Homebrew tap tooling (`hack/homebrew.go`) and the inherited code
+  of conduct.
 
 ### Fixed
 
