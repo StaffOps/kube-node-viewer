@@ -412,6 +412,12 @@ provider in the
 Update the AWS CLI and
 [regenerate your kubeconfig](https://docs.aws.amazon.com/cli/latest/reference/eks/update-kubeconfig.html).
 
+**A red `Issue:` line in the header.** The Kubernetes client or pricing
+logged an error, such as a lost connection to the API server; the header
+shows the latest for two minutes. While the TUI runs, those messages go to
+`kube-node-viewer.log` next to the state file (by default
+`~/.local/state/kube-node-viewer/kube-node-viewer.log`), not to the screen.
+
 **`could not open a new TTY`.** The TUI needs a real terminal; run it directly,
 not through a pipe or a tool without a TTY.
 

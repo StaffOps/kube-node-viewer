@@ -17,6 +17,7 @@ package model
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 
@@ -44,6 +45,21 @@ var (
 	viewValue   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f00", Dark: "#87d787"}).Render
 	viewSep     = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 )
+
+// issueWindow is how long a logged error stays in the header.
+const issueWindow = 2 * time.Minute
+
+// recentIssue is the last logged error if it is recent, else empty.
+func (u *UIModel) recentIssue() string {
+	if u.issues == nil {
+		return ""
+	}
+	msg, at := u.issues()
+	if msg == "" || time.Since(at) > issueWindow {
+		return ""
+	}
+	return msg
+}
 
 // headerKeys are the main keys shown in the header panel, as key and action.
 var headerKeys = [][2]string{
@@ -110,9 +126,14 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		context = "-"
 	}
 
+	issue := u.recentIssue()
 	if u.headerSize() == headerLine {
 		sep := viewSep(" │ ")
-		return headerContext(context) + sep + countsValue(counts) + sep + u.viewSummary() + "\n"
+		line := headerContext(context) + sep + countsValue(counts) + sep + u.viewSummary()
+		if issue != "" {
+			line += sep + u.style.red("⚠ "+issue)
+		}
+		return line + "\n"
 	}
 
 	region := u.info.Region
@@ -127,7 +148,11 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 			}
 		}
 		where = append(where, countsValue(counts))
-		return u.boxed(strings.Join(where, headerLabel(" · ")) + "\n" + u.viewSummary())
+		body := strings.Join(where, headerLabel(" · ")) + "\n" + u.viewSummary()
+		if issue != "" {
+			body += "\n" + u.style.red("⚠ "+issue)
+		}
+		return u.boxed(body)
 	}
 	rows := [][2]string{
 		{"Context:", headerValue(context)},
@@ -135,6 +160,9 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		{"Region:", headerValue(orDash(region))},
 		{"Nodes:", countsValue(counts)},
 		{"View:", u.viewSummary()},
+	}
+	if issue != "" {
+		rows = append(rows, [2]string{"Issue:", u.style.red(issue) + headerLabel("  full log: "+u.issueLog)})
 	}
 	var left strings.Builder
 	left.WriteString(titleStyle("kube-node-viewer"))

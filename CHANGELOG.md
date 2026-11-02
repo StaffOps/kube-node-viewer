@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Fixed
+
+- Errors from the Kubernetes client or pricing no longer print over the TUI:
+  while it runs they go to `kube-node-viewer.log` next to the state file, and
+  the header shows the latest for two minutes.
+
 ## [0.8.1] - 2026-11-02
 
 ### Fixed

@@ -67,6 +67,11 @@ type UIModel struct {
 	// onViewChange receives the view state after the user changes it, to save
 	// it for the cluster. It must not block.
 	onViewChange func(ViewState)
+	// issues returns the last error logged by the Kubernetes client or
+	// pricing, and when; the header shows it while it is recent
+	issues func() (string, time.Time)
+	// issueLog is where the full messages are
+	issueLog string
 
 	// panel is the open panel, if any; it gets the keys (R12)
 	panel    panelKind
@@ -191,6 +196,12 @@ func NewUIModel(style *Style) *UIModel {
 
 func (u *UIModel) Cluster() *Cluster {
 	return u.cluster
+}
+
+// SetIssues gives the header the last logged error and its time, and the
+// file holding them all.
+func (u *UIModel) SetIssues(f func() (string, time.Time), logFile string) {
+	u.issues, u.issueLog = f, logFile
 }
 
 // SetClusterInfo names the cluster in the header.

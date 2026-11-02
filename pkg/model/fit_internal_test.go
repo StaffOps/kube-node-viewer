@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -112,5 +113,21 @@ func TestNodeAndPodCountsOnlyInHeader(t *testing.T) {
 	out := u.View()
 	if strings.Count(out, "8 of 8 shown") != 1 || strings.Contains(out, "8 nodes (") || strings.Contains(out, "pods (0 pending") {
 		t.Errorf("counts repeated below the header:\n%s", out)
+	}
+}
+
+func TestHeaderShowsRecentIssueOnly(t *testing.T) {
+	u := realisticUI(t)
+	u.Update(tea.WindowSizeMsg{Width: 160, Height: 40})
+	at := time.Now()
+	u.SetIssues(func() (string, time.Time) { return "failed to list *v1.Node: connection refused", at }, "/tmp/knv.log")
+	u.dirty = true
+	if out := u.View(); !strings.Contains(out, "connection refused") || !strings.Contains(out, "/tmp/knv.log") {
+		t.Errorf("recent issue not shown:\n%s", out)
+	}
+	at = time.Now().Add(-issueWindow - time.Second)
+	u.dirty = true
+	if strings.Contains(u.View(), "connection refused") {
+		t.Error("an old issue is still shown")
 	}
 }
