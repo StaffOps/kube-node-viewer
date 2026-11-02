@@ -147,13 +147,39 @@ func TestSummaryCoversOnlyShownNodes(t *testing.T) {
 	if !strings.Contains(out, "$0.118/hour") || !strings.Contains(out, "(filtered: 3 of 10 nodes)") {
 		t.Errorf("filtered summary:\n%s", out)
 	}
-	if strings.Contains(out, "$0.997/hour") {
-		t.Error("the cluster total still shows under a filter")
+	// the box keeps the cluster's cost; the summary below it must not
+	if below := out[strings.Index(out, "╰"):]; strings.Contains(below, "$0.997/hour") {
+		t.Error("the summary still shows the cluster total under a filter")
 	}
 	// a reserved node filtered in is counted as not priced, not as cost
 	v.Filters = []Filter{{Field: FieldCapacity, Values: []string{"Reserved"}, Enabled: true}}
 	u.SetView(v)
 	if out := u.View(); !strings.Contains(out, "$0.000/hour") || !strings.Contains(out, "(+1 reserved, not priced)") {
 		t.Errorf("reserved only:\n%s", out)
+	}
+}
+
+func TestHeaderKeepsTheClusterCost(t *testing.T) {
+	u := demoUI(t)
+	u.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
+	v := u.view
+	v.Filters = []Filter{{Field: FieldNodeGroup, Values: []string{"spot-arm"}, Enabled: true}}
+	u.SetView(v)
+	out := u.View()
+	header := out[:strings.Index(out, "╰")]
+	if !strings.Contains(header, "Cost:") || !strings.Contains(header, "$0.997/hour |") {
+		t.Errorf("cluster cost not in the header under a filter:\n%s", header)
+	}
+	if !strings.Contains(out, "$0.118/hour") {
+		t.Error("the summary lost the filtered cost")
+	}
+	u.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
+	if compact := u.View(); !strings.Contains(compact[:strings.Index(compact, "╰")], "$0.997/hour") {
+		t.Errorf("compact header without the cluster cost:\n%s", compact)
+	}
+	u.DisablePricing = true
+	u.dirty = true
+	if strings.Contains(u.View(), "Cost:") {
+		t.Error("cost shown with pricing disabled")
 	}
 }
