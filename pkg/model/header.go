@@ -36,9 +36,10 @@ var (
 
 // headerKeys are the main keys shown in the header panel, as key and action.
 var headerKeys = [][2]string{
-	{"f", "filters"}, {"n", "nodes"},
-	{"←/→", "page"}, {"?", "help"},
-	{"q", "quit"}, {"^e", "compact"},
+	{"f", "filters"}, {"g", "group by"},
+	{"s", "sort"}, {"o", "columns"},
+	{"/", "search"}, {"r", "resources"},
+	{"?", "help"}, {"^e", "compact"},
 }
 
 type headerSize int
@@ -166,6 +167,9 @@ func orDash(s string) string {
 func fieldName(f Field) string {
 	if key := f.Label(); key != "" {
 		return key
+	}
+	if res, ok := strings.CutPrefix(string(f), usageFieldPrefix); ok {
+		return res + " usage"
 	}
 	return string(f)
 }

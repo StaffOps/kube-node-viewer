@@ -26,7 +26,7 @@
   - _Covers: R1, R2, R15 · Depends on: T8 · Verified by: one test per flag-table row; state tests_
 - [x] T10. Key routing, help (`?`), header panel (R16) with one-line fallback, pagination by lines; Filters panel (`f`)
   - _Covers: R3, R12, R14, R16 · Depends on: T8 · Verified by: key-driven tests_
-- [ ] T10b. Group by (`g`), Sort (`s`), Columns (`o`) panels; `/` search; `r`; `n`
+- [x] T10b. Group by (`g`), Sort (`s`), Columns (`o`) panels; `/` search; `r`; `n`
   - _Covers: R4, R5, R6, R7, R9, R13 · Depends on: T10 · Verified by: key-driven tests_
 - [ ] T11. Context picker (`c`): stop watches, bump generation, clear store, restart in a `tea.Cmd`, load state, re-scope pricing region
   - _Covers: R10 · Depends on: T5, T9 · Verified by: tests with fake clients; manual on two contexts_

@@ -174,6 +174,10 @@ paginate by lines, repeat the group path on a page that continues a group
 (`default › us-east-1a (cont.)`), and drop lowest-priority columns first,
 showing how many are hidden.
 
+> **Added 2026-11-02 (T10b).** A node's usage bar is at least 36 cells (the
+> owner asked for 50% more than the first 24) and grows into width the columns
+> leave free, up to 60. Columns are dropped before the bar shrinks.
+
 **R15** WHEN existing flags or config keys are used THEN they SHALL map to
 the view state as in the design's flag table (D8), and `--node-selector`
 SHALL stay the only server-side scope.
