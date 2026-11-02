@@ -27,7 +27,13 @@ import (
 
 var (
 	titleStyle = lipgloss.NewStyle().Bold(true).Render
-	groupStyle = lipgloss.NewStyle().Bold(true).Render
+	// column titles of the node list
+	columnTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#875f00", Dark: "#ffd75f"}).Render
+	// capacity types that change what a node costs
+	spotStyle     = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#d75f00", Dark: "#ffaf5f"}).Render
+	reservedStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#af00af", Dark: "#d787d7"}).Render
+	fargateStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005fd7", Dark: "#87afff"}).Render
+	groupStyle    = lipgloss.NewStyle().Bold(true).Render
 	// group headings: the top level stands out, sub-levels hang off it
 	topGroupStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#005f87", Dark: "#87d7ff"}).Render
 	subGroupStyle = lipgloss.NewStyle().Bold(true).Render
@@ -190,11 +196,14 @@ type block struct {
 	// page is shown
 	node  *Node
 	count int
+	// gap is a blank line kept before the node when it follows another node,
+	// so stacked resource lines read as one node each
+	gap int
 }
 
 func (b block) height() int {
 	if b.node != nil {
-		return b.count
+		return b.count + b.gap
 	}
 	return len(b.lines)
 }
@@ -217,6 +226,10 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 
 	var blocks []block
 	groups := u.view.Groups(nodes)
+	gap := 0
+	if len(u.cluster.resources) > 1 {
+		gap = 1
+	}
 	// with the node list hidden the groups carry their own usage bars
 	// Folded, the deepest level shown carries the usage bars and the levels
 	// above it are one-line summaries. With details on (d), the level below
@@ -257,7 +270,7 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 			walk(g.Groups)
 			if table != nil {
 				for _, n := range g.Nodes {
-					blocks = append(blocks, block{path: g.Path, node: n, count: len(u.cluster.resources)})
+					blocks = append(blocks, block{path: g.Path, node: n, count: len(u.cluster.resources), gap: gap})
 				}
 			}
 		}
@@ -266,17 +279,22 @@ func (u *UIModel) currentPage(nodes []*Node, height int) (lines []string, pageCo
 		walk(groups)
 	} else {
 		for _, n := range nodes {
-			blocks = append(blocks, block{node: n, count: len(u.cluster.resources)})
+			blocks = append(blocks, block{node: n, count: len(u.cluster.resources), gap: gap})
 		}
 	}
 	pages := paginate(blocks, top, height)
 	u.page = min(u.page, len(pages)-1)
+	afterNode := false
 	for _, b := range pages[u.page] {
 		if b.node != nil {
+			if afterNode && b.gap > 0 {
+				lines = append(lines, "")
+			}
 			lines = append(lines, table.render(b.node)...)
 		} else {
 			lines = append(lines, b.lines...)
 		}
+		afterNode = b.node != nil
 	}
 	return lines, len(pages), hiddenColumns
 }
@@ -461,9 +479,6 @@ func (u *UIModel) groupTable(groups []*Group, tree map[*Group]groupTree, depth i
 		spare := u.width - (nameW + 2 + nodesW + 2 + podsW + 2 + resW + 1) - 2 - priceW
 		barW = min(max(spare, nodeBarWidth), maxNodeBarWidth)
 	}
-	defer func(width int, pct bool) { u.progress.Width, u.progress.ShowPercentage = width, pct }(u.progress.Width, u.progress.ShowPercentage)
-	u.progress.Width, u.progress.ShowPercentage = barW, true
-
 	out := make(map[*Group][]string, len(all))
 	for _, g := range all {
 		r := rows[g]
@@ -472,7 +487,7 @@ func (u *UIModel) groupTable(groups []*Group, tree map[*Group]groupTree, depth i
 			lines = append(lines, "")
 		}
 		for i, res := range u.cluster.resources {
-			bar := pad(u.progressBar(g.Stats.PercentUsed(res)/100), barW)
+			bar := pad(u.usageBar(g.Stats.PercentUsed(res)/100, barW), barW)
 			if i == 0 {
 				line := pad(r.name, nameW) + "  " + pad(r.nodes, nodesW) + "  " + pad(r.pods, podsW) + "  " + pad(string(res), resW) + " " + bar
 				if r.price != "" {
@@ -606,7 +621,7 @@ func (u *UIModel) newNodeTable(nodes []*Node, indent int) *nodeTable {
 	for _, c := range t.shown {
 		titles[c] = columnTitle(c)
 	}
-	t.title = titleStyle(t.indent + pad("NAME", t.nameW) + " " + pad("", t.resW) + " " + pad("", t.barW) + " " + pad("PODS", t.podsW) + t.tail(titles))
+	t.title = columnTitleStyle(t.indent + pad("NAME", t.nameW) + " " + pad("", t.resW) + " " + pad("", t.barW) + " " + pad("PODS", t.podsW) + t.tail(titles))
 	return t
 }
 
@@ -622,12 +637,10 @@ func (t *nodeTable) tail(cells map[Field]string) string {
 // render is the node's lines: one per resource, the first with its columns.
 func (t *nodeTable) render(n *Node) []string {
 	u, r := t.u, t.rows[n]
-	defer func(width int, pct bool) { u.progress.Width, u.progress.ShowPercentage = width, pct }(u.progress.Width, u.progress.ShowPercentage)
-	u.progress.Width, u.progress.ShowPercentage = t.barW, true
 
 	lines := make([]string, 0, len(r.fills))
 	for j, res := range u.cluster.resources {
-		bar := pad(u.progressBar(r.fills[j]), t.barW)
+		bar := pad(u.usageBar(r.fills[j], t.barW), t.barW)
 		if j == 0 {
 			lines = append(lines, t.indent+pad(r.name, t.nameW)+" "+pad(string(res), t.resW)+" "+bar+" "+pad(r.pods, t.podsW)+t.tail(r.cells))
 		} else {
@@ -652,8 +665,17 @@ func (u *UIModel) cell(n *Node, f Field, now time.Time) string {
 		}
 	case FieldStatus:
 		flags := n.StatusFlags()
-		if flags[0] == StatusNotReady {
-			flags[0] += "/" + duration.HumanDuration(now.Sub(n.NotReadyTime()))
+		for i, f := range flags {
+			switch f {
+			case StatusReady:
+				flags[i] = u.style.green(f)
+			case StatusNotReady:
+				flags[i] = u.style.red(f + "/" + duration.HumanDuration(now.Sub(n.NotReadyTime())))
+			case StatusDeleting:
+				flags[i] = u.style.red(f)
+			default: // Cordoned, Launching
+				flags[i] = u.style.yellow(f)
+			}
 		}
 		return strings.Join(flags, "/")
 	case FieldAge:
@@ -664,7 +686,16 @@ func (u *UIModel) cell(n *Node, f Field, now time.Time) string {
 		}
 		return n.NodeGroup()
 	case FieldCapacity:
-		c := string(n.CapacityType())
+		capacity := n.CapacityType()
+		c := string(capacity)
+		switch capacity {
+		case CapacitySpot:
+			c = spotStyle(c)
+		case CapacityReserved:
+			c = reservedStyle(c)
+		case CapacityFargate:
+			c = fargateStyle(c)
+		}
 		if n.LabelValue("eks.amazonaws.com/compute-type") == "auto" {
 			c += "/Auto"
 		}
