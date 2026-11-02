@@ -20,7 +20,13 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    named views (`v`), export of the screen to CSV and JSON (`e`).
    [requirements](views-and-export/requirements.md) ·
    [design](views-and-export/design.md) · [tasks](views-and-export/tasks.md)
-4. [`decisions/`](decisions/) — decision records (index below).
+4. [`recommendations/`](recommendations/) — **draft**. A Recommendations
+   page next to Overview, reached with `:` or `tab`: idle cost,
+   consolidation, rightsizing, newer generation, Graviton, old nodes, Spot
+   last; rules, no AI.
+   [requirements](recommendations/requirements.md) ·
+   [design](recommendations/design.md) · [tasks](recommendations/tasks.md)
+5. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
