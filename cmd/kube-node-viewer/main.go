@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -96,7 +97,14 @@ func main() {
 	m.Connect(first)
 	m.SetSwitcher(conn)
 
-	if _, err := program.Run(); err != nil {
+	// from here the TUI owns the terminal: client-go and pricing messages go
+	// to a file, and the header shows the latest one
+	logFile := filepath.Join(filepath.Dir(state.DefaultPath(homeDir)), "kube-node-viewer.log")
+	logs, restoreLogs := captureLogs(logFile)
+	m.SetIssues(logs.Last, logFile)
+	_, err = program.Run()
+	restoreLogs()
+	if err != nil {
 		conn.Close()
 		saver.Close()
 		log.Fatalf("error running tea: %s", err)
