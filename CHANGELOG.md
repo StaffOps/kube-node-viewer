@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- Filters can exclude their values: `x` in the Filters panel switches a
+  filter between keeping and excluding (`capacity≠Spot`).
+- Named views (`v`): save the current view under a name, apply or delete it;
+  shared by every cluster, kept in the state file.
+- Export (`e`): the nodes on screen to CSV and JSON in the current directory
+  (or next to the state file), with groups, prices and price kinds.
+
 ### Changed
 
 - The cluster summary follows the filters and search: usage and cost are
