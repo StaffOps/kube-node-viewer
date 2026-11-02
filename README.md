@@ -88,7 +88,9 @@ open, keys go to it: `q` or `f` are typed, not
 commands, and `esc` closes the panel or steps back. `esc` no longer quits.
 Filters on different fields combine with AND, several values of one field with
 OR. In the node group column, EKS managed node groups are shown in their own
-colour; plain names are Karpenter NodePools. A reserved node shows its
+colour; plain names are Karpenter NodePools. Usage is green above 80%, yellow
+from 60% to 80% and red below 60%, since an under-used node is the costly
+case; Spot capacity shows in orange, Reserved in magenta, Fargate in blue. A reserved node shows its
 on-demand price as an equivalent (`~$`), left out of the totals.
 
 ### Saved view per cluster

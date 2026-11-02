@@ -32,7 +32,8 @@ const (
 
 var (
 	headerBox   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#626262")).Padding(0, 1)
-	headerLabel = lipgloss.NewStyle().Foreground(lipgloss.Color("#8a8a8a")).Render
+	headerLabel = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#5f5f87", Dark: "#afafd7"}).Render
+	headerValue = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f87", Dark: "#87d7ff"}).Render
 	headerKey   = lipgloss.NewStyle().Bold(true).Render
 )
 
@@ -129,7 +130,7 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	var left strings.Builder
 	left.WriteString(titleStyle("kube-node-viewer"))
 	for _, r := range rows {
-		left.WriteString("\n" + headerLabel(fmt.Sprintf("%-9s", r[0])) + " " + r[1])
+		left.WriteString("\n" + headerLabel(fmt.Sprintf("%-9s", r[0])) + " " + headerValue(r[1]))
 	}
 
 	var right strings.Builder
