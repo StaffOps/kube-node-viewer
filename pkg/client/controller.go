@@ -209,7 +209,7 @@ func (m *Controller) updatePrice(node *model.Node) {
 	// and use the value here. The new prefix wins over the upstream one, and a
 	// value that doesn't parse falls through to the next source.
 	labels := node.Labels()
-	for _, key := range []string{model.LabelPrefix + "instance-price", model.LegacyLabelPrefix + "instance-price"} {
+	for _, key := range []string{model.LabelPrefix + "instance-price"} {
 		if val, ok := labels[key]; ok {
 			if price, err := strconv.ParseFloat(val, 64); err == nil {
 				node.SetPrice(price)

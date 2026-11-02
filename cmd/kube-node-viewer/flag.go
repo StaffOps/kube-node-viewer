@@ -20,7 +20,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -29,10 +28,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-const (
-	configFileName       = ".kube-node-viewer"
-	legacyConfigFileName = ".eks-node-viewer"
-)
+const configFileName = ".kube-node-viewer"
 
 var (
 	homeDir string
@@ -71,7 +67,7 @@ func ParseFlags() (Flags, error) {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	var flags Flags
 
-	cfg, err := loadConfigFile(resolveConfigPath(homeDir, os.Stderr))
+	cfg, err := loadConfigFile(configPath(homeDir))
 	if err != nil {
 		return Flags{}, fmt.Errorf("load config file: %w", err)
 	}
@@ -153,20 +149,9 @@ func (c configFile) getBoolValue(key string, defaultValue bool) bool {
 	return defaultValue
 }
 
-// resolveConfigPath returns ~/.kube-node-viewer, or the upstream
-// ~/.eks-node-viewer when only that one exists, warning on w. The legacy file
-// is never written or moved, since the upstream binary may still read it.
-func resolveConfigPath(home string, w io.Writer) string {
-	path := filepath.Join(home, configFileName)
-	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-		return path
-	}
-	legacy := filepath.Join(home, legacyConfigFileName)
-	if _, err := os.Stat(legacy); errors.Is(err, os.ErrNotExist) {
-		return path
-	}
-	fmt.Fprintf(w, "kube-node-viewer: reading legacy config %s; move it to %s\n", legacy, path)
-	return legacy
+// configPath is the config file in the home directory.
+func configPath(home string) string {
+	return filepath.Join(home, configFileName)
 }
 
 func loadConfigFile(configPath string) (configFile, error) {

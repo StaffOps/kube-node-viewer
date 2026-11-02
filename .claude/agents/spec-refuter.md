@@ -19,7 +19,7 @@ Look for:
   presented as facts (must be `unmeasured` if not measured); `[TO CONFIRM]`
   in a spec marked active.
 - Code vs spec drift; invariants broken (requests not usage; flag > config file
-  precedence (`KUBECONFIG` env only for `-kubeconfig`); `eks-node-viewer/*` label compatibility).
+  precedence (`KUBECONFIG` env only for `-kubeconfig`); the `kube-node-viewer/` label prefix).
 - Package boundaries crossed (Kubernetes I/O outside `pkg/client`, AWS SDK
   outside `pkg/aws` and its wiring in `cmd/*/main.go`).
 - Licensing: `LICENSE`/`NOTICE` changed, existing Apache headers removed, new files

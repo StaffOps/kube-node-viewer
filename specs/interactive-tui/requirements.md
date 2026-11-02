@@ -265,6 +265,11 @@ back to one header line with the view only.
 - SHALL NOT drop the `eks-node-viewer/` prefix for `instance-price` or the
   computed labels.
 
+> **Corrected 2026-11-02.** The owner dropped all compatibility with the
+> upstream name: only `kube-node-viewer/` labels and `~/.kube-node-viewer` are
+> read. The last counter-example no longer applies; the tool still never
+> writes a config file.
+
 ## Out of scope
 
 - GCP and Azure pricing; nodes with an empty `providerID` (dropped today,
