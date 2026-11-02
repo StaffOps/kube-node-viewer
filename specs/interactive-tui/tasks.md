@@ -30,7 +30,7 @@
   - _Covers: R4, R5, R6, R7, R9, R13 · Depends on: T10 · Verified by: key-driven tests_
 - [x] T11. Context picker (`c`): stop watches, bump generation, clear store, restart in a `tea.Cmd`, load state, re-scope pricing region
   - _Covers: R10 · Depends on: T5, T9 · Verified by: tests with fake clients; manual on two contexts_
-- [ ] T12. Benchmark rerun recorded below; README (keys, panels, state file, `g`/`esc` changes) and CHANGELOG
+- [x] T12. Benchmark rerun recorded below; README (keys, panels, state file, `g`/`esc` changes) and CHANGELOG
   - _Covers: R11, R12 · Depends on: T1–T11 · Verified by: numbers below; review_
 
 ## Benchmark results
@@ -41,8 +41,8 @@
 | Baseline (T1, before T3) | 500 / 150 000 | 11.1 µs | 29.9 ms | 924 MiB |
 | After T4 | 500 / 15 000 | 6.7 µs | 0.43 ms | 17 MiB |
 | After T4 | 500 / 150 000 | 5.1 µs | 0.39 ms | 149 MiB |
-| After (T12) | 500 / 15 000 | unmeasured | unmeasured | unmeasured |
-| After (T12) | 500 / 150 000 | unmeasured | unmeasured | unmeasured |
+| After (T12) | 500 / 15 000 | 6.3 µs | 1.70 ms | 17 MiB |
+| After (T12) | 500 / 150 000 | 4.6 µs | 1.66 ms | 149 MiB |
 
 Measured 2026-10-31 on darwin/arm64 with Go 1.27.3:
 `go test -run x -bench 'PodEvent|Render' -benchtime 2s ./pkg/model/` and
@@ -58,6 +58,13 @@ holds its own (now slimmed) copy.
 
 R11 check after T4: render at 150 000 pods is 0.91× the 15 000-pod time
 (limit 1.2×).
+
+R11 check after T12 (measured 2026-11-02, same command): 0.97×. Render went
+from 0.4 ms to 1.7 ms between T4 and T12 because the screen now has the
+header panel, nested groups and a column layout whose widths come from every
+selected node, so columns don't shift between pages; only the page on screen
+is turned into lines. At most 10 frames per second, that is under 2% of one
+core.
 
 ## Deferred
 
