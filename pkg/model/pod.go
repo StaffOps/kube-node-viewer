@@ -41,6 +41,9 @@ type Pod struct {
 	requested v1.ResourceList
 	// fargateCapacity is the CapacityProvisioned annotation, set on Fargate pods
 	fargateCapacity string
+	// ownerKind is the kind of the pod's controller (DaemonSet, Node for a
+	// static pod, ReplicaSet, …), empty without one
+	ownerKind string
 }
 
 // NewPod constructs a pod model based off of the K8s pod object
@@ -66,6 +69,21 @@ func (p *Pod) set(pod *v1.Pod) {
 	p.phase = pod.Status.Phase
 	p.requested = computeRequests(pod)
 	p.fargateCapacity = pod.Annotations["CapacityProvisioned"]
+	p.ownerKind = ""
+	for _, ref := range pod.OwnerReferences {
+		if ref.Controller != nil && *ref.Controller {
+			p.ownerKind = ref.Kind
+		}
+	}
+}
+
+// StaysOnItsNode tells whether the pod belongs to its node rather than to a
+// workload that can move: a DaemonSet pod or a static (Node-owned) pod. When
+// nodes are packed they are not moved (recommendations R6).
+func (p *Pod) StaysOnItsNode() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.ownerKind == "DaemonSet" || p.ownerKind == "Node"
 }
 
 func (p *Pod) key() objectKey {
