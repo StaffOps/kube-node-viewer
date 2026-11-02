@@ -223,9 +223,18 @@ func TestHeaderPanelAndOneLineFallback(t *testing.T) {
 			t.Errorf("header panel misses %q", want)
 		}
 	}
-	u.Update(tea.WindowSizeMsg{Width: 160, Height: 15})
+	u.Update(tea.WindowSizeMsg{Width: 160, Height: 20})
+	compact := u.View()
+	compactHeader := strings.Join(strings.SplitN(compact, "\n", 5)[:4], "\n")
+	for _, want := range []string{"╭", "ctx-a", "https://a.example", "2 of 2 shown", "Filters: none", "╰"} {
+		if !strings.Contains(compactHeader, want) {
+			t.Errorf("compact header misses %q:\n%s", want, compactHeader)
+		}
+	}
+
+	u.Update(tea.WindowSizeMsg{Width: 160, Height: 10})
 	short := u.View()
-	if strings.Contains(short, "Context:") || !strings.Contains(strings.SplitN(short, "\n", 2)[0], "ctx-a │ 2 of 2 shown") {
+	if strings.Contains(short, "╭") || !strings.Contains(strings.SplitN(short, "\n", 2)[0], "ctx-a │ 2 of 2 shown") {
 		t.Errorf("short screen header:\n%s", short)
 	}
 }
