@@ -65,6 +65,7 @@ var helpKeys = [][2]string{
 	{"/", "search name, IP, instance type, labels; esc clears"},
 	{"r", "resources: cpu → memory → cpu+memory"},
 	{"c", "switch to another kubeconfig context"},
+	{"d", "folded: list the next group level as one-line rows"},
 	{"n", "fold one level per press: nodes, then each sub-group level; then unfold all"},
 	{"←/→ h/l", "previous / next page"},
 	{"home", "first page"},

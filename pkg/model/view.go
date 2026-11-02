@@ -175,6 +175,9 @@ type ViewState struct {
 	// GroupDepth is how many group-by levels show while the node list is
 	// hidden; 0 shows them all.
 	GroupDepth int `json:"groupDepth,omitempty"`
+	// Details lists, while folded, the level below the barred one as
+	// one-line summaries.
+	Details bool `json:"details,omitempty"`
 	// Header is HeaderFull or HeaderCompact once the user picks one with
 	// ctrl+e; empty picks by screen height.
 	Header string `json:"header,omitempty"`

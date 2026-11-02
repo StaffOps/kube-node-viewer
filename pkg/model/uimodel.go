@@ -233,6 +233,22 @@ func (u *UIModel) toggleNodes() {
 	u.setView(v)
 }
 
+// canShowDetails tells whether a level is hidden below the barred one, which
+// d can list as one-line rows.
+func (u *UIModel) canShowDetails() bool {
+	depth := u.view.VisibleDepth()
+	return depth > 0 && depth < len(u.view.GroupBy)
+}
+
+func (u *UIModel) toggleDetails() {
+	if !u.canShowDetails() {
+		return
+	}
+	v := u.view
+	v.Details = !v.Details
+	u.setView(v)
+}
+
 func (u *UIModel) Init() tea.Cmd {
 	return tea.Batch(tickCmd(), u.snapshotCmd())
 }
@@ -402,6 +418,8 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		u.view.Search = ""
 	case "n":
 		u.toggleNodes()
+	case "d":
+		u.toggleDetails()
 	case "right", "l", "pgdown":
 		u.page++
 	case "left", "h", "pgup":
