@@ -55,6 +55,11 @@ from the Go build info instead of `dev`.
   compatibility code (R3, R4b).
 - [ ] Unit test for the build-info fallback.
 
+> **Corrected 2026-11-02.** The owner retired the compatibility in R3 (the
+> `~/.eks-node-viewer` fallback) and R4a/R4b (the `eks-node-viewer/` label
+> prefix): kube-node-viewer is a separate project and reads only its own
+> config file and labels. Kept below as history.
+
 **R3** WHEN `~/.kube-node-viewer` exists THEN the system SHALL read it as the
 config file; WHEN it does not exist but `~/.eks-node-viewer` does THEN the
 system SHALL read the legacy file and print one warning line on stderr,

@@ -435,11 +435,7 @@ specs, and `scripts/build.sh` builds the binary.
 `kube-node-viewer` is based on
 [`awslabs/eks-node-viewer`](https://github.com/awslabs/eks-node-viewer),
 licensed under the Apache License 2.0, which was originally developed at AWS
-for demonstrating consolidation with [Karpenter](https://karpenter.sh/). It
-was presented in
-[Containers from the Couch: Workload Consolidation with Karpenter](https://www.youtube.com/watch?v=BnksdJ3oOEs)
-and
-[AWS re:Invent 2022 - Kubernetes virtually anywhere, for everyone](https://www.youtube.com/watch?v=OB7IZolZk78).
+for demonstrating consolidation with [Karpenter](https://karpenter.sh/).
 This project is not affiliated with or endorsed by AWS.
 
 Thanks to:

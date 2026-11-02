@@ -496,19 +496,15 @@ func (n *Node) LabelValue(label string) string {
 }
 
 // LabelPrefix prefixes the node labels and computed label names this tool
-// understands. LegacyLabelPrefix is the upstream eks-node-viewer prefix, still
-// accepted because clusters and saved configs carry it.
-const (
-	LabelPrefix       = "kube-node-viewer/"
-	LegacyLabelPrefix = "eks-node-viewer/"
-)
+// understands.
+const LabelPrefix = "kube-node-viewer/"
 
-var resourceLabelRe = regexp.MustCompile("(?:kube|eks)-node-viewer/node-(.*?)-usage")
+var resourceLabelRe = regexp.MustCompile("^kube-node-viewer/node-(.*?)-usage$")
 
 // ComputeLabel computes dynamic labels
 func (n *Node) ComputeLabel(labelName string) string {
 	switch labelName {
-	case LabelPrefix + "node-age", LegacyLabelPrefix + "node-age":
+	case LabelPrefix + "node-age":
 		return duration.HumanDuration(time.Since(n.Created()))
 	}
 	// resource based custom labels
