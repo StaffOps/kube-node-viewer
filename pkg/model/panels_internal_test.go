@@ -247,3 +247,38 @@ func TestNarrowScreenHidesColumns(t *testing.T) {
 		t.Errorf("narrow screen:\n%s", out)
 	}
 }
+
+func TestCtrlETogglesHeaderAndSaves(t *testing.T) {
+	u := capacityUI(t, 2)
+	u.SetClusterInfo(ClusterInfo{Context: "ctx-a"})
+	var saved []ViewState
+	u.OnViewChange(func(v ViewState) { saved = append(saved, v) })
+	ctrlE := tea.KeyMsg{Type: tea.KeyCtrlE}
+
+	u.Update(tea.WindowSizeMsg{Width: 160, Height: 40})
+	if !strings.Contains(u.View(), "Context:") {
+		t.Fatal("tall screen does not start with the full panel")
+	}
+	u.Update(ctrlE)
+	if out := u.View(); strings.Contains(out, "Context:") || !strings.Contains(out, "╭") {
+		t.Errorf("ctrl+e did not compact the header:\n%s", out)
+	}
+	if len(saved) != 1 || saved[0].Header != HeaderCompact {
+		t.Errorf("pick not saved: %+v", saved)
+	}
+
+	// on a short screen the compact box is the default; ctrl+e expands it
+	u.Update(tea.WindowSizeMsg{Width: 160, Height: 20})
+	u.view.Header = ""
+	u.Update(ctrlE)
+	if !strings.Contains(u.View(), "Context:") {
+		t.Error("ctrl+e did not expand the header on a short screen")
+	}
+
+	// works with a panel open, and the panel stays open
+	press(u, "f")
+	u.Update(ctrlE)
+	if u.panel != panelFilters || strings.Contains(u.View(), "Context:") {
+		t.Error("ctrl+e in a panel")
+	}
+}

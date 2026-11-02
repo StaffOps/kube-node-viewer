@@ -96,9 +96,9 @@ func (u *UIModel) helpText() string {
 	case panelFilters:
 		return u.filters.hint()
 	}
-	keys := "f: filters • ←/→: page • ?: help • q: quit"
+	keys := "f: filters • ←/→: page • ctrl+e: header • ?: help • q: quit"
 	if len(u.view.GroupBy) > 0 {
-		keys = "f: filters • n: nodes • ←/→: page • ?: help • q: quit"
+		keys = "f: filters • n: nodes • ←/→: page • ctrl+e: header • ?: help • q: quit"
 	}
 	return keys
 }

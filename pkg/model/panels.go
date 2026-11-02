@@ -46,6 +46,7 @@ var helpKeys = [][2]string{
 	{"n", "show or hide the node list (with a group-by)"},
 	{"←/→ h/l", "previous / next page"},
 	{"home", "first page"},
+	{"ctrl+e", "compact or expand the header"},
 	{"?", "this help"},
 	{"q, ctrl+c", "quit"},
 	{"esc", "close a panel or go back a step"},

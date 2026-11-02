@@ -172,7 +172,16 @@ type ViewState struct {
 	Resources []string `json:"resources,omitempty"`
 	Columns   []Field  `json:"columns,omitempty"`
 	ShowNodes bool     `json:"showNodes"`
+	// Header is HeaderFull or HeaderCompact once the user picks one with
+	// ctrl+e; empty picks by screen height.
+	Header string `json:"header,omitempty"`
 }
+
+// Header sizes the user can pick.
+const (
+	HeaderFull    = "full"
+	HeaderCompact = "compact"
+)
 
 // DefaultViewState is the view with nothing saved and no flags: newest nodes
 // first, the default columns, the node list shown.
