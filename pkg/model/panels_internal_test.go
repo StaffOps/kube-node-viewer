@@ -470,3 +470,26 @@ func TestResourcesCycle(t *testing.T) {
 		t.Errorf("cycle with custom list %v", got)
 	}
 }
+
+func TestCollapsedGroupsShowUsageBars(t *testing.T) {
+	u := capacityUI(t, 4)
+	v := u.view
+	v.SetGroupBy(FieldCapacity)
+	v.Resources = []string{"cpu", "memory"}
+	u.SetView(v)
+	press(u, "n")
+	out := u.View()
+	if strings.Contains(out, "node-00") {
+		t.Fatal("nodes listed while collapsed")
+	}
+	// one bar line per resource per group, each ending in its percentage
+	bars := 0
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "░") && strings.Contains(line, "%") && !strings.Contains(line, "nodes (") && !strings.Contains(line, "Mi/") {
+			bars++
+		}
+	}
+	if bars != 4 {
+		t.Errorf("want 4 group bars (2 groups x cpu, memory), got %d:\n%s", bars, out)
+	}
+}
