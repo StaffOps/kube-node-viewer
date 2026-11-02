@@ -33,6 +33,9 @@ const (
 	panelSort
 	panelColumns
 	panelContexts
+	panelViews
+	panelRecMath
+	panelNode
 )
 
 // panelKey handles a key while a panel is open; esc closes or steps back.
@@ -52,22 +55,34 @@ func (u *UIModel) panelKey(key string) tea.Cmd {
 		u.sortKey(key)
 	case panelColumns:
 		u.columnsKey(key)
+	case panelViews:
+		u.viewsKey(key)
+	case panelRecMath:
+		if key == "esc" || key == "enter" {
+			u.panel = panelNone
+		}
+	case panelNode:
+		u.nodeDetailsKey(key)
 	}
 	return nil
 }
 
 // helpKeys lists every key, for the help panel.
 var helpKeys = [][2]string{
-	{"f", "filters: open a field, tick values; space turns a filter on/off"},
+	{"f", "filters: open a field, tick values; space turns a filter on/off; x keeps or excludes"},
 	{"g", "group by: tick up to 3 fields, K/J to reorder levels"},
 	{"s", "sort: any column, usage or label; flip ↑/↓"},
 	{"o", "columns: show, hide, reorder"},
 	{"/", "search name, IP, instance type, labels; esc clears"},
 	{"r", "resources: cpu → memory → cpu+memory"},
 	{"c", "switch to another kubeconfig context"},
+	{":", "command: overview (ov), recommendations (rec); tab completes"},
+	{"tab", "switch Overview ⇄ Recommendations"},
+	{"v", "named views: apply, save the current view, delete"},
+	{"e", "export the nodes on screen to CSV and JSON in the current directory"},
 	{"d", "folded: list the next group level as one-line rows"},
 	{"↑/↓ k/j", "select a group or node (marked in the left margin)"},
-	{"enter", "fold or unfold the selected group on its own"},
+	{"enter", "on a group: fold or unfold it on its own; on a node: its details"},
 	{"n", "fold one level per press: nodes, then each sub-group level; then unfold all"},
 	{"←/→ h/l", "previous / next page"},
 	{"home", "first page"},
@@ -83,7 +98,7 @@ func (u *UIModel) helpPanel() panelView {
 		lines = append(lines, fmt.Sprintf("%s  %s", headerKey(fmt.Sprintf("%-10s", k[0])), k[1]))
 	}
 	lines = append(lines, "", titleStyle("Colours"),
-		"NODEGROUP   "+managedNodeGroupStyle("name")+" is an EKS managed node group; plain is a Karpenter NodePool")
+		"NODEGROUP   "+managedNodeGroupStyle("name")+" is an EKS managed node group or AKS agent pool; plain is a Karpenter NodePool")
 	return panelView{title: "Keys", rows: lines, cursor: -1}
 }
 
@@ -107,9 +122,9 @@ type filterRow struct {
 
 func (p *filtersPanel) hint() string {
 	if p.open != "" {
-		return "↑/↓: move • space/enter: tick value • ←: close field • d: clear field • esc: close field"
+		return "↑/↓: move • space/enter: tick value • x: keep/exclude • ←: close field • d: clear field • esc: close field"
 	}
-	return "↑/↓: move • enter/→: open field • space: filter on/off • d: clear field • esc: close"
+	return "↑/↓: move • enter/→: open field • space: filter on/off • x: keep/exclude • d: clear field • esc: close"
 }
 
 func (u *UIModel) openFilters() {
@@ -147,7 +162,7 @@ func (u *UIModel) filterRows() []filterRow {
 		}
 		// values the filter has stay listed even when no node has them now
 		if i := u.filterIndex(f); i >= 0 {
-			for _, v := range u.view.Filters[i].Values {
+			for _, v := range u.view.Filters[i].Ticked() {
 				if !listed[v] {
 					values = append(values, ValueCount{Value: v})
 				}
@@ -211,6 +226,14 @@ func (u *UIModel) filtersKey(key string) {
 			u.setFilters(filters)
 			u.focusFilterRow(row.field, "")
 		}
+	case "x":
+		// switch the field's filter between keeping and excluding its values
+		if i := u.filterIndex(row.field); i >= 0 {
+			filters := slices.Clone(u.view.Filters)
+			filters[i] = filters[i].Flipped()
+			u.setFilters(filters)
+			u.focusFilterRow(row.field, row.value)
+		}
 	case "d", "delete", "backspace":
 		if i := u.filterIndex(row.field); i >= 0 {
 			u.setFilters(slices.Delete(slices.Clone(u.view.Filters), i, i+1))
@@ -234,7 +257,7 @@ func (u *UIModel) tickValue(field Field, value string) {
 	if i < 0 {
 		filters = append(filters, Filter{Field: field, Values: []string{value}, Enabled: true})
 	} else {
-		values := slices.Clone(filters[i].Values)
+		values := slices.Clone(filters[i].Ticked())
 		if at := slices.Index(values, value); at >= 0 {
 			values = slices.Delete(values, at, at+1)
 		} else {
@@ -243,7 +266,9 @@ func (u *UIModel) tickValue(field Field, value string) {
 		if len(values) == 0 {
 			filters = slices.Delete(filters, i, i+1)
 		} else {
-			filters[i] = Filter{Field: field, Values: values, Enabled: true}
+			// ticking keeps the filter's mode, keeping or excluding
+			filters[i] = filters[i].withTicked(values)
+			filters[i].Enabled = true
 		}
 	}
 	u.setFilters(filters)
@@ -317,7 +342,7 @@ func (u *UIModel) filtersPanelView() panelView {
 		if r.isValue {
 			selected := false
 			if fi := u.filterIndex(r.field); fi >= 0 {
-				selected = slices.Contains(u.view.Filters[fi].Values, r.value)
+				selected = slices.Contains(u.view.Filters[fi].Ticked(), r.value)
 			}
 			lines[i] = fmt.Sprintf("    %s %s  %s", check(selected), r.value, helpStyle(fmt.Sprint(r.count)))
 			continue
@@ -331,7 +356,10 @@ func (u *UIModel) filtersPanelView() panelView {
 		if fi := u.filterIndex(r.field); fi >= 0 {
 			f := u.view.Filters[fi]
 			state = check(f.Enabled)
-			summary = "  " + strings.Join(f.Values, ", ")
+			summary = "  " + strings.Join(f.Ticked(), ", ")
+			if f.Excludes() {
+				summary = "  not " + strings.Join(f.Ticked(), ", ")
+			}
 			if !f.Enabled {
 				summary += helpStyle("  (off)")
 			}

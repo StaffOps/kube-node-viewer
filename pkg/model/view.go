@@ -42,6 +42,7 @@ const (
 	FieldIP       Field = "ip"
 	FieldAge      Field = "age"
 	FieldPrice    Field = "price"
+	FieldIdle     Field = "idle"
 	FieldPods     Field = "pods"
 
 	labelFieldPrefix = "label:"
@@ -116,6 +117,11 @@ func (f Field) number(n *Node) (value float64, ok bool) {
 		return float64(n.Created().UnixNano()), true
 	case FieldPrice:
 		return n.Price(), true
+	case FieldIdle:
+		if idle, ok := n.IdleHourly(); ok {
+			return idle, true
+		}
+		return math.NaN(), true
 	case FieldPods:
 		return float64(n.NumPods()), true
 	}
@@ -130,27 +136,80 @@ func (f Field) number(n *Node) (value float64, ok bool) {
 	return 0, false
 }
 
-// Filter keeps nodes whose field has any of Values (R3). A disabled filter is
-// kept in the view state but filters nothing.
+// IdleHourly is what the node pays per hour for capacity nothing requests:
+// price × (1 − the larger of cpu and memory use) (recommendations R4). Nodes
+// without a real price (unknown, reserved equivalent) and Fargate have none.
+func (n *Node) IdleHourly() (float64, bool) {
+	if !n.HasActualPrice() || n.CapacityType() == CapacityFargate {
+		return 0, false
+	}
+	allocatable, used := n.Allocatable(), n.Used()
+	share := func(r v1.ResourceName) float64 {
+		a, u := allocatable[r], used[r]
+		if a.AsApproximateFloat64() == 0 {
+			return 0
+		}
+		return u.AsApproximateFloat64() / a.AsApproximateFloat64()
+	}
+	use := math.Min(math.Max(share(v1.ResourceCPU), share(v1.ResourceMemory)), 1)
+	return n.Price() * (1 - use), true
+}
+
+// Filter keeps nodes whose field has any of Values (interactive-tui R3), or,
+// when Excluded is set instead, nodes that have none of those
+// (views-and-export R1). Excluded values live in their own field so code that
+// only knows Values reads an excluding filter as no filter, never as its
+// opposite. A disabled filter is kept in the view state but filters nothing.
 type Filter struct {
-	Field   Field    `json:"field"`
-	Values  []string `json:"values"`
-	Enabled bool     `json:"enabled"`
+	Field    Field    `json:"field"`
+	Values   []string `json:"values"`
+	Excluded []string `json:"excluded,omitempty"`
+	Enabled  bool     `json:"enabled"`
+}
+
+// Excludes tells whether the filter drops its values rather than keeping them.
+func (f Filter) Excludes() bool {
+	return len(f.Excluded) > 0
+}
+
+// Ticked is the filter's values, kept or excluded.
+func (f Filter) Ticked() []string {
+	if f.Excludes() {
+		return f.Excluded
+	}
+	return f.Values
+}
+
+// withTicked returns the filter with these values, in the same mode.
+func (f Filter) withTicked(values []string) Filter {
+	if f.Excludes() {
+		f.Excluded, f.Values = values, nil
+	} else {
+		f.Values, f.Excluded = values, nil
+	}
+	return f
+}
+
+// Flipped returns the filter switched between keeping and excluding.
+func (f Filter) Flipped() Filter {
+	f.Values, f.Excluded = f.Excluded, f.Values
+	return f
 }
 
 // Matches tells whether the node passes the filter.
 func (f Filter) Matches(n *Node) bool {
-	if !f.Enabled || len(f.Values) == 0 {
+	values := f.Ticked()
+	if !f.Enabled || len(values) == 0 {
 		return true
 	}
 	for _, have := range f.Field.Values(n) {
-		for _, want := range f.Values {
+		for _, want := range values {
 			if have == want {
-				return true
+				return !f.Excludes()
 			}
 		}
 	}
-	return false
+	return f.Excludes()
 }
 
 // SortSpec orders the node list.
@@ -181,6 +240,8 @@ type ViewState struct {
 	// Collapsed holds the groups folded one by one (enter on a heading), each
 	// as its path joined by " › ".
 	Collapsed []string `json:"collapsed,omitempty"`
+	// Screen is Overview (empty) or Recommendations (recommendations R2)
+	Screen string `json:"screen,omitempty"`
 	// Header is HeaderFull or HeaderCompact once the user picks one with
 	// ctrl+e; empty picks by screen height.
 	Header string `json:"header,omitempty"`
@@ -469,7 +530,7 @@ var DefaultColumns = []Field{FieldInstanceType, FieldPrice, FieldCapacity, Field
 
 // columnPriority ranks columns by what to keep when the screen is narrow, most
 // important first (R14). Labels and anything unlisted go after these.
-var columnPriority = []Field{FieldStatus, FieldPrice, FieldCapacity, FieldInstanceType, FieldNodeGroup, FieldZone, FieldIP, FieldAge, FieldRegion}
+var columnPriority = []Field{FieldStatus, FieldPrice, FieldIdle, FieldCapacity, FieldInstanceType, FieldNodeGroup, FieldZone, FieldIP, FieldAge, FieldRegion}
 
 // FitColumns keeps the columns, in their given order, that fit in width,
 // dropping the lowest-priority ones first, and says how many were dropped.

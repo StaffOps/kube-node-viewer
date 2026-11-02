@@ -183,3 +183,16 @@ func TestFargateCapacity(t *testing.T) {
 		t.Errorf("expected to have a mem capacity of 0.5, got %f", mem)
 	}
 }
+
+func TestPodStaysOnItsNode(t *testing.T) {
+	yes := true
+	for kind, want := range map[string]bool{"DaemonSet": true, "Node": true, "ReplicaSet": false, "": false} {
+		p := testPod("ns", "p")
+		if kind != "" {
+			p.OwnerReferences = []metav1.OwnerReference{{Kind: kind, Controller: &yes}}
+		}
+		if got := model.NewPod(p).StaysOnItsNode(); got != want {
+			t.Errorf("%q: got %v", kind, got)
+		}
+	}
+}

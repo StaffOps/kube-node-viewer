@@ -125,3 +125,20 @@ func TestSlimNodeDropsImagesAndManagedFields(t *testing.T) {
 		t.Error("the input node was modified")
 	}
 }
+
+func TestSlimPodKeepsTheControllerKind(t *testing.T) {
+	yes := true
+	no := false
+	p := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "ds-x", OwnerReferences: []metav1.OwnerReference{
+		{Kind: "Something", Name: "other", Controller: &no},
+		{APIVersion: "apps/v1", Kind: "DaemonSet", Name: "fluent-bit", UID: "u", Controller: &yes},
+	}}}
+	out, _ := SlimPod(p)
+	refs := out.(*v1.Pod).OwnerReferences
+	if len(refs) != 1 || refs[0].Kind != "DaemonSet" || refs[0].Name != "" || refs[0].UID != "" {
+		t.Errorf("owners: %+v", refs)
+	}
+	if out, _ := SlimPod(&v1.Pod{}); out.(*v1.Pod).OwnerReferences != nil {
+		t.Error("an owner appeared from nothing")
+	}
+}

@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -56,7 +57,7 @@ func NewNodeClaims(kubeconfig, context string) (*rest.RESTClient, error) {
 		&karpv1.NodeClaimList{})
 
 	config := *c
-	config.ContentConfig.GroupVersion = &gv
+	config.GroupVersion = &gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
@@ -128,4 +129,15 @@ func RegionFromServer(server string) string {
 		return m[1]
 	}
 	return ""
+}
+
+// IsAKSServer tells whether the API server URL is an AKS cluster's
+// (https://<dns-prefix>-<hash>.hcp.<region>.azmk8s.io, private ones under
+// privatelink.<region>.azmk8s.io).
+func IsAKSServer(server string) bool {
+	u, err := url.Parse(server)
+	if err != nil {
+		return false
+	}
+	return strings.HasSuffix(u.Hostname(), ".azmk8s.io")
 }
