@@ -68,7 +68,8 @@ func (p *pricingProvider) NodePrice(n *model.Node) (float64, bool) {
 		}
 	}
 
-	if n.IsOnDemand() {
+	// a reserved node is prepaid; its on-demand price is shown as an equivalent
+	if n.IsOnDemand() || n.CapacityType() == model.CapacityReserved {
 		if price, ok := p.OnDemandPrice(n.InstanceType()); ok {
 			return autoManagementPrice + price, true
 		}

@@ -20,7 +20,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -29,10 +28,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-const (
-	configFileName       = ".kube-node-viewer"
-	legacyConfigFileName = ".eks-node-viewer"
-)
+const configFileName = ".kube-node-viewer"
 
 var (
 	homeDir string
@@ -59,13 +55,19 @@ type Flags struct {
 	DisablePricing  bool
 	ShowAttribution bool
 	Version         bool
+
+	// Explicit holds the flags given on the command line, by name, as typed.
+	// They win over saved view state for this run only (design D8).
+	Explicit map[string]string
+	// Config is the config file, a standing default below saved state.
+	Config configFile
 }
 
 func ParseFlags() (Flags, error) {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	var flags Flags
 
-	cfg, err := loadConfigFile(resolveConfigPath(homeDir, os.Stderr))
+	cfg, err := loadConfigFile(configPath(homeDir))
 	if err != nil {
 		return Flags{}, fmt.Errorf("load config file: %w", err)
 	}
@@ -83,10 +85,10 @@ func ParseFlags() (Flags, error) {
 	flagSet.StringVar(&flags.ExtraLabels, "extra-labels", extraLabelsDefault, "A comma separated set of extra node labels to display")
 
 	groupByDefault := cfg.getValue("group-by", "")
-	flagSet.StringVar(&flags.GroupBy, "group-by", groupByDefault, "Node label to summarize usage and cost by, optionally restricted to a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. If empty no summary is displayed")
+	flagSet.StringVar(&flags.GroupBy, "group-by", groupByDefault, "Node label to summarize usage and cost by, optionally with a filter on a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. Applies to this run; the last view chosen in the TUI is restored per cluster")
 
 	groupsOnlyDefault := cfg.getBoolValue("groups-only", false)
-	flagSet.BoolVar(&flags.GroupsOnly, "groups-only", groupsOnlyDefault, "Start with the individual node list hidden, leaving only the --group-by summary. The summary is toggled at runtime with 'g' and the node list with 'n'")
+	flagSet.BoolVar(&flags.GroupsOnly, "groups-only", groupsOnlyDefault, "Start folded to the --group-by groups, with the node list hidden. At runtime 'n' folds and unfolds one level per press")
 
 	nodeSort := cfg.getValue("node-sort", "creation=dsc")
 	flagSet.StringVar(&flags.NodeSort, "node-sort", nodeSort, "Sort order for the nodes, either 'creation' or a label name. The sort order defaults to ascending and can be controlled by appending =asc or =dsc to the value.")
@@ -109,6 +111,11 @@ func ParseFlags() (Flags, error) {
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		return Flags{}, err
 	}
+	flags.Explicit = map[string]string{}
+	flagSet.Visit(func(f *flag.Flag) {
+		flags.Explicit[f.Name] = f.Value.String()
+	})
+	flags.Config = cfg
 	return flags, nil
 }
 
@@ -142,20 +149,9 @@ func (c configFile) getBoolValue(key string, defaultValue bool) bool {
 	return defaultValue
 }
 
-// resolveConfigPath returns ~/.kube-node-viewer, or the upstream
-// ~/.eks-node-viewer when only that one exists, warning on w. The legacy file
-// is never written or moved, since the upstream binary may still read it.
-func resolveConfigPath(home string, w io.Writer) string {
-	path := filepath.Join(home, configFileName)
-	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-		return path
-	}
-	legacy := filepath.Join(home, legacyConfigFileName)
-	if _, err := os.Stat(legacy); errors.Is(err, os.ErrNotExist) {
-		return path
-	}
-	fmt.Fprintf(w, "kube-node-viewer: reading legacy config %s; move it to %s\n", legacy, path)
-	return legacy
+// configPath is the config file in the home directory.
+func configPath(home string) string {
+	return filepath.Join(home, configFileName)
 }
 
 func loadConfigFile(configPath string) (configFile, error) {

@@ -26,4 +26,6 @@ type Stats struct {
 	PodsByPhase          map[v1.PodPhase]int
 	BoundPodCount        int
 	TotalPrice           float64
+	// UnpricedReserved counts visible reserved nodes, left out of TotalPrice
+	UnpricedReserved int
 }

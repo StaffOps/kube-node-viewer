@@ -12,9 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Modified by the kube-node-viewer authors, 2026.
+
 package client
 
 import (
+	"regexp"
+	"sort"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -65,4 +69,63 @@ func getConfig(kubeconfig, context string) (*rest.Config, error) {
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{Precedence: strings.Split(kubeconfig, ":")},
 		&clientcmd.ConfigOverrides{CurrentContext: context}).ClientConfig()
+}
+
+// Cluster names the cluster a kubeconfig context points at. An empty context
+// means the current one.
+type Cluster struct {
+	Context string
+	Server  string
+}
+
+// Key identifies the cluster for saved state: the context name and its API
+// server URL, since merged kubeconfigs can repeat context names.
+func (c Cluster) Key() string {
+	return c.Context + "@" + c.Server
+}
+
+// ResolveCluster reads the context and its API server URL from the kubeconfig.
+func ResolveCluster(kubeconfig, context string) (Cluster, error) {
+	raw, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{Precedence: strings.Split(kubeconfig, ":")},
+		&clientcmd.ConfigOverrides{CurrentContext: context}).RawConfig()
+	if err != nil {
+		return Cluster{}, err
+	}
+	c := Cluster{Context: context}
+	if c.Context == "" {
+		c.Context = raw.CurrentContext
+	}
+	if ctx, ok := raw.Contexts[c.Context]; ok {
+		if cluster, ok := raw.Clusters[ctx.Cluster]; ok {
+			c.Server = cluster.Server
+		}
+	}
+	return c, nil
+}
+
+// Contexts lists the kubeconfig's context names, sorted, and the current one.
+func Contexts(kubeconfig string) (names []string, current string, err error) {
+	raw, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{Precedence: strings.Split(kubeconfig, ":")},
+		&clientcmd.ConfigOverrides{}).RawConfig()
+	if err != nil {
+		return nil, "", err
+	}
+	for name := range raw.Contexts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, raw.CurrentContext, nil
+}
+
+var eksServerRegion = regexp.MustCompile(`\.([a-z]{2}(?:-gov)?-[a-z]+-\d+)\.eks\.amazonaws\.com`)
+
+// RegionFromServer is the AWS region in an EKS API server URL
+// (https://<id>.gr7.us-east-1.eks.amazonaws.com), empty for any other server.
+func RegionFromServer(server string) string {
+	if m := eksServerRegion.FindStringSubmatch(server); m != nil {
+		return m[1]
+	}
+	return ""
 }
