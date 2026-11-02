@@ -32,6 +32,8 @@
   - _Covers: R10 · Depends on: T5, T9 · Verified by: tests with fake clients; manual on two contexts_
 - [x] T12. Benchmark rerun recorded below; README (keys, panels, state file, `g`/`esc` changes) and CHANGELOG
   - _Covers: R11, R12 · Depends on: T1–T11 · Verified by: numbers below; review_
+- [x] T13. Row cursor and single-group folding (`↑`/`↓`, `enter`), saved with the view
+  - _Covers: R17 · Depends on: T10b · Verified by: key-driven tests_
 
 ## Benchmark results
 
@@ -75,3 +77,8 @@ core.
 | Negation / OR across fields in filters | a real query the panels can't express |
 | GKE/AKS node pool labels; nodes with empty `providerID` | stage 2 (multi-cloud) |
 | GPU resource and columns | stage 3 roadmap |
+
+> **Shipped 2026-11-02.** Released in v0.8.0 (Homebrew from v0.8.1). The
+> owner ran it on `demo1-test-upgrade` and checked a context switch (`c`) to
+> a local kind cluster and back: only the selected cluster's nodes showed,
+> each with its saved view.

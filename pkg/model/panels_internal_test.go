@@ -563,3 +563,76 @@ func TestNFoldsOneLevelPerPress(t *testing.T) {
 		t.Error("d did not hide the details again")
 	}
 }
+
+func selectedLine(t *testing.T, u *UIModel) string {
+	t.Helper()
+	for _, line := range strings.Split(u.View(), "\n") {
+		if strings.HasPrefix(line, "▌") {
+			return line
+		}
+	}
+	t.Fatalf("no selected row:\n%s", u.View())
+	return ""
+}
+
+func TestCursorMovesAndFoldsAGroup(t *testing.T) {
+	u := capacityUI(t, 4)
+	v := u.view
+	v.SetGroupBy(FieldCapacity)
+	v.Sort = SortSpec{Field: FieldName}
+	u.SetView(v)
+	var saved []ViewState
+	u.OnViewChange(func(s ViewState) { saved = append(saved, s) })
+
+	// the cursor starts on the first row, the OnDemand heading
+	if line := selectedLine(t, u); !strings.Contains(line, "OnDemand") {
+		t.Fatalf("first selected row: %q", line)
+	}
+	press(u, "down")
+	if line := selectedLine(t, u); !strings.Contains(line, "node-00") {
+		t.Errorf("after down: %q", line)
+	}
+	press(u, "up", "enter")
+	out := u.View()
+	if !strings.Contains(out, "▸ OnDemand") || strings.Contains(out, "node-00") || !strings.Contains(out, "node-01") {
+		t.Errorf("OnDemand not folded on its own:\n%s", out)
+	}
+	if len(saved) != 1 || !saved[0].IsCollapsed([]string{"OnDemand"}) {
+		t.Errorf("fold not saved: %+v", saved)
+	}
+	press(u, "enter")
+	if out := u.View(); strings.Contains(out, "▸ OnDemand") || !strings.Contains(out, "node-00") {
+		t.Errorf("OnDemand not unfolded:\n%s", out)
+	}
+}
+
+func TestCursorFollowsToNextPage(t *testing.T) {
+	u := capacityUI(t, 30)
+	u.Update(tea.WindowSizeMsg{Width: 160, Height: 20})
+	v := u.view
+	v.Sort = SortSpec{Field: FieldName}
+	u.SetView(v)
+	u.View()
+	for i := 0; i < 15; i++ {
+		press(u, "down")
+	}
+	if line := selectedLine(t, u); !strings.Contains(line, "node-15") {
+		t.Errorf("cursor: %q", line)
+	}
+	if u.page == 0 {
+		t.Error("the page did not follow the cursor")
+	}
+	// a page change puts the cursor on that page
+	press(u, "home")
+	if line := selectedLine(t, u); !strings.Contains(line, "node-00") {
+		t.Errorf("after home: %q", line)
+	}
+}
+
+func TestNoCursorMarkWhileAPanelIsOpen(t *testing.T) {
+	u := capacityUI(t, 2)
+	press(u, "s")
+	if strings.Contains(u.View(), "▌") {
+		t.Error("cursor mark drawn under a popup")
+	}
+}
