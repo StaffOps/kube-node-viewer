@@ -142,6 +142,21 @@ func (u *UIModel) progressBar(fill float64) string {
 	return bar
 }
 
+// barCell fills the usage bars: a block 7/8 high leaves a thin gap above it,
+// so bars stacked on consecutive lines (cpu, memory) read apart. The empty
+// part is the same block in dark grey, keeping the gap along the whole bar.
+const (
+	barCell       = '▇'
+	barEmptyColor = "#3a3a3a"
+)
+
+// newProgress builds the usage bar, red to green.
+func newProgress(style *Style, opts ...progress.Option) progress.Model {
+	p := progress.New(append([]progress.Option{style.gradient, progress.WithFillCharacters(barCell, barCell)}, opts...)...)
+	p.EmptyColor = barEmptyColor
+	return p
+}
+
 // NewUIModel starts with the default view state; SetView replaces it.
 func NewUIModel(style *Style) *UIModel {
 	pager := paginator.New()
@@ -150,9 +165,8 @@ func NewUIModel(style *Style) *UIModel {
 	pager.InactiveDot = inactiveDot
 	cluster := NewCluster()
 	return &UIModel{
-		gen: cluster.Generation(),
-		// red to green
-		progress:  progress.New(style.gradient),
+		gen:       cluster.Generation(),
+		progress:  newProgress(style),
 		cluster:   cluster,
 		paginator: pager,
 		style:     style,

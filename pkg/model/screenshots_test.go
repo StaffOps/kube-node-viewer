@@ -66,7 +66,7 @@ func (demoSwitcher) Switch(string) (Session, error) { return Session{}, fmt.Erro
 func demoUI(t *testing.T) *UIModel {
 	u := newTestUI(t)
 	// the bar detects colours from the terminal, and tests have none
-	u.progress = progress.New(u.style.gradient, progress.WithColorProfile(termenv.TrueColor))
+	u.progress = newProgress(u.style, progress.WithColorProfile(termenv.TrueColor))
 	u.SetClusterInfo(ClusterInfo{Context: "demo-prod", Server: "https://0A1B2C3D4E5F.gr7.us-east-1.eks.amazonaws.com", Region: "us-east-1"})
 	u.SetSwitcher(demoSwitcher{})
 	for i, d := range demoNodes {
