@@ -1,4 +1,4 @@
-.PHONY: help clean verify lint boilerplate licenses download coverage generate test
+.PHONY: help clean verify lint prices catalog boilerplate licenses download coverage generate test
 
 NO_COLOR=\033[0m
 GREEN=\033[32;01m
@@ -45,11 +45,19 @@ generate: ## Generate attribution
 	go generate ./...
 	./hack/gen_licenses.sh
 	go generate ./...
-	curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/main/pkg/providers/pricing/zz_generated.pricing_aws.go > ./pkg/aws/zz_generated_aws.pricing.go
-	curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/main/pkg/providers/pricing/zz_generated.pricing_aws_cn.go > ./pkg/aws/zz_generated_aws_cn.pricing.go
-	curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/main/pkg/providers/pricing/zz_generated.pricing_aws_us_gov.go > ./pkg/aws/zz_generated_aws_us_gov.pricing.go
-	sed -i'.bkup' 's/package pricing/package aws/' pkg/aws/zz_generated*
+	$(MAKE) prices
+
+KARPENTER_PRICING=https://raw.githubusercontent.com/aws/karpenter-provider-aws/main/pkg/providers/pricing
+
+prices: ## Refresh the static on-demand price tables (from Karpenter; no credentials)
+	for p in aws aws_cn aws_us_gov; do \
+	  curl -fsSL "$(KARPENTER_PRICING)/zz_generated.pricing_$$p.go" -o "pkg/aws/zz_generated_$$p.pricing.go" || exit 1; \
+	done
+	sed -i'.bkup' 's/package pricing/package aws/' pkg/aws/zz_generated_*.pricing.go
 	rm -f pkg/aws/*.bkup
+
+catalog: ## Refresh the instance catalog from the AWS Price List (needs pricing:GetProducts)
+	go run ./hack/catalog
 
 clean: ## Clean artifacts
 	rm -rf kube-node-viewer
