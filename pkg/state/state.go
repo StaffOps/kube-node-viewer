@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -35,6 +36,8 @@ const fileVersion = 1
 type file struct {
 	Version  int                        `json:"version"`
 	Clusters map[string]model.ViewState `json:"clusters"`
+	// Views are the named views, shared by every cluster
+	Views map[string]model.ViewState `json:"views,omitempty"`
 }
 
 // DefaultPath is $XDG_STATE_HOME/kube-node-viewer/state.json, falling back to
@@ -53,21 +56,28 @@ type Store struct {
 
 	mu       sync.Mutex
 	clusters map[string]model.ViewState
+	views    map[string]model.ViewState
 }
 
 // Load reads the state file. A missing file is an empty store; a corrupt or
 // unreadable one is ignored with one warning on w, and the store starts empty
 // (R2). Saving then replaces the bad file.
 func Load(path string, w io.Writer) *Store {
-	s := &Store{path: path, clusters: map[string]model.ViewState{}}
+	s := &Store{path: path, clusters: map[string]model.ViewState{}, views: map[string]model.ViewState{}}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return s
 	}
 	if err == nil {
 		var f file
-		if err = json.Unmarshal(data, &f); err == nil && f.Clusters != nil {
-			s.clusters = f.Clusters
+		if err = json.Unmarshal(data, &f); err == nil {
+			// either may be missing: a file from v0.8.x has no views
+			if f.Clusters != nil {
+				s.clusters = f.Clusters
+			}
+			if f.Views != nil {
+				s.views = f.Views
+			}
 		}
 	}
 	if err != nil {
@@ -91,12 +101,47 @@ func (s *Store) Put(cluster string, v model.ViewState) {
 	s.clusters[cluster] = v
 }
 
+// ViewNames lists the named views, sorted.
+func (s *Store) ViewNames() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	names := make([]string, 0, len(s.views))
+	for name := range s.views {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// View returns the named view.
+func (s *Store) View(name string) (model.ViewState, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	v, ok := s.views[name]
+	return v, ok
+}
+
+// PutView records a named view, replacing one of the same name; Flush writes
+// it.
+func (s *Store) PutView(name string, v model.ViewState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.views[name] = v
+}
+
+// DeleteView forgets a named view; Flush writes it.
+func (s *Store) DeleteView(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.views, name)
+}
+
 // Flush writes every saved state to the file atomically: a temporary file in
 // the same directory, then a rename, so a killed process never leaves half a
 // file behind.
 func (s *Store) Flush() error {
 	s.mu.Lock()
-	data, err := json.MarshalIndent(file{Version: fileVersion, Clusters: s.clusters}, "", "  ")
+	data, err := json.MarshalIndent(file{Version: fileVersion, Clusters: s.clusters, Views: s.views}, "", "  ")
 	s.mu.Unlock()
 	if err != nil {
 		return err
@@ -149,6 +194,25 @@ func NewSaver(store *Store, delay time.Duration, onErr func(error)) *Saver {
 // blocks.
 func (s *Saver) Save(cluster string, v model.ViewState) {
 	s.store.Put(cluster, v)
+	select {
+	case s.notify <- struct{}{}:
+	default:
+	}
+}
+
+// SaveView records a named view and schedules a write.
+func (s *Saver) SaveView(name string, v model.ViewState) {
+	s.store.PutView(name, v)
+	s.schedule()
+}
+
+// DeleteView forgets a named view and schedules a write.
+func (s *Saver) DeleteView(name string) {
+	s.store.DeleteView(name)
+	s.schedule()
+}
+
+func (s *Saver) schedule() {
 	select {
 	case s.notify <- struct{}{}:
 	default:

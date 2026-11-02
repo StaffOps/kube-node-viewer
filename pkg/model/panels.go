@@ -33,6 +33,7 @@ const (
 	panelSort
 	panelColumns
 	panelContexts
+	panelViews
 )
 
 // panelKey handles a key while a panel is open; esc closes or steps back.
@@ -52,6 +53,8 @@ func (u *UIModel) panelKey(key string) tea.Cmd {
 		u.sortKey(key)
 	case panelColumns:
 		u.columnsKey(key)
+	case panelViews:
+		u.viewsKey(key)
 	}
 	return nil
 }
@@ -65,6 +68,7 @@ var helpKeys = [][2]string{
 	{"/", "search name, IP, instance type, labels; esc clears"},
 	{"r", "resources: cpu → memory → cpu+memory"},
 	{"c", "switch to another kubeconfig context"},
+	{"v", "named views: apply, save the current view, delete"},
 	{"d", "folded: list the next group level as one-line rows"},
 	{"↑/↓ k/j", "select a group or node (marked in the left margin)"},
 	{"enter", "fold or unfold the selected group on its own"},

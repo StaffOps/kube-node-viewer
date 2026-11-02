@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -72,8 +73,12 @@ func main() {
 	}
 	// a bad state file is reported here, before the TUI takes the screen
 	states := state.Load(state.DefaultPath(homeDir), os.Stderr)
-	saver := state.NewSaver(states, stateSaveDelay, func(error) {
-		// the TUI has the screen; a failed save only loses the last choice
+	// a failed save is told in the footer once the TUI runs
+	var running atomic.Pointer[tea.Program]
+	saver := state.NewSaver(states, stateSaveDelay, func(err error) {
+		if p := running.Load(); p != nil {
+			go p.Send(model.NoticeMsg{Text: "view state not saved: " + err.Error()})
+		}
 	})
 	defer saver.Close()
 
@@ -81,6 +86,7 @@ func main() {
 	m.DisablePricing = flags.DisablePricing
 	// The program exists before the watches start: Send blocks until it runs.
 	program := tea.NewProgram(m, tea.WithAltScreen())
+	running.Store(program)
 	conn := &sessions{
 		flags:        flags,
 		nodeSelector: nodeSelector,
@@ -96,6 +102,7 @@ func main() {
 	}
 	m.Connect(first)
 	m.SetSwitcher(conn)
+	m.SetViews(namedViews{states, saver})
 
 	// from here the TUI owns the terminal: client-go and pricing messages go
 	// to a file, and the header shows the latest one
@@ -136,3 +143,15 @@ func parseLabelFilter(s string) (labelFilter, error) {
 	}
 	return filter, nil
 }
+
+// namedViews reads named views from the state file and saves them through the
+// background writer (views-and-export R2).
+type namedViews struct {
+	store *state.Store
+	saver *state.Saver
+}
+
+func (v namedViews) ViewNames() []string                      { return v.store.ViewNames() }
+func (v namedViews) View(name string) (model.ViewState, bool) { return v.store.View(name) }
+func (v namedViews) SaveView(name string, s model.ViewState)  { v.saver.SaveView(name, s) }
+func (v namedViews) DeleteView(name string)                   { v.saver.DeleteView(name) }

@@ -130,3 +130,46 @@ func TestDefaultPath(t *testing.T) {
 		t.Errorf("got %s", got)
 	}
 }
+
+func TestNamedViewsRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.json")
+	s := state.Load(path, os.Stderr)
+	s.PutView("spot by zone", sampleView())
+	s.PutView("a first", model.DefaultViewState())
+	if err := s.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	loaded := state.Load(path, os.Stderr)
+	if got := loaded.ViewNames(); !reflect.DeepEqual(got, []string{"a first", "spot by zone"}) {
+		t.Errorf("names %v", got)
+	}
+	if _, ok := loaded.View("spot by zone"); !ok {
+		t.Error("view lost")
+	}
+	loaded.DeleteView("a first")
+	if got := loaded.ViewNames(); len(got) != 1 {
+		t.Errorf("after delete %v", got)
+	}
+}
+
+func TestViewsWithoutClustersAndOldFiles(t *testing.T) {
+	dir := t.TempDir()
+	onlyViews := filepath.Join(dir, "views.json")
+	if err := os.WriteFile(onlyViews, []byte(`{"version":1,"views":{"v":{"sort":{"field":"price"},"showNodes":true}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := state.Load(onlyViews, os.Stderr).View("v"); !ok {
+		t.Error("a file with views and no clusters lost its views")
+	}
+	old := filepath.Join(dir, "old.json")
+	if err := os.WriteFile(old, []byte(`{"version":1,"clusters":{"a@x":{"sort":{"field":"name"},"showNodes":true}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := state.Load(old, os.Stderr)
+	if len(s.ViewNames()) != 0 {
+		t.Error("an old file grew views")
+	}
+	if _, ok := s.Get("a@x"); !ok {
+		t.Error("an old file lost its cluster")
+	}
+}
