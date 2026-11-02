@@ -436,14 +436,8 @@ specs, and `scripts/build.sh` builds the binary.
 [`awslabs/eks-node-viewer`](https://github.com/awslabs/eks-node-viewer),
 licensed under the Apache License 2.0, which was originally developed at AWS
 for demonstrating consolidation with [Karpenter](https://karpenter.sh/).
+Thanks to its authors and contributors, whose code this project starts from.
 This project is not affiliated with or endorsed by AWS.
-
-Thanks to:
-
-- the authors and contributors of `eks-node-viewer`, whose code this project
-  starts from;
-- [João Pedro Alcantara](https://github.com/sule26), for the `--group-by` and
-  `--groups-only` features, imported from the `sule26/eks-node-viewer` fork.
 
 ## License
 
