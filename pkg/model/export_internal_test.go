@@ -135,7 +135,7 @@ func TestExportFallsBackWhenTheDirectoryIsReadOnly(t *testing.T) {
 	if err := os.Chmod(ro, 0o500); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chmod(ro, 0o700) })
+	t.Cleanup(func() { _ = os.Chmod(ro, 0o700) })
 	fallback := filepath.Join(t.TempDir(), "state")
 	doc := exportDoc{Context: "c", Generated: time.Now()}
 	msg := writeExport(doc, ro, fallback)
