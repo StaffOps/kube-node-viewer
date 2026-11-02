@@ -84,7 +84,8 @@ left it.
 
 **Header box.** The context, API server URL and pricing region; how many nodes
 the filters and search keep out of all watched nodes, with their pod count
-(and pending pods, when there are any); the active view (filters, group-by,
+(and pending pods, when there are any); the cost of the whole cluster, which
+stays put whatever the filters; the active view (filters, group-by,
 sort, resources); the main keys. `ctrl+e` switches between this full panel
 and a two-line box. On a very short window it shrinks to one line.
 

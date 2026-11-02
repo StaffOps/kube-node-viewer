@@ -44,6 +44,8 @@ var (
 	viewOption  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8700af", Dark: "#d7afff"}).Render
 	viewValue   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f00", Dark: "#87d787"}).Render
 	viewSep     = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
+	// the cluster's cost, whatever the filters
+	costValue = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#005f5f", Dark: "#87d7af"}).Render
 )
 
 // issueWindow is how long a logged error stays in the header.
@@ -59,6 +61,22 @@ func (u *UIModel) recentIssue() string {
 		return ""
 	}
 	return msg
+}
+
+// clusterCost is the cost of every watched node, whatever the filters, for
+// the header; empty with pricing disabled. short drops the monthly figure.
+func (u *UIModel) clusterCost(stats Stats, short bool) string {
+	if u.DisablePricing {
+		return ""
+	}
+	cost := u.printer.Sprintf("$%0.3f/hour", stats.TotalPrice)
+	if !short {
+		cost += u.printer.Sprintf(" | $%0.3f/month", stats.TotalPrice*avgHoursPerMonth)
+	}
+	if stats.UnpricedReserved > 0 {
+		cost += u.printer.Sprintf(" (+%d reserved, not priced)", stats.UnpricedReserved)
+	}
+	return cost
 }
 
 // headerKeys are the main keys shown in the header panel, as key and action.
@@ -129,7 +147,11 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	issue := u.recentIssue()
 	if u.headerSize() == headerLine {
 		sep := viewSep(" │ ")
-		line := headerContext(context) + sep + countsValue(counts) + sep + u.viewSummary()
+		line := headerContext(context) + sep + countsValue(counts)
+		if cost := u.clusterCost(stats, true); cost != "" {
+			line += sep + costValue(cost)
+		}
+		line += sep + u.viewSummary()
 		if issue != "" {
 			line += sep + u.style.red("⚠ "+issue)
 		}
@@ -148,6 +170,9 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 			}
 		}
 		where = append(where, countsValue(counts))
+		if cost := u.clusterCost(stats, true); cost != "" {
+			where = append(where, costValue(cost))
+		}
 		body := strings.Join(where, headerLabel(" · ")) + "\n" + u.viewSummary()
 		if issue != "" {
 			body += "\n" + u.style.red("⚠ "+issue)
@@ -160,6 +185,10 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		{"Region:", headerValue(orDash(region))},
 		{"Nodes:", countsValue(counts)},
 		{"View:", u.viewSummary()},
+	}
+	if cost := u.clusterCost(stats, false); cost != "" {
+		// after Nodes, before View: the cluster's figures together
+		rows = append(rows[:4], append([][2]string{{"Cost:", costValue(cost) + headerLabel("  whole cluster")}}, rows[4:]...)...)
 	}
 	if issue != "" {
 		rows = append(rows, [2]string{"Issue:", u.style.red(issue) + headerLabel("  full log: "+u.issueLog)})
