@@ -17,7 +17,6 @@ limitations under the License.
 package model
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"math"
@@ -31,7 +30,6 @@ import (
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/duration"
 
 	"github.com/staffops/kube-node-viewer/pkg/text"
 )
@@ -47,17 +45,32 @@ var (
 // avgHoursPerMonth turns an hourly price into a monthly one
 const avgHoursPerMonth = (365 * 24) / 12
 
+// ClusterInfo names the cluster on screen, for the header (R16).
+type ClusterInfo struct {
+	Context string
+	Server  string
+	// Region is the pricing region; empty to take it from the nodes
+	Region string
+}
+
 type UIModel struct {
-	progress   progress.Model
-	cluster    *Cluster
-	paginator  paginator.Model
-	height     int
-	style      *Style
-	view       ViewState
-	showGroups bool
+	progress  progress.Model
+	cluster   *Cluster
+	paginator paginator.Model
+	width     int
+	height    int
+	page      int
+	style     *Style
+	view      ViewState
+	info      ClusterInfo
 	// onViewChange receives the view state after the user changes it, to save
 	// it for the cluster. It must not block.
 	onViewChange func(ViewState)
+
+	// panel is the open panel, if any; it gets the keys (R12)
+	panel   panelKind
+	filters filtersPanel
+
 	// printer formats numbers with commas, built once as the view is redrawn often
 	printer        *message.Printer
 	bars           map[barKey]string
@@ -143,6 +156,12 @@ func (u *UIModel) Cluster() *Cluster {
 	return u.cluster
 }
 
+// SetClusterInfo names the cluster in the header.
+func (u *UIModel) SetClusterInfo(info ClusterInfo) {
+	u.info = info
+	u.dirty = true
+}
+
 // SetView replaces the view state, as loaded at start or for a new cluster.
 func (u *UIModel) SetView(v ViewState) {
 	u.view = v
@@ -150,15 +169,14 @@ func (u *UIModel) SetView(v ViewState) {
 		u.view.Resources = []string{string(v1.ResourceCPU)}
 	}
 	u.SetResources(u.view.Resources)
-	u.showGroups = len(u.view.GroupBy) > 0
-	if !u.showGroups {
+	if len(u.view.GroupBy) == 0 {
 		u.view.ShowNodes = true
 	}
-	u.paginator.Page = 0
+	u.page = 0
 	u.dirty = true
 }
 
-// View state as it is now.
+// ViewState is the view as it is now.
 func (u *UIModel) ViewState() ViewState {
 	return u.view
 }
@@ -168,29 +186,27 @@ func (u *UIModel) OnViewChange(f func(ViewState)) {
 	u.onViewChange = f
 }
 
-func (u *UIModel) viewChanged() {
+// setView applies a change the user made and reports it for saving.
+func (u *UIModel) setView(v ViewState) {
+	u.view = v
+	if len(u.view.GroupBy) == 0 {
+		u.view.ShowNodes = true
+	}
+	u.page = 0
 	if u.onViewChange != nil {
 		u.onViewChange(u.view)
 	}
 }
 
-// toggleGroups and toggleNodes never leave both sections hidden, there would be
-// nothing left to look at.
-func (u *UIModel) toggleGroups() {
-	if len(u.view.GroupBy) == 0 || (u.showGroups && !u.view.ShowNodes) {
-		return
-	}
-	u.showGroups = !u.showGroups
-	u.paginator.Page = 0
-}
-
+// toggleNodes shows or hides the node list, never leaving the screen empty:
+// without a group-by there is no group summary to show instead (R13).
 func (u *UIModel) toggleNodes() {
-	if u.view.ShowNodes && !u.showGroups {
+	if len(u.view.GroupBy) == 0 {
 		return
 	}
-	u.view.ShowNodes = !u.view.ShowNodes
-	u.paginator.Page = 0
-	u.viewChanged()
+	v := u.view
+	v.ShowNodes = !v.ShowNodes
+	u.setView(v)
 }
 
 func (u *UIModel) Init() tea.Cmd {
@@ -221,231 +237,6 @@ func (u *UIModel) View() string {
 	return u.frame
 }
 
-func (u *UIModel) render() string {
-	b := strings.Builder{}
-
-	// cluster totals stay whole; the lists below show the selected nodes
-	stats := u.stats
-	nodes := u.view.Select(stats.Nodes)
-
-	ctw := text.NewColorTabWriter(&b, 0, 8, 1)
-	u.writeClusterSummary(u.cluster.resources, stats, ctw)
-	ctw.Flush()
-	u.printer.Fprintf(&b, "%d pods (%d pending %d running %d bound)\n", stats.TotalPods,
-		stats.PodsByPhase[v1.PodPending], stats.PodsByPhase[v1.PodRunning], stats.BoundPodCount)
-
-	if stats.NumNodes == 0 {
-		fmt.Fprintln(&b)
-		fmt.Fprintln(&b, "Waiting for update or no nodes found...")
-		fmt.Fprintln(&b, u.paginator.View())
-		fmt.Fprintln(&b, helpStyle(u.helpText()))
-		return b.String()
-	}
-
-	if u.showGroups && len(u.view.GroupBy) > 0 {
-		var groups []GroupStats
-		for _, g := range u.view.Groups(nodes) {
-			groups = append(groups, g.Stats)
-		}
-		fmt.Fprintln(&b)
-		if u.view.ShowNodes {
-			u.writeGroupSummary(groups, ctw)
-		} else {
-			// with no node list, the groups are the paginated content
-			u.paginator.PerPage = u.itemsPerPage(&b, len(u.cluster.resources))
-			u.paginator.SetTotalPages(len(groups))
-			u.clampPage(len(groups))
-			if start, end := u.paginator.GetSliceBounds(len(groups)); start >= 0 && end >= start {
-				u.writeGroupSummary(groups[start:end], ctw)
-			}
-		}
-		ctw.Flush()
-	}
-
-	if !u.view.ShowNodes {
-		fmt.Fprintln(&b, u.paginator.View())
-		fmt.Fprintln(&b, helpStyle(u.helpText()))
-		return b.String()
-	}
-
-	fmt.Fprintln(&b)
-	u.progress.ShowPercentage = true
-	if len(nodes) == 0 {
-		fmt.Fprintln(&b, "No nodes match the filters.")
-		fmt.Fprintln(&b, helpStyle(u.helpText()))
-		return b.String()
-	}
-	u.paginator.PerPage = u.computeItemsPerPage(nodes, &b)
-	u.paginator.SetTotalPages(len(nodes))
-	u.clampPage(len(nodes))
-	start, end := u.paginator.GetSliceBounds(len(nodes))
-	if start >= 0 && end >= start {
-		for _, n := range nodes[start:end] {
-			u.writeNodeInfo(n, ctw, u.cluster.resources)
-		}
-	}
-	ctw.Flush()
-
-	fmt.Fprintln(&b, u.paginator.View())
-	fmt.Fprintln(&b, helpStyle(u.helpText()))
-	return b.String()
-}
-
-// clampPage keeps the page in bounds as the item count shrinks underneath us.
-func (u *UIModel) clampPage(totalItems int) {
-	if u.paginator.PerPage > 0 && u.paginator.Page*u.paginator.PerPage > totalItems {
-		u.paginator.Page = u.paginator.TotalPages - 1
-	}
-	if u.paginator.Page < 0 {
-		u.paginator.Page = 0
-	}
-}
-
-func (u *UIModel) helpText() string {
-	if len(u.view.GroupBy) == 0 {
-		return "←/→ page • q: quit"
-	}
-	groups, nodes := "hide", "hide"
-	if !u.showGroups {
-		groups = "show"
-	}
-	if !u.view.ShowNodes {
-		nodes = "show"
-	}
-	return fmt.Sprintf("←/→ page • g: %s groups • n: %s nodes • q: quit", groups, nodes)
-}
-
-// extraLabels are the label columns, after the fixed ones.
-func (u *UIModel) extraLabels() []string {
-	var labels []string
-	for _, c := range u.view.Columns {
-		if key := c.Label(); key != "" {
-			labels = append(labels, key)
-		}
-	}
-	return labels
-}
-
-func (u *UIModel) writeNodeInfo(n *Node, w io.Writer, resources []v1.ResourceName) {
-	extraLabels := u.extraLabels()
-	allocatable := n.Allocatable()
-	used := n.Used()
-	firstLine := true
-	resNameLen := 0
-	for _, res := range resources {
-		if len(res) > resNameLen {
-			resNameLen = len(res)
-		}
-	}
-	for _, res := range resources {
-		usedRes := used[res]
-		allocatableRes := allocatable[res]
-		pct := usedRes.AsApproximateFloat64() / allocatableRes.AsApproximateFloat64()
-		if allocatableRes.AsApproximateFloat64() == 0 {
-			pct = 0
-		}
-
-		if firstLine {
-			priceLabel := fmt.Sprintf("/$%0.4f", n.Price())
-			if n.PriceIsEquivalent() {
-				// not what the node costs, see R8
-				priceLabel = fmt.Sprintf("/~$%0.4f", n.Price())
-			}
-			if !n.HasPrice() || u.DisablePricing {
-				priceLabel = ""
-			}
-			maxPods, _ := allocatable.Pods().AsInt64()
-			fmt.Fprintf(w, "%s\t%s\t%s\t(%d/%d pods)\t%s%s", n.Name(), res, u.progressBar(pct), n.NumPods(), maxPods, n.InstanceType(), priceLabel)
-
-			// node compute type
-			if n.IsOnDemand() {
-				fmt.Fprintf(w, "\tOn-Demand")
-			} else if n.IsSpot() {
-				fmt.Fprintf(w, "\tSpot")
-			} else if n.IsFargate() {
-				fmt.Fprintf(w, "\tFargate")
-			} else {
-				fmt.Fprintf(w, "\t-")
-			}
-
-			if n.IsAuto() {
-				fmt.Fprintf(w, "/Auto")
-			}
-
-			// node status
-			if n.Cordoned() && n.Deleting() {
-				fmt.Fprintf(w, "\tCordoned/Deleting")
-			} else if n.Deleting() {
-				fmt.Fprintf(w, "\tDeleting")
-			} else if n.Cordoned() {
-				fmt.Fprintf(w, "\tCordoned")
-			} else {
-				fmt.Fprintf(w, "\t-")
-			}
-
-			// node readiness or time we've been waiting for it to be ready
-			if n.Ready() {
-				fmt.Fprintf(w, "\tReady")
-			} else {
-				fmt.Fprintf(w, "\tNotReady/%s", duration.HumanDuration(time.Since(n.NotReadyTime())))
-			}
-
-			for _, label := range extraLabels {
-				labelValue, ok := n.node.Labels[label]
-				if !ok {
-					// support computed label values
-					labelValue = n.ComputeLabel(label)
-				}
-				fmt.Fprintf(w, "\t%s", labelValue)
-			}
-
-		} else {
-			fmt.Fprintf(w, " \t%s\t%s\t\t\t\t\t", res, u.progressBar(pct))
-			for range extraLabels {
-				fmt.Fprintf(w, "\t")
-			}
-		}
-		fmt.Fprintln(w)
-		firstLine = false
-	}
-}
-
-// writeGroupSummary writes a block per group: nodes, pods, usage and cost.
-func (u *UIModel) writeGroupSummary(groups []GroupStats, w io.Writer) {
-	u.progress.ShowPercentage = false
-
-	for _, g := range groups {
-		firstLine := true
-		for _, res := range u.cluster.resources {
-			allocatable := g.AllocatableResources[res]
-			used := g.UsedResources[res]
-			pctUsed := g.PercentUsed(res)
-			pctUsedStr := u.colorizeUsage(pctUsed, fmt.Sprintf("%0.1f%%", pctUsed))
-
-			if firstLine {
-				groupPrice := ""
-				if !u.DisablePricing && g.PricedNodes > 0 {
-					groupPrice = u.printer.Sprintf("$%0.3f/hour | $%0.3f/month", g.TotalPrice, g.TotalPrice*avgHoursPerMonth)
-					if !g.FullyPriced() {
-						// an unknown price somewhere, so this is a lower bound
-						groupPrice = ">= " + groupPrice
-					}
-				}
-				if !u.DisablePricing && g.ReservedNodes > 0 {
-					groupPrice += u.printer.Sprintf(" (+%d reserved, not priced)", g.ReservedNodes)
-				}
-				u.printer.Fprintf(w, "%s\t%d nodes\t%d pods\t(%s/%s)\t%s\t%s\t%s\t%s\n",
-					g.Name, g.NumNodes, g.NumPods, formatQuantity(res, used), formatQuantity(res, allocatable),
-					pctUsedStr, res, u.progressBar(pctUsed/100.0), groupPrice)
-			} else {
-				u.printer.Fprintf(w, " \t\t\t(%s/%s)\t%s\t%s\t%s\t\n",
-					formatQuantity(res, used), formatQuantity(res, allocatable), pctUsedStr, res, u.progressBar(pctUsed/100.0))
-			}
-			firstLine = false
-		}
-	}
-}
-
 // colorizeUsage styles by how full a resource is, fuller being better.
 func (u *UIModel) colorizeUsage(pctUsed float64, label string) string {
 	if pctUsed > 90 {
@@ -454,6 +245,18 @@ func (u *UIModel) colorizeUsage(pctUsed float64, label string) string {
 		return u.style.yellow(label)
 	}
 	return u.style.red(label)
+}
+
+// clusterSummary is the cluster-wide usage and cost, one line per resource,
+// then the pod counts. It covers every watched node, whatever the filters.
+func (u *UIModel) clusterSummary(stats Stats) string {
+	var b strings.Builder
+	ctw := text.NewColorTabWriter(&b, 0, 8, 1)
+	u.writeClusterSummary(u.cluster.resources, stats, ctw)
+	ctw.Flush()
+	u.printer.Fprintf(&b, "%d pods (%d pending %d running %d bound)\n", stats.TotalPods,
+		stats.PodsByPhase[v1.PodPending], stats.PodsByPhase[v1.PodRunning], stats.BoundPodCount)
+	return b.String()
 }
 
 func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, w io.Writer) {
@@ -488,28 +291,6 @@ func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, 
 	}
 }
 
-// computeItemsPerPage dynamically calculates the number of nodes we can fit per page
-// taking into account header and footer text
-func (u *UIModel) computeItemsPerPage(nodes []*Node, b *strings.Builder) int {
-	var buf bytes.Buffer
-	u.writeNodeInfo(nodes[0], &buf, u.cluster.resources)
-	return u.itemsPerPage(b, strings.Count(buf.String(), "\n"))
-}
-
-// itemsPerPage fits items of linesPerItem lines below the header written so far.
-// Never returns zero: the paginator divides by it.
-func (u *UIModel) itemsPerPage(header *strings.Builder, linesPerItem int) int {
-	if linesPerItem < 1 {
-		linesPerItem = 1
-	}
-	headerLines := strings.Count(header.String(), "\n") + 2
-	perPage := ((u.height - headerLines) / linesPerItem) - 1
-	if perPage < 1 {
-		return 1
-	}
-	return perPage
-}
-
 type tickMsg time.Time
 
 // tickInterval only keeps node ages and NotReady durations moving; cluster
@@ -527,7 +308,7 @@ func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	u.dirty = true
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		u.height = msg.Height
+		u.width, u.height = msg.Width, msg.Height
 		return u, nil
 	case ChangedMsg:
 		if msg.Gen != u.gen {
@@ -540,22 +321,43 @@ func (u *UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return u, nil
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "esc", "ctrl+c":
-			return u, tea.Quit
-		case "g":
-			u.toggleGroups()
-			return u, nil
-		case "n":
-			u.toggleNodes()
-			return u, nil
-		}
+		return u, u.handleKey(msg)
 	case tickMsg:
 		return u, tickCmd()
 	}
-	var cmd tea.Cmd
-	u.paginator, cmd = u.paginator.Update(msg)
-	return u, cmd
+	return u, nil
+}
+
+// handleKey routes a key to the open panel, or acts on it in the main view
+// (R12). ctrl+c quits from anywhere.
+func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
+	key := msg.String()
+	if key == "ctrl+c" {
+		return tea.Quit
+	}
+	if u.panel != panelNone {
+		u.panelKey(key)
+		return nil
+	}
+	switch key {
+	case "q":
+		return tea.Quit
+	case "?":
+		u.panel = panelHelp
+	case "f":
+		u.openFilters()
+	case "n":
+		u.toggleNodes()
+	case "right", "l", "pgdown":
+		u.page++
+	case "left", "h", "pgup":
+		if u.page > 0 {
+			u.page--
+		}
+	case "home":
+		u.page = 0
+	}
+	return nil
 }
 
 func (u *UIModel) SetResources(resources []string) {

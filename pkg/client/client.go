@@ -69,25 +69,35 @@ func getConfig(kubeconfig, context string) (*rest.Config, error) {
 		&clientcmd.ConfigOverrides{CurrentContext: context}).ClientConfig()
 }
 
-// ClusterKey names the cluster a kubeconfig context points at: the context
-// name and its API server URL, since merged kubeconfigs can repeat context
-// names. An empty context means the current one.
-func ClusterKey(kubeconfig, context string) (string, error) {
+// Cluster names the cluster a kubeconfig context points at. An empty context
+// means the current one.
+type Cluster struct {
+	Context string
+	Server  string
+}
+
+// Key identifies the cluster for saved state: the context name and its API
+// server URL, since merged kubeconfigs can repeat context names.
+func (c Cluster) Key() string {
+	return c.Context + "@" + c.Server
+}
+
+// ResolveCluster reads the context and its API server URL from the kubeconfig.
+func ResolveCluster(kubeconfig, context string) (Cluster, error) {
 	raw, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{Precedence: strings.Split(kubeconfig, ":")},
 		&clientcmd.ConfigOverrides{CurrentContext: context}).RawConfig()
 	if err != nil {
-		return "", err
+		return Cluster{}, err
 	}
-	name := context
-	if name == "" {
-		name = raw.CurrentContext
+	c := Cluster{Context: context}
+	if c.Context == "" {
+		c.Context = raw.CurrentContext
 	}
-	server := ""
-	if ctx, ok := raw.Contexts[name]; ok {
+	if ctx, ok := raw.Contexts[c.Context]; ok {
 		if cluster, ok := raw.Clusters[ctx.Cluster]; ok {
-			server = cluster.Server
+			c.Server = cluster.Server
 		}
 	}
-	return name + "@" + server, nil
+	return c, nil
 }

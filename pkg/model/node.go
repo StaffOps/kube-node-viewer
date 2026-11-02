@@ -562,3 +562,12 @@ func pctUsage(allocatable v1.ResourceList, used v1.ResourceList, resource string
 	}
 	return fmt.Sprintf("%.0f%%", pctUsed)
 }
+
+// addLabelKeys adds the node's label keys to the set.
+func (n *Node) addLabelKeys(keys map[string]struct{}) {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	for k := range n.node.Labels {
+		keys[k] = struct{}{}
+	}
+}

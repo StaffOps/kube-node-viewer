@@ -96,7 +96,8 @@ func TestKeysDoNotWaitForClusterLock(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		u.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+		u.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+		u.Update(tea.KeyMsg{Type: tea.KeyEnter})
 		u.Update(ChangedMsg{Gen: u.gen})
 		_ = u.View()
 	}()
@@ -104,6 +105,9 @@ func TestKeysDoNotWaitForClusterLock(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("a key waited for the cluster lock")
+	}
+	if u.panel != panelFilters || u.filters.step != stepField {
+		t.Error("the Filters panel did not open")
 	}
 }
 

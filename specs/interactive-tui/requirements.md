@@ -155,6 +155,10 @@ NotReady durations SHALL still advance (1 s tick).
 (`f`, `g`, `q` are typed, not commands) and `esc` SHALL close it; in the main
 view `q` and `ctrl+c` quit and `?` shows all keys. `esc` no longer quits.
 
+> **Corrected 2026-11-02 (T10).** `ctrl+c` quits from panels too: it is the
+> terminal's interrupt key and no panel takes text that needs it. `q` is still
+> typed into panels.
+
 **R13** WHEN the user presses `n` THEN the system SHALL show or hide the node
 list; the group summary shows whenever a group-by is set. Both are never
 hidden at once.
