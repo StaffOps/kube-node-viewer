@@ -43,6 +43,7 @@ files you change carry the line
 ```bash
 scripts/build.sh          # local binary in bin/ (-i install, -a all platforms)
 scripts/verify.sh         # gofmt check, go vet, go test, spec lint — run before every commit
+scripts/screenshots.sh    # regenerate README images in .static/ from a made-up cluster (Python 3, Chrome, ffmpeg)
 go test ./pkg/... ./cmd/...
 ```
 
