@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-02
+
+### Fixed
+
+- Releases publish the Homebrew cask to `StaffOps/homebrew-tap`: the tap
+  token is passed as `{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}`. In 0.8.0 the
+  cask step failed and only the release archives were published.
+
+## [0.8.0] - 2026-11-02
+
 ### Added
 
 - Interactive TUI: start with no flags and change the view from inside.
@@ -72,8 +82,9 @@ All notable changes to this project are documented here. Format:
 - Pages are cut by lines; a page that continues a group repeats its path; the
   lowest-priority columns are dropped first on narrow windows, and no line
   runs past the window edge. Resizing the window redraws from a clean screen.
-- Node usage bars are wider (36 to 60 cells) and stacked resources are
-  separated by a blank line between nodes.
+- Node usage bars are wider (36 to 60 cells). A node's bars stay joined and
+  nodes are set apart by a thin gap above their first bar; each cluster
+  summary bar keeps its own gap.
 - Node and pod counts are shown once, in the header.
 - Renamed to `kube-node-viewer`: module `github.com/staffops/kube-node-viewer`,
   binary and `cmd/kube-node-viewer`, config file `~/.kube-node-viewer`,
@@ -92,3 +103,7 @@ All notable changes to this project are documented here. Format:
 
 - A node's price is read and written under its lock; a pod seen before its
   node is counted once the node appears.
+
+[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/StaffOps/kube-node-viewer/compare/v0.8.0...v0.8.1
+[0.8.0]: https://github.com/StaffOps/kube-node-viewer/releases/tag/v0.8.0
