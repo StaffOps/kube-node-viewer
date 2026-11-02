@@ -16,7 +16,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    redraw. The owner's UX changes are dated notes in its requirements.
    [requirements](interactive-tui/requirements.md) ·
    [design](interactive-tui/design.md) · [tasks](interactive-tui/tasks.md)
-3. [`views-and-export/`](views-and-export/) — **draft**. Excluding filters,
+3. [`views-and-export/`](views-and-export/) — **active**. Excluding filters,
    named views (`v`), export of the screen to CSV and JSON (`e`).
    [requirements](views-and-export/requirements.md) ·
    [design](views-and-export/design.md) · [tasks](views-and-export/tasks.md)

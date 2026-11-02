@@ -13,13 +13,21 @@
 
 ## Target state
 
-- `Filter` gains `Exclude bool` (JSON `exclude`, omitted when false, so older
-  state files read unchanged).
-- The state file gains `views: {name: ViewState}` beside `clusters`; the UI
-  reaches it through a small `Views` interface set by `cmd`.
+- `Filter` gains `Excluded []string` (JSON `excluded`, omitted when empty). A
+  filter keeps `Values` or excludes `Excluded`; `x` moves the ticked values
+  from one field to the other. Code that only knows `values` sees an empty
+  filter in an excluding one and filters nothing, instead of the opposite.
+- The state file gains `views: {name: ViewState}` beside `clusters` (`Load`
+  keeps either when the other is missing); the UI reaches it through a small
+  `Views` interface set by `cmd`, whose saves report failures back as a
+  footer notice.
 - A Views popup (`v`) with a one-line name input, like the search line.
-- `e` builds rows from the same view the screen uses and returns a `tea.Cmd`
-  that writes both files and answers with a message the footer shows.
+- `e` builds rows on the UI goroutine from `Select` over every watched node
+  (all pages, folded groups included) and returns a `tea.Cmd` that writes both
+  files (exclusive create, `-2`… on a clash, state directory when the current
+  one is not writable) and answers with a message the footer shows for 5 s.
+- Applying a named view uses `SetView` (resources and the `r` cycle) and then
+  reports the change, like any TUI change.
 
 ## Components touched
 
@@ -50,7 +58,10 @@ still combine with AND.
 **When this would be wrong**: queries mixing fields with OR become common —
 then the deferred typed syntax.
 
-**Reversal action**: drop the flag; old state files ignore it.
+**Alternatives discarded**: an `Exclude bool` on the filter — an older
+binary reading it would keep only the excluded values (review 2026-11-02).
+
+**Reversal action**: drop `excluded`; older code already ignores it.
 
 ### D2: Named views are global, in the state file
 
@@ -69,6 +80,9 @@ so it can be unticked.
 **When this would be wrong**: the owner wants per-cluster views — key them by
 cluster like `clusters`.
 
+**Alternatives discarded**: per-cluster views (the examples are habits);
+a separate views file (a second file to write atomically and document).
+
 **Reversal action**: move `views` under each cluster.
 
 ### D3: Export writes CSV and JSON to the current directory
@@ -81,11 +95,15 @@ by context and time; no prompt.
 2. CSV opens in a spreadsheet; JSON keeps groups, totals and the view for
    scripts.
 
-**Trade-offs accepted**: files pile up in the directory; names never collide
-(seconds in the name).
+**Trade-offs accepted**: files pile up in the directory. Two exports in the
+same second get `-2`. When the current directory is not writable (a launch
+from `/`), files go to the state directory instead and the footer says so.
 
-**When this would be wrong**: users run it from read-only directories —
-then fall back to the state directory.
+**When this would be wrong**: users want to pick the place — then a prompt.
+
+**Alternatives discarded**: a save dialog (a text input for a path on every
+export); one format only (CSV loses groups and totals, JSON is awkward in a
+spreadsheet).
 
 **Reversal action**: remove the key.
 
