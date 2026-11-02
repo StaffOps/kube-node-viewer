@@ -198,6 +198,12 @@ func TestScreenshots(t *testing.T) {
 		{"ctrl+e  compacts the header", func(u *UIModel) { demo.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
 		{"ctrl+e  expands it again", func(u *UIModel) { demo.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
 		{"n  unfolds everything", func(u *UIModel) { press(u, "n") }},
+		{"tab  Recommendations: rules over requests and prices, Spot always last", func(u *UIModel) {
+			u.advisor = fakeAdvisor{}
+			u.SetRecommendOptions(RecommendOptions{Headroom: 0.8, OldAge: 30 * 24 * time.Hour})
+			pressAll(u, "tab")
+		}},
+		{"enter  shows the math behind a recommendation", func(u *UIModel) { pressAll(u, "down", "down", "down", "enter") }},
 	}
 	for i, st := range steps {
 		st.keys(demo)
