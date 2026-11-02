@@ -57,7 +57,8 @@ func (u *UIModel) helpLines() []string {
 	for _, k := range helpKeys {
 		lines = append(lines, fmt.Sprintf("  %s  %s", headerKey(fmt.Sprintf("%-10s", k[0])), k[1]))
 	}
-	return lines
+	return append(lines, "", titleStyle("Colours"), "",
+		"  NODEGROUP  "+managedNodeGroupStyle("name")+" is an EKS managed node group; plain is a Karpenter NodePool")
 }
 
 type filterStep int

@@ -55,17 +55,22 @@ func TestCapacityType(t *testing.T) {
 
 func TestNodeGroup(t *testing.T) {
 	cases := []struct {
-		labels map[string]string
-		want   string
+		labels  map[string]string
+		want    string
+		managed bool
 	}{
-		{map[string]string{"karpenter.sh/nodepool": "default"}, "default"},
-		{map[string]string{"eks.amazonaws.com/nodegroup": "workers"}, "ManagedNodeGroup:workers"},
-		{map[string]string{"karpenter.sh/nodepool": "gpu", "eks.amazonaws.com/nodegroup": "workers"}, "gpu"},
-		{nil, "-"},
+		{map[string]string{"karpenter.sh/nodepool": "default"}, "default", false},
+		{map[string]string{"eks.amazonaws.com/nodegroup": "workers"}, "workers", true},
+		{map[string]string{"karpenter.sh/nodepool": "gpu", "eks.amazonaws.com/nodegroup": "workers"}, "gpu", false},
+		{nil, "-", false},
 	}
 	for _, c := range cases {
-		if got := labeledNode(c.labels).NodeGroup(); got != c.want {
+		n := labeledNode(c.labels)
+		if got := n.NodeGroup(); got != c.want {
 			t.Errorf("%v: got %q, want %q", c.labels, got, c.want)
+		}
+		if got := n.IsManagedNodeGroup(); got != c.managed {
+			t.Errorf("%v: managed %v, want %v", c.labels, got, c.managed)
 		}
 	}
 }

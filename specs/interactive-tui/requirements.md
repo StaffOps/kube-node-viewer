@@ -53,7 +53,7 @@ default › us-east-1a   3 nodes  41 pods  cpu 61%  mem 48%  $0.312/h
 
 ```text
 # A cluster with no Karpenter and an EKS managed node group:
-ip-10-0-2-7  m5.xlarge  OnDemand  ManagedNodeGroup:workers  us-east-1b  ...
+ip-10-0-2-7  m5.xlarge  OnDemand  workers (in the managed node group colour)  us-east-1b  ...
 # A reserved node: price shown as an on-demand equivalent, left out of totals
 ip-10-0-3-9  p5.48xlarge  Reserved  gpu  us-east-1a  ...  ~$98.32/h
 gpu   4 nodes  ...  $12.10/h  (+1 reserved, not priced)
@@ -122,8 +122,14 @@ group, zone, region, internal IP, age, status, price, the computed labels
   > **Corrected 2026-10-31.** `Auto` was a capacity value; Auto Mode nodes
   > also carry `karpenter.sh/capacity-type`, so making `Auto` a value would
   > hide whether they are spot or on-demand, which the cost filter needs.
-- [ ] Node group is the `karpenter.sh/nodepool` value, else
-  `ManagedNodeGroup:<eks.amazonaws.com/nodegroup>`, else `-`.
+- [ ] Node group is the `karpenter.sh/nodepool` value, else the
+  `eks.amazonaws.com/nodegroup` value shown in a distinct colour, else `-`.
+
+  > **Corrected 2026-11-02.** The `ManagedNodeGroup:` prefix made the column
+  > too wide for generated names (`karpenter-20261031…`); the owner asked for
+  > the plain name in another colour. Help (`?`) explains the colour. A
+  > NodePool and a managed node group with the same name share one filter and
+  > group value.
 - [ ] A nodeclaim-only node shows `-` for IP and the instance ID as its name.
 
 **R8** WHEN a node is `Reserved` THEN its price SHALL show as the on-demand

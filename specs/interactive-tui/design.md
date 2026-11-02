@@ -117,7 +117,8 @@ a derived fact; status matches on any selected flag.
 ### D5: Node group and capacity type derivation
 
 **Choice**: node group = `karpenter.sh/nodepool`, else
-`ManagedNodeGroup:<eks.amazonaws.com/nodegroup>`, else `-`. Capacity type
+the `eks.amazonaws.com/nodegroup` name (coloured on screen; see the R7
+correction of 2026-11-02), else `-`. Capacity type
 from the labels in R7, Fargate/Auto from `compute-type` first.
 
 **Justification**: these are the labels EKS and Karpenter v1 set (Karpenter `pkg/apis/v1/labels.go`).
