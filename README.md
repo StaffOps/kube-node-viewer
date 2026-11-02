@@ -34,7 +34,6 @@ with `scripts/screenshots.sh`.
 - [Flags and config file](#flags-and-config-file)
 - [Pricing](#pricing)
 - [Computed labels](#computed-labels)
-- [Coming from eks-node-viewer](#coming-from-eks-node-viewer)
 - [Troubleshooting](#troubleshooting)
 - [How it works](#how-it-works)
 - [Development](#development)
@@ -387,18 +386,6 @@ These names work anywhere a label does: columns, sort, group-by, filters,
 - `kube-node-viewer/node-memory-usage`: memory requests over allocatable
 - `kube-node-viewer/node-pods-usage`: pods over pod capacity
 - `kube-node-viewer/node-ephemeral-storage-usage`: ephemeral storage requests over allocatable
-
-## Coming from eks-node-viewer
-
-- The screen is driven from inside now. `g` opens the Group by panel instead
-  of toggling the summary, `esc` closes panels instead of quitting, and
-  `--group-by key=a,b` filters in memory instead of narrowing what is
-  watched.
-- If `~/.kube-node-viewer` doesn't exist, `~/.eks-node-viewer` is read instead
-  and a warning names the new path. The old file is never changed.
-- The `eks-node-viewer/` prefix still works for the price override label and
-  the computed label names. When a node carries both price labels,
-  `kube-node-viewer/instance-price` wins.
 
 ## Troubleshooting
 
