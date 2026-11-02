@@ -48,21 +48,45 @@ const (
 // pathSeparator joins group-by values in group headings.
 const pathSeparator = " › "
 
+// contentMargin indents everything below the header box to line up with the
+// text inside it (border plus padding).
+const contentMargin = 2
+
 // render draws the whole screen: header, cluster summary, one page of the
 // node list with the open panel floating over it, then the footer.
 func (u *UIModel) render() string {
 	stats := u.stats
 	nodes := u.view.Select(stats.Nodes)
+	header := u.fit(u.header(stats, nodes))
 
+	// below the box, lay out for the width left after the margin
+	full := u.width
+	if full > 0 {
+		u.width = max(full-contentMargin, 1)
+	}
+	content := u.renderContent(stats, nodes, strings.Count(header, "\n"))
+	u.width = full
+
+	margin := strings.Repeat(" ", contentMargin)
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if line != "" {
+			lines[i] = margin + line
+		}
+	}
+	return header + strings.Join(lines, "\n")
+}
+
+// renderContent is everything below the header, headerLines tall.
+func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) string {
 	var b strings.Builder
-	b.WriteString(u.fit(u.header(stats, nodes)))
 	b.WriteString(u.fit(u.clusterSummary(stats)))
 	b.WriteString("\n")
 
 	// what is left between the summary and the two footer lines
 	avail := math.MaxInt
 	if u.height > 0 {
-		avail = max(u.height-strings.Count(b.String(), "\n")-2, 3)
+		avail = max(u.height-headerLines-strings.Count(b.String(), "\n")-2, 3)
 	}
 
 	var body []string
