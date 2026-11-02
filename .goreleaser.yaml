@@ -46,7 +46,9 @@ homebrew_casks:
     repository:
       owner: StaffOps
       name: homebrew-tap
-      token: '{{ envOrDefault "HOMEBREW_TAP_GITHUB_TOKEN" "" }}'
+      # envOrDefault here makes the cask publish fail with an empty error
+      # (goreleaser 2.19); .Env is what the docs use
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Casks
     homepage: https://github.com/StaffOps/kube-node-viewer
     description: Terminal UI for Kubernetes node usage and cost
