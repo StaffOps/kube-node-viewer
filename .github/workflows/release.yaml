@@ -11,6 +11,12 @@
 #   shipped, and that commit is pushed to main, tagged vx.y.z and released.
 #   An empty [Unreleased] releases the newest version only if its tag is
 #   missing (a hand-made release PR still works); otherwise nothing happens.
+#
+# main and v* tags are protected by repository rulesets that GITHUB_TOKEN
+# cannot bypass, so the release commit and tag are pushed with a deploy key
+# (secret RELEASE_DEPLOY_KEY, write access to this repository only). A push
+# made with it starts workflows: the tag push starts this workflow again,
+# and that run stops when the GitHub release already exists.
 
 name: Binary release
 
@@ -39,6 +45,7 @@ jobs:
       uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 # zizmor: ignore[artipacked]
       # credentials kept: this job pushes the release commit and tag; it uploads no artifact
       with:
+        ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }} # the rulesets let deploy keys push to main and v* tags
         fetch-depth: 0 # tags and history for the release notes
         # runs queue up: always start from the newest main, not the commit
         # that triggered this run
@@ -47,10 +54,19 @@ jobs:
     - name: Version to release
       id: version
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
         if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-          echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          tag="${GITHUB_REF#refs/tags/}"
+          # the run that pushed this tag has released it already
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$tag is already released: nothing to do"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
           echo "release=true" >> "$GITHUB_OUTPUT"
           exit 0
         fi
@@ -97,7 +113,8 @@ jobs:
           git push origin HEAD:main
         fi
         git tag -a "$VERSION" -m "$VERSION"
-        # pushed with GITHUB_TOKEN, so it doesn't start this workflow again
+        # pushed with the deploy key: starts this workflow again on the tag,
+        # which finds the release published by this run and stops
         git push origin "$VERSION"
 
     - name: Run GoReleaser
