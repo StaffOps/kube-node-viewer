@@ -114,6 +114,13 @@ built-in names, and read any other name as a node label key:
 - [x] A built-in name used in a key that does not list it (`group-by:
   - price`) is an error (R6), not a label.
 
+> **Corrected 2026-11-03 (T2).** `price` alone was ambiguous next to
+> `PRICE/H` and `PRICE/M`: columns are also named by their lower-cased screen
+> titles (`price/h`, `price/m`, `idle/h`, `idle/m`), the field names stay
+> accepted. `sort` also takes the derived fields the Sort panel offers. The
+> Columns panel now offers `IP` for everyone, since it shares
+> `ColumnFields()` with the config (CHANGELOG, Fixed).
+
 **R3** WHEN the user opens the Views panel (`v`) THEN the system SHALL list
 the config views first, in file order, marked `(config)`, then the views
 saved from the TUI; `enter` SHALL apply either kind the same way.
@@ -154,8 +161,8 @@ SHALL exit before the TUI starts with the file and the path of the problem
   is expected ("not a string; quote it");
 - [x] a missing, empty or repeated `name`, or one with leading or trailing
   spaces;
-- [x] an empty list, or a list item repeated (`columns`, `group-by`,
-  `resources`, filter `values`/`exclude`), or more than three `group-by`
+- [x] an empty list in a view (`columns`, `group-by`, `resources`,
+  `filters`, filter `values`/`exclude`), or a list item repeated, or more than three `group-by`
   levels;
 - [x] a built-in name not allowed in that key (R2);
 - [x] `order` not `ascending`/`descending`; `start-with` not
@@ -167,6 +174,10 @@ SHALL exit before the TUI starts with the file and the path of the problem
   without `default-view`.
 - [x] Example: `config file …/config.yaml: views[1].filters[0]: needs values or exclude`.
 
+> **Corrected 2026-11-03 (T2).** A view name with leading or trailing spaces
+> is an error: the Views panel trims names when saving, so a padded name
+> could never be protected from a save under the same name.
+
 **R7** WHEN a view uses a label the label lists hide THEN the system SHALL
 apply it and keep it listed in the panels (label-visibility R5).
 
@@ -175,6 +186,9 @@ views" section with a complete example, every key and its values, the field
 names per key, how the start view is chosen, the errors, and that `zone` in
 `config.yaml` is the derived field while `--group-by zone` is the label
 `zone`. Every YAML example uses block lists and is decoded by a test.
+
+> **Corrected 2026-11-03 (T5).** The full reference is `docs/views.md`; the
+> README keeps a short example and links it. R8 applies to `docs/views.md`.
 
 ## Counter-examples
 
@@ -191,13 +205,3 @@ names per key, how the start view is chosen, the errors, and that `zone` in
   views.
 - Moving the `~/.kube-node-viewer` options into `config.yaml`.
 
-## Notes
-
-- 2026-11-03 (owner): the full reference moves to `docs/views.md`; the
-  README keeps a short example and links it (R8 reads "the docs").
-- 2026-11-03 (owner): `price` alone was ambiguous next to `PRICE/H` and
-  `PRICE/M`. Columns are named by their lower-cased screen titles
-  (`price/h`, `price/m`, `idle/h`, `idle/m`), the field names stay
-  accepted. `sort` also takes the derived fields the Sort panel offers.
-  View names with leading or trailing spaces are errors. The Columns panel
-  now offers `IP` for everyone (it shares `ColumnFields()` with the config).

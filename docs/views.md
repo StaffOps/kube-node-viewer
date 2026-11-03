@@ -253,8 +253,9 @@ are read too. Keys compare exactly (`Name:` is unknown). Strings that YAML
 reads as something else (`yes`, `123`, `~`) must be quoted; `yes`/`no` and
 `on`/`off` are read as `true`/`false` for `groups-only`. The start stops,
 before the TUI, with the file and the place of the problem for an unknown
-key, a value of the wrong type, a missing, empty or repeated `name`, an
-empty list or a repeated item, more than three `group-by` levels, a
+key, a value of the wrong type, a missing, empty or repeated `name`, a
+name with leading or trailing spaces, an empty list in a view or a repeated
+item, more than three `group-by` levels, a
 built-in name not allowed in that key, an `order` or `start-with` value
 not listed above, a filter without `field`, with both or neither of
 `values` and `exclude`, or a second filter on the same field,

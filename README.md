@@ -379,7 +379,7 @@ Usage of kube-node-viewer:
   -extra-labels string
     	A comma separated set of extra node labels to display
   -group-by string
-    	Node label to summarize usage and cost by, optionally with a filter on a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. Applies to this run; the last view chosen in the TUI is restored per cluster, unless config.yaml sets default-view
+    	Node label to summarize usage and cost by, optionally with a filter on a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. Applies to this run; the last view chosen in the TUI is restored per cluster, unless config.yaml sets default-view with start-with: default-view
   -groups-only
     	Start folded to the --group-by groups, with the node list hidden. At runtime 'n' folds and unfolds one level per press
   -kubeconfig string
@@ -632,7 +632,8 @@ These names work anywhere a label does: columns, sort, group-by, filters,
 ## Troubleshooting
 
 **The view is not what I expect on one cluster.** If `config.yaml` sets
-`default-view`, every cluster opens with that view; set
+`default-view` (and no `start-with: last-view`), every cluster opens with
+that view; set
 `start-with: last-view` to get each cluster's saved view back (see
 [Config views](#config-views)). Otherwise it is that cluster's saved view.
 Change it from the TUI, or quit and delete its entry from

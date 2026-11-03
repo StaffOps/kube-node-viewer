@@ -14,10 +14,15 @@ All notable changes to this project are documented here. Format:
   name are refused. `default-view` opens each cluster with one of them the
   first time the run connects to it; `start-with: last-view` keeps each
   cluster's saved view and uses the default view only for a cluster with
-  none. Errors in `config.yaml` now name the place of the problem
-  (`views[1].filters[0]`), keys compare exactly and `yes`, `123` or `~`
-  where a string is expected are errors.
+  none.
   How to write them: [docs/views.md](docs/views.md).
+
+### Changed
+
+- `config.yaml` is read strictly: errors name the place of the problem
+  (`views[1].filters[0]`), keys compare exactly (`Labels:` or `Allow:`,
+  accepted before, now stop the start), and `yes`, `123` or `~` where a
+  string is expected are errors.
 
 ### Fixed
 

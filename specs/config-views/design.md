@@ -200,6 +200,10 @@ paths for unknown keys.
 ## Invariants
 
 - Without `views` and `default-view`, behavior is exactly as before.
+
+  > **Corrected 2026-11-03 (T1).** Except that keys now compare exactly:
+  > `Labels:` or `Allow:`, accepted case-insensitively before, are errors
+  > (D5). Recorded under Changed in the CHANGELOG.
 - `config.yaml` is never written; state named views are never deleted by
   this feature.
 - Precedence at a connection: defaults < `~/.kube-node-viewer` < (saved view
