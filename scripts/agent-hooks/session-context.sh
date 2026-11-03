@@ -7,6 +7,9 @@ branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 dirty=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 
 echo "kube-node-viewer session context"
+if [ -d .githooks ] && [ "$(git config core.hooksPath)" != .githooks ]; then
+  git config core.hooksPath .githooks && echo "git hooks: installed .githooks (pre-commit, commit-msg, pre-push) for this clone"
+fi
 echo "branch: $branch, uncommitted files: $dirty"
 skills=$(for d in .kiro/skills/*/SKILL.md; do [ -f "$d" ] && basename "$(dirname "$d")"; done | tr '\n' ' ' | sed 's/ $//; s/ /, /g')
 echo "Rules: AGENTS.md. Specs: specs/README.md. Backlog: TODO.md. Skills: ${skills:-none}. Reviewer: spec-refuter."
