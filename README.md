@@ -35,6 +35,7 @@ with `scripts/screenshots.sh`.
 - [Recommendations](#recommendations)
 - [Saved view per cluster](#saved-view-per-cluster)
 - [Flags and config file](#flags-and-config-file)
+- [Label visibility](#label-visibility)
 - [Pricing](#pricing)
 - [Computed labels](#computed-labels)
 - [Troubleshooting](#troubleshooting)
@@ -168,7 +169,9 @@ With `ctrl+e` the header shrinks to two lines:
 Panels open as a popup over the node list, with their own keys on their last
 line. While a panel or the search is open, keys go to it: `q` or `f` are typed,
 not commands, and `esc` closes the panel or steps back. `ctrl+c` and `ctrl+e`
-work everywhere. `esc` never quits.
+work everywhere. `esc` never quits. In Filters, Group by, Sort and Columns,
+`a` shows the labels the config file hides, until the panel closes (see
+[Label visibility](#label-visibility)).
 
 ## Panels
 
@@ -365,6 +368,10 @@ Usage of kube-node-viewer:
     	Start folded to the --group-by groups, with the node list hidden. At runtime 'n' folds and unfolds one level per press
   -kubeconfig string
     	Absolute path to the kubeconfig file (default "~/.kube/config")
+  -labels-allow string
+    	Comma separated node label key patterns the panels offer ('*' matches anything), in place of labels.allow in ~/.config/kube-node-viewer/config.yaml for this run; '' offers every label
+  -labels-deny string
+    	Comma separated node label key patterns the panels leave out, in place of labels.deny in ~/.config/kube-node-viewer/config.yaml for this run; '' denies none
   -node-selector string
     	Node label selector used to filter nodes, if empty all nodes are selected
   -node-sort string
@@ -377,6 +384,10 @@ Usage of kube-node-viewer:
   -version
     	Display kube-node-viewer version
 ```
+
+Paths in the help are shown here for the default home directory. The help
+of `-labels-allow` and `-labels-deny` names the file the run reads, under
+`$XDG_CONFIG_HOME` when that is set to an absolute path.
 
 How the flags map to the view:
 
@@ -391,6 +402,7 @@ How the flags map to the view:
 | `--resources` | the resources; a list other than cpu / memory / both becomes a fourth step of `r` |
 | `--context`, `--kubeconfig` | which cluster; view flags apply to the cluster the run starts on |
 | `--style`, `--disable-pricing` | run options, not saved |
+| `--labels-allow`, `--labels-deny` | the label lists of [`config.yaml`](#label-visibility) for this run; not saved |
 
 `-kubeconfig` also reads `KUBECONFIG` (flag > env var > config file).
 
@@ -413,7 +425,8 @@ AWS_PROFILE=myprofile kube-node-viewer --context staging
 
 `~/.kube-node-viewer` holds standing defaults, one `option-name=value` per
 line, option names being the flag names. A saved view for a cluster takes
-precedence over it.
+precedence over it. The label lists are not read from this file; they live
+in [`config.yaml`](#label-visibility).
 
 ```text
 # select only Karpenter managed nodes
@@ -434,6 +447,80 @@ node-sort=creation=asc
 
 # change the good / ok / bad colours
 style=#2E91D2,#ffff00,#D55E00
+```
+
+## Label visibility
+
+Nodes often carry dozens of labels. An allow list and a deny list in
+`~/.config/kube-node-viewer/config.yaml` decide which node labels the
+Filters, Group by, Sort and Columns panels offer. When `XDG_CONFIG_HOME` is
+set to an absolute path, the file is
+`$XDG_CONFIG_HOME/kube-node-viewer/config.yaml` instead.
+
+```yaml
+labels:
+  allow:
+    - karpenter.sh/nodepool
+    - karpenter.sh/capacity-type
+    - topology.kubernetes.io/zone
+    - team
+    - app.example.com/*
+  deny:
+    - app.example.com/internal-*
+```
+
+Or only hide what you never use:
+
+```yaml
+labels:
+  deny:
+    - "*.amazonaws.com/*"
+    - beta.kubernetes.io/*
+    - kubernetes.io/hostname
+```
+
+The rules:
+
+- A pattern matches the whole label key, case-sensitively. `*` matches any
+  run of characters, `/` and `.` included; every other character is itself.
+  `karpenter.sh/*` matches `karpenter.sh/nodepool`, `karpenter` does not.
+  Quote a pattern that starts with `*`.
+- With an allow list, a panel lists only the labels that match one of its
+  patterns. Without one (or with `allow: []`), it lists every label.
+- Deny wins: a label that matches a deny pattern is left out, even when it
+  also matches an allow pattern.
+- The derived fields (`capacity`, `nodegroup`, `zone`, `region`,
+  `instance-type`, `status`) and the [computed labels](#computed-labels) are
+  never hidden.
+- A label the view uses (a filter, a group-by level, the sort or a column)
+  stays listed and keeps working, so you can change or remove it. Once it is
+  out of the view, the panels stop listing it the next time they open.
+- The lists only trim the panels. Node details, the `/` search and the
+  export still see every label.
+
+When a panel hides labels, a line above its keys says how many:
+`38 labels hidden by config • a: show all`. `a` lists them all
+(`showing all labels • a: hide`) until the panel closes; the file is not
+changed.
+
+`--labels-allow` and `--labels-deny` replace the file's list of the same
+name for one run, as comma separated patterns. An empty value means no list:
+
+```shell
+kube-node-viewer --labels-allow 'karpenter.sh/*,team'
+kube-node-viewer --labels-allow ''
+```
+
+A missing file is fine. A file that cannot be read or is not valid stops
+the start, before the TUI, with the file and the reason: YAML syntax, an
+unknown key, or a list item that is empty or not a string (quote `yes`,
+`123` and the like):
+
+```text
+$ kube-node-viewer
+2026/11/02 21:58:44 config file /home/me/.config/kube-node-viewer/config.yaml: unknown field "lables"
+$ echo $?
+1
 ```
 
 ## Pricing
