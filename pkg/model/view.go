@@ -45,6 +45,11 @@ const (
 	FieldIdle     Field = "idle"
 	FieldPods     Field = "pods"
 
+	// column only: the hourly price and idle cost × avgHoursPerMonth. They
+	// sort like price and idle, so they are not sort fields of their own.
+	FieldPriceMonthly Field = "price-month"
+	FieldIdleMonthly  Field = "idle-month"
+
 	labelFieldPrefix = "label:"
 	usageFieldPrefix = "usage:"
 )
@@ -526,11 +531,11 @@ func ValueCounts(nodes []*Node, field Field) []ValueCount {
 
 // DefaultColumns are shown when nothing is saved, in screen order.
 // IP is offered in the Columns panel but not shown by default.
-var DefaultColumns = []Field{FieldInstanceType, FieldPrice, FieldCapacity, FieldNodeGroup, FieldZone, FieldStatus}
+var DefaultColumns = []Field{FieldInstanceType, FieldPrice, FieldPriceMonthly, FieldIdleMonthly, FieldCapacity, FieldNodeGroup, FieldZone, FieldStatus}
 
 // columnPriority ranks columns by what to keep when the screen is narrow, most
 // important first (R14). Labels and anything unlisted go after these.
-var columnPriority = []Field{FieldStatus, FieldPrice, FieldIdle, FieldCapacity, FieldInstanceType, FieldNodeGroup, FieldZone, FieldIP, FieldAge, FieldRegion}
+var columnPriority = []Field{FieldStatus, FieldPriceMonthly, FieldCapacity, FieldPrice, FieldIdleMonthly, FieldInstanceType, FieldIdle, FieldNodeGroup, FieldZone, FieldIP, FieldAge, FieldRegion}
 
 // FitColumns keeps the columns, in their given order, that fit in width,
 // dropping the lowest-priority ones first, and says how many were dropped.

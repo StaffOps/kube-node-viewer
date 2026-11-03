@@ -125,7 +125,11 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 			status = u.paginator.View()
 		}
 		if hidden > 0 {
-			status += helpStyle(fmt.Sprintf("  %d columns hidden, widen the window", hidden))
+			noun := "columns"
+			if hidden == 1 {
+				noun = "column"
+			}
+			status += helpStyle(fmt.Sprintf("  %d %s hidden, widen the window", hidden, noun))
 		}
 	}
 	if len(body) > avail {
@@ -642,6 +646,10 @@ func columnTitle(f Field) string {
 		return "PRICE/H"
 	case FieldIdle:
 		return "IDLE/H"
+	case FieldPriceMonthly:
+		return "PRICE/M"
+	case FieldIdleMonthly:
+		return "IDLE/M"
 	}
 	if key := f.Label(); key != "" {
 		return strings.ToUpper(key[strings.LastIndex(key, "/")+1:])
@@ -671,7 +679,7 @@ func (u *UIModel) newNodeTable(nodes []*Node, indent int) *nodeTable {
 	now := time.Now()
 	columns := make([]Field, 0, len(u.view.Columns))
 	for _, c := range u.view.Columns {
-		if c == FieldPrice && u.DisablePricing {
+		if u.DisablePricing && isPriceColumn(c) {
 			continue
 		}
 		columns = append(columns, c)
@@ -758,6 +766,16 @@ func (t *nodeTable) render(n *Node) []string {
 	return lines
 }
 
+// isPriceColumn tells the columns that show a price, left out when pricing
+// is disabled.
+func isPriceColumn(f Field) bool {
+	switch f {
+	case FieldPrice, FieldPriceMonthly, FieldIdle, FieldIdleMonthly:
+		return true
+	}
+	return false
+}
+
 // cell is the node's value in a column.
 func (u *UIModel) cell(n *Node, f Field, now time.Time) string {
 	switch f {
@@ -774,6 +792,20 @@ func (u *UIModel) cell(n *Node, f Field, now time.Time) string {
 	case FieldIdle:
 		if idle, ok := n.IdleHourly(); ok {
 			return fmt.Sprintf("$%0.4f", idle)
+		}
+		return "-"
+	case FieldPriceMonthly:
+		switch {
+		case !n.HasPrice():
+			return "-"
+		case n.PriceIsEquivalent():
+			return u.printer.Sprintf("~$%0.2f", n.Price()*avgHoursPerMonth)
+		default:
+			return u.printer.Sprintf("$%0.2f", n.Price()*avgHoursPerMonth)
+		}
+	case FieldIdleMonthly:
+		if idle, ok := n.IdleHourly(); ok {
+			return u.printer.Sprintf("$%0.2f", idle*avgHoursPerMonth)
 		}
 		return "-"
 	case FieldStatus:

@@ -673,3 +673,22 @@ func TestXSwitchesKeepAndExclude(t *testing.T) {
 		t.Error("x created a filter")
 	}
 }
+
+func TestHiddenColumnsFooterCountsInSingular(t *testing.T) {
+	u := capacityUI(t, 2)
+	// find a width that hides exactly one column
+	for w := 200; w > 60; w-- {
+		u.Update(tea.WindowSizeMsg{Width: w, Height: 40})
+		out := u.View()
+		if strings.Contains(out, "1 column hidden") {
+			if strings.Contains(out, "1 columns hidden") {
+				t.Fatalf("plural for one column at width %d", w)
+			}
+			return
+		}
+		if strings.Contains(out, "1 columns hidden") {
+			t.Fatalf("plural for one column at width %d", w)
+		}
+	}
+	t.Fatal("no width hid exactly one column")
+}
