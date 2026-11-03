@@ -1,11 +1,14 @@
-# Monthly refresh of the data compiled into the binary: the static on-demand
-# price tables (from Karpenter, no credentials) and the instance catalog
-# (from the AWS Price List, which needs pricing:GetProducts). Opens a PR when
-# anything changed.
+# Monthly refresh of the static on-demand price tables compiled into the
+# binary (from Karpenter, no credentials). Opens a PR when anything changed.
+# The instance catalog (`make catalog`, needs pricing:GetProducts) is
+# refreshed by hand only; this workflow has no cloud credentials.
 #
-# The catalog step runs only when the repository variable AWS_CATALOG_ROLE_ARN
-# names an IAM role this workflow may assume through GitHub OIDC, with
-# pricing:GetProducts and nothing else. Without it, only prices refresh.
+# Two jobs, because `make prices` downloads Go files from Karpenter's main
+# branch and the build and tests then run them:
+# - refresh: read-only token, no credentials in the checkout; downloads,
+#   builds, tests and hands over the change as a patch;
+# - pull-request: write token; applies the patch as data, pushes a branch
+#   and opens the PR; never runs Go or anything downloaded.
 #
 # A PR opened with GITHUB_TOKEN does not trigger other workflows: close and
 # reopen it (or push to it) to run the tests.
@@ -17,58 +20,94 @@ on:
     - cron: '17 6 1 * *' # 06:17 UTC on the 1st of each month
   workflow_dispatch: {}
 
-permissions:
-  contents: write
-  pull-requests: write
-  id-token: write # only used when AWS_CATALOG_ROLE_ARN is set
+permissions: {}
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
     steps:
-    - uses: actions/checkout@v6.1.0
+    - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      with:
+        persist-credentials: false
 
     - name: Set up Go
-      uses: actions/setup-go@v6.5.0
+      uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
       with:
         go-version-file: go.mod
+        cache: false # downloaded code runs here; it must not write a cache other runs restore
 
     - name: Price tables
       run: make prices
 
-    - name: AWS credentials for the catalog
-      if: vars.AWS_CATALOG_ROLE_ARN != ''
-      uses: aws-actions/configure-aws-credentials@v4.1.0
-      with:
-        role-to-assume: ${{ vars.AWS_CATALOG_ROLE_ARN }}
-        aws-region: us-east-1
-
-    - name: Instance catalog
-      if: vars.AWS_CATALOG_ROLE_ARN != ''
-      run: make catalog
-
     - name: Build and test
       run: |
-        go build ./...
-        go test ./...
+        go build ./cmd/... ./pkg/...
+        go test ./cmd/... ./pkg/...
+
+    - name: Patch
+      id: diff
+      run: |
+        # anything outside pkg/aws would be a surprise: stop
+        if ! git diff --quiet -- . ':!pkg/aws'; then
+          git diff --stat -- . ':!pkg/aws'
+          echo "::error::make prices changed files outside pkg/aws"
+          exit 1
+        fi
+        git diff --binary -- pkg/aws > "$RUNNER_TEMP/prices.patch"
+        if [ -s "$RUNNER_TEMP/prices.patch" ]; then
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          git diff --stat -- pkg/aws
+        else
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+          echo "nothing changed"
+        fi
+
+    - name: Hand over the patch
+      if: steps.diff.outputs.changed == 'true'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: prices-patch
+        path: ${{ runner.temp }}/prices.patch
+        retention-days: 3
+
+  pull-request:
+    needs: refresh
+    if: needs.refresh.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # push the refresh branch
+      pull-requests: write # open the PR
+    steps:
+    # credentials kept: this job pushes the refresh branch; it runs no code from the patch
+    - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 # zizmor: ignore[artipacked]
+
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: prices-patch
+        path: ${{ runner.temp }}/patch
 
     - name: Open a pull request
       env:
         GH_TOKEN: ${{ github.token }}
-        WITH_CATALOG: ${{ vars.AWS_CATALOG_ROLE_ARN != '' }}
       run: |
-        if git diff --quiet; then
-          echo "nothing changed"
-          exit 0
+        set -euo pipefail
+        patch="$RUNNER_TEMP/patch/prices.patch"
+        # only the generated price tables may change
+        if git apply --numstat "$patch" | awk '{print $3}' | grep -vqE '^pkg/aws/zz_generated[^/]*\.go$'; then
+          echo "::error::the patch touches files other than pkg/aws/zz_generated*.go"
+          exit 1
         fi
+        git apply "$patch"
         branch="chore/refresh-price-data-$(date -u +%Y%m%d)"
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git checkout -b "$branch"
-        git commit -am "chore: refresh price data $(date -u +%Y-%m-%d)"
+        git commit -qam "chore: refresh price data $(date -u +%Y-%m-%d)"
         git push origin "$branch"
-        what="\`make prices\`"
-        [ "$WITH_CATALOG" = true ] && what="$what and \`make catalog\`"
         gh pr create --base main --head "$branch" \
           --title "chore: refresh price data $(date -u +%Y-%m-%d)" \
-          --body "Monthly refresh from $what. Close and reopen to run the tests."
+          --body "Monthly refresh from \`make prices\`. Close and reopen to run the tests."

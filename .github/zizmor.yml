@@ -1,0 +1,7 @@
+# zizmor (workflow security audit; test.yaml `workflows` job). Reviewed
+# exceptions are inline (`# zizmor: ignore[…]`) next to the line, with the
+# reason; only whole rules we do not follow are here.
+rules:
+  # suggests a `$/…` self-repository `uses:` form; local actions stay `./…`
+  self-repository:
+    disable: true

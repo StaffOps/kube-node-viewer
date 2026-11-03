@@ -1,5 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-ff69b4.svg)](LICENSE)
 [![Go code tests](https://github.com/StaffOps/kube-node-viewer/actions/workflows/test.yaml/badge.svg)](https://github.com/StaffOps/kube-node-viewer/actions/workflows/test.yaml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/StaffOps/kube-node-viewer/badge)](https://scorecard.dev/viewer/?uri=github.com/StaffOps/kube-node-viewer)
 
 # kube-node-viewer
 
@@ -796,9 +797,8 @@ specs, `make lint` runs the pinned golangci-lint (CI runs both), and
 Data compiled into the binary is refreshed by `make prices` (the static
 on-demand tables, from Karpenter, no credentials) and `make catalog` (the
 instance catalog, from the AWS Price List; needs `pricing:GetProducts`). The
-`Refresh price data` workflow runs both on the 1st of each month and opens a
-PR; the catalog step runs only when the repository variable
-`AWS_CATALOG_ROLE_ARN` names a role it can assume through GitHub OIDC.
+`Refresh price data` workflow runs `make prices` on the 1st of each month and
+opens a PR; it has no cloud credentials, so `make catalog` is run by hand.
 
 ## Credits
 

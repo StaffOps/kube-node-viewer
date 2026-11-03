@@ -22,8 +22,7 @@ on:
       - '*'
   workflow_dispatch: {}
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: release
@@ -33,9 +32,12 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # release commit, tag, GitHub release
     steps:
     - name: Checkout
-      uses: actions/checkout@v6.1.0
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 # zizmor: ignore[artipacked]
+      # credentials kept: this job pushes the release commit and tag; it uploads no artifact
       with:
         fetch-depth: 0 # tags and history for the release notes
         # runs queue up: always start from the newest main, not the commit
@@ -72,9 +74,10 @@ jobs:
 
     - name: Set up Go
       if: steps.version.outputs.release == 'true'
-      uses: actions/setup-go@v6.5.0
+      uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
       with:
         go-version-file: go.mod
+        cache: false # a release build never restores a cache another run could have written
 
     - name: Dependency checks (before anything is tagged)
       # an advisory published since the last merge (the weekly test.yaml
@@ -99,7 +102,7 @@ jobs:
 
     - name: Run GoReleaser
       if: steps.version.outputs.release == 'true'
-      uses: goreleaser/goreleaser-action@v6
+      uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
       with:
         distribution: goreleaser
         version: "~> v2"

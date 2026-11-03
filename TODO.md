@@ -13,7 +13,7 @@ The layers in `AGENTS.md` ("Guardrails") stop honest mistakes; these close
 what they cannot. Listed by impact.
 
 - [ ] **Protect `main` with a repository ruleset**: require a PR and the
-      `verify`, `lint`, `build`, `secrets`, `guardrails` and `deps` checks; block force-pushes and deletion;
+      `verify`, `lint`, `build`, `secrets`, `guardrails`, `deps` and `workflows` checks; block force-pushes and deletion;
       protect `v*` tags; let only the release workflow (GitHub Actions)
       bypass, for its version commit and tag.
       _Why:_ today anyone with write access can push to `main` with
@@ -26,13 +26,18 @@ what they cannot. Listed by impact.
       _Why:_ both are free for public repos and refuse, on GitHub's side, a
       push that carries a credential, including one pushed with
       `--no-verify` past the local gitleaks check.
-- [ ] **Dependabot security updates on** (repository setting) and the
-      `KNV_DENYLIST` secret also as a Dependabot secret
-      (`gh secret set KNV_DENYLIST --app dependabot`).
-      _Why:_ the `deps` job finds a vulnerable module, but only security
-      updates open the fix PR as soon as an advisory is out; Dependabot PRs
-      cannot read Actions secrets, so their content check runs without
-      the deny list.
+- [ ] **Private vulnerability reporting on** (repository setting:
+      Security → Settings, or
+      `gh api -X PUT repos/StaffOps/kube-node-viewer/private-vulnerability-reporting`).
+      _Why:_ `SECURITY.md` sends reporters to Security → Report a
+      vulnerability, which exists only when this is on.
+- [ ] **CI tool versions nobody bumps**: zizmor (`pipx run zizmor==…`,
+      test.yaml), actionlint (`go run …@v…`, test.yaml), gitleaks
+      (`.github/actions/gitleaks`, version and sha256), govulncheck and
+      go-licenses (Makefile). Dependabot does not see them.
+      _Why:_ a stale auditor misses new checks and advisories; a quarterly
+      look, or a requirements file with hashes Dependabot can update, keeps
+      them current.
 - [ ] **Release smoke test**: after GoReleaser, download the published
       linux/amd64 archive, check that `kube-node-viewer -version` matches
       the tag and the checksum file, and run `brew audit` on the cask.
@@ -87,23 +92,11 @@ memory. Listed by impact.
 
 Beyond the Guardrails section above.
 
-- [ ] **`SECURITY.md`**: how to report a vulnerability privately (GitHub
-      private advisories), supported versions.
-      _Why:_ the repo is public and ships a binary through Homebrew;
-      without a policy, a finder's only channel is a public issue.
-- [ ] **Least-privilege workflows and actions pinned by SHA**, audited by
-      `zizmor` in CI.
-      _Why:_ actions are referenced by tag, and a moved tag runs someone
-      else's code with this repo's `contents: write` token, which can push
-      to `main` and publish releases. Pinning is the standard defence.
 - [ ] **Signed releases**: cosign signatures or SLSA provenance from
       GoReleaser, and an SBOM attached to each release.
       _Why:_ users installing through `brew` cannot tell today whether an
       archive came from this repo's workflow; signatures and an SBOM make
       that checkable and list what the binary contains.
-- [ ] **OpenSSF Scorecard** workflow and badge.
-      _Why:_ an outside, repeatable score of the supply-chain posture
-      that points at what is still missing as the project grows.
 
 ## Evolution
 
