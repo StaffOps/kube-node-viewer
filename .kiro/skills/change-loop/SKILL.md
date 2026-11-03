@@ -23,6 +23,8 @@ disagree, they win — fix this file.
 - Tests next to the code (`pkg/model/*_test.go` style, table-driven).
 
 ## 3. Verify
+- Checks per moment (commit, push, PR, merge): "Guardrails" in `AGENTS.md`;
+  before a push follow skill `pre-push`.
 - `scripts/verify.sh` (gofmt, vet, tests, spec lint, CHANGELOG and spec-task
   checks) and `make lint` must pass.
 - UI or behaviour change → `scripts/build.sh` and run `bin/kube-node-viewer`

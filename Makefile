@@ -1,4 +1,4 @@
-.PHONY: help clean check verify lint prices catalog boilerplate licenses download coverage generate test
+.PHONY: help clean hooks check verify lint prices catalog boilerplate licenses download coverage generate test
 
 NO_COLOR=\033[0m
 GREEN=\033[32;01m
@@ -27,6 +27,10 @@ licenses: download ## Check licenses
 
 boilerplate: ## Add license headers
 	go run hack/boilerplate.go ./
+
+hooks: ## Use the repo git hooks (.githooks: pre-commit, commit-msg, pre-push)
+	git config core.hooksPath .githooks
+	@echo "git hooks: .githooks (pre-commit, commit-msg, pre-push)"
 
 check: ## Before a push: what CI checks (main merged in, verify, lint, build) and the version a merge releases
 	git fetch -q origin main

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Installed by `make hooks` (git config core.hooksPath .githooks). Runs for
+# people, Kiro and Claude Code alike. See AGENTS.md "Guardrails".
+out=$(sh scripts/checks/staged.sh) && exit 0
+printf 'pre-commit: blocked\n%s\n' "$out" >&2
+exit 1

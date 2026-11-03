@@ -23,6 +23,8 @@ people and coding agents alike. In short:
 
 ## Pull requests and releases
 
+0. Once per clone: `make hooks` (git hooks for commits and pushes; see
+   "Guardrails" in `AGENTS.md`).
 1. Branch from `main`, add your change and a line under `## [Unreleased]` in
    `CHANGELOG.md` (`Added`, `Changed`, `Fixed`, `Removed`).
 2. Run `make check` (it merges nothing; it stops if `main` moved, then runs

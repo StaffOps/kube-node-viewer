@@ -1,0 +1,23 @@
+#!/bin/sh
+# Before anything leaves the machine: no direct pushes to main or tags, and
+# what CI runs passes here first (make check). See AGENTS.md "Guardrails".
+# KNV_PUSH_MAIN=1 lets the owner push main/tags by hand; it skips nothing else.
+zero=0000000000000000000000000000000000000000
+check=false
+while read -r local_ref local_sha remote_ref _remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue # deleting a branch
+  case "$remote_ref" in
+    refs/heads/main|refs/tags/*)
+      if [ "${KNV_PUSH_MAIN:-}" != 1 ]; then
+        printf 'pre-push: blocked: %s → %s. Open a PR; releases tag themselves. (Owner override: KNV_PUSH_MAIN=1)\n' "$local_ref" "$remote_ref" >&2
+        exit 1
+      fi ;;
+  esac
+  case "$remote_ref" in refs/heads/*) check=true ;; esac
+done
+$check || exit 0
+echo "pre-push: make check (what CI runs; ~1-5 min)…" >&2
+if ! make check >&2; then
+  echo "pre-push: blocked: make check failed; fix it, or push a WIP with --no-verify and keep the PR a draft" >&2
+  exit 1
+fi
