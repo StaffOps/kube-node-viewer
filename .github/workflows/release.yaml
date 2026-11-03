@@ -1,20 +1,23 @@
 # Builds and publishes a release: binaries on GitHub and the Homebrew cask.
 #
-# Ways in:
-# - a push to main, or a run started by the automerge job in test.yaml:
-#   when CHANGELOG [Unreleased] has entries, scripts/release-prepare.py
+# Merges only add to CHANGELOG [Unreleased]; releases go out in batches:
+# - every Monday 12:00 UTC (schedule), when [Unreleased] has entries;
+# - on demand: `gh workflow run release.yaml`, or the automerge job in
+#   test.yaml for a PR labelled `release`;
+# - pushing a tag by hand releases that tag.
+# Each run: scripts/release-prepare.py
 #   picks the next version from them (Fixed only -> patch, Added/Changed/
 #   Removed -> minor), turns the section into [x.y.z], marks finished specs
 #   shipped, and that commit is pushed to main, tagged vx.y.z and released.
 #   An empty [Unreleased] releases the newest version only if its tag is
 #   missing (a hand-made release PR still works); otherwise nothing happens.
-# - pushing a tag by hand releases that tag.
 
 name: Binary release
 
 on:
+  schedule:
+    - cron: '0 12 * * 1' # Mondays 12:00 UTC (09:00 in Brasília)
   push:
-    branches: [ "main" ]
     tags:
       - '*'
   workflow_dispatch: {}

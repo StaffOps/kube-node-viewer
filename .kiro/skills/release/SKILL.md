@@ -1,6 +1,6 @@
 ---
 name: release
-description: Use when releasing kube-node-viewer or checking a release ("release", "lançar versão", "qual versão vai sair", "o release falhou") — how a merge becomes a version automatically, how to steer the version number, how to confirm the binaries and the Homebrew cask, and what to do when it fails.
+description: Use when releasing kube-node-viewer or checking a release ("release", "lançar versão", "qual versão vai sair", "o release falhou") — how merged changes become a version (weekly or on demand), how to steer the version number, how to confirm the binaries and the Homebrew cask, and what to do when it fails.
 ---
 
 # Release (kube-node-viewer)
@@ -8,11 +8,13 @@ description: Use when releasing kube-node-viewer or checking a release ("release
 Rules: `AGENTS.md` ("Releases and pull requests") and `CONTRIBUTING.md`.
 If this file disagrees with them, they win — fix this file.
 
-Releases are automatic. No release PR, no tag by hand:
+Releases are automatic and batched. No release PR, no tag by hand. Merges
+only add to `[Unreleased]`; a release takes everything there:
 
 ```
-PR merged (by a person, or the automerge job in test.yaml)
-  └─ release.yaml on main
+Monday 12:00 UTC (schedule)          ─┐
+gh workflow run release.yaml          ├─ release.yaml on main
+merge of a PR labelled `release`     ─┘
        ├─ scripts/release-prepare.py: [Unreleased] → [x.y.z] - date,
        │    compare links, finished specs → shipped
        ├─ commit "chore: release vx.y.z" pushed to main, tag vx.y.z
@@ -32,9 +34,11 @@ The CHANGELOG entry decides it:
 
 Preview without writing: `python3 scripts/release-prepare.py`.
 
-Several PRs in one release: give all but the last the `hold` label, or
-merge them while `[Unreleased]` stays empty and add the entries in the
-last one.
+Several PRs go into one release by default: they merge during the week
+and the Monday run releases them together.
+
+Release sooner: `gh workflow run release.yaml --repo StaffOps/kube-node-viewer --ref main`,
+or add the `release` label to the PR before it merges.
 
 ## 2. Confirm it
 
@@ -49,7 +53,7 @@ brew update && brew upgrade --cask staffops/tap/kube-node-viewer && kube-node-vi
 
 | Symptom | Cause | Action |
 |---------|-------|--------|
-| No release run after an automerge | `gh workflow run` failed in the automerge job | owner runs `gh workflow run release.yaml --ref main` |
+| No release after a PR labelled `release` merged | `gh workflow run` failed in the automerge job | run `gh workflow run release.yaml --ref main` |
 | "already tagged and [Unreleased] is empty" | nothing new | expected |
 | Release commit pushed, tag created, GoReleaser failed | build or token error | fix in a PR; the owner re-runs the workflow on the tag |
 | Release ok, cask not updated | `HOMEBREW_TAP_GITHUB_TOKEN` missing or expired | owner renews the secret; re-run |

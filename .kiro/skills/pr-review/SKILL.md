@@ -8,8 +8,9 @@ description: Use when reviewing a pull request to kube-node-viewer, especially f
 Rules: `AGENTS.md`. If this file disagrees with it, it wins — fix this file.
 
 PRs from trusted authors (write access, branch in this repo, not draft, no
-`hold` label) merge themselves when CI passes, and the merge releases what
-`[Unreleased]` holds. To review one first, add the `hold` label; remove it
+`hold` label) merge themselves when CI passes; their `[Unreleased]`
+entries ship in the next release (Monday, or right away with the `release`
+label). To review one first, add the `hold` label; remove it
 (or merge by hand) when done.
 
 ## 1. Read it

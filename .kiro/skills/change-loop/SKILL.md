@@ -57,5 +57,5 @@ Fix → re-review the fixes (same agent) until no BLOCKING/HIGH remains.
 - Commit per validated task, Conventional Commits, no AI trailers. Push only
   when the owner asks.
 - Open the PR (`gh pr create`); with CI green it merges itself for a
-  writer of this repo and releases what `[Unreleased]` holds (skill
-  `release`). Label it `hold` to keep it open.
+  writer of this repo; its `[Unreleased]` entries go out in the next
+  release (Monday, or on demand — skill `release`). Label it `hold` to keep it open.
