@@ -1,6 +1,6 @@
 # Requirements: node-details
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-02 (owner)
+> Status: shipped (v0.9.0, 2026-11-02) · Owner: Carlos Gomes · Reviewed: 2026-11-02 (owner)
 
 ## Context
 

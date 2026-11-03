@@ -28,15 +28,19 @@ files you change carry the line
 | Path | What lives there |
 |------|------------------|
 | `cmd/kube-node-viewer/` | `main.go` (wiring), `session.go` (one connection per context: clients, store, controller, pricing; `c` switches), `view.go` (flag table D8: defaults < config file < saved state < explicit flags), `flag.go` (flags; config file `~/.kube-node-viewer`; only `-kubeconfig` also reads `KUBECONFIG`), `version.go` |
-| `pkg/client/` | kubeconfig (contexts, cluster key, EKS region from the server URL); informers for pods, nodes and Karpenter `nodeclaims` with slimming transforms; change notifier |
+| `pkg/client/` | kubeconfig (contexts, cluster key, EKS region from the server URL, AKS server detection); informers for pods, nodes and Karpenter `nodeclaims` with slimming transforms; change notifier |
 | `pkg/model/` | store (`cluster.go`, `node.go`, `pod.go`: indexed, per-node totals, generations); `view.go` (`ViewState`: filters, group-by, sort, search, columns, folding); `uimodel.go` (Bubble Tea model, keys); `layout.go` (node list, groups, pages, columns); `header.go`; `panels*.go`, `popup.go`, `contexts.go` (popups for f g s o c ?) |
 | `pkg/state/` | per-cluster view state file, debounced atomic writer |
-| `pkg/pricing/` | `Provider` interface (`NodePrice`, `OnUpdate`) |
-| `pkg/aws/` | AWS pricing provider; `zz_generated_*.go` are static price tables copied from Karpenter by `make generate` — never hand-edit |
+| `pkg/pricing/` | `Provider` interface (`NodePrice`, `OnUpdate`); `ByCloud` picks the provider by the node's provider-ID cloud |
+| `pkg/aws/` | AWS pricing provider and instance catalog; `zz_generated_*.go` are static price tables copied from Karpenter by `make prices` — never hand-edit |
+| `pkg/azure/` | AKS prices from the public Azure Retail Prices API (no credentials) |
+| `pkg/recommend/` | Recommendations rules (idle, consolidation, rightsizing, Graviton, Spot…); pure functions over a snapshot |
 | `pkg/text/` | color-aware tabwriter |
-| `hack/` | upstream helper programs (boilerplate, licenses); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |
+| `hack/` | helper programs (boilerplate, licenses, `catalog` for the AWS instance catalog); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |
 | `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh`, `agent-hooks/` |
 | `specs/` | planning artefacts — see [`specs/README.md`](specs/README.md) |
+| `TODO.md` | backlog: owner actions, open follow-ups, ideas, deferred work |
+| `.github/workflows/` | `test.yaml` (verify + lint), `release.yaml` (tag and release on merge), `refresh-data.yaml` (monthly price-data PR) |
 
 ## Commands
 
@@ -44,15 +48,19 @@ files you change carry the line
 scripts/build.sh          # local binary in bin/ (-i install, -a all platforms)
 scripts/verify.sh         # gofmt check, go vet, go test, spec lint — run before every commit
 scripts/screenshots.sh    # regenerate README images in .static/ from a made-up cluster (Python 3, Chrome, ffmpeg)
+make lint                 # golangci-lint at the version pinned in the Makefile (same as CI)
 go test ./pkg/... ./cmd/...
 ```
 
-- Do **not** run `make build` / `make generate` casually: it needs
-  `go-licenses`, re-downloads AWS price tables from Karpenter `main` and
-  dirties `pkg/aws/zz_generated_*.go`. Run it only as a deliberate,
-  separately committed "refresh pricing" change.
+- Do **not** run `make build` / `make generate` / `make prices` /
+  `make catalog` casually: they re-download price data and dirty
+  `pkg/aws/`. The monthly `refresh-data.yaml` workflow does it as a PR; by
+  hand, only as a deliberate, separately committed "refresh pricing" change.
 - Running the binary needs a reachable cluster in the current kubeconfig
   context; never point it at a cluster the owner did not name.
+- Run it from a scratch directory, not the repo root: `e` (export) writes
+  CSV/JSON with node names and IPs into the working directory. Exports are
+  git-ignored; never commit cluster data.
 
 ## Spec-driven workflow (mandatory)
 
@@ -83,6 +91,27 @@ The loop (skill `change-loop`):
    spec corrections recorded as dated notes, never silent edits.
 7. **Commit** per validated task.
 
+## Backlog (`TODO.md`)
+
+Owner actions, follow-ups found while working, ideas and deferred work live
+in [`TODO.md`](TODO.md). Add an item when you find something out of scope
+instead of fixing it on the side; remove it in the commit that does it.
+An item that becomes work goes through the change loop (a spec first when
+the table above asks for one). Deferred tables in `specs/*/tasks.md` stay
+the record for their feature; `TODO.md` links them.
+
+## Releases and pull requests
+
+- **CHANGELOG**: changes go under `## [Unreleased]` only. A released section
+  (`## [x.y.z]`) is never edited, except for a dated correction.
+- **Release**: merging a PR that turns `[Unreleased]` into `[x.y.z]` tags
+  and releases it (`release.yaml`); see [`CONTRIBUTING.md`](CONTRIBUTING.md)
+  and skill `release`. Agents never push tags.
+- **Reviewing a PR** (skill `pr-review`): check it against the current
+  `main`, not its base. A branch that predates a release merges its
+  CHANGELOG lines into the released section without a conflict; fix it by
+  merging `main` into the branch (no force-push on someone else's branch).
+
 ## Provenance and licensing (non-negotiable)
 
 - Keep `LICENSE`, `NOTICE` (Amazon copyright line) and every existing Apache
@@ -106,7 +135,8 @@ The loop (skill `change-loop`):
   (`*_test.go` next to the code). Errors wrapped with `%w`.
 - UI: rendering stays in `pkg/model`; Kubernetes I/O stays in `pkg/client`;
   pricing behind `pricing.Provider` — AWS SDK only in `pkg/aws` and its wiring in
-  `cmd/*/main.go`.
+  `cmd/*/` (`session.go`); Azure HTTP only in `pkg/azure`.
+- Lint: `make lint` clean (CI runs the same pinned version).
 - Commits: Conventional Commits (`feat:`, `fix:`, `docs:`, `build:`,
   `chore:`, optional scope e.g. `feat(model):`). No AI co-author or
   "generated with" trailers.
@@ -122,10 +152,23 @@ The loop (skill `change-loop`):
 
 ## Tooling map
 
+Claude Code and Kiro follow the same rules, specs, skills, reviewer and
+hooks. Each concept has one source of truth; the other tool points at it.
+Change the source, never a copy.
+
 | Concept | Source of truth | Claude Code | Kiro |
 |---------|-----------------|-------------|------|
-| Rules | `AGENTS.md` | `CLAUDE.md` → `@AGENTS.md` | read natively + `.kiro/steering/` |
-| Specs | `specs/` | via this file | `.kiro/specs` → `specs/` (symlink) |
-| Skills | `.kiro/skills/` | `.claude/skills` → `.kiro/skills` (symlink) | native |
+| Rules | `AGENTS.md` | `CLAUDE.md` → `@AGENTS.md` | IDE reads it natively; the CLI agent loads it as a `file://` resource; `.kiro/steering/` only pins Kiro-specific behaviour |
+| Specs | `specs/` (+ `specs/.templates/`) | via this file | `.kiro/specs` → `specs/` (symlink) |
+| Backlog | `TODO.md` | via this file | via this file |
+| Skills | `.kiro/skills/<name>/SKILL.md` | `.claude/skills` → `.kiro/skills` (symlink) | IDE: native; CLI agent: `skill://` resource |
 | Reviewer agent | `.claude/agents/spec-refuter.md` | native | `.kiro/agents/spec-refuter.json` (prompt via `file://`) |
-| Hooks | `scripts/agent-hooks/` | `.claude/settings.json` | `.kiro/agents/kube-node-viewer.json` — kiro-cli only (`kiro-cli chat --agent kube-node-viewer`); the Kiro IDE does not run them |
+| Hook scripts | `scripts/agent-hooks/` (one script, a `claude`/`kiro` mode where output differs) | `.claude/settings.json` | CLI: `.kiro/agents/kube-node-viewer.json` (`kiro-cli chat --agent kube-node-viewer`); IDE: `.kiro/hooks/kube-node-viewer.json` |
+| Permissions | — | `.claude/settings.json` (`settings.local.json` is personal) | per agent in `.kiro/agents/*.json` |
+| Model | not pinned | session choice | session choice (`/model`) |
+
+Skills: `spec-new`, `change-loop`, `upstream-sync`, `release`, `pr-review`.
+Adding a skill: `.kiro/skills/<name>/SKILL.md` with `name` and `description`
+frontmatter; both tools pick it up, and `scripts/agent-hooks/session-context.sh`
+lists it. Adding a hook: write the script once, then wire it in both
+`.claude/settings.json` and the two Kiro files.

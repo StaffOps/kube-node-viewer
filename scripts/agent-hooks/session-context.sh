@@ -8,7 +8,8 @@ dirty=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 
 echo "kube-node-viewer session context"
 echo "branch: $branch, uncommitted files: $dirty"
-echo "Rules: AGENTS.md. Specs: specs/README.md. Skills: spec-new, change-loop, upstream-sync. Reviewer: spec-refuter."
+skills=$(for d in .kiro/skills/*/SKILL.md; do [ -f "$d" ] && basename "$(dirname "$d")"; done | tr '\n' ' ' | sed 's/ $//; s/ /, /g')
+echo "Rules: AGENTS.md. Specs: specs/README.md. Backlog: TODO.md. Skills: ${skills:-none}. Reviewer: spec-refuter."
 echo "Open spec tasks ([ ] / [-], max 10 per spec):"
 for f in specs/*/tasks.md; do
   [ -f "$f" ] || continue
