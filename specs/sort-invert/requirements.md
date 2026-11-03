@@ -1,6 +1,6 @@
 # Requirements: sort-invert
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-02 (code-review agent; spec-refuter not run)
+> Status: shipped (v0.9.1, 2026-11-03) · Owner: Carlos Gomes · Reviewed: 2026-11-02 (code-review agent; spec-refuter not run)
 
 ## Context
 

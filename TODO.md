@@ -9,11 +9,6 @@ their feature; the rows below link them.
 
 ## Owner actions
 
-- [ ] Decide whether to purge the export files committed by mistake in
-      `08735f6` (node names and private IPs of a test cluster) from history.
-      They are removed from `main`, but stay in older commits and in the
-      v0.9.0 source archives. Purging needs a history rewrite, a force-push
-      and re-tagging; a normal removal commit is already in.
 - [ ] Optional: an IAM role with `pricing:GetProducts` trusted by GitHub
       OIDC, its ARN in the repo variable `AWS_CATALOG_ROLE_ARN`, so the
       monthly `refresh-data.yaml` also refreshes the instance catalog (today
@@ -25,8 +20,6 @@ their feature; the rows below link them.
       endpoint, proxy): prices use the SDK region while the header shows the
       node label `topology.kubernetes.io/region`. Use the node label for
       pricing too.
-- [ ] Spec status: `sort-invert` moves to **shipped** in the release that
-      carries it (skill `release`).
 
 ## Ideas
 
