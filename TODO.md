@@ -31,12 +31,13 @@ what they cannot. Listed by impact.
       `gh api -X PUT repos/StaffOps/kube-node-viewer/private-vulnerability-reporting`).
       _Why:_ `SECURITY.md` sends reporters to Security → Report a
       vulnerability, which exists only when this is on.
-- [ ] **Default `GITHUB_TOKEN` permission read-only** (repository
-      setting), keeping "Allow GitHub Actions to approve pull requests" on:
-      `gh api -X PUT repos/StaffOps/kube-node-viewer/actions/permissions/workflow -f default_workflow_permissions=read -F can_approve_pull_request_reviews=true`.
-      _Why:_ every workflow here declares its permissions, so nothing
-      changes today; a future workflow or job without `permissions:` would
-      start read-only instead of able to push to `main`.
+- [ ] **CI tool versions nobody bumps**: zizmor (`pipx run zizmor==…`,
+      test.yaml), actionlint (`go run …@v…`, test.yaml), gitleaks
+      (`.github/actions/gitleaks`, version and sha256), govulncheck and
+      go-licenses (Makefile). Dependabot does not see them.
+      _Why:_ a stale auditor misses new checks and advisories; a quarterly
+      look, or a requirements file with hashes Dependabot can update, keeps
+      them current.
 - [ ] **Release smoke test**: after GoReleaser, download the published
       linux/amd64 archive, check that `kube-node-viewer -version` matches
       the tag and the checksum file, and run `brew audit` on the cask.

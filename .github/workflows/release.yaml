@@ -36,7 +36,7 @@ jobs:
       contents: write # release commit, tag, GitHub release
     steps:
     - name: Checkout
-      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 # zizmor: ignore[artipacked]
       # credentials kept: this job pushes the release commit and tag; it uploads no artifact
       with:
         fetch-depth: 0 # tags and history for the release notes

@@ -2,8 +2,9 @@
 
 ## Supported versions
 
-Only the latest release gets fixes. Releases go out weekly, so a fix ships
-in the next one, or sooner for a security fix.
+Only the latest release gets fixes. Releases go out on Mondays when there
+are changes, so a fix ships in the next one; a security fix is released
+right away.
 
 | Version | Supported |
 |---------|-----------|
@@ -28,10 +29,11 @@ you prefer otherwise.
 
 `kube-node-viewer` reads your cluster through your kubeconfig, with your
 permissions, and only reads: it never writes to the cluster. It calls the
-AWS Price List (with your AWS credentials) and the public Azure Retail
-Prices API, and writes only its state file, its log and the exports you
-ask for (`e`). Reports about any of these, the release binaries, the
-Homebrew cask or this repository's workflows are in scope.
+AWS Price List and the EC2 Spot price history (with your AWS credentials)
+and the public Azure Retail Prices API, and writes only its state file, its
+log and the exports you ask for (`e`). Reports about any of these, the
+release binaries, the Homebrew cask or this repository's workflows are in
+scope.
 
 Vulnerabilities in a dependency are in scope when they reach this tool;
 otherwise please report them upstream. Known advisories are already

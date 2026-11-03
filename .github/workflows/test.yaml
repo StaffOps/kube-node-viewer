@@ -202,7 +202,7 @@ jobs:
     - name: zizmor
       env:
         GH_TOKEN: ${{ github.token }} # online audits: impostor commits, known-vulnerable actions
-      run: pipx run zizmor==1.31.1 --format=github .github
+      run: pipx run zizmor==1.31.1 --format=github . # `.`: annotations carry repo-relative paths
 
   automerge:
     name: automerge
