@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-02
+
 ### Added
 
 - Filters can exclude their values: `x` in the Filters panel switches a
@@ -40,6 +42,7 @@ All notable changes to this project are documented here. Format:
   with some unknown prices are marked `>=`; exported totals leave the price
   out and count the unpriced nodes.
 - Recommendations on clusters without EKS nodes say they cover EKS only.
+- A node without the zone label takes the zone its EC2 provider ID names.
 
 - The static on-demand price tables, used until the first live lookup and
   when AWS can't be reached, are refreshed (from April 2025 to October 2026).
@@ -165,7 +168,8 @@ All notable changes to this project are documented here. Format:
 - A node's price is read and written under its lock; a pod seen before its
   node is counted once the node appears.
 
-[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.8.2...HEAD
+[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/StaffOps/kube-node-viewer/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/StaffOps/kube-node-viewer/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/StaffOps/kube-node-viewer/releases/tag/v0.8.0
