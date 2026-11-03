@@ -414,7 +414,7 @@ func TestHiddenInUseLabelIsStillApplied(t *testing.T) {
 		u.Refresh()
 		out := u.View()
 		// dev (node-1) < prod (node-0) < stage (node-2)
-		if !(strings.Index(out, "node-1") < strings.Index(out, "node-0") && strings.Index(out, "node-0") < strings.Index(out, "node-2")) {
+		if strings.Index(out, "node-1") >= strings.Index(out, "node-0") || strings.Index(out, "node-0") >= strings.Index(out, "node-2") {
 			t.Errorf("not sorted by env:\n%s", out)
 		}
 	})
