@@ -7,6 +7,11 @@ description: Use when reviewing a pull request to kube-node-viewer, especially f
 
 Rules: `AGENTS.md`. If this file disagrees with it, it wins — fix this file.
 
+PRs from trusted authors (write access, branch in this repo, not draft, no
+`hold` label) merge themselves when CI passes, and the merge releases what
+`[Unreleased]` holds. To review one first, add the `hold` label; remove it
+(or merge by hand) when done.
+
 ## 1. Read it
 
 ```bash
@@ -44,7 +49,8 @@ Clean up: `git worktree remove ../knv-pr<n>` and delete `pr-<n>`.
 
 - The owner decides between asking the author and fixing it ourselves.
 - Fixing a branch: merge `main` into it and add a commit on top. Never
-  rebase or force-push someone else's branch.
+  rebase or force-push someone else's branch. The push re-runs CI, and a
+  trusted author's PR then merges itself.
 - UI change not run against a cluster → say so; run it only against a
   cluster the owner names, from a scratch directory.
 - Comments on GitHub are public: show the text to the owner before posting.
@@ -52,4 +58,6 @@ Clean up: `git worktree remove ../knv-pr<n>` and delete `pr-<n>`.
 ## 4. Hand off
 
 Summarise for the owner: what it does, merge-test result (verify, lint,
-CI), findings with file:line, and what you changed. Merging is the owner's.
+CI), findings with file:line, what you changed, and the version its
+CHANGELOG entry will produce (`python3 scripts/release-prepare.py` on the
+merged result).
