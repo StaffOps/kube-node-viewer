@@ -6,12 +6,15 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-11-02
-
 ### Added
 
 - `I` (shift+i) on the main screen flips the sort between ascending and
   descending without opening the Sort panel.
+
+## [0.9.0] - 2026-11-02
+
+### Added
+
 - Filters can exclude their values: `x` in the Filters panel switches a
   filter between keeping and excluding (`capacity≠Spot`).
 - Named views (`v`): save the current view under a name, apply or delete it;
