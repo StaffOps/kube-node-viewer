@@ -47,7 +47,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    and `IDLE/M` columns, shown by default.
    [requirements](monthly-price-columns/requirements.md) ·
    [design](monthly-price-columns/design.md) · [tasks](monthly-price-columns/tasks.md)
-10. [`decisions/`](decisions/) — decision records (index below).
+10. [`config-views/`](config-views/) — **active**. Views written in
+    `config.yaml`, a default view to open with, switched with `v`.
+    [requirements](config-views/requirements.md) ·
+    [design](config-views/design.md) · [tasks](config-views/tasks.md)
+11. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated

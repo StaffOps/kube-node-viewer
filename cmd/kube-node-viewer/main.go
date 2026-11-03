@@ -87,7 +87,7 @@ func main() {
 		log.Fatalf("config file: %s", err)
 	}
 
-	labelPolicy, err := loadSettings(settingsPath(homeDir), flags.Explicit)
+	settings, err := loadSettings(settingsPath(homeDir), flags.Explicit)
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
@@ -95,7 +95,7 @@ func main() {
 	m := model.NewUIModel(style)
 	m.DisablePricing = flags.DisablePricing
 	m.SetRecommendOptions(recOpts)
-	m.SetLabelPolicy(labelPolicy)
+	m.SetLabelPolicy(settings.policy)
 	// The program exists before the watches start: Send blocks until it runs.
 	program := tea.NewProgram(m, tea.WithAltScreen())
 	running.Store(program)
@@ -106,6 +106,7 @@ func main() {
 		saver:        saver,
 		program:      program,
 		explicit:     flags.Explicit,
+		starts:       newStartViews(settings.defaultView, settings.lastView),
 	}
 	defer conn.Close()
 	first, err := conn.Switch(flags.Context)
@@ -114,7 +115,7 @@ func main() {
 	}
 	m.Connect(first)
 	m.SetSwitcher(conn)
-	m.SetViews(namedViews{states, saver})
+	m.SetViews(combinedViews{config: settings.views, state: namedViews{states, saver}})
 	m.SetExportFallback(filepath.Dir(state.DefaultPath(homeDir)))
 
 	// from here the TUI owns the terminal: client-go and pricing messages go

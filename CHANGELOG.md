@@ -6,6 +6,23 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- Config views: `views` in `config.yaml` defines views by hand (columns,
+  group-by, sort and order, resources, filters, groups-only), listed first
+  in the Views panel (`v`) and marked `(config)`; `d` and saving under their
+  name are refused. `default-view` opens each cluster with one of them the
+  first time the run connects to it; `start-with: last-view` keeps each
+  cluster's saved view and uses the default view only for a cluster with
+  none. Errors in `config.yaml` now name the place of the problem
+  (`views[1].filters[0]`), keys compare exactly and `yes`, `123` or `~`
+  where a string is expected are errors.
+  How to write them: [docs/views.md](docs/views.md).
+
+### Fixed
+
+- The Columns panel offers the `IP` column, as the README said.
+
 ## [0.11.0] - 2026-11-03
 
 ### Added

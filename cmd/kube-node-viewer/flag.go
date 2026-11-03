@@ -87,7 +87,7 @@ func ParseFlags() (Flags, error) {
 	flagSet.StringVar(&flags.ExtraLabels, "extra-labels", extraLabelsDefault, "A comma separated set of extra node labels to display")
 
 	groupByDefault := cfg.getValue("group-by", "")
-	flagSet.StringVar(&flags.GroupBy, "group-by", groupByDefault, "Node label to summarize usage and cost by, optionally with a filter on a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. Applies to this run; the last view chosen in the TUI is restored per cluster")
+	flagSet.StringVar(&flags.GroupBy, "group-by", groupByDefault, "Node label to summarize usage and cost by, optionally with a filter on a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. Applies to this run; the last view chosen in the TUI is restored per cluster, unless config.yaml sets default-view")
 
 	groupsOnlyDefault := cfg.getBoolValue("groups-only", false)
 	flagSet.BoolVar(&flags.GroupsOnly, "groups-only", groupsOnlyDefault, "Start folded to the --group-by groups, with the node list hidden. At runtime 'n' folds and unfolds one level per press")

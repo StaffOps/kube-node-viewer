@@ -25,7 +25,7 @@ const pool = "karpenter.sh/nodepool"
 
 func resolve(t *testing.T, cfg configFile, saved *model.ViewState, explicit map[string]string) model.ViewState {
 	t.Helper()
-	v, err := resolveView(cfg, saved, explicit)
+	v, err := resolveView(cfg, saved, nil, explicit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestFlagTableResources(t *testing.T) {
 	if !reflect.DeepEqual(got.Resources, []string{"cpu", "memory", "nvidia.com/gpu"}) {
 		t.Errorf("got %v", got.Resources)
 	}
-	if _, err := resolveView(nil, nil, map[string]string{"resources": " , "}); err == nil {
+	if _, err := resolveView(nil, nil, nil, map[string]string{"resources": " , "}); err == nil {
 		t.Error("empty --resources accepted")
 	}
 }

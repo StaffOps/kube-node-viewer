@@ -1,0 +1,405 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package main
+
+import (
+	"fmt"
+	"slices"
+	"strings"
+
+	v1 "k8s.io/api/core/v1"
+
+	"github.com/staffops/kube-node-viewer/pkg/model"
+)
+
+// configView is a view of config.yaml (config-views R1).
+type configView struct {
+	name string
+	view model.ViewState
+}
+
+// viewItemKeys are the keys of a view item.
+var viewItemKeys = []string{"name", "columns", "group-by", "sort", "order", "resources", "filters", "groups-only"}
+
+// Prefixes a field name may carry in config.yaml.
+const (
+	labelPrefix = "label:"
+	usagePrefix = "usage:"
+)
+
+// fieldKind is a key that names fields, with the built-in names it accepts
+// (config-views R2, D3). The names come from the panels that set the same
+// thing, so the two stay in step.
+type fieldKind struct {
+	key      string
+	builtins []model.Field
+	// usage accepts usage:<resource>
+	usage bool
+	// aliases are other names for built-in fields, such as the column
+	// titles price/h and price/m
+	aliases map[string]model.Field
+}
+
+// columnAliases are the column titles as written on screen, lower-cased, so
+// a config names PRICE/H and PRICE/M the way it sees them.
+var columnAliases = map[string]model.Field{
+	"price/h": model.FieldPrice,
+	"price/m": model.FieldPriceMonthly,
+	"idle/h":  model.FieldIdle,
+	"idle/m":  model.FieldIdleMonthly,
+}
+
+var (
+	groupFields  = fieldKind{key: "group-by", builtins: model.FilterFields}
+	filterFields = fieldKind{key: "filter", builtins: model.FilterFields}
+	sortFields   = fieldKind{key: "sort", builtins: append(model.SortFields(), model.FilterFields...), usage: true}
+	columnFields = fieldKind{key: "column", builtins: model.ColumnFields(), aliases: columnAliases}
+)
+
+// isBuiltin tells whether name is a built-in field of any key.
+func isBuiltin(name string) bool {
+	for _, k := range []fieldKind{groupFields, sortFields, columnFields} {
+		if _, alias := k.aliases[name]; alias || slices.Contains(k.builtins, model.Field(name)) {
+			return true
+		}
+	}
+	return false
+}
+
+// field maps a name written in config.yaml to a field: a built-in name of
+// the key, label:<key> for a node label, usage:<resource> for sort, a
+// built-in name of another key is an error, and anything else is a label.
+func (k fieldKind) field(path string, value any) (model.Field, error) {
+	name, err := str(path, value)
+	if err != nil {
+		return "", err
+	}
+	if key, ok := strings.CutPrefix(name, labelPrefix); ok {
+		if strings.TrimSpace(key) == "" {
+			return "", fmt.Errorf("%s: %q names no label", path, name)
+		}
+		return model.LabelField(key), nil
+	}
+	if res, ok := strings.CutPrefix(name, usagePrefix); ok && k.usage {
+		if strings.TrimSpace(res) == "" {
+			return "", fmt.Errorf("%s: %q names no resource", path, name)
+		}
+		return model.UsageField(v1.ResourceName(res)), nil
+	}
+	if slices.Contains(k.builtins, model.Field(name)) {
+		return model.Field(name), nil
+	}
+	if f, ok := k.aliases[name]; ok {
+		return f, nil
+	}
+	if strings.HasPrefix(name, usagePrefix) {
+		return "", fmt.Errorf("%s: %s is not a %s field; usage:<resource> is a sort", path, name, k.key)
+	}
+	if isBuiltin(name) {
+		return "", fmt.Errorf("%s: %s is not a %s field; write label:%s for a node label", path, name, k.key, name)
+	}
+	return model.LabelField(name), nil
+}
+
+// fieldList reads a non-empty list of fields without repeats.
+func (k fieldKind) fieldList(path string, value any) ([]model.Field, error) {
+	items, err := nonEmptyList(path, value)
+	if err != nil {
+		return nil, err
+	}
+	var out []model.Field
+	for i, item := range items {
+		itemPath := fmt.Sprintf("%s[%d]", path, i)
+		f, err := k.field(itemPath, item)
+		if err != nil {
+			return nil, err
+		}
+		if slices.Contains(out, f) {
+			return nil, fmt.Errorf("%s: %s is repeated", itemPath, describeItem(item))
+		}
+		out = append(out, f)
+	}
+	return out, nil
+}
+
+// nonEmptyList is a list with at least one item.
+func nonEmptyList(path string, value any) ([]any, error) {
+	items, err := list(path, value)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return nil, fmt.Errorf("%s: empty list", path)
+	}
+	return items, nil
+}
+
+// stringList reads a non-empty list of strings without repeats.
+func stringList(path string, value any) ([]string, error) {
+	items, err := nonEmptyList(path, value)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for i, item := range items {
+		itemPath := fmt.Sprintf("%s[%d]", path, i)
+		s, err := str(itemPath, item)
+		if err != nil {
+			return nil, err
+		}
+		if slices.Contains(out, s) {
+			return nil, fmt.Errorf("%s: %s is repeated", itemPath, s)
+		}
+		out = append(out, s)
+	}
+	return out, nil
+}
+
+// readViews checks the views list: items with a name each, no name twice.
+func readViews(value any) ([]configView, error) {
+	items, err := list("views", value)
+	if err != nil {
+		return nil, err
+	}
+	var out []configView
+	for i, item := range items {
+		path := fmt.Sprintf("views[%d]", i)
+		v, err := readView(path, item)
+		if err != nil {
+			return nil, err
+		}
+		if slices.ContainsFunc(out, func(c configView) bool { return c.name == v.name }) {
+			return nil, fmt.Errorf("%s.name: %q is repeated", path, v.name)
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+// readView turns a view item into a view state: the built-in defaults, with
+// each key the item has applied (config-views R1).
+func readView(path string, value any) (configView, error) {
+	item, err := mapping(path, value, viewItemKeys...)
+	if err != nil {
+		return configView{}, err
+	}
+	raw, ok := item["name"]
+	if !ok {
+		return configView{}, fmt.Errorf("%s: needs a name", path)
+	}
+	name, err := str(path+".name", raw)
+	if err != nil {
+		return configView{}, err
+	}
+	if strings.TrimSpace(name) != name {
+		return configView{}, fmt.Errorf("%s.name: %q has leading or trailing spaces", path, name)
+	}
+	view := model.DefaultViewState()
+	if raw, ok := item["columns"]; ok {
+		if view.Columns, err = columnFields.fieldList(path+".columns", raw); err != nil {
+			return configView{}, err
+		}
+	}
+	if raw, ok := item["group-by"]; ok {
+		levels, err := groupFields.fieldList(path+".group-by", raw)
+		if err != nil {
+			return configView{}, err
+		}
+		if len(levels) > model.MaxGroupLevels {
+			return configView{}, fmt.Errorf("%s.group-by: %d levels, at most %d", path, len(levels), model.MaxGroupLevels)
+		}
+		view.SetGroupBy(levels...)
+	}
+	if view.Sort, err = readSort(path, item); err != nil {
+		return configView{}, err
+	}
+	if raw, ok := item["resources"]; ok {
+		if view.Resources, err = stringList(path+".resources", raw); err != nil {
+			return configView{}, err
+		}
+	}
+	if raw, ok := item["filters"]; ok {
+		if view.Filters, err = readFilters(path+".filters", raw); err != nil {
+			return configView{}, err
+		}
+	}
+	if raw, ok := item["groups-only"]; ok {
+		groupsOnly, err := boolean(path+".groups-only", raw)
+		if err != nil {
+			return configView{}, err
+		}
+		if groupsOnly && len(view.GroupBy) == 0 {
+			return configView{}, fmt.Errorf("%s.groups-only: needs group-by", path)
+		}
+		view.ShowNodes = !groupsOnly
+	}
+	return configView{name: name, view: view}, nil
+}
+
+// Values of a view's order.
+const (
+	orderAscending  = "ascending"
+	orderDescending = "descending"
+)
+
+// readSort reads sort and order. Without order the direction is the one the
+// Sort panel starts with for the field; order alone sets the direction of
+// the creation sort.
+func readSort(path string, item map[string]any) (model.SortSpec, error) {
+	spec := model.DefaultViewState().Sort
+	if raw, ok := item["sort"]; ok {
+		field, err := sortFields.field(path+".sort", raw)
+		if err != nil {
+			return model.SortSpec{}, err
+		}
+		spec = model.SortSpec{Field: field, Descending: model.DescendingFirst(field)}
+	}
+	if raw, ok := item["order"]; ok {
+		order, err := str(path+".order", raw)
+		if err != nil {
+			return model.SortSpec{}, err
+		}
+		switch order {
+		case orderAscending:
+			spec.Descending = false
+		case orderDescending:
+			spec.Descending = true
+		default:
+			return model.SortSpec{}, fmt.Errorf("%s.order: %q is not %s or %s", path, order, orderAscending, orderDescending)
+		}
+	}
+	return spec, nil
+}
+
+// readFilters reads the filters: each on its own field, with either values
+// to keep or values to exclude, turned on.
+func readFilters(path string, value any) ([]model.Filter, error) {
+	items, err := nonEmptyList(path, value)
+	if err != nil {
+		return nil, err
+	}
+	var out []model.Filter
+	for i, raw := range items {
+		itemPath := fmt.Sprintf("%s[%d]", path, i)
+		item, err := mapping(itemPath, raw, "field", "values", "exclude")
+		if err != nil {
+			return nil, err
+		}
+		rawField, ok := item["field"]
+		if !ok {
+			return nil, fmt.Errorf("%s: needs field", itemPath)
+		}
+		field, err := filterFields.field(itemPath+".field", rawField)
+		if err != nil {
+			return nil, err
+		}
+		if slices.ContainsFunc(out, func(f model.Filter) bool { return f.Field == field }) {
+			return nil, fmt.Errorf("%s.field: a second filter on %s", itemPath, describeItem(rawField))
+		}
+		rawValues, hasValues := item["values"]
+		rawExclude, hasExclude := item["exclude"]
+		filter := model.Filter{Field: field, Enabled: true}
+		switch {
+		case hasValues && hasExclude:
+			return nil, fmt.Errorf("%s: values and exclude together; use one", itemPath)
+		case hasValues:
+			if filter.Values, err = stringList(itemPath+".values", rawValues); err != nil {
+				return nil, err
+			}
+		case hasExclude:
+			if filter.Excluded, err = stringList(itemPath+".exclude", rawExclude); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("%s: needs values or exclude", itemPath)
+		}
+		out = append(out, filter)
+	}
+	return out, nil
+}
+
+// combinedViews lists the config views first, in file order, then the named
+// views of the state file whose names no config view has (config-views R3,
+// D4). Config views are read-only: the TUI never writes config.yaml.
+type combinedViews struct {
+	config []configView
+	state  model.Views
+}
+
+func (c combinedViews) configView(name string) (model.ViewState, bool) {
+	for _, v := range c.config {
+		if v.name == name {
+			return v.view, true
+		}
+	}
+	return model.ViewState{}, false
+}
+
+func (c combinedViews) ViewNames() []string {
+	names := make([]string, 0, len(c.config))
+	for _, v := range c.config {
+		names = append(names, v.name)
+	}
+	for _, name := range c.state.ViewNames() {
+		if !c.ReadOnly(name) {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+// View returns a copy, so a change to the applied view never reaches the
+// config view.
+func (c combinedViews) View(name string) (model.ViewState, bool) {
+	if v, ok := c.configView(name); ok {
+		return cloneView(v), true
+	}
+	return c.state.View(name)
+}
+
+// SaveView and DeleteView leave config views alone; the Views panel refuses
+// both before they get here.
+func (c combinedViews) SaveView(name string, v model.ViewState) {
+	if !c.ReadOnly(name) {
+		c.state.SaveView(name, v)
+	}
+}
+
+func (c combinedViews) DeleteView(name string) {
+	if !c.ReadOnly(name) {
+		c.state.DeleteView(name)
+	}
+}
+
+// ReadOnly tells whether the name is a config view's.
+func (c combinedViews) ReadOnly(name string) bool {
+	_, ok := c.configView(name)
+	return ok
+}
+
+// cloneView copies the slices of a view state, so the copy can change
+// without touching the original.
+func cloneView(v model.ViewState) model.ViewState {
+	v.Filters = slices.Clone(v.Filters)
+	for i := range v.Filters {
+		v.Filters[i].Values = slices.Clone(v.Filters[i].Values)
+		v.Filters[i].Excluded = slices.Clone(v.Filters[i].Excluded)
+	}
+	v.GroupBy = slices.Clone(v.GroupBy)
+	v.Resources = slices.Clone(v.Resources)
+	v.Columns = slices.Clone(v.Columns)
+	v.Collapsed = slices.Clone(v.Collapsed)
+	return v
+}
