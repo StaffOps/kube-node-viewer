@@ -51,6 +51,8 @@ type Flags struct {
 	Style           string
 	Kubeconfig      string
 	Resources       string
+	LabelsAllow     string
+	LabelsDeny      string
 	GroupsOnly      bool
 	DisablePricing  bool
 	ShowAttribution bool
@@ -105,6 +107,13 @@ func ParseFlags() (Flags, error) {
 
 	disablePricingDefault := cfg.getBoolValue("disable-pricing", false)
 	flagSet.BoolVar(&flags.DisablePricing, "disable-pricing", disablePricingDefault, "Disable pricing lookups")
+
+	// no defaults from the config file: the lists live in config.yaml, and a
+	// flag replaces its list only when given (label-visibility R7, D4). The
+	// help names the file this run reads, under XDG_CONFIG_HOME when set (R9).
+	settingsFile := settingsPath(homeDir)
+	flagSet.StringVar(&flags.LabelsAllow, "labels-allow", "", "Comma separated node label key patterns the panels offer ('*' matches anything), in place of labels.allow in "+settingsFile+" for this run; '' offers every label")
+	flagSet.StringVar(&flags.LabelsDeny, "labels-deny", "", "Comma separated node label key patterns the panels leave out, in place of labels.deny in "+settingsFile+" for this run; '' denies none")
 
 	flagSet.BoolVar(&flags.ShowAttribution, "attribution", false, "Show the Open Source Attribution")
 

@@ -87,9 +87,15 @@ func main() {
 		log.Fatalf("config file: %s", err)
 	}
 
+	labelPolicy, err := loadSettings(settingsPath(homeDir), flags.Explicit)
+	if err != nil {
+		log.Fatalf("%s", err)
+	}
+
 	m := model.NewUIModel(style)
 	m.DisablePricing = flags.DisablePricing
 	m.SetRecommendOptions(recOpts)
+	m.SetLabelPolicy(labelPolicy)
 	// The program exists before the watches start: Send blocks until it runs.
 	program := tea.NewProgram(m, tea.WithAltScreen())
 	running.Store(program)

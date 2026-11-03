@@ -34,11 +34,16 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    a popup with its details: resources, conditions, taints, labels.
    [requirements](node-details/requirements.md) ·
    [design](node-details/design.md) · [tasks](node-details/tasks.md)
-7. [`sort-invert/`](sort-invert/) — **shipped** in v0.9.1. `I` (shift+i) flips the
+7. [`label-visibility/`](label-visibility/) — **active**. Allow and deny
+   lists of label key patterns in `~/.config/kube-node-viewer/config.yaml`
+   decide which node labels the panels offer; `a` shows all.
+   [requirements](label-visibility/requirements.md) ·
+   [design](label-visibility/design.md) · [tasks](label-visibility/tasks.md)
+8. [`sort-invert/`](sort-invert/) — **shipped** in v0.9.1. `I` (shift+i) flips the
    sort between ascending and descending from the main screen.
    [requirements](sort-invert/requirements.md) ·
    [design](sort-invert/design.md) · [tasks](sort-invert/tasks.md)
-8. [`decisions/`](decisions/) — decision records (index below).
+9. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
