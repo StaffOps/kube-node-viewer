@@ -2,6 +2,9 @@
 /kube-node-viewer
 coverage.out
 /dist
+# exports (`e`) land in the working directory; never commit cluster data
+kube-node-viewer-*.csv
+kube-node-viewer-*.json
 /bin
 
 # Agent tooling: shared config is versioned, personal overrides are not

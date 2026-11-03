@@ -16,21 +16,21 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    redraw. The owner's UX changes are dated notes in its requirements.
    [requirements](interactive-tui/requirements.md) ·
    [design](interactive-tui/design.md) · [tasks](interactive-tui/tasks.md)
-3. [`views-and-export/`](views-and-export/) — **active**. Excluding filters,
+3. [`views-and-export/`](views-and-export/) — **shipped** in v0.9.0. Excluding filters,
    named views (`v`), export of the screen to CSV and JSON (`e`).
    [requirements](views-and-export/requirements.md) ·
    [design](views-and-export/design.md) · [tasks](views-and-export/tasks.md)
-4. [`recommendations/`](recommendations/) — **active**. A Recommendations
+4. [`recommendations/`](recommendations/) — **shipped** in v0.9.0. A Recommendations
    page next to Overview, reached with `:` or `tab`: idle cost,
    consolidation, rightsizing, newer generation, Graviton, old nodes, Spot
    last; rules, no AI.
    [requirements](recommendations/requirements.md) ·
    [design](recommendations/design.md) · [tasks](recommendations/tasks.md)
-5. [`aks-pricing/`](aks-pricing/) — **active**. AKS node prices from the
+5. [`aks-pricing/`](aks-pricing/) — **shipped** in v0.9.0. AKS node prices from the
    public Azure Retail Prices API, per node by provider-ID cloud.
    [requirements](aks-pricing/requirements.md) ·
    [design](aks-pricing/design.md) · [tasks](aks-pricing/tasks.md)
-6. [`node-details/`](node-details/) — **active**. `enter` on a node opens
+6. [`node-details/`](node-details/) — **shipped** in v0.9.0. `enter` on a node opens
    a popup with its details: resources, conditions, taints, labels.
    [requirements](node-details/requirements.md) ·
    [design](node-details/design.md) · [tasks](node-details/tasks.md)
@@ -39,6 +39,10 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    decide which node labels the panels offer; `a` shows all.
    [requirements](label-visibility/requirements.md) ·
    [design](label-visibility/design.md) · [tasks](label-visibility/tasks.md)
+8. [`sort-invert/`](sort-invert/) — **shipped** in v0.9.1. `I` (shift+i) flips the
+   sort between ascending and descending from the main screen.
+   [requirements](sort-invert/requirements.md) ·
+   [design](sort-invert/design.md) · [tasks](sort-invert/tasks.md)
 8. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being

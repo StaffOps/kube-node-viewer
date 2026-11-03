@@ -1,0 +1,28 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "kube-node-viewer: session context",
+      "description": "Branch, uncommitted files, skills and open spec tasks (scripts/agent-hooks/session-context.sh).",
+      "trigger": "SessionStart",
+      "action": { "type": "command", "command": "sh scripts/agent-hooks/session-context.sh" },
+      "timeout": 10
+    },
+    {
+      "name": "kube-node-viewer: guard destructive git",
+      "description": "Blocks git commands that rewrite or delete published state or wipe local work (scripts/agent-hooks/guard-destructive.sh).",
+      "trigger": "PreToolUse",
+      "matcher": "shell",
+      "action": { "type": "command", "command": "sh scripts/agent-hooks/guard-destructive.sh kiro" },
+      "timeout": 10
+    },
+    {
+      "name": "kube-node-viewer: pre-commit checklist",
+      "description": "On git commit, reminds the checklist in AGENTS.md (scripts/agent-hooks/commit-reminder.sh).",
+      "trigger": "PreToolUse",
+      "matcher": "shell",
+      "action": { "type": "command", "command": "sh scripts/agent-hooks/commit-reminder.sh kiro" },
+      "timeout": 10
+    }
+  ]
+}

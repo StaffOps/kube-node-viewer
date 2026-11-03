@@ -33,7 +33,7 @@
           },
           {
             "type": "command",
-            "command": "sh \"$CLAUDE_PROJECT_DIR/scripts/agent-hooks/commit-reminder.sh\"",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/scripts/agent-hooks/commit-reminder.sh\" claude",
             "timeout": 10
           }
         ]
