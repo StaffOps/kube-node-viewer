@@ -37,10 +37,10 @@ files you change carry the line
 | `pkg/recommend/` | Recommendations rules (idle, consolidation, rightsizing, Graviton, Spot…); pure functions over a snapshot |
 | `pkg/text/` | color-aware tabwriter |
 | `hack/` | helper programs (boilerplate, licenses, `catalog` for the AWS instance catalog); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |
-| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh`, `agent-hooks/` |
+| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh`, `release-prepare.py` (next version from CHANGELOG), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
 | `specs/` | planning artefacts — see [`specs/README.md`](specs/README.md) |
 | `TODO.md` | backlog: owner actions, open follow-ups, ideas, deferred work |
-| `.github/workflows/` | `test.yaml` (verify + lint), `release.yaml` (tag and release on merge), `refresh-data.yaml` (monthly price-data PR) |
+| `.github/workflows/` | `test.yaml` (verify, lint, build in parallel; automerge), `release.yaml` (version, tag and release on merge), `refresh-data.yaml` (monthly price-data PR) |
 
 ## Commands
 
@@ -102,11 +102,25 @@ the record for their feature; `TODO.md` links them.
 
 ## Releases and pull requests
 
-- **CHANGELOG**: changes go under `## [Unreleased]` only. A released section
-  (`## [x.y.z]`) is never edited, except for a dated correction.
-- **Release**: merging a PR that turns `[Unreleased]` into `[x.y.z]` tags
-  and releases it (`release.yaml`); see [`CONTRIBUTING.md`](CONTRIBUTING.md)
-  and skill `release`. Agents never push tags.
+Flow: branch → PR → CI → automatic approval and merge → automatic release.
+
+- **CI** (`test.yaml`): `verify`, `lint` and `build` run in parallel. On a
+  PR from a branch of this repo whose author has write access, not a draft
+  and without the `hold` label, the `automerge` job approves and merges it
+  once all three pass. Forks and other authors wait for a person.
+- **CHANGELOG**: changes go under `## [Unreleased]` only (the
+  `commit-guard` hook blocks lines added to a released section, and
+  `scripts/changelog-check.py` in `verify.sh` fails CI on it). A
+  released section (`## [x.y.z]`) is never edited, except for a dated
+  correction.
+- **Release** (`release.yaml`, `scripts/release-prepare.py`): after a merge,
+  entries in `[Unreleased]` become the next version — `Fixed`/`Security`
+  only → patch; `Added`/`Changed`/`Removed`/`Deprecated` → minor;
+  `BREAKING` → major (minor while 0.x). The workflow writes `## [x.y.z]`,
+  the compare links and the **shipped** status of finished specs, pushes
+  that commit, tags it and publishes binaries and the Homebrew cask. A PR
+  without CHANGELOG entries releases nothing. See skill `release`.
+- Agents never push to `main` or push tags; they open PRs.
 - **Reviewing a PR** (skill `pr-review`): check it against the current
   `main`, not its base. A branch that predates a release merges its
   CHANGELOG lines into the released section without a conflict; fix it by
@@ -172,3 +186,8 @@ Adding a skill: `.kiro/skills/<name>/SKILL.md` with `name` and `description`
 frontmatter; both tools pick it up, and `scripts/agent-hooks/session-context.sh`
 lists it. Adding a hook: write the script once, then wire it in both
 `.claude/settings.json` and the two Kiro files.
+
+Hooks: `session-context` (start), `guard-destructive` (asks/blocks
+history rewrites, force-pushes, hard resets), `commit-guard` (blocks
+committing exports or editing released CHANGELOG sections),
+`commit-reminder` (pre-commit checklist).
