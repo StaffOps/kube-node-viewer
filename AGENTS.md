@@ -104,6 +104,11 @@ the record for their feature; `TODO.md` links them.
 
 Flow: branch → PR → CI → automatic approval and merge → automatic release.
 
+- **Tested before it ships**: a change to `cmd/` or `pkg/` that touches a
+  spec merges only when every task of that spec is `[x]`, its verify task
+  included (`scripts/verify.sh`, `make lint`, a run on a cluster the owner
+  named, recorded as a dated note). `scripts/spec-tasks-check.py` fails CI
+  otherwise; open the PR as a draft until then.
 - **CI** (`test.yaml`): `verify`, `lint` and `build` run in parallel. On a
   PR from a branch of this repo whose author has write access, not a draft
   and without the `hold` label, the `automerge` job approves and merges it
@@ -190,4 +195,6 @@ lists it. Adding a hook: write the script once, then wire it in both
 Hooks: `session-context` (start), `guard-destructive` (asks/blocks
 history rewrites, force-pushes, hard resets), `commit-guard` (blocks
 committing exports or editing released CHANGELOG sections),
-`commit-reminder` (pre-commit checklist).
+`commit-reminder` (pre-commit checklist), `pr-guard` (blocks
+`gh pr create` without `--draft`, `gh pr ready` and `gh pr merge` while
+the CI checks below would fail).

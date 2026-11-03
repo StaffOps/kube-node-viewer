@@ -20,9 +20,11 @@ added dated corrections ("> **Corrected YYYY-MM-DD"). New version sections
 
   scripts/changelog-check.py [BASE]
 
-BASE defaults to the first parent of HEAD when HEAD is a merge (the merge
-ref CI checks out), else to the merge base with origin/main.
+BASE defaults to the first parent of HEAD in a pull_request CI run (the
+merge ref, whose first parent is the base), else to the merge base with
+origin/main.
 """
+import os
 import re
 import subprocess
 import sys
@@ -32,6 +34,12 @@ HEADING = re.compile(r"^## \[(\d+\.\d+\.\d+)\][^\n]*$", re.M)
 
 def git(*args):
     return subprocess.run(["git", *args], capture_output=True, text=True)
+
+
+def default_base():
+    if os.environ.get("GITHUB_EVENT_NAME") == "pull_request":
+        return git("rev-parse", "-q", "--verify", "HEAD^1").stdout.strip()
+    return git("merge-base", "HEAD", "origin/main").stdout.strip()
 
 
 def sections(text):
@@ -48,11 +56,7 @@ def sections(text):
 def main():
     base = sys.argv[1] if len(sys.argv) > 1 else None
     if base is None:
-        parents = git("rev-list", "--parents", "-n", "1", "HEAD").stdout.split()
-        if len(parents) > 2:
-            base = parents[1]
-        else:
-            base = git("merge-base", "HEAD", "origin/main").stdout.strip()
+        base = default_base()
     if not base:
         print("changelog-check: no base to compare with; skipped")
         return 0

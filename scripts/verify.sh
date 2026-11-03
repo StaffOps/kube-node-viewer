@@ -26,5 +26,7 @@ echo "==> spec lint"
 scripts/spec-lint.sh
 echo "==> changelog"
 python3 scripts/changelog-check.py
+echo "==> spec tasks"
+python3 scripts/spec-tasks-check.py
 
 echo "verify: ok"
