@@ -1,0 +1,11 @@
+# zizmor (workflow security audit; test.yaml `workflows` job).
+rules:
+  # suggests a `$/…` self-repository `uses:` form; local actions stay `./…`
+  self-repository:
+    disable: true
+  # these two jobs push with the checkout's credentials (release commit and
+  # tag; the price-refresh branch) and upload no artifact
+  artipacked:
+    ignore:
+      - release.yaml
+      - refresh-data.yaml

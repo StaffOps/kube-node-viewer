@@ -1,0 +1,42 @@
+# OpenSSF Scorecard: an outside, repeatable score of the supply-chain
+# posture (pinned actions, token permissions, branch protection, signed
+# releases…). Results go to code scanning (Security tab) and to the public
+# badge in README.md. Informational: it gates nothing.
+
+name: Scorecard
+
+on:
+  push:
+    branches: [ "main" ]
+  schedule:
+    - cron: '30 6 * * 1' # Mondays 06:30 UTC
+  branch_protection_rule: {}
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  analysis:
+    name: scorecard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      security-events: write # upload the SARIF to code scanning
+      id-token: write        # publish_results: sign the results for the badge
+    steps:
+    - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      with:
+        persist-credentials: false
+
+    - name: Scorecard
+      uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+      with:
+        results_file: results.sarif
+        results_format: sarif
+        publish_results: true
+
+    - name: Upload to code scanning
+      uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+      with:
+        sarif_file: results.sarif
