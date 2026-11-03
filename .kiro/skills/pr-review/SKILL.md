@@ -42,6 +42,7 @@ scripts/verify.sh && make lint
 merges its `[Unreleased]` lines into the released `## [x.y.z]` section with
 no conflict and GitHub still says "mergeable". Look at the top of
 `CHANGELOG.md` after the merge: new lines must sit under `## [Unreleased]`.
+`scripts/verify.sh` runs `scripts/changelog-check.py`, which fails on it.
 
 Clean up: `git worktree remove ../knv-pr<n>` and delete `pr-<n>`.
 
