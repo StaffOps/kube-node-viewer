@@ -570,7 +570,7 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		case "up", "k", "down", "j", "enter":
 			u.recsKey(key)
 			return nil
-		case "g", "s", "o", "n", "d", "r", " ", "home", "left", "right", "h", "l", "pgup", "pgdown":
+		case "g", "s", "I", "o", "n", "d", "r", " ", "home", "left", "right", "h", "l", "pgup", "pgdown":
 			// Overview-only keys do nothing here
 			return nil
 		}
@@ -590,6 +590,8 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		u.openGroupBy()
 	case "s":
 		u.openSort()
+	case "I":
+		u.flipSort()
 	case "o":
 		u.openColumns()
 	case "/":
