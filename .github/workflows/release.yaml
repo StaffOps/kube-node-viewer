@@ -43,7 +43,7 @@ jobs:
       id-token: write # keyless Sigstore signature of the checksum file
     steps:
     - name: Checkout
-      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 # zizmor: ignore[artipacked]
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.1.0 # zizmor: ignore[artipacked]
       # credentials kept: this job pushes the release commit and tag; it uploads no artifact
       with:
         ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }} # the rulesets let deploy keys push to main and v* tags
@@ -91,7 +91,7 @@ jobs:
 
     - name: Set up Go
       if: steps.version.outputs.release == 'true'
-      uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version-file: go.mod
         cache: false # a release build never restores a cache another run could have written
@@ -140,7 +140,7 @@ jobs:
 
     - name: Run GoReleaser
       if: steps.version.outputs.release == 'true'
-      uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+      uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
       with:
         distribution: goreleaser
         version: "~> v2"
