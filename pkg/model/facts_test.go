@@ -153,3 +153,27 @@ func TestStatusFlags(t *testing.T) {
 		t.Errorf("launching: %v", got)
 	}
 }
+
+// the zone label wins; without it an EC2 provider ID names the zone
+func TestZoneFallsBackToTheProviderID(t *testing.T) {
+	cases := []struct {
+		providerID, label, want string
+	}{
+		{"aws:///us-east-1a/i-0abc", "us-east-1b", "us-east-1b"},
+		{"aws:///us-east-1a/i-0abc", "", "us-east-1a"},
+		{"aws:///us-east-1-bos-1a/i-0abc", "", "us-east-1-bos-1a"},
+		{"aws:///us-east-1b/0123abcd/fargate-ip-10-0-0-1.ec2.internal", "", "us-east-1b"},
+		{"kind://docker/kind/kind-worker", "", ""},
+		{"", "", ""},
+	}
+	for _, c := range cases {
+		n := testNode("n")
+		n.Spec.ProviderID = c.providerID
+		if c.label != "" {
+			n.Labels = map[string]string{v1.LabelTopologyZone: c.label}
+		}
+		if got := model.NewNode(n).Zone(); got != c.want {
+			t.Errorf("%q label %q: got %q, want %q", c.providerID, c.label, got, c.want)
+		}
+	}
+}

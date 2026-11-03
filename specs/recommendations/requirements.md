@@ -1,6 +1,6 @@
 # Requirements: recommendations
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-02 (spec-refuter; 3 BLOCKING, 4 HIGH, 5 MEDIUM, 5 LOW, all applied)
+> Status: shipped (v0.9.0, 2026-11-02) · Owner: Carlos Gomes · Reviewed: 2026-11-02 (spec-refuter; 3 BLOCKING, 4 HIGH, 5 MEDIUM, 5 LOW, all applied)
 
 ## Context
 
