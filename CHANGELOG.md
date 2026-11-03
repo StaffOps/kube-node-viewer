@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-03
+
 ### Added
 
 - Label visibility: `labels.allow` and `labels.deny` in
@@ -187,7 +189,8 @@ All notable changes to this project are documented here. Format:
 - A node's price is read and written under its lock; a pod seen before its
   node is counted once the node appears.
 
-[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/StaffOps/kube-node-viewer/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/StaffOps/kube-node-viewer/compare/v0.8.1...v0.8.2

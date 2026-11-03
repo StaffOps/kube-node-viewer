@@ -6,7 +6,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 
 ## Reading order
 
-1. [`rebrand/`](rebrand/) — **active**. Rename module, binary, config file and
+1. [`rebrand/`](rebrand/) — **shipped** in v0.10.0. Rename module, binary, config file and
    docs away from the upstream name.
    [requirements](rebrand/requirements.md) · [design](rebrand/design.md) ·
    [tasks](rebrand/tasks.md)
@@ -34,7 +34,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    a popup with its details: resources, conditions, taints, labels.
    [requirements](node-details/requirements.md) ·
    [design](node-details/design.md) · [tasks](node-details/tasks.md)
-7. [`label-visibility/`](label-visibility/) — **active**. Allow and deny
+7. [`label-visibility/`](label-visibility/) — **shipped** in v0.10.0. Allow and deny
    lists of label key patterns in `~/.config/kube-node-viewer/config.yaml`
    decide which node labels the panels offer; `a` shows all.
    [requirements](label-visibility/requirements.md) ·

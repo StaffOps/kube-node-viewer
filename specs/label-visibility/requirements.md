@@ -1,6 +1,6 @@
 # Requirements: label-visibility
 
-> Status: active · Owner: sule · Reviewed: 2026-11-02 (spec-refuter, two rounds; findings fixed; approved by owner 2026-11-02)
+> Status: shipped (v0.10.0, 2026-11-03) · Owner: sule · Reviewed: 2026-11-02 (spec-refuter, two rounds; findings fixed; approved by owner 2026-11-02)
 
 ## Context
 
