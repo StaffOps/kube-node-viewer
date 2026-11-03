@@ -22,6 +22,20 @@ All notable changes to this project are documented here. Format:
   terminal width to all show.
 - The footer says "1 column hidden", not "1 columns hidden".
 
+## [0.10.0] - 2026-11-03
+
+### Added
+
+- Label visibility: `labels.allow` and `labels.deny` in
+  `~/.config/kube-node-viewer/config.yaml` (or under an absolute
+  `$XDG_CONFIG_HOME`) pick the node labels the Filters, Group by, Sort and
+  Columns panels offer. Patterns match the whole key, `*` matches anything,
+  deny wins. Labels the view uses stay listed; details, search and export
+  are unchanged. A status line counts the hidden labels and `a` shows them
+  until the panel closes. `--labels-allow` and `--labels-deny` replace a
+  list for one run. An invalid file stops the start with the file and the
+  reason.
+
 ## [0.9.1] - 2026-11-03
 
 ### Added
@@ -191,7 +205,8 @@ All notable changes to this project are documented here. Format:
 - A node's price is read and written under its lock; a pod seen before its
   node is counted once the node appears.
 
-[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/StaffOps/kube-node-viewer/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/StaffOps/kube-node-viewer/compare/v0.8.1...v0.8.2

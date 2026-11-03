@@ -1,39 +1,42 @@
 ---
 name: release
-description: Use when cutting a kube-node-viewer release ("release v0.x", "lançar versão", "fechar a versão") or checking one that just ran — preparing the release PR from CHANGELOG [Unreleased], what the merge triggers, how to confirm the binaries and the Homebrew cask, and what to do when it fails.
+description: Use when releasing kube-node-viewer or checking a release ("release", "lançar versão", "qual versão vai sair", "o release falhou") — how a merge becomes a version automatically, how to steer the version number, how to confirm the binaries and the Homebrew cask, and what to do when it fails.
 ---
 
 # Release (kube-node-viewer)
 
-Rules: `AGENTS.md` ("Releases and pull requests") and `CONTRIBUTING.md`
-("Releasing"). If this file disagrees with them, they win — fix this file.
+Rules: `AGENTS.md` ("Releases and pull requests") and `CONTRIBUTING.md`.
+If this file disagrees with them, they win — fix this file.
 
-Releases are automated: merging a PR whose CHANGELOG names a version with no
-tag yet makes `.github/workflows/release.yaml` tag the merge commit
-`vX.Y.Z`, run GoReleaser (binaries on GitHub) and update the Homebrew cask in
-`StaffOps/homebrew-tap`. Agents never push tags.
+Releases are automatic. No release PR, no tag by hand:
 
-## 1. Pick the version
+```
+PR merged (by a person, or the automerge job in test.yaml)
+  └─ release.yaml on main
+       ├─ scripts/release-prepare.py: [Unreleased] → [x.y.z] - date,
+       │    compare links, finished specs → shipped
+       ├─ commit "chore: release vx.y.z" pushed to main, tag vx.y.z
+       └─ GoReleaser: binaries on GitHub + cask in StaffOps/homebrew-tap
+```
 
-- Read `## [Unreleased]` in `CHANGELOG.md`. Empty → nothing to release; stop.
-- SemVer, pre-1.0: new behaviour (`Added`, `Changed`) → minor; only `Fixed`
-  → patch. Ask the owner when unsure.
-- Check open PRs (`gh pr list --repo StaffOps/kube-node-viewer`): ask the
-  owner whether any should go in first.
+## 1. Steer the version (in the PR, not after)
 
-## 2. Release PR (branch `chore/release-vX.Y.Z` from `main`)
+The CHANGELOG entry decides it:
 
-1. `CHANGELOG.md`: rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD`
-   (today) and add an empty `## [Unreleased]` above it. Bottom links:
-   `[Unreleased]: …/compare/vX.Y.Z...HEAD` and
-   `[X.Y.Z]: …/compare/v<previous>...vX.Y.Z`.
-2. Specs whose tasks are all `[x]`: status → **shipped (vX.Y.Z, date)** in
-   their headers and in `specs/README.md`.
-3. `TODO.md`: drop items this release closes.
-4. `scripts/verify.sh` and `make lint`; commit `chore: release vX.Y.Z`;
-   push and open the PR only when the owner asks.
+| `[Unreleased]` holds | Next version |
+|----------------------|--------------|
+| only `### Fixed` / `### Security` | patch (0.9.1 → 0.9.2) |
+| any `### Added` / `### Changed` / `### Removed` / `### Deprecated` | minor (0.9.1 → 0.10.0) |
+| the word `BREAKING` | major (minor while 0.x) |
+| nothing | no release |
 
-## 3. After the owner merges
+Preview without writing: `python3 scripts/release-prepare.py`.
+
+Several PRs in one release: give all but the last the `hold` label, or
+merge them while `[Unreleased]` stays empty and add the entries in the
+last one.
+
+## 2. Confirm it
 
 ```bash
 gh run list --repo StaffOps/kube-node-viewer --workflow release.yaml --limit 1
@@ -42,14 +45,13 @@ gh release view vX.Y.Z --repo StaffOps/kube-node-viewer
 brew update && brew upgrade --cask staffops/tap/kube-node-viewer && kube-node-viewer -version
 ```
 
-Any later merge to `main` finds the tag and does nothing — expected.
-
-## 4. When it fails
+## 3. When it fails
 
 | Symptom | Cause | Action |
 |---------|-------|--------|
-| Step "Version to release" says already tagged | the CHANGELOG top version was released before | bump the version in a new PR |
-| Tag created, GoReleaser failed | build or token error | fix in a PR, then the owner re-runs the workflow on the tag (or pushes the tag again by hand) |
+| No release run after an automerge | `gh workflow run` failed in the automerge job | owner runs `gh workflow run release.yaml --ref main` |
+| "already tagged and [Unreleased] is empty" | nothing new | expected |
+| Release commit pushed, tag created, GoReleaser failed | build or token error | fix in a PR; the owner re-runs the workflow on the tag |
 | Release ok, cask not updated | `HOMEBREW_TAP_GITHUB_TOKEN` missing or expired | owner renews the secret; re-run |
 
 Never delete or move a published tag without the owner asking.

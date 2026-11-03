@@ -1,8 +1,10 @@
 {
   "name": "kube-node-viewer",
-  "description": "Spec-driven development agent for kube-node-viewer. Loads AGENTS.md, the specs index, the backlog and the project skills; injects open spec tasks at start; guards destructive git commands; reminds the pre-commit checklist.",
+  "description": "Spec-driven development agent for kube-node-viewer. Loads AGENTS.md, the specs index, the backlog and the project skills; injects open spec tasks at start; guards destructive git commands and blocks unsafe commits; reminds the pre-commit checklist.",
   "prompt": "Follow AGENTS.md: it is the single source of rules for this repo, shared with Claude Code. Work spec-first: specs live in specs/ at the repo root, never in a separate .kiro/specs copy. Use the project skills (spec-new, change-loop, upstream-sync, release, pr-review). Independent reviews go to the spec-refuter agent. Out-of-scope findings go to TODO.md.",
-  "tools": ["*"],
+  "tools": [
+    "*"
+  ],
   "resources": [
     "file://AGENTS.md",
     "file://specs/README.md",
@@ -13,19 +15,46 @@
     {
       "name": "session-context",
       "trigger": "SessionStart",
-      "action": { "type": "command", "command": "sh scripts/agent-hooks/session-context.sh" }
+      "action": {
+        "type": "command",
+        "command": "sh scripts/agent-hooks/session-context.sh"
+      }
     },
     {
       "name": "guard-destructive",
       "trigger": "PreToolUse",
       "matcher": "shell",
-      "action": { "type": "command", "command": "sh scripts/agent-hooks/guard-destructive.sh kiro" }
+      "action": {
+        "type": "command",
+        "command": "sh scripts/agent-hooks/guard-destructive.sh kiro"
+      }
+    },
+    {
+      "name": "commit-guard",
+      "trigger": "PreToolUse",
+      "matcher": "shell",
+      "action": {
+        "type": "command",
+        "command": "sh scripts/agent-hooks/commit-guard.sh kiro"
+      }
     },
     {
       "name": "commit-reminder",
       "trigger": "PreToolUse",
       "matcher": "shell",
-      "action": { "type": "command", "command": "sh scripts/agent-hooks/commit-reminder.sh kiro" }
+      "action": {
+        "type": "command",
+        "command": "sh scripts/agent-hooks/commit-reminder.sh kiro"
+      }
+    },
+    {
+      "name": "pr-guard",
+      "trigger": "PreToolUse",
+      "matcher": "shell",
+      "action": {
+        "type": "command",
+        "command": "sh scripts/agent-hooks/pr-guard.sh kiro"
+      }
     }
   ]
 }

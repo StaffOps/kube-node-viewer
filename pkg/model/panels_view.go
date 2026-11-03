@@ -28,12 +28,13 @@ import (
 // groupPanel lists every field, the group-by levels first in level order;
 // ticking a field adds it as the next level, up to three (R4).
 type groupPanel struct {
+	labelView
 	cursor int
 }
 
 func (u *UIModel) openGroupBy() {
 	u.panel = panelGroupBy
-	u.group = groupPanel{}
+	u.group = groupPanel{labelView: u.newLabelView()}
 }
 
 func (p *groupPanel) hint() string {
@@ -43,7 +44,8 @@ func (p *groupPanel) hint() string {
 // groupChoices are the levels in order, then every other field and label.
 func (u *UIModel) groupChoices() []Field {
 	fields := slices.Clone(u.view.GroupBy)
-	for _, f := range filterFieldChoices(u.stats.Nodes) {
+	choices, _ := u.labelChoices(u.group.labelView)
+	for _, f := range choices {
 		if !slices.Contains(fields, f) {
 			fields = append(fields, f)
 		}
@@ -54,6 +56,14 @@ func (u *UIModel) groupChoices() []Field {
 func (u *UIModel) groupByKey(key string) {
 	p := &u.group
 	fields := u.groupChoices()
+	if key == "a" {
+		if len(fields) > 0 && u.toggleShowAll(&p.labelView) {
+			field := fields[min(p.cursor, len(fields)-1)]
+			fields = u.groupChoices()
+			p.cursor = keepCursor(fields, field, p.cursor)
+		}
+		return
+	}
 	var moved bool
 	if p.cursor, moved = moveCursor(p.cursor, len(fields), key); moved || len(fields) == 0 {
 		return
@@ -108,12 +118,13 @@ func (u *UIModel) groupByPanel() panelView {
 	if len(u.view.GroupBy) == MaxGroupLevels {
 		title = "Group by (3 of 3 levels)"
 	}
-	return panelView{title: title, rows: rows, cursor: u.group.cursor}
+	return u.withLabelStatus(panelView{title: title, rows: rows, cursor: u.group.cursor}, u.group.labelView)
 }
 
 // --- Sort (s) ---------------------------------------------------------------
 
 type sortPanel struct {
+	labelView
 	cursor int
 	fields []Field
 }
@@ -131,7 +142,8 @@ func (u *UIModel) sortChoices() []Field {
 	for _, r := range resources {
 		fields = append(fields, UsageField(v1.ResourceName(r)))
 	}
-	return append(fields, filterFieldChoices(u.stats.Nodes)...)
+	choices, _ := u.labelChoices(u.sort.labelView)
+	return append(fields, choices...)
 }
 
 // descendingFirst are the sorts that start biggest first: newest, priciest,
@@ -154,8 +166,9 @@ func (u *UIModel) flipSort() {
 
 func (u *UIModel) openSort() {
 	u.panel = panelSort
-	fields := u.sortChoices()
-	u.sort = sortPanel{fields: fields, cursor: max(slices.Index(fields, u.view.Sort.Field), 0)}
+	u.sort = sortPanel{labelView: u.newLabelView()}
+	u.sort.fields = u.sortChoices()
+	u.sort.cursor = max(slices.Index(u.sort.fields, u.view.Sort.Field), 0)
 }
 
 func (p *sortPanel) hint() string {
@@ -164,6 +177,13 @@ func (p *sortPanel) hint() string {
 
 func (u *UIModel) sortKey(key string) {
 	p := &u.sort
+	p.fields, p.cursor = refreshFields(p.fields, p.cursor, u.sortChoices())
+	if key == "a" {
+		if len(p.fields) > 0 && u.toggleShowAll(&p.labelView) {
+			p.fields, p.cursor = refreshFields(p.fields, p.cursor, u.sortChoices())
+		}
+		return
+	}
 	var moved bool
 	if p.cursor, moved = moveCursor(p.cursor, len(p.fields), key); moved {
 		return
@@ -188,6 +208,8 @@ func (u *UIModel) sortKey(key string) {
 
 func (u *UIModel) sortPanel() panelView {
 	p := &u.sort
+	// labels of nodes that arrived since the panel opened are listed too
+	p.fields, p.cursor = refreshFields(p.fields, p.cursor, u.sortChoices())
 	rows := make([]string, len(p.fields))
 	for i, f := range p.fields {
 		current := ""
@@ -199,12 +221,13 @@ func (u *UIModel) sortPanel() panelView {
 		}
 		rows[i] = fieldName(f) + current
 	}
-	return panelView{title: "Sort by", rows: rows, cursor: p.cursor}
+	return u.withLabelStatus(panelView{title: "Sort by", rows: rows, cursor: p.cursor}, p.labelView)
 }
 
 // --- Columns (o) ------------------------------------------------------------
 
 type columnsPanel struct {
+	labelView
 	cursor int
 	fields []Field
 }
@@ -228,7 +251,8 @@ func (u *UIModel) columnChoices() []Field {
 	for _, r := range []v1.ResourceName{v1.ResourceCPU, v1.ResourceMemory} {
 		add(LabelField(LabelPrefix + "node-" + string(r) + "-usage"))
 	}
-	for _, f := range filterFieldChoices(u.stats.Nodes) {
+	choices, _ := u.labelChoices(u.columns.labelView)
+	for _, f := range choices {
 		if f.Label() != "" {
 			add(f)
 		}
@@ -238,7 +262,8 @@ func (u *UIModel) columnChoices() []Field {
 
 func (u *UIModel) openColumns() {
 	u.panel = panelColumns
-	u.columns = columnsPanel{fields: u.columnChoices()}
+	u.columns = columnsPanel{labelView: u.newLabelView()}
+	u.columns.fields = u.columnChoices()
 }
 
 func (p *columnsPanel) hint() string {
@@ -247,6 +272,13 @@ func (p *columnsPanel) hint() string {
 
 func (u *UIModel) columnsKey(key string) {
 	p := &u.columns
+	u.reorderColumnChoices()
+	if key == "a" {
+		if len(p.fields) > 0 && u.toggleShowAll(&p.labelView) {
+			u.reorderColumnChoices()
+		}
+		return
+	}
 	var moved bool
 	if p.cursor, moved = moveCursor(p.cursor, len(p.fields), key); moved {
 		return
@@ -281,17 +313,16 @@ func (u *UIModel) columnsKey(key string) {
 	}
 }
 
-// reorderColumnChoices keeps the list in screen order after a change, with
-// the cursor on the same column.
+// reorderColumnChoices rebuilds the list in screen order after a change, or
+// when nodes bring new labels, with the cursor on the same column.
 func (u *UIModel) reorderColumnChoices() {
 	p := &u.columns
-	field := p.fields[p.cursor]
-	p.fields = u.columnChoices()
-	p.cursor = max(slices.Index(p.fields, field), 0)
+	p.fields, p.cursor = refreshFields(p.fields, p.cursor, u.columnChoices())
 }
 
 func (u *UIModel) columnsPanel() panelView {
 	p := &u.columns
+	u.reorderColumnChoices()
 	rows := make([]string, len(p.fields))
 	for i, f := range p.fields {
 		name := fieldName(f)
@@ -300,7 +331,28 @@ func (u *UIModel) columnsPanel() panelView {
 		}
 		rows[i] = check(slices.Contains(u.view.Columns, f)) + " " + name
 	}
-	return panelView{title: "Columns (shown first, in screen order)", rows: rows, cursor: p.cursor}
+	return u.withLabelStatus(panelView{title: "Columns (shown first, in screen order)", rows: rows, cursor: p.cursor}, p.labelView)
+}
+
+// keepCursor is the field's place in the rebuilt list, or the old place,
+// within the list, when the field is gone.
+func keepCursor(fields []Field, field Field, cursor int) int {
+	if at := slices.Index(fields, field); at >= 0 {
+		return at
+	}
+	return min(cursor, max(len(fields)-1, 0))
+}
+
+// refreshFields swaps a panel's list for fresh, keeping the cursor on the
+// same field (keepCursor); the list is unchanged when fresh is equal.
+func refreshFields(fields []Field, cursor int, fresh []Field) ([]Field, int) {
+	if slices.Equal(fields, fresh) {
+		return fields, cursor
+	}
+	if len(fields) == 0 {
+		return fresh, min(max(cursor, 0), max(len(fresh)-1, 0))
+	}
+	return fresh, keepCursor(fresh, fields[min(max(cursor, 0), len(fields)-1)], cursor)
 }
 
 // --- Search (/) -------------------------------------------------------------
