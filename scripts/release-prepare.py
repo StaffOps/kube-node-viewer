@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Turn CHANGELOG [Unreleased] into the next version (used by release.yaml).
+
+Prints the version to release (x.y.z), or nothing when [Unreleased] is
+empty; then the newest released version is printed instead, and the caller
+releases it only if its tag is missing.
+
+Next version, from the newest released one and the [Unreleased] headings:
+  "BREAKING" anywhere           -> major (minor while 0.x)
+  Added / Changed / Removed /
+  Deprecated                    -> minor
+  anything else (Fixed, Security) -> patch
+
+With --write, also: renames [Unreleased] to [x.y.z] - DATE under a new
+empty [Unreleased], updates the compare links, and marks specs shipped
+whose tasks are all done.
+
+  scripts/release-prepare.py [--write] [--date YYYY-MM-DD] [--root DIR]
+"""
+import argparse
+import datetime
+import glob
+import os
+import re
+import sys
+
+REPO_URL = "https://github.com/StaffOps/kube-node-viewer"
+VERSION_HEADING = re.compile(r"^## \[(\d+)\.(\d+)\.(\d+)\]", re.M)
+MINOR_HEADINGS = {"added", "changed", "removed", "deprecated"}
+
+
+def unreleased_body(text):
+    start = text.find("## [Unreleased]")
+    if start < 0:
+        sys.exit("CHANGELOG.md has no ## [Unreleased] section")
+    start = text.index("\n", start) + 1
+    m = re.search(r"^## \[", text[start:], re.M)
+    end = start + m.start() if m else len(text)
+    return start, end, text[start:end]
+
+
+def next_version(latest, body):
+    major, minor, patch = latest
+    headings = {h.strip().lower() for h in re.findall(r"^### (.+)$", body, re.M)}
+    if "BREAKING" in body:
+        return (major + 1, 0, 0) if major >= 1 else (major, minor + 1, 0)
+    if headings & MINOR_HEADINGS:
+        return (major, minor + 1, 0)
+    return (major, minor, patch + 1)
+
+
+def ship_specs(root, version, date):
+    readme_path = os.path.join(root, "specs", "README.md")
+    readme = open(readme_path).read() if os.path.exists(readme_path) else None
+    for tasks in sorted(glob.glob(os.path.join(root, "specs", "*", "tasks.md"))):
+        spec_dir = os.path.dirname(tasks)
+        name = os.path.basename(spec_dir)
+        boxes = re.findall(r"^- \[(.)\] T\d+", open(tasks).read(), re.M)
+        if not boxes or any(b != "x" for b in boxes):
+            continue
+        req = os.path.join(spec_dir, "requirements.md")
+        if not os.path.exists(req) or "Status: active" not in open(req).read():
+            continue
+        for f in ("requirements.md", "design.md", "tasks.md"):
+            p = os.path.join(spec_dir, f)
+            if os.path.exists(p):
+                s = open(p).read()
+                open(p, "w").write(s.replace("Status: active", f"Status: shipped (v{version}, {date})", 1))
+        if readme is not None:
+            readme = readme.replace(f"[`{name}/`]({name}/) — **active**.", f"[`{name}/`]({name}/) — **shipped** in v{version}.", 1)
+        print(f"shipped spec: {name}", file=sys.stderr)
+    if readme is not None:
+        open(readme_path, "w").write(readme)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--write", action="store_true")
+    ap.add_argument("--date", default=datetime.date.today().isoformat())
+    ap.add_argument("--root", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    args = ap.parse_args()
+
+    path = os.path.join(args.root, "CHANGELOG.md")
+    text = open(path).read()
+    m = VERSION_HEADING.search(text)
+    latest = tuple(int(x) for x in m.groups()) if m else (0, 0, 0)
+    start, end, body = unreleased_body(text)
+    if not body.strip():
+        if m:
+            print("%d.%d.%d" % latest)
+        return
+    version = "%d.%d.%d" % next_version(latest, body)
+    if args.write:
+        prev = "%d.%d.%d" % latest
+        text = text[:start] + f"\n## [{version}] - {args.date}\n" + text[start:]
+        link = f"[Unreleased]: {REPO_URL}/compare/v{prev}...HEAD\n"
+        if link in text:
+            text = text.replace(link, f"[Unreleased]: {REPO_URL}/compare/v{version}...HEAD\n"
+                                f"[{version}]: {REPO_URL}/compare/v{prev}...v{version}\n", 1)
+        open(path, "w").write(text)
+        ship_specs(args.root, version, args.date)
+    print(version)
+
+
+if __name__ == "__main__":
+    main()

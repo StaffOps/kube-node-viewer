@@ -10,6 +10,7 @@ echo "kube-node-viewer session context"
 echo "branch: $branch, uncommitted files: $dirty"
 skills=$(for d in .kiro/skills/*/SKILL.md; do [ -f "$d" ] && basename "$(dirname "$d")"; done | tr '\n' ' ' | sed 's/ $//; s/ /, /g')
 echo "Rules: AGENTS.md. Specs: specs/README.md. Backlog: TODO.md. Skills: ${skills:-none}. Reviewer: spec-refuter."
+echo "Flow: branch -> PR. CI (verify, lint, build) green on a PR from a trusted author -> approved and merged automatically (label hold to stop). CHANGELOG [Unreleased] entries -> next version released on merge (Fixed=patch, Added/Changed/Removed=minor). Never push to main or tags."
 echo "Open spec tasks ([ ] / [-], max 10 per spec):"
 for f in specs/*/tasks.md; do
   [ -f "$f" ] || continue
