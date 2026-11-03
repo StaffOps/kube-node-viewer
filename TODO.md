@@ -26,14 +26,13 @@ what they cannot. Listed by impact.
       _Why:_ both are free for public repos and refuse, on GitHub's side, a
       push that carries a credential, including one pushed with
       `--no-verify` past the local gitleaks check.
-- [ ] **Dependency checks**: `govulncheck` in `make check` and CI;
-      `go-licenses` (the `make licenses` allowlist) in CI; Dependabot
-      security updates on, with its patch PRs merged by the automerge job
-      when CI passes.
-      _Why:_ the binary ships client-go and the AWS SDK; a known
-      vulnerability or a dependency under a disallowed license would
-      reach a release today, since no automated step looks. Dependabot is
-      excluded from automerge now (not a repo writer), so its fixes wait.
+- [ ] **Dependabot security updates on** (repository setting) and the
+      `KNV_DENYLIST` secret also as a Dependabot secret
+      (`gh secret set KNV_DENYLIST --app dependabot`).
+      _Why:_ the `deps` job finds a vulnerable module, but only security
+      updates open the fix PR as soon as an advisory is out; Dependabot PRs
+      cannot read Actions secrets, so their content check runs without
+      the deny list.
 - [ ] **Release smoke test**: after GoReleaser, download the published
       linux/amd64 archive, check that `kube-node-viewer -version` matches
       the tag and the checksum file, and run `brew audit` on the cask.

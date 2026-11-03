@@ -13,7 +13,7 @@ fi
 echo "branch: $branch, uncommitted files: $dirty"
 skills=$(for d in .kiro/skills/*/SKILL.md; do [ -f "$d" ] && basename "$(dirname "$d")"; done | tr '\n' ' ' | sed 's/ $//; s/ /, /g')
 echo "Rules: AGENTS.md. Specs: specs/README.md. Backlog: TODO.md. Skills: ${skills:-none}. Reviewer: spec-refuter."
-echo "Flow: branch -> PR. CI (verify, lint, build, secrets, guardrails) green on a PR from a trusted author -> approved and merged automatically (label hold to stop). CHANGELOG [Unreleased] entries -> next version, released Mondays 12:00 UTC or on demand (gh workflow run release.yaml, or label a PR release) (Fixed=patch, Added/Changed/Removed=minor). Code + spec PRs need every spec task [x], the cluster run included (draft until then). Never push to main or tags."
+echo "Flow: branch -> PR. CI (verify, lint, build, secrets, guardrails, deps) green on a PR from a trusted author -> approved and merged automatically (label hold to stop). CHANGELOG [Unreleased] entries -> next version, released Mondays 12:00 UTC or on demand (gh workflow run release.yaml, or label a PR release) (Fixed=patch, Added/Changed/Removed=minor). Code + spec PRs need every spec task [x], the cluster run included (draft until then). Never push to main or tags."
 echo "Open spec tasks ([ ] / [-], max 10 per spec):"
 for f in specs/*/tasks.md; do
   [ -f "$f" ] || continue
