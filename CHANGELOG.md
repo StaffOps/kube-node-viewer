@@ -6,15 +6,6 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
-## [0.9.1] - 2026-11-03
-
-### Added
-
-- `I` (shift+i) on the main screen flips the sort between ascending and
-  descending without opening the Sort panel.
-
-## [0.9.0] - 2026-11-02
-
 ### Added
 
 - Label visibility: `labels.allow` and `labels.deny` in
@@ -26,6 +17,18 @@ All notable changes to this project are documented here. Format:
   until the panel closes. `--labels-allow` and `--labels-deny` replace a
   list for one run. An invalid file stops the start with the file and the
   reason.
+
+## [0.9.1] - 2026-11-03
+
+### Added
+
+- `I` (shift+i) on the main screen flips the sort between ascending and
+  descending without opening the Sort panel.
+
+## [0.9.0] - 2026-11-02
+
+### Added
+
 - Filters can exclude their values: `x` in the Filters panel switches a
   filter between keeping and excluding (`capacity≠Spot`).
 - Named views (`v`): save the current view under a name, apply or delete it;

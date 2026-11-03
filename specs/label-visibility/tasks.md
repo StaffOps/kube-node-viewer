@@ -15,9 +15,10 @@
   - _Covers: R6 · Depends on: T4 · Verified by: `go test ./pkg/model -run ShowAll`_
 - [x] T6. Docs: README (config file, flags, `a`), CHANGELOG `[Unreleased]`, example `config.yaml`
   - _Covers: — · Depends on: T3, T5 · Verified by: review; README "Label visibility" section, CHANGELOG `[Unreleased]`. The YAML examples live in the README (no separate example file)_
-- [-] T7. Verify: `scripts/verify.sh` green, coverage ≥ 90% on new files, manual run on a cluster the owner names
+- [x] T7. Verify: `scripts/verify.sh` green, coverage ≥ 90% on new files, manual run on a cluster the owner names
   - _Covers: R1, R5, R6 · Depends on: T6 · Verified by: command output and owner check_
   - _Note (2026-11-02): `scripts/verify.sh` green; coverage 100% on `labelpolicy.go`, `loadSettings` 90.9%, `readLabelLists` 93.8%. The manual run on a cluster the owner names is pending._
+  - _Note (2026-11-03): run on a cluster by the author; confirmed by the owner._
 - [x] T8. Review follow-ups (2026-11-02): short windows keep the key hints before the status line; Sort and Columns refresh their list when nodes change while open; Columns keeps the cursor after `a`; flag help shows the resolved config path
   - _Covers: R6, R9 · Depends on: T5 · Verified by: `go test ./pkg/model -run 'Popup|Sort|Columns'`, `go test ./cmd/kube-node-viewer -run Settings`_
   - _Note (2026-11-02): implemented; `scripts/verify.sh` green. Corrects design ("rows take `height-5`"): the box is never taller than its height; it drops lines in this order: rows down to one, the separator, the status line, the hint, then the top border. Narrow boxes show `<n> hidden • a: all` / `all labels • a: hide`. Independent tests and review done (2026-11-02): verify green, touched functions 94–100% except `refreshFields` 80% (defensive empty-list branch)._
