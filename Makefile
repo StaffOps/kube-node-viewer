@@ -23,15 +23,36 @@ download: ## Download dependencies
 	go mod download
 	go mod tidy
 
-licenses: ## Check dependency licenses against the allowlist (pinned go-licenses)
-	@echo "go-licenses $(GO_LICENSES_VERSION)"
-	@out=$$(go run github.com/google/go-licenses/v2@$(GO_LICENSES_VERSION) check ./cmd/... ./pkg/... \
-		--allowed_licenses=MIT,Apache-2.0,BSD-3-Clause,ISC \
-		--ignore github.com/mattn/go-localereader 2>&1) || { printf '%s\n' "$$out" | grep -v '^W[0-9]\|^/\|^go: downloading'; exit 1; } # go-localereader: MIT
+# Release platforms: dependencies differ per GOOS (scripts/build.sh -a).
+# CI uses the Go of go.mod; a newer local Go can hide a stdlib advisory.
+CHECK_GOOS=linux darwin windows
+
+# Pinned tools, built for this machine (GOOS below applies to the analysis,
+# not to the tool) into the git-ignored bin/.
+TOOLS=$(CURDIR)/bin/tools
+
+$(TOOLS)/go-licenses-$(GO_LICENSES_VERSION):
+	GOBIN=$(TOOLS) GOOS= GOARCH= go install github.com/google/go-licenses/v2@$(GO_LICENSES_VERSION)
+	mv $(TOOLS)/go-licenses $@
+
+$(TOOLS)/govulncheck-$(GOVULNCHECK_VERSION):
+	GOBIN=$(TOOLS) GOOS= GOARCH= go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+	mv $(TOOLS)/govulncheck $@
+
+licenses: $(TOOLS)/go-licenses-$(GO_LICENSES_VERSION) ## Check dependency licenses against the allowlist, every release OS (pinned go-licenses)
+	@echo "go-licenses $(GO_LICENSES_VERSION): $(CHECK_GOOS)"
+	@for os in $(CHECK_GOOS); do \
+		out=$$(GOOS=$$os $< check ./cmd/... ./pkg/... \
+			--allowed_licenses=MIT,Apache-2.0,BSD-3-Clause,ISC \
+			--ignore github.com/mattn/go-localereader 2>&1) || { echo "GOOS=$$os:"; printf '%s\n' "$$out" | grep -v '^W[0-9]\|^/\|^go: downloading'; exit 1; }; \
+	done # go-localereader: MIT
 	@echo "licenses: ok"
 
-vuln: ## Known vulnerabilities reachable from our code (pinned govulncheck)
-	go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./cmd/... ./pkg/...
+vuln: $(TOOLS)/govulncheck-$(GOVULNCHECK_VERSION) ## Known vulnerabilities reachable from our code, every release OS (pinned govulncheck)
+	@for os in $(CHECK_GOOS); do \
+		echo "== govulncheck $(GOVULNCHECK_VERSION) GOOS=$$os"; \
+		GOOS=$$os $< ./cmd/... ./pkg/... || exit 1; \
+	done
 
 boilerplate: ## Add license headers
 	go run hack/boilerplate.go ./

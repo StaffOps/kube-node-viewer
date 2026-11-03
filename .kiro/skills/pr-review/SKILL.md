@@ -8,10 +8,13 @@ description: Use when reviewing a pull request to kube-node-viewer, especially f
 Rules: `AGENTS.md`. If this file disagrees with it, it wins — fix this file.
 
 PRs from trusted authors (write access, branch in this repo, not draft, no
-`hold` label) merge themselves when CI passes; their `[Unreleased]`
+`hold` label), and Dependabot PRs that only raise patch versions, merge
+themselves when CI passes; their `[Unreleased]`
 entries ship in the next release (Monday, or right away with the `release`
 label). To review one first, add the `hold` label; remove it
-(or merge by hand) when done.
+(or merge by hand) when done. A Dependabot PR is not merged automatically
+after a person removes `hold` (the run's actor is then the person): merge
+it by hand.
 
 ## 1. Read it
 

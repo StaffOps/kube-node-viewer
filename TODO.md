@@ -13,7 +13,7 @@ The layers in `AGENTS.md` ("Guardrails") stop honest mistakes; these close
 what they cannot. Listed by impact.
 
 - [ ] **Protect `main` with a repository ruleset**: require a PR and the
-      `verify`, `lint`, `build`, `secrets` and `guardrails` checks; block force-pushes and deletion;
+      `verify`, `lint`, `build`, `secrets`, `guardrails` and `deps` checks; block force-pushes and deletion;
       protect `v*` tags; let only the release workflow (GitHub Actions)
       bypass, for its version commit and tag.
       _Why:_ today anyone with write access can push to `main` with

@@ -50,7 +50,7 @@ scripts/verify.sh         # gofmt check, go vet, go test, spec lint — run befo
 scripts/screenshots.sh    # regenerate README images in .static/ from a made-up cluster (Python 3, Chrome, ffmpeg)
 make lint                 # golangci-lint at the version pinned in the Makefile (same as CI)
 make vuln licenses        # govulncheck and go-licenses, pinned in the Makefile (CI deps job)
-make check                # before a push: main merged in, verify, branch commits, hook tests, lint, build, and the next version
+make check                # before a push: main merged in, verify, branch commits, hook tests, vuln, licenses, lint, build, and the next version
 go test ./pkg/... ./cmd/...
 ```
 
@@ -116,8 +116,9 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
   advisory for a shipped dependency shows up). On a PR from a branch of this repo whose
   author has write access, not a draft and without the `hold` label, the
   `automerge` job approves and merges it once all of them pass. Dependabot
-  patch updates (`semver-patch`) merge the same way; its minor and major
-  updates wait for a person. Forks and other authors wait for a person.
+  PRs that only raise patch versions merge the same way, judged from the
+  go.mod diff, not from what Dependabot lists; any other Dependabot PR
+  waits for a person. Forks and other authors wait for a person.
 - **CHANGELOG**: changes go under `## [Unreleased]` only (the
   `commit-guard` hook blocks lines added to a released section, and
   `scripts/changelog-check.py` in `verify.sh` fails CI on it). A
@@ -201,7 +202,8 @@ the git hooks; the session-context hook does it on the first agent session.
 | PR, weekly | known vulnerabilities reachable from our code (govulncheck); dependency licenses outside MIT / Apache-2.0 / BSD-3-Clause / ISC (go-licenses) | — | — | `deps` job | upgrade the module (`go get …@fixed`), or replace the dependency |
 | PR | the guardrails themselves: shellcheck and `scripts/checks/test-checks.sh` (each case blocked or passed in a throwaway repo) | — | — | `guardrails` job | fix the hook or the case |
 | `gh pr create` / `ready` / `merge` | released CHANGELOG sections; open tasks in a touched spec (the verify task includes a cluster run) | — | `pr-guard` (`--draft` passes) | `changelog-check.py`, `spec-tasks-check.py` | finish the tasks; draft until then |
-| PR green | trusted author → approve, merge | — | — | `automerge` job (`hold` label stops it) | — |
+| PR green | trusted author, or a Dependabot PR that only raises patch versions (`scripts/checks/dependabot-patch.sh` on its go.mod) → approve, merge | — | — | `automerge` job (`hold` label stops it) | — |
+| Release | known vulnerabilities and licenses again, before anything is tagged | — | — | `release.yaml` (`make vuln licenses`) | upgrade the module, then release |
 | Monday 12:00 UTC, `gh workflow run release.yaml`, or merge of a PR labelled `release` | `[Unreleased]` → version, tag, binaries, cask | — | — | `release.yaml` | skill `release` |
 
 What to run locally, and when:

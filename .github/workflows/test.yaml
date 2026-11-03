@@ -7,8 +7,10 @@
 #
 # Trusted: the PR comes from a branch of this repository (not a fork), is
 # not a draft, has no `hold` label, and either its author has write access
-# or it is a Dependabot patch update (semver-patch). Anyone else's PR, and
-# Dependabot minor/major updates, wait for a person to review and merge.
+# or it is a Dependabot PR that only raises patch versions — judged from its
+# go.mod by scripts/checks/dependabot-patch.sh, not from what Dependabot
+# lists (go get also raises unlisted indirect modules). Anyone else's PR,
+# and any other Dependabot PR, waits for a person to review and merge.
 
 name: Go code tests
 
@@ -19,14 +21,15 @@ on:
     branches: [ "main" ]
     types: [ opened, synchronize, reopened, ready_for_review, labeled, unlabeled ]
   schedule:
-    - cron: '0 6 * * 1' # Mondays 06:00 UTC, before the 12:00 release
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC (release.yaml runs make vuln licenses itself)
   workflow_dispatch: {}
 
 permissions:
   contents: read
 
 concurrency:
-  group: test-${{ github.event.pull_request.number || github.ref }}
+  # by event too: the weekly run and a push to main must not cancel each other
+  group: test-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -152,9 +155,9 @@ jobs:
       uses: actions/setup-go@v6.5.0
       with:
         go-version-file: go.mod
-    - name: Vulnerabilities (govulncheck)
+    - name: Vulnerabilities (govulncheck; linux, darwin, windows)
       run: make vuln
-    - name: Licenses (go-licenses)
+    - name: Licenses (go-licenses; linux, darwin, windows)
       run: make licenses
 
   automerge:
@@ -178,26 +181,32 @@ jobs:
       ACTOR: ${{ github.actor }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
-    - name: Dependabot update type
-      id: dependabot
+    - name: Check out main's scripts (never the PR's code in this job)
       # both: a person pushing to a Dependabot branch is not Dependabot
       if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
-      uses: dependabot/fetch-metadata@v3.1.0
+      uses: actions/checkout@v6.1.0
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        ref: ${{ github.event.pull_request.base.sha }}
+        persist-credentials: false
 
     - name: Author can write, or Dependabot patch
       id: trust
       env:
-        UPDATE_TYPE: ${{ steps.dependabot.outputs.update-type }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
       run: |
         if [ "$AUTHOR" = "dependabot[bot]" ] && [ "$ACTOR" = "dependabot[bot]" ]; then
-          echo "dependabot: ${UPDATE_TYPE:-unknown}"
-          if [ "$UPDATE_TYPE" = version-update:semver-patch ]; then
+          mb=$(gh api "repos/$REPO/compare/$BASE_SHA...$HEAD_SHA" --jq .merge_base_commit.sha)
+          files=$(gh api "repos/$REPO/compare/$mb...$HEAD_SHA" --jq '.files[].filename')
+          gh api "repos/$REPO/contents/go.mod?ref=$mb" -H 'Accept: application/vnd.github.raw' > "$RUNNER_TEMP/base.mod"
+          gh api "repos/$REPO/contents/go.mod?ref=$HEAD_SHA" -H 'Accept: application/vnd.github.raw' > "$RUNNER_TEMP/head.mod"
+          # shellcheck disable=SC2086 # one file name per word
+          if why=$(sh scripts/checks/dependabot-patch.sh "$RUNNER_TEMP/base.mod" "$RUNNER_TEMP/head.mod" $files); then
+            echo "dependabot: $why"
             echo "trusted=true" >> "$GITHUB_OUTPUT"
           else
+            printf 'dependabot: needs a person:\n%s\n' "$why"
             echo "trusted=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::not merged automatically: Dependabot ${UPDATE_TYPE:-update} needs a person"
+            echo "::notice::not merged automatically: this Dependabot PR is not patch-only (see the log)"
           fi
           exit 0
         fi
