@@ -46,6 +46,15 @@
         "type": "command",
         "command": "sh scripts/agent-hooks/commit-reminder.sh kiro"
       }
+    },
+    {
+      "name": "pr-guard",
+      "trigger": "PreToolUse",
+      "matcher": "shell",
+      "action": {
+        "type": "command",
+        "command": "sh scripts/agent-hooks/pr-guard.sh kiro"
+      }
     }
   ]
 }
