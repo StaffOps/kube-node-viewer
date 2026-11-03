@@ -14,3 +14,7 @@ only pins what Kiro would otherwise do differently.
   tasks with a status table).
 - Before implementing a spec, it needs an independent review (agent
   `spec-refuter`).
+- Findings outside the task go to `TODO.md`, not into the current diff.
+- Project skills live in `.kiro/skills/` (shared with Claude Code through a
+  symlink); hook scripts live in `scripts/agent-hooks/` and are wired in
+  `.kiro/hooks/` (IDE) and `.kiro/agents/kube-node-viewer.json` (CLI).
