@@ -97,6 +97,26 @@ func TestFlagTableExtraLabels(t *testing.T) {
 	}
 }
 
+// monthly-price-columns R3: --extra-labels builds on the new defaults.
+func TestFlagTableExtraLabelsOnMonthlyDefaults(t *testing.T) {
+	got := flagsOnly(map[string]string{"extra-labels": "team"})(t)
+	want := []model.Field{
+		model.FieldInstanceType, model.FieldPrice, model.FieldPriceMonthly, model.FieldIdleMonthly,
+		model.FieldCapacity, model.FieldNodeGroup, model.FieldZone, model.FieldStatus,
+		model.LabelField("team"),
+	}
+	if !reflect.DeepEqual(got.Columns, want) {
+		t.Errorf("got %v, want %v", got.Columns, want)
+	}
+	// on a cluster with a saved view too
+	saved := model.DefaultViewState()
+	saved.Columns = []model.Field{model.FieldStatus}
+	got = resolve(t, nil, &saved, map[string]string{"extra-labels": "team"})
+	if !reflect.DeepEqual(got.Columns, want) {
+		t.Errorf("with a saved view: got %v, want %v", got.Columns, want)
+	}
+}
+
 func TestFlagTableResources(t *testing.T) {
 	got := flagsOnly(map[string]string{"resources": "cpu,memory,nvidia.com/gpu"})(t)
 	if !reflect.DeepEqual(got.Resources, []string{"cpu", "memory", "nvidia.com/gpu"}) {

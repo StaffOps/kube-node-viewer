@@ -6,6 +6,22 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- `PRICE/M` and `IDLE/M` columns: each node's price and idle cost per month
+  (× 730 h), shown by default next to `PRICE/H`. Clusters with saved
+  columns keep theirs; add the new ones with `o`.
+
+### Changed
+
+- With `--disable-pricing`, `IDLE/H` is left out like `PRICE/H`; it used to
+  show idle costs from the static price table.
+- Narrow windows drop columns in a new order, kept first: `STATUS`,
+  `PRICE/M`, `CAPACITY`, `PRICE/H`, `IDLE/M`, `INSTANCE`, `IDLE/H`,
+  `NODEGROUP`, `ZONE`. The default columns need about 172 columns of
+  terminal width to all show.
+- The footer says "1 column hidden", not "1 columns hidden".
+
 ## [0.10.0] - 2026-11-03
 
 ### Added

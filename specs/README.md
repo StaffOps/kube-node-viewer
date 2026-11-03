@@ -43,7 +43,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    sort between ascending and descending from the main screen.
    [requirements](sort-invert/requirements.md) ·
    [design](sort-invert/design.md) · [tasks](sort-invert/tasks.md)
-9. [`decisions/`](decisions/) — decision records (index below).
+9. [`monthly-price-columns/`](monthly-price-columns/) — **active**. `PRICE/M`
+   and `IDLE/M` columns, shown by default.
+   [requirements](monthly-price-columns/requirements.md) ·
+   [design](monthly-price-columns/design.md) · [tasks](monthly-price-columns/tasks.md)
+10. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
