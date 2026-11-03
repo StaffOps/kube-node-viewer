@@ -1,4 +1,4 @@
-.PHONY: help clean verify lint prices catalog boilerplate licenses download coverage generate test
+.PHONY: help clean check verify lint prices catalog boilerplate licenses download coverage generate test
 
 NO_COLOR=\033[0m
 GREEN=\033[32;01m
@@ -27,6 +27,14 @@ licenses: download ## Check licenses
 
 boilerplate: ## Add license headers
 	go run hack/boilerplate.go ./
+
+check: ## Before a push: what CI checks (main merged in, verify, lint, build) and the version a merge releases
+	git fetch -q origin main
+	@git merge-base --is-ancestor origin/main HEAD || { echo "main has moved: run 'git merge origin/main' first (CHANGELOG lines can land in a released section)"; exit 1; }
+	scripts/verify.sh
+	$(MAKE) lint
+	scripts/build.sh
+	@v=$$(python3 scripts/release-prepare.py); if [ -n "$$v" ] && ! git rev-parse -q --verify "refs/tags/v$$v" >/dev/null; then echo "check: ok; merging releases v$$v"; else echo "check: ok; merging releases nothing (no [Unreleased] entries)"; fi
 
 lint: ## Lint with the pinned golangci-lint (built on first use)
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...
