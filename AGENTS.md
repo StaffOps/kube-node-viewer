@@ -49,6 +49,7 @@ scripts/build.sh          # local binary in bin/ (-i install, -a all platforms)
 scripts/verify.sh         # gofmt check, go vet, go test, spec lint — run before every commit
 scripts/screenshots.sh    # regenerate README images in .static/ from a made-up cluster (Python 3, Chrome, ffmpeg)
 make lint                 # golangci-lint at the version pinned in the Makefile (same as CI)
+make check                # before a push: main merged in, verify, lint, build, and the version the merge releases
 go test ./pkg/... ./cmd/...
 ```
 
@@ -186,7 +187,8 @@ Change the source, never a copy.
 | Permissions | — | `.claude/settings.json` (`settings.local.json` is personal) | per agent in `.kiro/agents/*.json` |
 | Model | not pinned | session choice | session choice (`/model`) |
 
-Skills: `spec-new`, `change-loop`, `upstream-sync`, `release`, `pr-review`.
+Skills: `spec-new`, `change-loop`, `pre-push`, `pr-review`, `release`,
+`upstream-sync`.
 Adding a skill: `.kiro/skills/<name>/SKILL.md` with `name` and `description`
 frontmatter; both tools pick it up, and `scripts/agent-hooks/session-context.sh`
 lists it. Adding a hook: write the script once, then wire it in both

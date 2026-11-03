@@ -8,7 +8,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 # shellcheck disable=SC1003 # '\n\\' is a tr set (newline, backslash), not an escaped quote
 cmd=$(jq -r '.tool_input.command // .tool_input.cmd // ""' 2>/dev/null | tr '\n\\' '  ' | sed -E "s/'[^']*'|\"[^\"]*\"//g")
 printf '%s\n' "$cmd" | grep -Eq '(^|[;&|(/[:space:]])git([[:space:]]+(-C|-c)[[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+commit([[:space:]]|$)' || exit 0
-msg="Pre-commit checklist (kube-node-viewer): scripts/verify.sh and make lint green; task status updated in specs/<feature>/tasks.md; CHANGELOG.md under [Unreleased] only; README usage if flags/keys changed; Apache headers on new files; no export files (kube-node-viewer-*.csv/json) or other cluster data staged; TODO.md updated if this closes or finds an item; Conventional Commit message with no AI trailers."
+msg="Pre-commit checklist (kube-node-viewer): make check green (verify, lint, build; main merged in); task status updated in specs/<feature>/tasks.md; CHANGELOG.md under [Unreleased] only; README usage if flags/keys changed; Apache headers on new files; no export files (kube-node-viewer-*.csv/json) or other cluster data staged; TODO.md updated if this closes or finds an item; Conventional Commit message with no AI trailers."
 if [ "$mode" = kiro ]; then
   printf '%s\n' "$msg"
   exit 0
