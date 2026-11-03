@@ -32,10 +32,13 @@ hooks: ## Use the repo git hooks (.githooks: pre-commit, commit-msg, pre-push)
 	git config core.hooksPath .githooks
 	@echo "git hooks: .githooks (pre-commit, commit-msg, pre-push)"
 
-check: ## Before a push: what CI checks (main merged in, verify, lint, build) and the next release version
+check: ## Before a push: what CI checks (main merged in, verify, secrets, guardrails, lint, build) and the next release version
 	git fetch -q origin main
 	@git merge-base --is-ancestor origin/main HEAD || { echo "main has moved: run 'git merge origin/main' first (CHANGELOG lines can land in a released section)"; exit 1; }
 	scripts/verify.sh
+	sh scripts/checks/content.sh --commits origin/main..HEAD
+	@if command -v gitleaks >/dev/null; then gitleaks git --redact --no-banner --log-level warn --exit-code 1 --log-opts=origin/main..HEAD .; else echo "gitleaks not installed: secrets not checked (CI checks them): brew install gitleaks"; fi
+	@t=$$(command -v dash || echo sh); echo "$$t scripts/checks/test-checks.sh"; $$t scripts/checks/test-checks.sh >/dev/null || $$t scripts/checks/test-checks.sh
 	$(MAKE) lint
 	scripts/build.sh
 	@v=$$(python3 scripts/release-prepare.py); if [ -n "$$v" ] && ! git rev-parse -q --verify "refs/tags/v$$v" >/dev/null; then echo "check: ok; the next release (Monday, or on demand) is v$$v"; else echo "check: ok; no [Unreleased] entries: nothing to release"; fi

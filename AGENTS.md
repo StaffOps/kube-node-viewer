@@ -37,10 +37,10 @@ files you change carry the line
 | `pkg/recommend/` | Recommendations rules (idle, consolidation, rightsizing, Graviton, Spot…); pure functions over a snapshot |
 | `pkg/text/` | color-aware tabwriter |
 | `hack/` | helper programs (boilerplate, licenses, `catalog` for the AWS instance catalog); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |
-| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh`, `release-prepare.py` (next version from CHANGELOG), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
+| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh`, `release-prepare.py` (next version from CHANGELOG), `checks/` (`staged.sh` pre-commit checks, `content.sh` real-environment data, `test-checks.sh` hook tests), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
 | `specs/` | planning artefacts — see [`specs/README.md`](specs/README.md) |
 | `TODO.md` | backlog: owner actions, open follow-ups, ideas, deferred work |
-| `.github/workflows/` | `test.yaml` (verify, lint, build in parallel; automerge), `release.yaml` (weekly or on-demand: version, tag, release), `refresh-data.yaml` (monthly price-data PR) |
+| `.github/workflows/` | `test.yaml` (verify, lint, build, secrets, guardrails in parallel; automerge), `release.yaml` (weekly or on-demand: version, tag, release), `refresh-data.yaml` (monthly price-data PR) |
 
 ## Commands
 
@@ -49,7 +49,7 @@ scripts/build.sh          # local binary in bin/ (-i install, -a all platforms)
 scripts/verify.sh         # gofmt check, go vet, go test, spec lint — run before every commit
 scripts/screenshots.sh    # regenerate README images in .static/ from a made-up cluster (Python 3, Chrome, ffmpeg)
 make lint                 # golangci-lint at the version pinned in the Makefile (same as CI)
-make check                # before a push: main merged in, verify, lint, build, and the next version
+make check                # before a push: main merged in, verify, branch commits, hook tests, lint, build, and the next version
 go test ./pkg/... ./cmd/...
 ```
 
@@ -110,10 +110,10 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
   included (`scripts/verify.sh`, `make lint`, a run on any cluster,
   recorded as a dated note of what was checked, never the cluster's name (this repo is public)). `scripts/spec-tasks-check.py` fails CI
   otherwise; open the PR as a draft until then.
-- **CI** (`test.yaml`): `verify`, `lint` and `build` run in parallel. On a
-  PR from a branch of this repo whose author has write access, not a draft
-  and without the `hold` label, the `automerge` job approves and merges it
-  once all three pass. Forks and other authors wait for a person.
+- **CI** (`test.yaml`): `verify`, `lint`, `build`, `secrets` and
+  `guardrails` run in parallel. On a PR from a branch of this repo whose
+  author has write access, not a draft and without the `hold` label, the
+  `automerge` job approves and merges it once all of them pass. Forks and other authors wait for a person.
 - **CHANGELOG**: changes go under `## [Unreleased]` only (the
   `commit-guard` hook blocks lines added to a released section, and
   `scripts/changelog-check.py` in `verify.sh` fails CI on it). A
@@ -186,12 +186,15 @@ the git hooks; the session-context hook does it on the first agent session.
 | Any shell command | history rewrite, force-push, hard reset, branch/tag delete | — | `guard-destructive` (asks / blocks) | — | owner runs it |
 | `git commit` | export files (cluster data) staged | `pre-commit` | `commit-guard` | — | `git rm --cached` |
 | `git commit` | lines added to a released CHANGELOG section | `pre-commit` | `commit-guard` | `changelog-check.py` | move them under `[Unreleased]` |
-| `git commit` | real cluster endpoints (EKS/AKS API hosts) or names in the private deny list | `pre-commit` | `commit-guard` | `verify.sh` (`scripts/checks/content.sh`) | use example values (`ABCDEF0123456789ABCDEF0123456789`, `example-…`) |
+| `git commit` | real-environment data in added lines: cluster URLs and IDs (EKS endpoints and OIDC issuers; AKS hcp/privatelink hosts, OIDC issuers, `MC_` resource groups, `aks-…-vmss` nodes, subscription ids; GKE contexts; any `server:` or `:6443` API URL), private IPs and node names, EC2 instance ids, AWS account ids (ARN, ECR, `accountId`), internal domains (`.corp`, `.lan`, `.internal`, `a.b.local`…), e-mails, credentials, the private deny list; the deny list also against author and committer | `pre-commit` | `commit-guard` | `verify.sh` (every file), `secrets` job (every line each PR commit adds) — `scripts/checks/content.sh` | example values: the ones listed in `content.sh`, new IPs from 192.0.2.0/24 or 203.0.113.0/24, `111122223333`, `example.com`, `example-…`, the zero GUID; a reviewed exception says `content-check: allow` |
+| `git commit` | secrets (gitleaks: cloud keys, tokens, private keys) | `pre-commit` (when gitleaks is installed) | `commit-guard` | `secrets` job (every commit of the PR) | remove it **and rotate it**; false positive: `gitleaks:allow` or `.gitleaks.toml` |
 | `git commit` | Go files not `gofmt -s` clean | `pre-commit` | `commit-guard` | `verify.sh` | `gofmt -s -w` |
 | `git commit` | new `.go`/`.sh`/`.py` without the Apache header | `pre-commit` | `commit-guard` | — | `make boilerplate` (Go) or copy the header |
 | `git commit` | Conventional Commit subject; no AI co-author / "generated with" | `commit-msg` | `commit-reminder` (checklist) | — | reword |
+| `git commit` | real-environment data in the message (same rules, e-mails excepted) | `commit-msg` | — | `secrets` job (`content.sh --commits`) | reword |
 | `git push` | push to `main` or a tag | `pre-push` (owner override `KNV_PUSH_MAIN=1`) | — | — | open a PR |
-| `git push` | `main` merged in; verify, lint, build | `pre-push` → `make check` | — | `verify`, `lint`, `build` jobs | skill `pre-push` |
+| `git push` | `main` merged in; verify, branch commits (messages, authors, secrets), hook tests, lint, build | `pre-push` → `make check` | — | `verify`, `secrets`, `guardrails`, `lint`, `build` jobs | skill `pre-push` |
+| PR | the guardrails themselves: shellcheck and `scripts/checks/test-checks.sh` (each case blocked or passed in a throwaway repo) | — | — | `guardrails` job | fix the hook or the case |
 | `gh pr create` / `ready` / `merge` | released CHANGELOG sections; open tasks in a touched spec (the verify task includes a cluster run) | — | `pr-guard` (`--draft` passes) | `changelog-check.py`, `spec-tasks-check.py` | finish the tasks; draft until then |
 | PR green | trusted author → approve, merge | — | — | `automerge` job (`hold` label stops it) | — |
 | Monday 12:00 UTC, `gh workflow run release.yaml`, or merge of a PR labelled `release` | `[Unreleased]` → version, tag, binaries, cask | — | — | `release.yaml` | skill `release` |
@@ -210,9 +213,14 @@ What to run locally, and when:
 Nothing from a real environment goes into this public repo: cluster
 names, API endpoints, node names, IPs, account or company names — in code,
 tests, specs, commit messages or PR text. Use made-up values. Names to
-block go in the private deny list, one regex per line: `.git/info/denylist`
-on your clone and the `KNV_DENYLIST` secret in CI; the list is never
-committed.
+block go in the private deny list, one extended regex per line,
+case-insensitive (`acme[ _-]?corp` catches `ACME Corp` and `acme-corp`):
+`.git/info/denylist` on your clone and the `KNV_DENYLIST` secret in CI; the
+list is never committed. Add your employer, customers, internal domains and
+account names. CI logs print only the place and the rule, never the text.
+Install gitleaks (`brew install gitleaks`) so secrets are caught before the
+commit; without it the hook warns and CI catches them after the push —
+too late for a secret, which must then be rotated.
 
 `--no-verify` skips the git hooks; CI still runs every check that matters
 for a merge. Use it only for a WIP push to a draft PR.

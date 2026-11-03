@@ -21,7 +21,9 @@
 # - lines added inside a released CHANGELOG section (## [x.y.z])
 # - Go files not gofmt -s clean
 # - new .go/.sh/.py files without the Apache license header
-# - real cluster endpoints or deny-listed names (scripts/checks/content.sh)
+# - real-environment data: endpoints, private IPs, account ids, internal
+#   domains, e-mails, credentials, deny-listed names (scripts/checks/content.sh)
+# - secrets (gitleaks, when installed; CI always runs it)
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" || exit 0
 diffargs="--cached"
 [ "${1:-}" = --all ] && diffargs="HEAD"
@@ -67,6 +69,17 @@ done
 
 if [ "$diffargs" = --cached ] && [ -f scripts/checks/content.sh ]; then
   c=$(sh scripts/checks/content.sh --staged) || add "$c"
+fi
+
+# Secrets: gitleaks when installed (brew install gitleaks); CI always runs it.
+if command -v gitleaks >/dev/null 2>&1; then
+  for scope in --staged $( [ "$diffargs" = HEAD ] && echo unstaged ); do
+    [ "$scope" = unstaged ] && scope=""
+    # shellcheck disable=SC2086 # $scope is empty or one flag
+    g=$(gitleaks git --pre-commit $scope -v --redact --no-banner --log-level error --exit-code 1 2>&1) ||
+      add "secrets found by gitleaks (rotate them: they may be in your shell history or another commit):
+$(printf '%s\n' "$g" | grep -E '^(Finding|RuleID|File|Line):' | sed 's/^/  /')"
+  done
 fi
 
 [ -z "$problems" ] && exit 0
