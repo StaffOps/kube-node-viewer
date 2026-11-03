@@ -44,6 +44,9 @@ type Pod struct {
 	// ownerKind is the kind of the pod's controller (DaemonSet, Node for a
 	// static pod, ReplicaSet, …), empty without one
 	ownerKind string
+	// ownerName is the name of the pod's controller, empty without one or
+	// when the informer did not record it
+	ownerName string
 }
 
 // NewPod constructs a pod model based off of the K8s pod object
@@ -69,12 +72,20 @@ func (p *Pod) set(pod *v1.Pod) {
 	p.phase = pod.Status.Phase
 	p.requested = computeRequests(pod)
 	p.fargateCapacity = pod.Annotations["CapacityProvisioned"]
-	p.ownerKind = ""
+	p.ownerKind, p.ownerName = "", ""
 	for _, ref := range pod.OwnerReferences {
 		if ref.Controller != nil && *ref.Controller {
-			p.ownerKind = ref.Kind
+			p.ownerKind, p.ownerName = ref.Kind, ref.Name
 		}
 	}
+}
+
+// Owner is the kind and name of the pod's controller, empty without one. The
+// name is empty when the informer did not record it.
+func (p *Pod) Owner() (kind, name string) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.ownerKind, p.ownerName
 }
 
 // StaysOnItsNode tells whether the pod belongs to its node rather than to a

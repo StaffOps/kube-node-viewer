@@ -6,6 +6,36 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- Pods tab in the node details popup (`tab` inside it): every pod the node's
+  totals count, with its CPU and memory requests, their percent of
+  allocatable, its share of the node (the larger of the two percents) and
+  what that share costs. DaemonSet pods are listed with the others, marked
+  `ds`. `d` switches to a DaemonSets view: a fixed `Total (<n> pods, <m>
+  sets)` line from the summed requests, then one row per DaemonSet. `s`
+  sorts by cost, CPU, memory or name and `S` flips the direction; pods with
+  no CPU or memory request sort last.
+- On the node list, with the cursor on a node, a line above the keys shows
+  what its DaemonSets request, absolute and as a share of the node, with no
+  cost: `ip-10-0-1-23 · DaemonSets: 8% of the node (cpu 620m 8% · mem 1.1Gi
+  4%)`. The list is one line shorter for it; a window too short to keep
+  three list lines besides it leaves the line out.
+- The Details tab of the node details popup has a DaemonSets section: the
+  DaemonSet pods and sets on the node and their CPU and memory requests,
+  absolute and in percent of allocatable.
+
+### Changed
+
+- The Instance line of the Details tab shows the monthly price after the
+  hourly one (`$0.1287/h · $93.95/mo`), from the `PRICE/M` cell.
+- The Details tab shows CPU in millicores: `7516m (95%) / 7910m / 8000m`,
+  not `/ 8`, and a resource whose allocatable equals its capacity shows
+  requested / allocatable only. Pods moved out of Resources into their own
+  section: `Pods  on the node / max`, `23 (40%) / 58`.
+- The informer keeps the name of a pod's controller, not only its kind
+  (about +2.6 MiB of heap at 150,000 pods).
+
 ## [0.12.0] - 2026-11-03
 
 ### Added

@@ -96,10 +96,26 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 	b.WriteString(u.fit(u.clusterSummary(stats, nodes)))
 	b.WriteString("\n")
 
-	// what is left between the summary and the two footer lines
-	avail := math.MaxInt
+	// what is left between the summary and the footer lines: two, plus
+	// one always reserved on Overview with nodes on screen for the
+	// DaemonSets line, so pages don't change as the cursor moves (node-pods
+	// R10)
+	dsLine := !u.onRecommendations() && stats.NumNodes > 0 && len(nodes) > 0
+	footer := 2
+	if dsLine {
+		footer = 3
+	}
+	// an open panel also takes the reserved line, blank while it is open.
+	// On a window too short to keep three list lines besides it, the line
+	// is dropped: the list needs them to show a heading and the selected
+	// node (R10, corrected 2026-11-03)
+	avail, panelHeight := math.MaxInt, math.MaxInt
 	if u.height > 0 {
-		avail = max(u.height-headerLines-strings.Count(b.String(), "\n")-2, 3)
+		left := u.height - headerLines - strings.Count(b.String(), "\n")
+		if dsLine && left-footer < 3 {
+			dsLine, footer = false, 2
+		}
+		avail, panelHeight = max(left-footer, 3), max(left-2, 3)
 	}
 
 	u.selFrom, u.selTo = -1, -1
@@ -143,7 +159,8 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 	}
 	if p, ok := u.panelView(); ok {
 		// the panel floats over the node list, which stays in view around it
-		body = u.overlay(body, u.popup(p, avail), avail)
+		dsLine = false
+		body = u.overlay(body, u.popup(p, panelHeight), panelHeight)
 	}
 	// footer priority: the search line, then a notice, then the page dots
 	if notice := u.currentNotice(); notice != "" {
@@ -159,6 +176,10 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
+	if dsLine {
+		b.WriteString(u.fit(u.daemonSetFooter()))
+		b.WriteString("\n")
+	}
 	b.WriteString(u.fit(status))
 	b.WriteString("\n")
 	if u.panel == panelNone {
@@ -166,6 +187,24 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 		b.WriteString(u.fit(helpStyle(u.helpText())))
 	}
 	return b.String()
+}
+
+// daemonSetFooter is the DaemonSets line of the cursor's node (node-pods
+// R10), or blank when the cursor is not on a node or the search or the
+// command line is open. An open panel takes its line.
+func (u *UIModel) daemonSetFooter() string {
+	if u.searching || u.commanding {
+		return ""
+	}
+	name, ok := strings.CutPrefix(u.cursorKey, "n:")
+	if !ok {
+		return ""
+	}
+	n, ok := u.findNode(name)
+	if !ok {
+		return ""
+	}
+	return DaemonSetLine(n)
 }
 
 // fit cuts every line of s to the window width. A line wider than the window
@@ -206,7 +245,13 @@ func (u *UIModel) helpText() string {
 	case panelRecMath:
 		return "esc: close"
 	case panelNode:
-		return "↑/↓: scroll • home: top • esc: close"
+		if u.detailsTab == detailsTabPods {
+			if u.podsView == podsViewDaemonSets {
+				return "↑/↓: move • d: all pods • s/S: sort • tab: details • esc: close"
+			}
+			return "↑/↓: move • d: daemonsets • s/S: sort • tab: details • esc: close"
+		}
+		return "↑/↓: scroll • home: top • tab: pods • esc: close"
 	}
 	if u.commanding {
 		return "overview (ov) • recommendations (rec) • tab: complete • enter: run • esc: cancel"

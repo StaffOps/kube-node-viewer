@@ -167,6 +167,8 @@ With `ctrl+e` the header shrinks to two lines:
 | `n` | Fold one level per press when grouping: the nodes, then each sub-group level down to the top level; the next press unfolds all |
 | `d` | While folded: list the next group level under each group as one-line rows, or hide them |
 | `tab` | Switch between Overview and Recommendations |
+| `tab` in node details | Switch between the Details and Pods tabs (see [Node details](#node-details)) |
+| `d` in the Pods tab | Switch between all pods and the DaemonSets view (a Total line, then one row per DaemonSet) |
 | `:` | Command line: `overview` (`ov`), `recommendations` (`rec`); `tab` completes |
 | `c` | Switch to another kubeconfig context |
 | `v` | Named views: apply one, save the current view under a name, delete |
@@ -219,13 +221,118 @@ groups are saved with the view.
 ### Node details
 
 Select a node with `↑`/`↓` and press `enter`: a popup shows what
-`kubectl describe node` would, minus pods and events: instance type,
-capacity and price, node group, zone, status and age, kubelet and OS,
+`kubectl describe node` would, minus events: instance type,
+capacity and price per hour and per month, node group, zone, status and age, kubelet and OS,
 provider ID, resources as requested / allocatable / capacity (GPUs and other
 extended resources included), conditions (bad ones in red), taints and every
 label. It follows the live node; `↑`/`↓` scroll, `esc` closes.
 
+CPU is always in millicores (`7516m (95%) / 7910m / 8000m`). When
+allocatable equals capacity, the row shows requested / allocatable only.
+Pods are not a resource row: after Resources, a Pods section gives the pods
+on the node over the most it takes, then a DaemonSets section says what the
+node's DaemonSets request together:
+
+```text
+Pods  on the node / max
+  23 (40%) / 58
+
+DaemonSets  requested (of allocatable)
+  6 pods, 5 sets
+  cpu     620m (8%)
+  memory  1.1Gi (4%)
+```
+
+or `none on this node`.
+
 ![Node details](.static/node-details.png)
+
+**Pods tab.** `tab` switches the popup between Details and Pods. The Pods
+tab lists every pod the node's totals count: namespace/name, CPU request
+and its percent of the node's allocatable CPU, memory request and its
+percent of allocatable memory, share and hourly cost. Above the rows, a
+fixed line shows the instance type, the node price, the pod count and the
+requested / allocatable CPU and memory. The tab follows the live node.
+
+```text
+ ip-10-0-1-23
+ Details  [Pods]   view: all pods                                   sort: cost ↓
+ m6i.2xlarge $0.3840/h · 9 pods · cpu 4.12/7.91 52% · mem 13.1/30.1Gi 44%
+   POD                                  CPU  CPU%  MEMORY  MEM%  SHARE    COST/H
+   search/indexer-0                    1.50   19%   8.0Gi   27%    27%   $0.1021
+   payments/api-7f9c-x2kq              2.00   25%   4.0Gi   13%    25%   $0.0971
+   logging/fluent-bit-9qzlm ds         0.20    3%   448Mi    1%     3%   $0.0097
+   monitoring/node-exporter-4tq8w ds   0.12    2%   128Mi    0%     2%   $0.0058
+   kube-system/kube-proxy-p2mvn ds     0.10    1%   128Mi    0%     1%   $0.0049
+   kube-system/legacy-agent-c4k9z ds   0.08    1%    64Mi    0%     1%   $0.0039
+   kube-system/ebs-csi-node-hx5rd ds   0.07    1%   256Mi    1%     1%   $0.0034
+   kube-system/aws-node-x7k2 ds        0.05    1%   128Mi    0%     1%   $0.0024
+   batch/report-28911                 no requests
+```
+
+The share of a pod is the larger of its CPU and memory percents, and its
+cost is that share of the node's hourly price. On a node that costs
+$1000/month, a pod with 10% of the CPU and 25% of the memory takes 25% of
+the node and costs $250/month. The costs of the pods on a node can add up
+to more than the node price: each one says what part of the node that pod
+holds. A percent whose allocatable is zero or missing shows `-` and is left
+out of the share. An unknown price shows `-`, and a reserved node shows
+`~$` as PRICE/H does.
+
+DaemonSet pods are listed with the others, one row per pod, marked `ds`
+after the name; a static pod is not marked. `d` switches to the DaemonSets
+view and back: a fixed `Total (<n> pods, <m> sets)` line with what every
+DaemonSet pod on the node requests together, then one row per DaemonSet
+(namespace/name). Pods whose DaemonSet name is not known share one
+`<unnamed>` row, which the set count leaves out. The Total's share and cost
+come from the summed requests, not from adding the rows: a DaemonSet with
+10% of the CPU and another with 20% of the memory make a Total of 20%, not
+30%. A node with no DaemonSet pods shows `no DaemonSets`. `enter` and
+`space` do nothing in the Pods tab.
+
+```text
+ Details  [Pods]   view: daemonsets                          sort: cost ↓
+ m6i.2xlarge $0.3840/h · 9 pods · cpu 4.12/7.91 52% · mem 13.1/30.1Gi 44%
+   DAEMONSET                   CPU  CPU%  MEMORY  MEM%  SHARE    COST/H
+   Total (6 pods, 5 sets)     0.62    8%   1.1Gi    4%     8%   $0.0301
+   logging/fluent-bit         0.20    3%   448Mi    1%     3%   $0.0097
+   monitoring/node-exporter   0.12    2%   128Mi    0%     2%   $0.0058
+   kube-system/kube-proxy     0.10    1%   128Mi    0%     1%   $0.0049
+   <unnamed>                  0.08    1%    64Mi    0%     1%   $0.0039
+   kube-system/ebs-csi-node   0.07    1%   256Mi    1%     1%   $0.0034
+   kube-system/aws-node       0.05    1%   128Mi    0%     1%   $0.0024
+```
+
+On the node list, with the cursor on a node, a line above the keys says how
+much of that node its DaemonSets request, without a cost:
+
+```text
+ip-10-0-1-23 · DaemonSets: 8% of the node (cpu 620m 8% · mem 1.1Gi 4%)
+```
+
+or `ip-10-0-1-23 · no DaemonSets`. The share is the larger of the two
+percents of the summed DaemonSet requests, as in the Total line, and a
+percent shows `-` when its allocatable is missing. The line follows the live
+node and is cut with `…` on a narrow window. It is blank on a group heading
+and while the search or the command line is open; a panel open over the
+list takes its place, and Recommendations does not show it. The node list
+is one line shorter to make room for it; on a window too short to keep
+three list lines besides it, the line is left out.
+
+`s` cycles the sort through cost, CPU, memory and name, and `S` flips its
+direction. The default is cost, biggest first; name starts A to Z. Without
+a known price the cost sort orders by share. Ties break on namespace/name.
+A pod that requests neither CPU nor memory shows `no requests` and sorts
+last whatever the sort; a pod without the sorted request (a memory-only pod
+under the CPU sort) sorts after those that have it. With `--disable-pricing` there is no COST/H column
+and no price on the node line, and the sort starts at CPU.
+
+`↑`/`↓` move over the rows, `pgup`/`pgdown`/`home` move by ten rows or to
+the top, `d` switches the view (the cursor goes to its first row), `tab`
+goes back to Details and `esc` closes. On a narrow window
+the pod name is cut with `…` first, then the percent columns are dropped,
+then CPU and MEMORY; POD, SHARE and COST/H always stay.
+The view, the sort and the cursor reset when the popup opens again.
 
 Folding with `n`: the deepest level on screen carries the usage bars and the
 levels above it are one-line summaries. With `zone › instance-type`:
@@ -669,9 +776,10 @@ not through a pipe or a tool without a TTY.
   `--node-selector`) and all pods. Filters, grouping, sorting and search work
   on memory and never restart them; only a context switch does.
 - Pods are slimmed at the informer to what the totals need (requests, phase,
-  node) and the store keeps running totals per node, so drawing a frame never
-  walks pods: with 500 nodes a frame takes about 1.7 ms whether the cluster
-  has 15,000 or 150,000 pods, and 150,000 pods take about 150 MiB of memory.
+  node) and the store keeps running totals per node, so drawing a frame walks
+  no pods but those of the node under the cursor (for its DaemonSets line): with 500 nodes a frame takes about 1.7 ms whether the cluster
+  has 15,000 or 150,000 pods. For 150,000 pods the model holds about
+  155 MiB; with the informer's slimmed pods the heap is about 680 MiB.
 - The screen redraws when the cluster or prices change (at most every
   100 ms), plus a 1 s tick for ages and NotReady durations.
 - Each context switch builds a new store with its own watches and pricing;

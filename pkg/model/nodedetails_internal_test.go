@@ -20,6 +20,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -75,14 +76,14 @@ func TestEnterOnANodeOpensItsDetails(t *testing.T) {
 	out := u.View()
 	for _, want := range []string{
 		"╭─ aaa-gpu-node",
-		"g5.xlarge · OnDemand · $1.0060/h",
+		"g5.xlarge · OnDemand · $1.0060/h · $734.38/mo",
 		"Node group   gpu",
 		"Zone         us-east-1b (us-east-1)",
 		"Kubelet      v1.35.9",
 		"Provider ID  aws:///us-east-1b/i-0gpu",
 		"Resources  requested / allocatable / capacity",
 		"memory          -",
-		"nvidia.com/gpu  - / 1 / 1",
+		"nvidia.com/gpu  - / 1",
 		"MemoryPressure  True",
 		"available memory is low",
 		"nvidia.com/gpu=present:NoSchedule",
@@ -108,10 +109,10 @@ func TestDetailsShowRequestsAndScroll(t *testing.T) {
 	u.View()
 	press(u, "down", "enter") // ip-10-0-11-24: 38 pods, cpu and memory requested
 	out := u.View()
-	if !strings.Contains(out, "╭─ ip-10-0-11-24.ec2.internal") || !strings.Contains(out, "pods    38 (66%) / 58 / 58") {
+	if !strings.Contains(out, "╭─ ip-10-0-11-24.ec2.internal") || !strings.Contains(out, "38 (66%) / 58") {
 		t.Fatalf("details of the second node:\n%s", out)
 	}
-	if !strings.Contains(out, "cpu     3534m (90%) / 3920m / 4") || !strings.Contains(out, "memory  10.9Gi (78%) / 14.0Gi / 15.8Gi") {
+	if !strings.Contains(out, "cpu     3534m (90%) / 3920m / 4000m") || !strings.Contains(out, "memory  10.9Gi (78%) / 14.0Gi / 15.8Gi") {
 		t.Errorf("cpu requests not shown:\n%s", out)
 	}
 	// a short screen scrolls; down moves the first row
@@ -149,5 +150,101 @@ func TestEnterOnAGroupStillFolds(t *testing.T) {
 	press(u, "enter")
 	if u.panel != panelNone {
 		t.Errorf("enter on a group heading opened panel %v", u.panel)
+	}
+}
+
+// node-pods R1: tab switches Details ⇄ Pods, marked on a fixed line under
+// the title, which stays the node name.
+func TestNodeDetailsTabs(t *testing.T) {
+	u := detailsUI(t)
+	u.View()
+	press(u, "enter")
+	lines := box(u)
+	if !strings.Contains(lines[0], "╭─ aaa-gpu-node") || !strings.Contains(lines[1], "[Details]  Pods") {
+		t.Fatalf("details opened as:\n%s", strings.Join(lines, "\n"))
+	}
+	if !strings.Contains(shown(u), "Node group   gpu") {
+		t.Errorf("Details content changed:\n%s", shown(u))
+	}
+	press(u, "tab")
+	lines = box(u)
+	if !strings.Contains(lines[0], "╭─ aaa-gpu-node") || !strings.Contains(lines[1], "Details  [Pods]") || strings.Contains(shown(u), "Node group") {
+		t.Errorf("Pods tab:\n%s", strings.Join(lines, "\n"))
+	}
+	press(u, "tab")
+	if lines = box(u); !strings.Contains(lines[1], "[Details]  Pods") || !strings.Contains(shown(u), "Node group   gpu") {
+		t.Errorf("tab did not go back to Details:\n%s", strings.Join(lines, "\n"))
+	}
+	press(u, "enter")
+	if u.panel != panelNone {
+		t.Errorf("enter on Details no longer closes the popup")
+	}
+}
+
+func TestNodeDetailsSpaceStillPages(t *testing.T) {
+	u := detailsUI(t)
+	u.View()
+	press(u, "enter")
+	u.Update(tea.WindowSizeMsg{Width: 160, Height: 20})
+	before := u.View()
+	press(u, " ")
+	if u.panel != panelNode || u.detailsTop == 0 || u.View() == before {
+		t.Errorf("space in Details did not page down (top %d)", u.detailsTop)
+	}
+}
+
+// node-pods R1: the key line of each tab fits an 80-column window, and ?
+// lists the keys.
+func TestNodeDetailsKeyLines(t *testing.T) {
+	u := detailsUI(t)
+	u.View()
+	press(u, "enter")
+	u.Update(tea.WindowSizeMsg{Width: 80, Height: 60})
+	for _, tab := range []struct {
+		name string
+		keys []string
+	}{
+		{"details", []string{"↑/↓", "tab", "esc"}},
+		{"pods", []string{"↑/↓", "d: daemonsets", "s/S", "tab", "esc"}},
+	} {
+		hint := u.helpText()
+		if w := textWidth(hint); w > 74 {
+			t.Errorf("%s key line is %d columns: %q", tab.name, w, hint)
+		}
+		if !strings.Contains(shown(u), hint) {
+			t.Errorf("%s key line %q not drawn whole on 80 columns:\n%s", tab.name, hint, shown(u))
+		}
+		for _, k := range tab.keys {
+			if !strings.Contains(hint, k) {
+				t.Errorf("%s key line %q lacks %q", tab.name, hint, k)
+			}
+		}
+		press(u, "tab")
+	}
+	press(u, "esc", "?")
+	help := ansi.Strip(u.View())
+	for _, want := range []string{"Details ⇄ Pods", "all pods ⇄ DaemonSets", "sort by cost", "move by a page"} {
+		if !strings.Contains(help, want) {
+			t.Errorf("? lacks %q", want)
+		}
+	}
+}
+
+// node-pods R1: the Details scroll keys are unchanged by the tabs.
+func TestNodeDetailsScrollKeysUnchanged(t *testing.T) {
+	u := detailsUI(t)
+	u.View()
+	press(u, "enter")
+	u.Update(tea.WindowSizeMsg{Width: 160, Height: 20})
+	u.View()
+	steps := []struct {
+		key  string
+		want int
+	}{{"j", 1}, {"down", 2}, {"k", 1}, {"up", 0}, {"up", 0}, {"pgdown", 10}, {"pgup", 0}, {" ", 10}, {"home", 0}}
+	for _, st := range steps {
+		press(u, st.key)
+		if u.detailsTop != st.want {
+			t.Errorf("after %q top %d, want %d", st.key, u.detailsTop, st.want)
+		}
 	}
 }

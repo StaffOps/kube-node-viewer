@@ -115,6 +115,14 @@ type UIModel struct {
 	detailsNode string
 	detailsTop  int
 	detailsRows int
+	// details popup tabs (node-pods): the active tab, and in the Pods tab
+	// the cursor's row key and last position, the sort and the view (all
+	// pods or DaemonSets); all reset when the popup opens
+	detailsTab detailsTab
+	podsCursor string
+	podsIndex  int
+	podsSort   podSort
+	podsView   podsView
 	// searching is true while the search text takes the keys
 	searching bool
 	// labelPolicy picks the node labels the panels offer (label-visibility)

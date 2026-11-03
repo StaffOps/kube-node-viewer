@@ -47,6 +47,10 @@ type panelView struct {
 	statusShort string
 	// top is the first row shown when no row is selected (cursor < 0)
 	top int
+	// fixed are lines between the title and the rows that never scroll and
+	// that the cursor cannot reach. A tab splits a line: what follows it is
+	// right-aligned in the box.
+	fixed []string
 }
 
 func (u *UIModel) panelView() (panelView, bool) {
@@ -89,6 +93,14 @@ func (u *UIModel) popup(p panelView, height int) []string {
 	for _, r := range p.rows {
 		inner = max(inner, textWidth(r))
 	}
+	for _, f := range p.fixed {
+		left, right, split := strings.Cut(f, "\t")
+		if split {
+			inner = max(inner, textWidth(left)+2+textWidth(right))
+		} else {
+			inner = max(inner, textWidth(f))
+		}
+	}
 	inner = max(inner, textWidth(p.title)+2, textWidth(p.hint), textWidth(p.status))
 	if u.width > 0 {
 		inner = min(inner, u.width-6)
@@ -96,19 +108,22 @@ func (u *UIModel) popup(p panelView, height int) []string {
 	inner = max(inner, 1)
 
 	// the box never runs past height: the rows shrink to one, then the
-	// separator goes, then the status line, then the hint; below three lines
-	// the top border goes too. A 10-line window (5 lines here) keeps a row,
-	// the status line, the hint and the bottom border, and the hint and the
-	// bottom border outlast the status line (label-visibility R6).
+	// separator goes, then the status line, then the fixed lines after the
+	// first, then the hint, then the first fixed line; below three lines the
+	// top border goes too. A
+	// 10-line window (5 lines here) keeps a row, the status line, the hint and
+	// the bottom border, and the hint and the bottom border outlast the status
+	// line (label-visibility R6).
 	height = max(height, 1)
 	status, hint := p.status, p.hint
 	if textWidth(status) > inner && p.statusShort != "" {
 		status = p.statusShort
 	}
 	separator := status != "" || hint != ""
+	fixedLines := p.fixed
 	// fixed is every line but the rows
 	fixed := func() int {
-		n := 2 // top and bottom borders
+		n := 2 + len(fixedLines) // top and bottom borders
 		for _, on := range []bool{status != "", hint != "", separator} {
 			if on {
 				n++
@@ -122,8 +137,17 @@ func (u *UIModel) popup(p panelView, height int) []string {
 	if fixed()+1 > height {
 		status = ""
 	}
+	// fixed lines after the first (node line, column header) go before the
+	// hint, so a short window keeps the panel's keys; the first fixed line
+	// (the tabs) stays as long as the hint
+	for len(fixedLines) > 1 && fixed()+1 > height {
+		fixedLines = fixedLines[:len(fixedLines)-1]
+	}
 	if fixed()+1 > height {
 		hint = ""
+	}
+	for len(fixedLines) > 0 && fixed()+1 > height {
+		fixedLines = fixedLines[:len(fixedLines)-1]
 	}
 	visible := max(height-fixed(), 1)
 	start, end := window(len(p.rows), max(p.cursor, 0), visible)
@@ -142,6 +166,16 @@ func (u *UIModel) popup(p panelView, height int) []string {
 	bottom := popupBorder("╰" + strings.Repeat("─", max(inner+2-len(scroll)-1, 0)) + scroll + "─╯")
 
 	lines := []string{top}
+	for _, f := range fixedLines {
+		line := f
+		if left, right, split := strings.Cut(f, "\t"); split {
+			right = ansi.Truncate(right, max(inner-2, 0), "…")
+			left = ansi.Truncate(left, max(inner-textWidth(right)-2, 0), "…")
+			line = pad(left, inner-textWidth(right)) + right
+		}
+		line = pad(ansi.Truncate(line, inner, "…"), inner)
+		lines = append(lines, popupBorder("│")+" "+line+"\x1b[0m "+popupBorder("│"))
+	}
 	for i := start; i < end; i++ {
 		row := ansi.Truncate(p.rows[i], inner, "…")
 		if i == p.cursor {
