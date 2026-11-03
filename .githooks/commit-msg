@@ -1,5 +1,6 @@
 #!/bin/sh
-# Conventional Commits subject, no AI attribution. See AGENTS.md "Guardrails".
+# Conventional Commits subject, no AI attribution, no real-environment data
+# (scripts/checks/content.sh --message). See AGENTS.md "Guardrails".
 msg_file=$1
 subject=$(grep -v '^#' "$msg_file" | head -1)
 case "$subject" in
@@ -12,6 +13,10 @@ case "$subject" in
 esac
 if grep -v '^#' "$msg_file" | grep -Eiq '^co-authored-by:.*(claude|anthropic|kiro|copilot|cursor|openai|chatgpt|gemini)|generated with \[?(claude|kiro)|🤖 generated'; then
   echo 'commit-msg: blocked: no AI co-author or "generated with" lines in commits (AGENTS.md)' >&2
+  exit 1
+fi
+if [ -f scripts/checks/content.sh ] && ! out=$(sh scripts/checks/content.sh --message "$msg_file"); then
+  printf 'commit-msg: blocked: the message carries real-environment data\n%s\n' "$out" >&2
   exit 1
 fi
 exit 0

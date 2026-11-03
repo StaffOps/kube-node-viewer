@@ -1,0 +1,18 @@
+# gitleaks: secrets (cloud keys, tokens, private keys) in what a commit adds
+# (.githooks/pre-commit through scripts/checks/staged.sh) and in the commits
+# of a PR (CI, test.yaml `secrets` job). Real-environment data that is not a
+# secret (IPs, account ids, company names) is scripts/checks/content.sh.
+# A false positive: `gitleaks:allow` at the end of the line, or a path below.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated or third-party files; the guardrail tests (made-up tokens)"
+paths = [
+  '''(^|/)go\.sum$''',
+  '''(^|/)ATTRIBUTION\.md$''',
+  '''^pkg/aws/zz_generated[^/]*\.go$''',
+  '''^\.static/''',
+  '''^scripts/checks/test-checks\.sh$''',
+]

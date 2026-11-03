@@ -11,11 +11,14 @@ Pods are left out: the list already counts them, and `kubectl` lists them.
 
 ## Usage example
 
+> **Corrected 2026-11-03.** The node and node group names below are
+> made-up example values, as `scripts/checks/content.sh` requires.
+
 ```text
-↓ ↓ (cursor on ip-10-200-33-27.ec2.internal) → enter
-╭─ ip-10-200-33-27.ec2.internal ───────────────────────────╮
+↓ ↓ (cursor on ip-10-0-133-127.ec2.internal) → enter
+╭─ ip-10-0-133-127.ec2.internal ───────────────────────────╮
 │ Instance     r6g.large · OnDemand · $0.1008/h            │
-│ Node group   elasticsearch-sz                            │
+│ Node group   example-search-1                            │
 │ Zone         us-east-1a (us-east-1)                      │
 │ Status       Ready · age 2d5h · created 2026-10-31 15:23 │
 │ …                                                        │

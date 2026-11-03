@@ -24,16 +24,19 @@ people and coding agents alike. In short:
 ## Pull requests and releases
 
 0. Once per clone: `make hooks` (git hooks for commits and pushes; see
-   "Guardrails" in `AGENTS.md`).
+   "Guardrails" in `AGENTS.md`) and `brew install gitleaks` (secrets are
+   checked before the commit, not only in CI). Put the names that must
+   never reach this public repo (employer, customers, internal domains),
+   one regex per line, in `.git/info/denylist`.
 1. Branch from `main`, add your change and a line under `## [Unreleased]` in
    `CHANGELOG.md` (`Added`, `Changed`, `Fixed`, `Removed`).
 2. Run `make check` (it merges nothing; it stops if `main` moved, then runs
    what CI runs and prints the version your merge will release). For a UI
    or behaviour change, also run the binary against a cluster and record
    it in the spec's verify task.
-3. Open a PR. CI runs `verify`, `lint` and `build`. If you have write access
-   to this repository and the PR is not a draft, it is approved and merged
-   automatically when the three pass; add the `hold` label to stop that.
+3. Open a PR. CI runs `verify`, `lint`, `build`, `secrets` and
+   `guardrails`. If you have write access to this repository and the PR is
+   not a draft, it is approved and merged automatically when they pass; add the `hold` label to stop that.
    Other PRs are reviewed and merged by a maintainer.
 4. Merging adds your entries to the next release. Releases go out every
    Monday (12:00 UTC) when `[Unreleased]` has entries, or sooner: a

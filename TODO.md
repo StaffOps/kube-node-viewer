@@ -7,20 +7,13 @@ remove an item in the commit that does it, and a spec comes first when the
 change needs one. Deferred tables in `specs/*/tasks.md` stay the record for
 their feature; the rows below link them.
 
-## Owner actions
-
-- [ ] Optional: an IAM role with `pricing:GetProducts` trusted by GitHub
-      OIDC, its ARN in the repo variable `AWS_CATALOG_ROLE_ARN`, so the
-      monthly `refresh-data.yaml` also refreshes the instance catalog (today
-      it refreshes only the static price tables).
-
 ## Guardrails
 
 The layers in `AGENTS.md` ("Guardrails") stop honest mistakes; these close
 what they cannot. Listed by impact.
 
 - [ ] **Protect `main` with a repository ruleset**: require a PR and the
-      `verify`, `lint` and `build` checks; block force-pushes and deletion;
+      `verify`, `lint`, `build`, `secrets` and `guardrails` checks; block force-pushes and deletion;
       protect `v*` tags; let only the release workflow (GitHub Actions)
       bypass, for its version commit and tag.
       _Why:_ today anyone with write access can push to `main` with
@@ -28,20 +21,11 @@ what they cannot. Listed by impact.
       rule; the `pre-push` hook only protects people who don't try. A
       force-push to `main` also forces every clone and open branch to be
       reset.
-- [ ] **Turn on secret scanning and push protection; add gitleaks** to
-      `pre-commit` and CI, with rules for cluster data (kubeconfig
-      contents, bearer tokens, private IPs in data files).
-      _Why:_ both GitHub features are free for public repos and refuse a
-      push that carries a credential. Nothing today inspects file
-      contents: the export-file check matches names only, so cluster data
-      under another name would still be committed.
-- [ ] **Hook tests in CI**: run the scenarios used when the guardrails were
-      built (export staged, released CHANGELOG edited, unformatted Go,
-      missing header, bad commit subject, AI trailer, push to `main`, PR
-      with an open spec task, draft PR) plus `shellcheck`, as a CI job.
-      _Why:_ the guardrails are shell scripts that nothing tests; a
-      regex or path change could disable one silently, and the first sign
-      would be a bad commit on `main`.
+- [ ] **Turn on secret scanning and push protection** (repository
+      settings).
+      _Why:_ both are free for public repos and refuse, on GitHub's side, a
+      push that carries a credential, including one pushed with
+      `--no-verify` past the local gitleaks check.
 - [ ] **Dependency checks**: `govulncheck` in `make check` and CI;
       `go-licenses` (the `make licenses` allowlist) in CI; Dependabot
       security updates on, with its patch PRs merged by the automerge job
