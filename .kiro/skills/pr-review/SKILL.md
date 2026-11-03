@@ -52,8 +52,9 @@ Clean up: `git worktree remove ../knv-pr<n>` and delete `pr-<n>`.
 - Fixing a branch: merge `main` into it and add a commit on top. Never
   rebase or force-push someone else's branch. The push re-runs CI, and a
   trusted author's PR then merges itself.
-- UI change not run against a cluster → say so; run it only against a
-  cluster the owner names, from a scratch directory.
+- UI change not run against a cluster → say so. Agents run it only on a
+  cluster the owner allows, from a scratch directory. The verify note says
+  what was checked, never the cluster's name.
 - Comments on GitHub are public: show the text to the owner before posting.
 
 ## 4. Hand off

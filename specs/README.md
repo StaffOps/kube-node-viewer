@@ -47,7 +47,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    and `IDLE/M` columns, shown by default.
    [requirements](monthly-price-columns/requirements.md) ·
    [design](monthly-price-columns/design.md) · [tasks](monthly-price-columns/tasks.md)
-10. [`config-views/`](config-views/) — **active**. Views written in
+10. [`config-views/`](config-views/) — **shipped** in v0.12.0. Views written in
     `config.yaml`, a default view to open with, switched with `v`.
     [requirements](config-views/requirements.md) ·
     [design](config-views/design.md) · [tasks](config-views/tasks.md)

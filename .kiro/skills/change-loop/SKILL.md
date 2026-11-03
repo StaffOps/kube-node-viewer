@@ -28,9 +28,9 @@ disagree, they win — fix this file.
 - `scripts/verify.sh` (gofmt, vet, tests, spec lint, CHANGELOG and spec-task
   checks) and `make lint` must pass.
 - UI or behaviour change → `scripts/build.sh` and run `bin/kube-node-viewer`
-  against a cluster the owner named, from a scratch directory (exports land
-  in the working directory). Record it in the verify task as a dated note:
-  which cluster, what you checked. Never pick a cluster yourself.
+  against any cluster, from a scratch directory (exports land in the
+  working directory). Agents use a cluster the owner allows; never pick
+  one yourself. Record it in the verify task as a dated note of what was checked, never the cluster's name (this repo is public).
 - Tick the task `[x]` only when its "Verified by" line is satisfied. Until
   every task is `[x]`, the PR stays a draft: CI (`spec-tasks-check.py`) and
   the `pr-guard` hook refuse it, so nothing untested merges or releases.

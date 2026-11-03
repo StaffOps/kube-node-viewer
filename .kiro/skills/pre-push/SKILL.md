@@ -51,17 +51,18 @@ hook scripts.
 
 ```bash
 scripts/build.sh
-mkdir -p /tmp/knv && cd /tmp/knv && <repo>/bin/kube-node-viewer --context <cluster the owner named>
+mkdir -p /tmp/knv && cd /tmp/knv && <repo>/bin/kube-node-viewer --context <any cluster>
 ```
 
-- Only a cluster the owner named. Never pick one yourself.
+- Any cluster works (a local `kind` one too). Agents: only one the owner
+  allows; never pick one yourself.
 - From a scratch directory: `e` (export) writes node names and IPs to the
   working directory. Exports are git-ignored, and the commit guard blocks
   them, but don't leave them in the repo.
 - Check what the spec's requirements describe, on a real screen: keys,
   narrow and wide terminals, `--disable-pricing`, an empty filter result.
 - Record it in the verify task of `specs/<feature>/tasks.md` as a dated
-  note (cluster, what you checked) and tick it `[x]`. Until every task is
+  note of what was checked, never the cluster's name (this repo is public), and tick it `[x]`. Until every task is
   `[x]`, CI fails the PR and the `pr-guard` hook refuses `gh pr create`;
   use `gh pr create --draft` meanwhile.
 

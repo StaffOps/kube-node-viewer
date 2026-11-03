@@ -12,7 +12,8 @@
   - _Covers: R3, R7 · Depends on: T2 · Verified by: `go test ./pkg/model -run Views`_
 - [x] T5. README "Config views" section, CHANGELOG; README examples decoded by a test
   - _Covers: R8 · Depends on: T3, T4 · Verified by: review and test_
-- [-] T6. Verify: `scripts/verify.sh`, `make lint`, manual run on a cluster the owner names
+- [x] T6. Verify: `scripts/verify.sh`, `make lint`, manual run on a cluster
   - _Covers: R1, R3, R4 · Depends on: T1–T5 · Verified by: command output and owner check_
   - _Note (2026-11-03): `scripts/verify.sh` green, golangci-lint 0 issues, coverage 91.2% (cmd + pkg/model); README and docs/views.md examples decoded by tests. The manual run on a cluster the owner names is pending._
+  - _Note (2026-11-03): run on a cluster by the author: config views load from `config.yaml` and show first in the Views panel marked `(config)` (R1, R3); the `default-view` / `start-with` view opens at start (R4)._
 
