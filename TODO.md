@@ -21,11 +21,6 @@ what they cannot. Listed by impact.
       the workflow, release once, then remove the key.
       _Why:_ the deploy key is a long-lived credential that can push to
       `main`; it has to be rotated by hand, and a leak lasts until then.
-- [ ] **Turn on secret scanning and push protection** (repository
-      settings).
-      _Why:_ both are free for public repos and refuse, on GitHub's side, a
-      push that carries a credential, including one pushed with
-      `--no-verify` past the local gitleaks check.
 - [ ] **CI tool versions nobody bumps**: zizmor (`pipx run zizmor==…`,
       test.yaml), actionlint (`go run …@v…`, test.yaml), gitleaks
       (`.github/actions/gitleaks`, version and sha256), govulncheck and
@@ -33,12 +28,6 @@ what they cannot. Listed by impact.
       _Why:_ a stale auditor misses new checks and advisories; a quarterly
       look, or a requirements file with hashes Dependabot can update, keeps
       them current.
-- [ ] **Release smoke test**: after GoReleaser, download the published
-      linux/amd64 archive, check that `kube-node-viewer -version` matches
-      the tag and the checksum file, and run `brew audit` on the cask.
-      _Why:_ a green release run proves the upload, not the artefact; a
-      broken binary or a cask with a wrong URL or checksum would only show
-      when someone installs it.
 - [ ] **Confirm the Kiro hooks in a real session**: the Kiro config
       follows the Kiro docs but has not run in Kiro yet; a `git commit`
       with a non-conventional subject should be refused by both the git
@@ -87,11 +76,21 @@ memory. Listed by impact.
 
 Beyond the Guardrails section above.
 
-- [ ] **Signed releases**: cosign signatures or SLSA provenance from
-      GoReleaser, and an SBOM attached to each release.
-      _Why:_ users installing through `brew` cannot tell today whether an
-      archive came from this repo's workflow; signatures and an SBOM make
-      that checkable and list what the binary contains.
+- [ ] **Build provenance (SLSA)**: `actions/attest-build-provenance` on
+      the archives in `release.yaml` (`attestations: write`), checked with
+      `gh attestation verify`; `scripts/release-check.sh --strict` would
+      then require it.
+      _Why:_ the checksum signature proves the files came from
+      `release.yaml`; provenance also records the inputs of the build, and
+      OpenSSF Scorecard gives Signed-Releases its top score only with it.
+      In the same change, move signing to its own job: today
+      `id-token: write` covers the whole release job, including
+      `make vuln licenses`, which runs downloaded tools.
+- [ ] **A goreleaser snapshot in CI**: `goreleaser release --snapshot
+      --skip=sign,publish` with syft on PRs that touch `.goreleaser.yaml`
+      or `release.yaml`.
+      _Why:_ a broken SBOM or archive setting shows today only on the
+      Monday release, after the tag is pushed.
 
 ## Evolution
 
