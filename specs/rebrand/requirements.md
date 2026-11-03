@@ -1,6 +1,6 @@
 # Requirements: rebrand
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-10-30 (spec-refuter; 2 HIGH, 7 MEDIUM, all applied)
+> Status: shipped (v0.10.0, 2026-11-03) · Owner: Carlos Gomes · Reviewed: 2026-10-30 (spec-refuter; 2 HIGH, 7 MEDIUM, all applied)
 
 ## Context
 
