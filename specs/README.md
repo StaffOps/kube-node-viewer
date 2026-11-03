@@ -51,7 +51,13 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     `config.yaml`, a default view to open with, switched with `v`.
     [requirements](config-views/requirements.md) ·
     [design](config-views/design.md) · [tasks](config-views/tasks.md)
-11. [`decisions/`](decisions/) — decision records (index below).
+11. [`node-pods/`](node-pods/) — **active**. A Pods tab in the node details
+    popup: each pod's requests, share of the node and cost, all pods or
+    DaemonSets only (`d`); the DaemonSets' share of the selected node on the
+    node list.
+    [requirements](node-pods/requirements.md) ·
+    [design](node-pods/design.md) · [tasks](node-pods/tasks.md)
+12. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated

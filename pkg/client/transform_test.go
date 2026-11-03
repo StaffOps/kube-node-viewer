@@ -135,10 +135,49 @@ func TestSlimPodKeepsTheControllerKind(t *testing.T) {
 	}}}
 	out, _ := SlimPod(p)
 	refs := out.(*v1.Pod).OwnerReferences
-	if len(refs) != 1 || refs[0].Kind != "DaemonSet" || refs[0].Name != "" || refs[0].UID != "" {
+	if len(refs) != 1 || refs[0].Kind != "DaemonSet" || refs[0].Name != "fluent-bit" || refs[0].UID != "" {
 		t.Errorf("owners: %+v", refs)
 	}
 	if out, _ := SlimPod(&v1.Pod{}); out.(*v1.Pod).OwnerReferences != nil {
 		t.Error("an owner appeared from nothing")
+	}
+}
+
+// node-pods R6: the transform keeps the controller's kind and name, and
+// nothing of the other owner references.
+func TestSlimPodKeepsTheControllerName(t *testing.T) {
+	yes, no := true, false
+	tests := []struct {
+		name     string
+		refs     []metav1.OwnerReference
+		wantKind string
+		wantName string
+	}{
+		{"daemonset controller", []metav1.OwnerReference{{Kind: "DaemonSet", Name: "aws-node", UID: "u", Controller: &yes}}, "DaemonSet", "aws-node"},
+		{"replicaset controller after a non-controller", []metav1.OwnerReference{
+			{Kind: "ConfigMap", Name: "cm", Controller: &no},
+			{Kind: "ReplicaSet", Name: "api-7f9c", Controller: &yes},
+		}, "ReplicaSet", "api-7f9c"},
+		{"controller with no name", []metav1.OwnerReference{{Kind: "DaemonSet", Controller: &yes}}, "DaemonSet", ""},
+		{"owners but no controller", []metav1.OwnerReference{{Kind: "DaemonSet", Name: "x"}, {Kind: "Job", Name: "y", Controller: &no}}, "", ""},
+		{"no owners", nil, "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out, err := SlimPod(&v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p", OwnerReferences: tt.refs}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			refs := out.(*v1.Pod).OwnerReferences
+			if tt.wantKind == "" {
+				if refs != nil {
+					t.Errorf("owners %+v, want none", refs)
+				}
+				return
+			}
+			if len(refs) != 1 || refs[0].Kind != tt.wantKind || refs[0].Name != tt.wantName || refs[0].UID != "" || refs[0].APIVersion != "" {
+				t.Errorf("owners %+v, want only {%s %s}", refs, tt.wantKind, tt.wantName)
+			}
+		})
 	}
 }

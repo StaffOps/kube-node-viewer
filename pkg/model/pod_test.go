@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/staffops/kube-node-viewer/pkg/client"
 	"github.com/staffops/kube-node-viewer/pkg/model"
 )
 
@@ -194,5 +195,49 @@ func TestPodStaysOnItsNode(t *testing.T) {
 		if got := model.NewPod(p).StaysOnItsNode(); got != want {
 			t.Errorf("%q: got %v", kind, got)
 		}
+	}
+}
+
+// node-pods R6: a pod exposes its controller's kind and name, also after
+// the informer transform.
+func TestPodOwner(t *testing.T) {
+	yes, no := true, false
+	tests := []struct {
+		name               string
+		refs               []metav1.OwnerReference
+		wantKind, wantName string
+	}{
+		{"daemonset", []metav1.OwnerReference{{Kind: "DaemonSet", Name: "fluent-bit", Controller: &yes}}, "DaemonSet", "fluent-bit"},
+		{"replicaset after a non-controller", []metav1.OwnerReference{
+			{Kind: "ConfigMap", Name: "cm", Controller: &no}, {Kind: "ReplicaSet", Name: "api-7f9c", Controller: &yes},
+		}, "ReplicaSet", "api-7f9c"},
+		{"static pod", []metav1.OwnerReference{{Kind: "Node", Name: "node-a", Controller: &yes}}, "Node", "node-a"},
+		{"no controller", []metav1.OwnerReference{{Kind: "DaemonSet", Name: "x"}}, "", ""},
+		{"no owners", nil, "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			raw := testPod("ns", "p")
+			raw.OwnerReferences = tt.refs
+			slim, err := client.SlimPod(raw.DeepCopy())
+			if err != nil {
+				t.Fatal(err)
+			}
+			for via, obj := range map[string]*v1.Pod{"full": raw, "slim": slim.(*v1.Pod)} {
+				kind, name := model.NewPod(obj).Owner()
+				if kind != tt.wantKind || name != tt.wantName {
+					t.Errorf("%s: owner (%q, %q), want (%q, %q)", via, kind, name, tt.wantKind, tt.wantName)
+				}
+			}
+		})
+	}
+	// an update that drops the controller drops the owner
+	yesRef := []metav1.OwnerReference{{Kind: "DaemonSet", Name: "fluent-bit", Controller: &yes}}
+	raw := testPod("ns", "p")
+	raw.OwnerReferences = yesRef
+	p := model.NewPod(raw)
+	p.Update(testPod("ns", "p"))
+	if kind, name := p.Owner(); kind != "" || name != "" {
+		t.Errorf("owner after the update (%q, %q), want none", kind, name)
 	}
 }

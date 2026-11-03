@@ -146,6 +146,11 @@ func columnValues(t *testing.T, out, title string, names []string) (order []stri
 				continue
 			}
 			r := []rune(line)
+			// the DaemonSets footer line also starts with the node name;
+			// only a row as wide as the column is a node row
+			if len(r) <= start || strings.HasPrefix(trimmed, name+" · ") {
+				continue
+			}
 			// a value can start a cell before the title when a wider value
 			// right-aligns it; take the whole field around the title start
 			lo := start

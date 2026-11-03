@@ -17,6 +17,7 @@ package model_test
 import (
 	"fmt"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -61,15 +62,48 @@ func benchNode(i int) *v1.Node {
 	}
 }
 
+// benchOwners is the controller reference the bench pods keep after the
+// informer transform, to measure what keeping the owner name costs
+// (node-pods D3).
+type benchOwners int
+
+const (
+	// ownersKindAndName is what the transform keeps: the controller's kind
+	// and name
+	ownersKindAndName benchOwners = iota
+	// ownersKindOnly is what it kept before node-pods: the kind only
+	ownersKindOnly
+	// ownersNone is a pod with no owner reference at all
+	ownersNone
+)
+
+func (o benchOwners) String() string {
+	return [...]string{"kind+name", "kind", "none"}[o]
+}
+
 // benchPod is what the model receives for a pod: a realistic pod (labels,
-// annotations, env, volumes, managed fields) passed through the informer
-// transform, as the running tool does.
+// annotations, env, volumes, managed fields, controller) passed through the
+// informer transform, as the running tool does.
 func benchPod(i, pods int) *v1.Pod {
-	slim, err := client.SlimPod(fullBenchPod(i, pods))
+	return benchPodWith(i, pods, ownersKindAndName)
+}
+
+func benchPodWith(i, pods int, owners benchOwners) *v1.Pod {
+	full := fullBenchPod(i, pods)
+	if owners == ownersNone {
+		full.OwnerReferences = nil
+	}
+	slim, err := client.SlimPod(full)
 	if err != nil {
 		panic(err)
 	}
-	return slim.(*v1.Pod)
+	pod := slim.(*v1.Pod)
+	if owners == ownersKindOnly {
+		for r := range pod.OwnerReferences {
+			pod.OwnerReferences[r].Name = ""
+		}
+	}
+	return pod
 }
 
 // fullBenchPod requests enough that nodes end up about 70% allocated whatever
@@ -94,11 +128,20 @@ func fullBenchPod(i, pods int) *v1.Pod {
 			VolumeMounts: []v1.VolumeMount{{Name: "config", MountPath: "/etc/app"}},
 		}
 	}
+	// one pod in ten belongs to a DaemonSet, the others to a ReplicaSet.
+	// Kind and name are new strings per pod, as decoding each object makes.
+	yes := true
+	owner := metav1.OwnerReference{APIVersion: "apps/v1", Kind: strings.Clone("ReplicaSet"),
+		Name: fmt.Sprintf("app-%d-7d9c8b6f5", i%200), UID: "0b7e3c1e-6f0a-4c43-9f0e-2d5b1c0a9e11", Controller: &yes}
+	if i%10 == 0 {
+		owner.Kind, owner.Name = strings.Clone("DaemonSet"), fmt.Sprintf("ds-%d", i%20)
+	}
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: fmt.Sprintf("ns-%d", i%40),
-			Name:      fmt.Sprintf("app-%d-7d9c8b6f5-%05d", i%200, i),
-			Labels:    map[string]string{"app": fmt.Sprintf("app-%d", i%200), "pod-template-hash": "7d9c8b6f5"},
+			Namespace:       fmt.Sprintf("ns-%d", i%40),
+			Name:            fmt.Sprintf("app-%d-7d9c8b6f5-%05d", i%200, i),
+			OwnerReferences: []metav1.OwnerReference{owner},
+			Labels:          map[string]string{"app": fmt.Sprintf("app-%d", i%200), "pod-template-hash": "7d9c8b6f5"},
 			Annotations: map[string]string{
 				"kubectl.kubernetes.io/restartedAt": "2026-10-01T00:00:00Z",
 				"prometheus.io/scrape":              "true",
@@ -116,15 +159,24 @@ func fullBenchPod(i, pods int) *v1.Pod {
 }
 
 func populate(m *model.UIModel, pods int) {
+	populateWith(m, pods, ownersKindAndName)
+}
+
+// populateWith fills the cluster and returns the slim pods, which the
+// informer's store keeps alive next to the model in the running tool.
+func populateWith(m *model.UIModel, pods int, owners benchOwners) []*v1.Pod {
 	cluster := m.Cluster()
 	for i := 0; i < benchNodes; i++ {
 		cluster.AddNode(model.NewNode(benchNode(i))).Show()
 	}
+	slim := make([]*v1.Pod, pods)
 	for i := 0; i < pods; i++ {
-		cluster.AddPod(model.NewPod(benchPod(i, pods)))
+		slim[i] = benchPodWith(i, pods, owners)
+		cluster.AddPod(model.NewPod(slim[i]))
 	}
 	// leave the garbage of building the cluster out of the timed part
 	runtime.GC()
+	return slim
 }
 
 func newBenchUI(b *testing.B) *model.UIModel {
@@ -171,23 +223,29 @@ func BenchmarkRender(b *testing.B) {
 	}
 }
 
-// BenchmarkHeap reports the live heap held by the model after populating it.
+// BenchmarkHeap reports the live heap held by the model and the informer's
+// slim pods after populating them, for each owner reference the transform
+// can keep (node-pods D3): kind+name is the tool today, kind the tool before
+// node-pods.
 func BenchmarkHeap(b *testing.B) {
 	for _, pods := range benchPodCounts {
-		b.Run(fmt.Sprintf("pods=%d", pods), func(b *testing.B) {
-			var heap uint64
-			for i := 0; i < b.N; i++ {
-				var before, after runtime.MemStats
-				runtime.GC()
-				runtime.ReadMemStats(&before)
-				m := newBenchUI(b)
-				populate(m, pods)
-				runtime.GC()
-				runtime.ReadMemStats(&after)
-				heap = after.HeapAlloc - before.HeapAlloc
-				runtime.KeepAlive(m)
-			}
-			b.ReportMetric(float64(heap)/(1<<20), "MiB")
-		})
+		for _, owners := range []benchOwners{ownersNone, ownersKindOnly, ownersKindAndName} {
+			b.Run(fmt.Sprintf("pods=%d/owners=%s", pods, owners), func(b *testing.B) {
+				var heap uint64
+				for i := 0; i < b.N; i++ {
+					var before, after runtime.MemStats
+					runtime.GC()
+					runtime.ReadMemStats(&before)
+					m := newBenchUI(b)
+					slim := populateWith(m, pods, owners)
+					runtime.GC()
+					runtime.ReadMemStats(&after)
+					heap = after.HeapAlloc - before.HeapAlloc
+					runtime.KeepAlive(m)
+					runtime.KeepAlive(slim)
+				}
+				b.ReportMetric(float64(heap)/(1<<20), "MiB")
+			})
+		}
 	}
 }

@@ -24,21 +24,38 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+// detailsTab is the tab of the node details popup (node-pods R1).
+type detailsTab int
+
+const (
+	detailsTabDetails detailsTab = iota
+	detailsTabPods
+)
+
 // openNodeDetails opens the details popup on the cursor's node (node-details
-// R1); false when the cursor is not on a node.
+// R1); false when the cursor is not on a node. It opens on Details, with the
+// Pods tab back to its defaults (node-pods R8).
 func (u *UIModel) openNodeDetails() bool {
 	name, ok := strings.CutPrefix(u.cursorKey, "n:")
 	if !ok {
 		return false
 	}
 	u.panel, u.detailsNode, u.detailsTop = panelNode, name, 0
+	u.detailsTab, u.podsCursor, u.podsIndex, u.podsView = detailsTabDetails, "", 0, podsViewAll
+	u.podsSort = defaultPodSort(u.DisablePricing)
 	// the frame laid out to find the cursor is stale now
 	u.dirty = true
 	return true
 }
 
 func (u *UIModel) nodeDetailsKey(key string) {
+	if u.detailsTab == detailsTabPods {
+		u.nodePodsKey(key)
+		return
+	}
 	switch key {
+	case "tab":
+		u.detailsTab = detailsTabPods
 	case "esc", "enter":
 		u.panel = panelNone
 	case "up", "k":
@@ -71,9 +88,12 @@ func (u *UIModel) nodeDetailsPanel() panelView {
 		u.detailsRows = 1
 		return panelView{title: u.detailsNode, rows: []string{u.style.yellow("This node is no longer in the cluster (or no longer shown).")}, cursor: -1}
 	}
+	if u.detailsTab == detailsTabPods {
+		return u.nodePodsPanel(n)
+	}
 	rows := u.nodeDetailsRows(n, time.Now())
 	u.detailsRows = len(rows)
-	return panelView{title: n.Name(), rows: rows, cursor: -1, top: u.detailsTop}
+	return panelView{title: n.Name(), fixed: []string{"[Details]  Pods"}, rows: rows, cursor: -1, top: u.detailsTop}
 }
 
 func (u *UIModel) nodeDetailsRows(n *Node, now time.Time) []string {
@@ -87,7 +107,8 @@ func (u *UIModel) nodeDetailsRows(n *Node, now time.Time) []string {
 	if !u.DisablePricing {
 		price := u.cell(n, FieldPrice, now)
 		if price != "-" {
-			price += "/h"
+			// the PRICE/M cell: same ~ for a reserved node, × 730 h
+			price += "/h · " + u.cell(n, FieldPriceMonthly, now) + "/mo"
 		}
 		instance = append(instance, price)
 	}
@@ -123,6 +144,8 @@ func (u *UIModel) nodeDetailsRows(n *Node, now time.Time) []string {
 			}
 		}
 	}
+	// pods are a count, not a request: they get their own section below
+	delete(names, v1.ResourcePods)
 	ordered := resourceOrder(names)
 	width := 0
 	for _, r := range ordered {
@@ -147,8 +170,20 @@ func (u *UIModel) nodeDetailsRows(n *Node, now time.Time) []string {
 				reqText += " (" + text + ")"
 			}
 		}
-		rows = append(rows, fmt.Sprintf("  %-*s  %s / %s / %s", width, r, reqText, detailQuantity(r, alloc), detailQuantity(r, capacity)))
+		values := reqText + " / " + detailQuantity(r, alloc)
+		// capacity only adds information when the kubelet reserves part of it
+		if alloc.Cmp(capacity) != 0 {
+			values += " / " + detailQuantity(r, capacity)
+		}
+		rows = append(rows, fmt.Sprintf("  %-*s  %s", width, r, values))
 	}
+	rows = append(rows, "", section("Pods")+helpStyle("  on the node / max"))
+	podsLine := fmt.Sprintf("  %d", n.NumPods())
+	if maxPods := obj.Status.Allocatable[v1.ResourcePods]; maxPods.Value() > 0 {
+		podsLine += fmt.Sprintf(" (%.0f%%) / %d", 100*float64(n.NumPods())/float64(maxPods.Value()), maxPods.Value())
+	}
+	rows = append(rows, podsLine)
+	rows = append(rows, daemonSetDetailRows(n)...)
 
 	// conditions
 	if len(obj.Status.Conditions) > 0 {
@@ -231,6 +266,11 @@ func detailQuantity(name v1.ResourceName, q resource.Quantity) string {
 	}
 	if isByteValued(name, q) {
 		return fmt.Sprintf("%.1fGi", q.AsApproximateFloat64()/(1<<30))
+	}
+	// CPU always in millicores, so requested, allocatable and capacity
+	// compare at a glance (8 cores is 8000m)
+	if name == v1.ResourceCPU {
+		return fmt.Sprintf("%dm", q.MilliValue())
 	}
 	return q.String()
 }

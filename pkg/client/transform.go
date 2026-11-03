@@ -99,11 +99,12 @@ func slimNodeClaim(obj interface{}) (interface{}, error) {
 }
 
 // slimOwners keeps only the controller's kind, which tells DaemonSet and
-// static pods from movable ones (recommendations R6).
+// static pods from movable ones (recommendations R6), and its name, which
+// names the DaemonSet rows of the node details Pods tab (node-pods R6).
 func slimOwners(refs []metav1.OwnerReference) []metav1.OwnerReference {
 	for _, ref := range refs {
 		if ref.Controller != nil && *ref.Controller {
-			return []metav1.OwnerReference{{Kind: ref.Kind, Controller: ref.Controller}}
+			return []metav1.OwnerReference{{Kind: ref.Kind, Name: ref.Name, Controller: ref.Controller}}
 		}
 	}
 	return nil
