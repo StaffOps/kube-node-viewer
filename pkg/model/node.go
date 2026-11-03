@@ -33,6 +33,10 @@ import (
 
 var (
 	instanceIDRegex = regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
+	// providerIDZone is the zone an EC2 provider ID starts with
+	// (aws:///us-east-1a/i-0abc, aws:///us-east-1-bos-1a/i-…, Fargate's
+	// aws:///us-east-1b/<id>/fargate-ip-…)
+	providerIDZone = regexp.MustCompile(`^aws:///([a-z0-9-]+)/`)
 )
 
 type objectKey struct {
@@ -432,6 +436,12 @@ func (n *Node) Zone() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	zone := n.node.Labels[v1.LabelTopologyZone]
+	if zone == "" {
+		// a node without the label (yet): EC2 names the zone in the provider ID
+		if m := providerIDZone.FindStringSubmatch(n.node.Spec.ProviderID); m != nil {
+			return m[1]
+		}
+	}
 	// AKS VMs outside availability zones carry their fault domain ("0", "1"…)
 	// instead; zonal ones read "<region>-<n>"
 	if strings.HasPrefix(n.node.Spec.ProviderID, "azure://") && !strings.Contains(zone, "-") {

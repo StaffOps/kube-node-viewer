@@ -1,6 +1,6 @@
 # Requirements: views-and-export
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-02 (spec-refuter; 4 HIGH, 7 MEDIUM, 4 LOW, all applied)
+> Status: shipped (v0.9.0, 2026-11-02) · Owner: Carlos Gomes · Reviewed: 2026-11-02 (spec-refuter; 4 HIGH, 7 MEDIUM, 4 LOW, all applied)
 
 ## Context
 
