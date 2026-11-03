@@ -10,6 +10,11 @@ Rules: `AGENTS.md`. If this file disagrees with it, it wins — fix this file.
 Why it matters: a PR from a writer of this repo is approved, merged and
 released automatically when CI is green. Whatever passes here ships.
 
+The full map of checks (git hooks, agent hooks, CI) is the "Guardrails"
+table in `AGENTS.md`. Git hooks must be on: `git config core.hooksPath`
+prints `.githooks` (else `make hooks`). Then `pre-commit` and `commit-msg`
+run on every commit and `pre-push` runs `make check` on every push.
+
 ## 1. Bring in main first
 
 ```bash
@@ -24,7 +29,7 @@ released section with no conflict (happened on #14 and #15). Conflicts in
 ## 2. One command
 
 ```bash
-make check
+make check          # pre-push runs it too; run it yourself to see it sooner
 ```
 
 It refuses to run if `main` has moved, then runs what CI runs:
