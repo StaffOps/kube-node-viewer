@@ -1,6 +1,6 @@
 # Requirements: node-pods
 
-> Status: active · Owner: sule · Reviewed: 2026-11-02 (spec-refuter, two rounds; findings fixed); R6, R8–R10 changed 2026-11-03 (owner), spec-check findings applied 2026-11-03
+> Status: shipped (v0.13.0, 2026-11-03) · Owner: sule · Reviewed: 2026-11-02 (spec-refuter, two rounds; findings fixed); R6, R8–R10 changed 2026-11-03 (owner), spec-check findings applied 2026-11-03
 
 ## Context
 

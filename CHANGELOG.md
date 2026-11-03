@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-03
+
 ### Added
 
 - Pods tab in the node details popup (`tab` inside it): every pod the node's
@@ -261,7 +263,8 @@ All notable changes to this project are documented here. Format:
 - A node's price is read and written under its lock; a pod seen before its
   node is counted once the node appears.
 
-[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.9.1...v0.10.0
