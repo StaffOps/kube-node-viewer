@@ -170,6 +170,42 @@ Flow: branch → PR → CI → automatic approval and merge → automatic releas
 | `upstream` | `awslabs/eks-node-viewer` | pull fixes, cherry-pick with `-x` |
 | `sule26` | `git@github.com:sule26/eks-node-viewer.git` | `--group-by` / `--groups-only` source |
 
+## Guardrails
+
+Three layers check the same rules. Git hooks run for everyone (people,
+Kiro, Claude Code); agent hooks warn the agent before it acts and say why;
+CI is the gate nothing merges or releases without. `make hooks` installs
+the git hooks; the session-context hook does it on the first agent session.
+
+| When | What is checked | Git hook | Agent hook (Kiro + Claude) | CI | Fix |
+|------|-----------------|----------|----------------------------|----|-----|
+| Session start | branch, open spec tasks, flow; installs git hooks | — | `session-context` | — | — |
+| Any shell command | history rewrite, force-push, hard reset, branch/tag delete | — | `guard-destructive` (asks / blocks) | — | owner runs it |
+| `git commit` | export files (cluster data) staged | `pre-commit` | `commit-guard` | — | `git rm --cached` |
+| `git commit` | lines added to a released CHANGELOG section | `pre-commit` | `commit-guard` | `changelog-check.py` | move them under `[Unreleased]` |
+| `git commit` | Go files not `gofmt -s` clean | `pre-commit` | `commit-guard` | `verify.sh` | `gofmt -s -w` |
+| `git commit` | new `.go`/`.sh`/`.py` without the Apache header | `pre-commit` | `commit-guard` | — | `make boilerplate` (Go) or copy the header |
+| `git commit` | Conventional Commit subject; no AI co-author / "generated with" | `commit-msg` | `commit-reminder` (checklist) | — | reword |
+| `git push` | push to `main` or a tag | `pre-push` (owner override `KNV_PUSH_MAIN=1`) | — | — | open a PR |
+| `git push` | `main` merged in; verify, lint, build | `pre-push` → `make check` | — | `verify`, `lint`, `build` jobs | skill `pre-push` |
+| `gh pr create` / `ready` / `merge` | released CHANGELOG sections; open tasks in a touched spec (the verify task includes a cluster run) | — | `pr-guard` (`--draft` passes) | `changelog-check.py`, `spec-tasks-check.py` | finish the tasks; draft until then |
+| PR green | trusted author → approve, merge | — | — | `automerge` job (`hold` label stops it) | — |
+| Merge | `[Unreleased]` → version, tag, binaries, cask | — | — | `release.yaml` | skill `release` |
+
+What to run locally, and when:
+
+| Moment | Run | Takes |
+|--------|-----|-------|
+| While coding | `go test ./pkg/model/...` (or the package you touch) | seconds |
+| Before each commit | nothing extra: `pre-commit` runs the fast checks | < 1 s |
+| UI or behaviour change done | `scripts/build.sh`, then the binary against a cluster the owner named, from a scratch dir; note it in the spec's verify task | minutes |
+| Before a push | `git merge origin/main`, then `make check` (`pre-push` runs it too) | 1–5 min |
+| After a push | `gh pr checks <n> --watch` | CI time |
+| After the merge | skill `release`: confirm the version, `brew upgrade` | minutes |
+
+`--no-verify` skips the git hooks; CI still runs every check that matters
+for a merge. Use it only for a WIP push to a draft PR.
+
 ## Tooling map
 
 Claude Code and Kiro follow the same rules, specs, skills, reviewer and
@@ -194,9 +230,3 @@ frontmatter; both tools pick it up, and `scripts/agent-hooks/session-context.sh`
 lists it. Adding a hook: write the script once, then wire it in both
 `.claude/settings.json` and the two Kiro files.
 
-Hooks: `session-context` (start), `guard-destructive` (asks/blocks
-history rewrites, force-pushes, hard resets), `commit-guard` (blocks
-committing exports or editing released CHANGELOG sections),
-`commit-reminder` (pre-commit checklist), `pr-guard` (blocks
-`gh pr create` without `--draft`, `gh pr ready` and `gh pr merge` while
-the CI checks below would fail).
