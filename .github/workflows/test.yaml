@@ -30,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6.1.0
+      with:
+        fetch-depth: 2 # the merge ref's first parent is the base, for scripts/changelog-check.py
     - name: Set up Go
       uses: actions/setup-go@v6.5.0
       with:
