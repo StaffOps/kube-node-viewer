@@ -87,6 +87,7 @@ var helpKeys = [][2]string{
 	{"←/→ h/l", "previous / next page"},
 	{"home", "first page"},
 	{"ctrl+e", "compact or expand the header"},
+	{"a", "in f, g, s, o: show the labels the config file hides, until the panel closes"},
 	{"?", "this help"},
 	{"q, ctrl+c", "quit"},
 	{"esc", "close a panel or go back a step"},
@@ -106,6 +107,7 @@ func (u *UIModel) helpPanel() panelView {
 // filter first; opening a field lists its values, with node counts, to tick.
 // Each tick filters right away.
 type filtersPanel struct {
+	labelView
 	cursor int
 	// open is the field whose values are listed under it, empty for none
 	open Field
@@ -129,7 +131,7 @@ func (p *filtersPanel) hint() string {
 
 func (u *UIModel) openFilters() {
 	u.panel = panelFilters
-	u.filters = filtersPanel{}
+	u.filters = filtersPanel{labelView: u.newLabelView()}
 }
 
 // filterIndex is the position of the field's filter, -1 when it has none.
@@ -144,7 +146,8 @@ func (u *UIModel) filterRows() []filterRow {
 	for _, f := range u.view.Filters {
 		fields = append(fields, f.Field)
 	}
-	for _, f := range filterFieldChoices(u.stats.Nodes) {
+	choices, _ := u.labelChoices(u.filters.labelView)
+	for _, f := range choices {
 		if !slices.Contains(fields, f) {
 			fields = append(fields, f)
 		}
@@ -192,6 +195,27 @@ func moveCursor(cursor, n int, key string) (int, bool) {
 func (u *UIModel) filtersKey(key string) {
 	p := &u.filters
 	rows := u.filterRows()
+	if key == "a" {
+		var row filterRow
+		if len(rows) > 0 {
+			row = rows[min(p.cursor, len(rows)-1)]
+		}
+		if !u.toggleShowAll(&p.labelView) {
+			return
+		}
+		// a field opened under show-all closes when it is hidden again
+		if p.open != "" {
+			if choices, _ := u.labelChoices(p.labelView); !slices.Contains(choices, p.open) {
+				if row.field == p.open {
+					// its value rows go with it; the cursor stays near
+					row = filterRow{field: row.field}
+				}
+				p.open = ""
+			}
+		}
+		u.focusFilterRow(row.field, row.value)
+		return
+	}
 	var moved bool
 	if p.cursor, moved = moveCursor(p.cursor, len(rows), key); moved || len(rows) == 0 {
 		return
@@ -294,23 +318,102 @@ func (u *UIModel) setFilters(filters []Filter) {
 	u.setView(v)
 }
 
-// filterFieldChoices are the derived fields, then every label key found on
-// the nodes.
-func filterFieldChoices(nodes []*Node) []Field {
+// filterFieldChoices are the derived fields, then the label keys found on the
+// nodes that the policy shows, the view uses (inUse) or show-all lets
+// through, sorted (label-visibility R1-R5). hidden is how many distinct keys
+// it left out, whatever showAll is: the keys the policy hides and the view
+// does not use.
+func filterFieldChoices(nodes []*Node, policy LabelPolicy, inUse map[Field]bool, showAll bool) (fields []Field, hidden int) {
 	keys := map[string]struct{}{}
 	for _, n := range nodes {
 		n.addLabelKeys(keys)
 	}
 	sorted := make([]string, 0, len(keys))
 	for k := range keys {
+		if !policy.Shows(k) && !inUse[LabelField(k)] {
+			hidden++
+			if !showAll {
+				continue
+			}
+		}
 		sorted = append(sorted, k)
 	}
 	sort.Slice(sorted, func(a, b int) bool { return naturalLess(sorted[a], sorted[b]) })
-	fields := append([]Field(nil), FilterFields...)
+	fields = append([]Field(nil), FilterFields...)
 	for _, k := range sorted {
 		fields = append(fields, LabelField(k))
 	}
-	return fields
+	return fields, hidden
+}
+
+// labelView is what a panel listing labels keeps from open to close: the
+// fields the view used when it opened, still listed after the owner removes
+// them so the change can be undone (R5), and whether a shows every label (R6).
+type labelView struct {
+	used    map[Field]bool
+	showAll bool
+}
+
+func (u *UIModel) newLabelView() labelView {
+	return labelView{used: u.viewFields()}
+}
+
+// viewFields are the fields the view uses: every filter (on, off or
+// excluding), the group-by levels, the sort and the columns.
+func (u *UIModel) viewFields() map[Field]bool {
+	used := map[Field]bool{}
+	for _, f := range u.view.Filters {
+		used[f.Field] = true
+	}
+	for _, f := range u.view.GroupBy {
+		used[f] = true
+	}
+	used[u.view.Sort.Field] = true
+	for _, f := range u.view.Columns {
+		used[f] = true
+	}
+	return used
+}
+
+// labelChoices are filterFieldChoices for a panel: the current nodes, the
+// policy, and the fields in use now or when the panel opened.
+func (u *UIModel) labelChoices(lv labelView) ([]Field, int) {
+	inUse := u.viewFields()
+	for f := range lv.used {
+		inUse[f] = true
+	}
+	return filterFieldChoices(u.stats.Nodes, u.labelPolicy, inUse, lv.showAll)
+}
+
+// toggleShowAll flips show-all for the panel, and reports whether it did:
+// with nothing hidden, a does nothing (R6).
+func (u *UIModel) toggleShowAll(lv *labelView) bool {
+	if !lv.showAll {
+		if _, hidden := u.labelChoices(*lv); hidden == 0 {
+			return false
+		}
+	}
+	lv.showAll = !lv.showAll
+	return true
+}
+
+// labelStatus is the panel's status line: how many labels the config hides,
+// or that all show; empty when nothing is hidden. short is the same for a
+// narrow box.
+func (u *UIModel) labelStatus(lv labelView) (status, short string) {
+	if lv.showAll {
+		return "showing all labels • a: hide", "all labels • a: hide"
+	}
+	if _, hidden := u.labelChoices(lv); hidden > 0 {
+		return fmt.Sprintf("%d labels hidden by config • a: show all", hidden), fmt.Sprintf("%d hidden • a: all", hidden)
+	}
+	return "", ""
+}
+
+// withLabelStatus sets the panel's status line from lv.
+func (u *UIModel) withLabelStatus(p panelView, lv labelView) panelView {
+	p.status, p.statusShort = u.labelStatus(lv)
+	return p
 }
 
 // window is the range of n rows to show in height rows, keeping the cursor in
@@ -366,5 +469,5 @@ func (u *UIModel) filtersPanelView() panelView {
 		}
 		lines[i] = fmt.Sprintf("%s %s %s%s", state, arrow, fieldName(r.field), summary)
 	}
-	return panelView{title: "Filters", rows: lines, cursor: p.cursor}
+	return u.withLabelStatus(panelView{title: "Filters", rows: lines, cursor: p.cursor}, p.labelView)
 }

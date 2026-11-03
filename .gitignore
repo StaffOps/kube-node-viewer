@@ -6,3 +6,8 @@ coverage.out
 
 # Agent tooling: shared config is versioned, personal overrides are not
 .claude/settings.local.json
+# Chat ids written by scripts/agent-hooks/save-chat-id.sh
+/.env
+/.env.tmp.*
+# PR description written by the pr-prep skill
+/pr.md
