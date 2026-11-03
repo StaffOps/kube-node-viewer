@@ -70,6 +70,18 @@ jobs:
           echo "tag=true"
         } >> "$GITHUB_OUTPUT"
 
+    - name: Set up Go
+      if: steps.version.outputs.release == 'true'
+      uses: actions/setup-go@v6.5.0
+      with:
+        go-version-file: go.mod
+
+    - name: Dependency checks (before anything is tagged)
+      # an advisory published since the last merge (the weekly test.yaml
+      # run reports it, but does not gate this workflow) stops the release
+      if: steps.version.outputs.release == 'true'
+      run: make vuln licenses
+
     - name: Commit and tag the release
       if: steps.version.outputs.tag == 'true'
       env:
@@ -84,12 +96,6 @@ jobs:
         git tag -a "$VERSION" -m "$VERSION"
         # pushed with GITHUB_TOKEN, so it doesn't start this workflow again
         git push origin "$VERSION"
-
-    - name: Set up Go
-      if: steps.version.outputs.release == 'true'
-      uses: actions/setup-go@v6.5.0
-      with:
-        go-version-file: go.mod
 
     - name: Run GoReleaser
       if: steps.version.outputs.release == 'true'

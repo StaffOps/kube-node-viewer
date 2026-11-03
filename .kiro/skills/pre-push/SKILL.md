@@ -38,6 +38,9 @@ It refuses to run if `main` has moved, then runs what CI runs:
 | Step | What fails it |
 |------|---------------|
 | `scripts/verify.sh` | gofmt, `go vet`, `go test -race`, spec lint, `changelog-check.py` (released sections changed), `spec-tasks-check.py` (open tasks in a touched spec) |
+| `content.sh --commits`, gitleaks | real-environment data or secrets in the branch's commits (lines, messages, authors) |
+| `scripts/checks/test-checks.sh` | a guardrail no longer blocks or passes what it should |
+| `make vuln licenses` | a known vulnerability reachable from our code, or a dependency license outside the allowlist (linux, darwin, windows) |
 | `make lint` | golangci-lint at the pinned version (staticcheck, revive, gosec…) — same as CI |
 | `scripts/build.sh` | the binary does not build |
 

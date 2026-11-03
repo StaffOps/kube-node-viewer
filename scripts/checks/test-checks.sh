@@ -236,6 +236,37 @@ case "$out" in *"not a valid"*) ok "tree: invalid deny regex is reported" ;; *) 
 tree "tree: deny line matching all"  blocked docs.md "nothing" "KNV_DENYLIST=acme|"
 tree "tree: deny list with CRLF"     blocked:deny docs.md "made at globex" "KNV_DENYLIST=$(printf 'globex\r')"
 
+echo "== Dependabot patch-only judge (automerge)"
+gomod() { # FILE x/text-version aws-version [extra line]
+  printf 'module example.com/m\n\ngo 1.26.10\n\nrequire (\n\tgolang.org/x/text %s\n\tgithub.com/aws/aws-sdk-go-v2 %s // indirect\n%s)\n' "$2" "$3" "${4:-}" > "$1"
+}
+judge() { # NAME WANT HEAD_TEXT HEAD_AWS [EXTRA [FILES...]]
+  name=$1 want=$2
+  gomod "$tmp/base.mod" v0.42.0 v1.30.1
+  gomod "$tmp/head.mod" "$3" "$4" "${5:-}"
+  if [ $# -ge 5 ]; then shift 5; else shift $#; fi
+  out=$(sh scripts/checks/dependabot-patch.sh "$tmp/base.mod" "$tmp/head.mod" "$@" 2>&1)
+  verdict "$name" "$want" $? "$out"
+}
+judge "patch updates, indirect too"   passes  v0.42.1 v1.30.4 "" go.mod go.sum
+judge "minor update"                  blocked v0.43.0 v1.30.1 ""
+judge "unlisted indirect minor"       blocked v0.42.1 v1.31.0 ""
+judge "module added"                  blocked v0.42.1 v1.30.1 "$(printf '\tgithub.com/spf13/cobra v1.9.0\n')"
+judge "pseudo-version"                blocked v0.42.1-0.20260101000000-abcdef123456 v1.30.1 ""
+judge "downgrade"                     blocked v0.42.0 v1.30.0 ""
+judge "other file changed"            blocked v0.42.1 v1.30.1 "" go.mod .github/workflows/test.yaml
+judge "no version changed"            blocked v0.42.0 v1.30.1 ""
+gomod "$tmp/base.mod" v0.42.0 v1.30.1
+gomod "$tmp/head.mod" v0.42.1 v1.30.1
+sed 's/^go 1.26.10/go 1.27.0/' "$tmp/head.mod" > "$tmp/head2.mod"
+out=$(sh scripts/checks/dependabot-patch.sh "$tmp/base.mod" "$tmp/head2.mod" 2>&1)
+verdict "go directive changed" blocked $? "$out"
+# an indented ")" still closes the block: the replace after it is compared
+printf 'module m\n\nrequire (\n\ta v1.0.0\n  )\n\nreplace a => ./good\n' > "$tmp/base.mod"
+printf 'module m\n\nrequire (\n\ta v1.0.1\n  )\n\nreplace a => ./evil\n' > "$tmp/head.mod"
+out=$(sh scripts/checks/dependabot-patch.sh "$tmp/base.mod" "$tmp/head.mod" 2>&1)
+verdict "replace after an indented )" blocked $? "$out"
+
 echo "== push (pre-push)"
 reset
 git init -q --bare "$tmp/remote.git"

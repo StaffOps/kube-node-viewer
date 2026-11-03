@@ -34,8 +34,8 @@ people and coding agents alike. In short:
    what CI runs and prints the version your merge will release). For a UI
    or behaviour change, also run the binary against a cluster and record
    it in the spec's verify task.
-3. Open a PR. CI runs `verify`, `lint`, `build`, `secrets` and
-   `guardrails`. If you have write access to this repository and the PR is
+3. Open a PR. CI runs `verify`, `lint`, `build`, `secrets`, `guardrails`
+   and `deps`. If you have write access to this repository and the PR is
    not a draft, it is approved and merged automatically when they pass; add the `hold` label to stop that.
    Other PRs are reviewed and merged by a maintainer.
 4. Merging adds your entries to the next release. Releases go out every

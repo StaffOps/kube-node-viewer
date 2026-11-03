@@ -37,10 +37,10 @@ files you change carry the line
 | `pkg/recommend/` | Recommendations rules (idle, consolidation, rightsizing, Graviton, Spot…); pure functions over a snapshot |
 | `pkg/text/` | color-aware tabwriter |
 | `hack/` | helper programs (boilerplate, licenses, `catalog` for the AWS instance catalog); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |
-| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh`, `release-prepare.py` (next version from CHANGELOG), `checks/` (`staged.sh` pre-commit checks, `content.sh` real-environment data, `test-checks.sh` hook tests), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
+| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh`, `release-prepare.py` (next version from CHANGELOG), `checks/` (`staged.sh` pre-commit checks, `content.sh` real-environment data, `dependabot-patch.sh` automerge judge, `test-checks.sh` hook tests), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
 | `specs/` | planning artefacts — see [`specs/README.md`](specs/README.md) |
 | `TODO.md` | backlog: owner actions, open follow-ups, ideas, deferred work |
-| `.github/workflows/` | `test.yaml` (verify, lint, build, secrets, guardrails in parallel; automerge), `release.yaml` (weekly or on-demand: version, tag, release), `refresh-data.yaml` (monthly price-data PR) |
+| `.github/workflows/` | `test.yaml` (verify, lint, build, secrets, guardrails, deps in parallel, also weekly; automerge), `release.yaml` (weekly or on-demand: version, tag, release), `refresh-data.yaml` (monthly price-data PR) |
 
 ## Commands
 
@@ -49,7 +49,8 @@ scripts/build.sh          # local binary in bin/ (-i install, -a all platforms)
 scripts/verify.sh         # gofmt check, go vet, go test, spec lint — run before every commit
 scripts/screenshots.sh    # regenerate README images in .static/ from a made-up cluster (Python 3, Chrome, ffmpeg)
 make lint                 # golangci-lint at the version pinned in the Makefile (same as CI)
-make check                # before a push: main merged in, verify, branch commits, hook tests, lint, build, and the next version
+make vuln licenses        # govulncheck and go-licenses, pinned in the Makefile (CI deps job)
+make check                # before a push: main merged in, verify, branch commits, hook tests, vuln, licenses, lint, build, and the next version
 go test ./pkg/... ./cmd/...
 ```
 
@@ -110,10 +111,14 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
   included (`scripts/verify.sh`, `make lint`, a run on any cluster,
   recorded as a dated note of what was checked, never the cluster's name (this repo is public)). `scripts/spec-tasks-check.py` fails CI
   otherwise; open the PR as a draft until then.
-- **CI** (`test.yaml`): `verify`, `lint`, `build`, `secrets` and
-  `guardrails` run in parallel. On a PR from a branch of this repo whose
+- **CI** (`test.yaml`): `verify`, `lint`, `build`, `secrets`,
+  `guardrails` and `deps` run in parallel (and weekly on `main`, so a new
+  advisory for a shipped dependency shows up). On a PR from a branch of this repo whose
   author has write access, not a draft and without the `hold` label, the
-  `automerge` job approves and merges it once all of them pass. Forks and other authors wait for a person.
+  `automerge` job approves and merges it once all of them pass. Dependabot
+  PRs that only raise patch versions merge the same way, judged from the
+  go.mod diff, not from what Dependabot lists; any other Dependabot PR
+  waits for a person. Forks and other authors wait for a person.
 - **CHANGELOG**: changes go under `## [Unreleased]` only (the
   `commit-guard` hook blocks lines added to a released section, and
   `scripts/changelog-check.py` in `verify.sh` fails CI on it). A
@@ -193,10 +198,12 @@ the git hooks; the session-context hook does it on the first agent session.
 | `git commit` | Conventional Commit subject; no AI co-author / "generated with" | `commit-msg` | `commit-reminder` (checklist) | — | reword |
 | `git commit` | real-environment data in the message (same rules, e-mails excepted) | `commit-msg` | — | `secrets` job (`content.sh --commits`) | reword |
 | `git push` | push to `main` or a tag | `pre-push` (owner override `KNV_PUSH_MAIN=1`) | — | — | open a PR |
-| `git push` | `main` merged in; verify, branch commits (messages, authors, secrets), hook tests, lint, build | `pre-push` → `make check` | — | `verify`, `secrets`, `guardrails`, `lint`, `build` jobs | skill `pre-push` |
+| `git push` | `main` merged in; verify, branch commits (messages, authors, secrets), hook tests, vulnerabilities and licenses, lint, build | `pre-push` → `make check` | — | `verify`, `secrets`, `guardrails`, `deps`, `lint`, `build` jobs | skill `pre-push` |
+| PR, weekly | known vulnerabilities reachable from our code (govulncheck); dependency licenses outside MIT / Apache-2.0 / BSD-3-Clause / ISC (go-licenses) | — | — | `deps` job | upgrade the module (`go get …@fixed`), or replace the dependency |
 | PR | the guardrails themselves: shellcheck and `scripts/checks/test-checks.sh` (each case blocked or passed in a throwaway repo) | — | — | `guardrails` job | fix the hook or the case |
 | `gh pr create` / `ready` / `merge` | released CHANGELOG sections; open tasks in a touched spec (the verify task includes a cluster run) | — | `pr-guard` (`--draft` passes) | `changelog-check.py`, `spec-tasks-check.py` | finish the tasks; draft until then |
-| PR green | trusted author → approve, merge | — | — | `automerge` job (`hold` label stops it) | — |
+| PR green | trusted author, or a Dependabot PR that only raises patch versions (`scripts/checks/dependabot-patch.sh` on its go.mod) → approve, merge | — | — | `automerge` job (`hold` label stops it) | — |
+| Release | known vulnerabilities and licenses again, before anything is tagged | — | — | `release.yaml` (`make vuln licenses`) | upgrade the module, then release |
 | Monday 12:00 UTC, `gh workflow run release.yaml`, or merge of a PR labelled `release` | `[Unreleased]` → version, tag, binaries, cask | — | — | `release.yaml` | skill `release` |
 
 What to run locally, and when:
