@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Security
+
+- Releases are signed: the checksum file has a keyless Sigstore signature
+  (`kube-node-viewer_X.Y.Z_sha256_checksums.txt.sigstore.json`) issued to
+  the release workflow, and each archive has an SPDX SBOM listed in it.
+  README "Verifying a release" shows how to check them.
+
 ## [0.13.0] - 2026-11-03
 
 ### Added

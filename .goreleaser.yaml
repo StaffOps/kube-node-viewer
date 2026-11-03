@@ -73,6 +73,21 @@ checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_sha256_checksums.txt"
   algorithm: sha256
 
+# an SPDX SBOM per archive (syft, installed by release.yaml); listed in the
+# checksum file, so the signature below covers them too
+sboms:
+  - artifacts: archive
+
+# keyless Sigstore signature of the checksum file (cosign, installed by
+# release.yaml): the certificate names release.yaml of this repository and
+# the commit; verify with scripts/release-check.sh or README "Verifying a
+# release"
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    args: ["sign-blob", "--bundle=${signature}", "--yes", "${artifact}"]
+
 changelog:
   sort: asc
   use: github

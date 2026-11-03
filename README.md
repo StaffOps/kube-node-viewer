@@ -63,6 +63,27 @@ go install github.com/staffops/kube-node-viewer/cmd/kube-node-viewer@latest
 
 This installs to your `GOBIN` directory, typically `~/go/bin`.
 
+### Verifying a release
+
+Each release's checksum file is signed with [Sigstore](https://www.sigstore.dev)
+by the release workflow (no long-lived key), and each archive has an SPDX
+SBOM (`<archive>.sbom.json`) listed in that file. With
+[cosign](https://docs.sigstore.dev/cosign/system_config/installation/), for
+version `X.Y.Z`:
+
+```shell
+f=kube-node-viewer_X.Y.Z_sha256_checksums.txt
+cosign verify-blob --bundle "$f.sigstore.json" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/StaffOps/kube-node-viewer/\.github/workflows/release\.yaml@refs/(heads/main|tags/v.*)$' \
+  "$f"
+sha256sum --check --ignore-missing "$f"   # macOS: shasum -a 256 --check --ignore-missing
+```
+
+`scripts/release-check.sh --strict vX.Y.Z` runs these checks and the
+binary's version from a checkout (needs `gh` and cosign); the release
+workflow runs it after each release.
+
 To build from a checkout, run `scripts/build.sh` (binary in
 `bin/kube-node-viewer`); `scripts/build.sh -i` installs it and
 `scripts/build.sh -a` cross-compiles for every release platform.
