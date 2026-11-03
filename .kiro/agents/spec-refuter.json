@@ -4,6 +4,7 @@
   "prompt": "file://../../.claude/agents/spec-refuter.md",
   "tools": ["read", "grep", "glob", "shell", "web"],
   "resources": [
+    "file://AGENTS.md",
     "file://specs/README.md"
   ]
 }
