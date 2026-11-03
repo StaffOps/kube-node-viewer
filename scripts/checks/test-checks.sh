@@ -261,6 +261,11 @@ gomod "$tmp/head.mod" v0.42.1 v1.30.1
 sed 's/^go 1.26.10/go 1.27.0/' "$tmp/head.mod" > "$tmp/head2.mod"
 out=$(sh scripts/checks/dependabot-patch.sh "$tmp/base.mod" "$tmp/head2.mod" 2>&1)
 verdict "go directive changed" blocked $? "$out"
+# an indented ")" still closes the block: the replace after it is compared
+printf 'module m\n\nrequire (\n\ta v1.0.0\n  )\n\nreplace a => ./good\n' > "$tmp/base.mod"
+printf 'module m\n\nrequire (\n\ta v1.0.1\n  )\n\nreplace a => ./evil\n' > "$tmp/head.mod"
+out=$(sh scripts/checks/dependabot-patch.sh "$tmp/base.mod" "$tmp/head.mod" 2>&1)
+verdict "replace after an indented )" blocked $? "$out"
 
 echo "== push (pre-push)"
 reset

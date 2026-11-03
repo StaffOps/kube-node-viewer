@@ -23,6 +23,8 @@
 # - everything else in go.mod (go, toolchain, replace, exclude…) is equal.
 # Otherwise exit 1 and print why. Used by the automerge job in test.yaml.
 [ $# -ge 2 ] || { echo "usage: $0 BASE_GO_MOD HEAD_GO_MOD [CHANGED_FILE...]" >&2; exit 2; }
+# sort and join must agree on the order of module paths
+export LC_ALL=C
 base=$1 head=$2
 shift 2
 for f in "$base" "$head"; do [ -r "$f" ] || { echo "cannot read $f" >&2; exit 2; }; done
@@ -35,7 +37,7 @@ done
 requires() {
   awk '
     /^require[ \t]*\(/ { inblock = 1; next }
-    inblock && /^\)/ { inblock = 0; next }
+    inblock && /^[ \t]*\)/ { inblock = 0; next }
     inblock && NF >= 2 && $1 !~ /^\/\// { print $1, $2; next }
     /^require[ \t]+[^( \t]/ { print $2, $3 }' "$1" | sort
 }
@@ -43,7 +45,7 @@ requires() {
 rest() {
   awk '
     /^require[ \t]*\(/ { inblock = 1; next }
-    inblock && /^\)/ { inblock = 0; next }
+    inblock && /^[ \t]*\)/ { inblock = 0; next }
     inblock { next }
     /^require[ \t]+[^( \t]/ { next }
     { print }' "$1"

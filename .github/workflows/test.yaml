@@ -199,7 +199,10 @@ jobs:
           files=$(gh api "repos/$REPO/compare/$mb...$HEAD_SHA" --jq '.files[].filename')
           gh api "repos/$REPO/contents/go.mod?ref=$mb" -H 'Accept: application/vnd.github.raw' > "$RUNNER_TEMP/base.mod"
           gh api "repos/$REPO/contents/go.mod?ref=$HEAD_SHA" -H 'Accept: application/vnd.github.raw' > "$RUNNER_TEMP/head.mod"
-          # shellcheck disable=SC2086 # one file name per word
+          # one file name per word; set -f: a file named `go.*` must not
+          # expand to go.mod go.sum
+          set -f
+          # shellcheck disable=SC2086
           if why=$(sh scripts/checks/dependabot-patch.sh "$RUNNER_TEMP/base.mod" "$RUNNER_TEMP/head.mod" $files); then
             echo "dependabot: $why"
             echo "trusted=true" >> "$GITHUB_OUTPUT"

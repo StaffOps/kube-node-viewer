@@ -37,7 +37,7 @@ files you change carry the line
 | `pkg/recommend/` | Recommendations rules (idle, consolidation, rightsizing, Graviton, Spot…); pure functions over a snapshot |
 | `pkg/text/` | color-aware tabwriter |
 | `hack/` | helper programs (boilerplate, licenses, `catalog` for the AWS instance catalog); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |
-| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh`, `release-prepare.py` (next version from CHANGELOG), `checks/` (`staged.sh` pre-commit checks, `content.sh` real-environment data, `test-checks.sh` hook tests), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
+| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh`, `release-prepare.py` (next version from CHANGELOG), `checks/` (`staged.sh` pre-commit checks, `content.sh` real-environment data, `dependabot-patch.sh` automerge judge, `test-checks.sh` hook tests), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
 | `specs/` | planning artefacts — see [`specs/README.md`](specs/README.md) |
 | `TODO.md` | backlog: owner actions, open follow-ups, ideas, deferred work |
 | `.github/workflows/` | `test.yaml` (verify, lint, build, secrets, guardrails, deps in parallel, also weekly; automerge), `release.yaml` (weekly or on-demand: version, tag, release), `refresh-data.yaml` (monthly price-data PR) |
