@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-03
+
 ### Added
 
 - Config views: `views` in `config.yaml` defines views by hand (columns,
@@ -229,7 +231,8 @@ All notable changes to this project are documented here. Format:
 - A node's price is read and written under its lock; a pod seen before its
   node is counted once the node appears.
 
-[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/StaffOps/kube-node-viewer/compare/v0.9.0...v0.9.1
