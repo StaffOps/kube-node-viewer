@@ -35,13 +35,16 @@ people and coding agents alike. In short:
    to this repository and the PR is not a draft, it is approved and merged
    automatically when the three pass; add the `hold` label to stop that.
    Other PRs are reviewed and merged by a maintainer.
-4. On merge, `[Unreleased]` becomes the next version: only `Fixed` → patch,
-   anything added, changed or removed → minor. The release workflow writes
-   the version into `CHANGELOG.md`, tags it, publishes the binaries and
-   updates the Homebrew cask in `StaffOps/homebrew-tap`.
+4. Merging adds your entries to the next release. Releases go out every
+   Monday (12:00 UTC) when `[Unreleased]` has entries, or sooner: a
+   maintainer runs `gh workflow run release.yaml`, or labels the PR
+   `release` before it merges. Only `Fixed` → patch; anything added,
+   changed or removed → minor. The workflow writes the version into
+   `CHANGELOG.md`, tags it, publishes the binaries and updates the
+   Homebrew cask in `StaffOps/homebrew-tap`.
 5. `brew update && brew upgrade --cask staffops/tap/kube-node-viewer`.
 
-A PR with nothing under `[Unreleased]` (docs, CI) merges without a release.
+A PR with nothing under `[Unreleased]` (docs, CI) adds nothing to a release.
 Pushing a tag by hand still releases it, for a re-run or an exception.
 
 ## License

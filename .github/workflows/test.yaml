@@ -1,7 +1,7 @@
 # Tests, lint and build in parallel on every PR and push to main; on a PR
-# from a trusted author, approves and merges it once all three pass, then
-# starts the release workflow (a merge made with GITHUB_TOKEN does not
-# trigger push workflows by itself).
+# from a trusted author, approves and merges it once all three pass. A PR
+# labelled `release` also starts the release workflow right away; other
+# merges wait for the weekly release (release.yaml).
 #
 # Trusted: the PR comes from a branch of this repository (not a fork), its
 # author has write access, it is not a draft and has no `hold` label.
@@ -108,6 +108,7 @@ jobs:
       # --match-head-commit: never merge a commit the checks did not see
       run: gh pr merge "$PR" --repo "$REPO" --merge --delete-branch --match-head-commit "$HEAD_SHA"
 
-    - name: Release
-      if: steps.trust.outputs.trusted == 'true'
+    - name: Release now (PR labelled release)
+      # otherwise the merge waits for the weekly release in release.yaml
+      if: steps.trust.outputs.trusted == 'true' && contains(github.event.pull_request.labels.*.name, 'release')
       run: gh workflow run release.yaml --repo "$REPO" --ref main

@@ -8,7 +8,8 @@ description: Use before every git push or gh pr create in kube-node-viewer ("vou
 Rules: `AGENTS.md`. If this file disagrees with it, it wins — fix this file.
 
 Why it matters: a PR from a writer of this repo is approved, merged and
-released automatically when CI is green. Whatever passes here ships.
+merged automatically when CI is green and ships in the next release.
+Whatever passes here ships.
 
 The full map of checks (git hooks, agent hooks, CI) is the "Guardrails"
 table in `AGENTS.md`. Git hooks must be on: `git config core.hooksPath`
@@ -40,7 +41,7 @@ It refuses to run if `main` has moved, then runs what CI runs:
 | `make lint` | golangci-lint at the pinned version (staticcheck, revive, gosec…) — same as CI |
 | `scripts/build.sh` | the binary does not build |
 
-It ends with the version the merge will release, from `[Unreleased]`
+It ends with the next release version, from `[Unreleased]`
 (`Fixed` only → patch; `Added`/`Changed`/`Removed` → minor; none → no
 release). Wrong number? Fix the CHANGELOG headings now.
 

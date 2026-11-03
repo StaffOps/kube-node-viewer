@@ -40,7 +40,7 @@ files you change carry the line
 | `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh`, `release-prepare.py` (next version from CHANGELOG), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
 | `specs/` | planning artefacts — see [`specs/README.md`](specs/README.md) |
 | `TODO.md` | backlog: owner actions, open follow-ups, ideas, deferred work |
-| `.github/workflows/` | `test.yaml` (verify, lint, build in parallel; automerge), `release.yaml` (version, tag and release on merge), `refresh-data.yaml` (monthly price-data PR) |
+| `.github/workflows/` | `test.yaml` (verify, lint, build in parallel; automerge), `release.yaml` (weekly or on-demand: version, tag, release), `refresh-data.yaml` (monthly price-data PR) |
 
 ## Commands
 
@@ -49,7 +49,7 @@ scripts/build.sh          # local binary in bin/ (-i install, -a all platforms)
 scripts/verify.sh         # gofmt check, go vet, go test, spec lint — run before every commit
 scripts/screenshots.sh    # regenerate README images in .static/ from a made-up cluster (Python 3, Chrome, ffmpeg)
 make lint                 # golangci-lint at the version pinned in the Makefile (same as CI)
-make check                # before a push: main merged in, verify, lint, build, and the version the merge releases
+make check                # before a push: main merged in, verify, lint, build, and the next version
 go test ./pkg/... ./cmd/...
 ```
 
@@ -103,7 +103,7 @@ the record for their feature; `TODO.md` links them.
 
 ## Releases and pull requests
 
-Flow: branch → PR → CI → automatic approval and merge → automatic release.
+Flow: branch → PR → CI → automatic approval and merge → weekly (or on-demand) release.
 
 - **Tested before it ships**: a change to `cmd/` or `pkg/` that touches a
   spec merges only when every task of that spec is `[x]`, its verify task
@@ -119,13 +119,16 @@ Flow: branch → PR → CI → automatic approval and merge → automatic releas
   `scripts/changelog-check.py` in `verify.sh` fails CI on it). A
   released section (`## [x.y.z]`) is never edited, except for a dated
   correction.
-- **Release** (`release.yaml`, `scripts/release-prepare.py`): after a merge,
-  entries in `[Unreleased]` become the next version — `Fixed`/`Security`
-  only → patch; `Added`/`Changed`/`Removed`/`Deprecated` → minor;
+- **Release** (`release.yaml`, `scripts/release-prepare.py`): merges only
+  add to `[Unreleased]`; releases go out in batches — every Monday 12:00
+  UTC when `[Unreleased]` has entries, on demand with
+  `gh workflow run release.yaml`, or right after the merge of a PR
+  labelled `release`. The entries decide the version: `Fixed`/`Security`
+  only → patch; any `Added`/`Changed`/`Removed`/`Deprecated` → minor;
   `BREAKING` → major (minor while 0.x). The workflow writes `## [x.y.z]`,
   the compare links and the **shipped** status of finished specs, pushes
-  that commit, tags it and publishes binaries and the Homebrew cask. A PR
-  without CHANGELOG entries releases nothing. See skill `release`.
+  that commit, tags it and publishes binaries and the Homebrew cask. See
+  skill `release`.
 - Agents never push to `main` or push tags; they open PRs.
 - **Reviewing a PR** (skill `pr-review`): check it against the current
   `main`, not its base. A branch that predates a release merges its
@@ -191,7 +194,7 @@ the git hooks; the session-context hook does it on the first agent session.
 | `git push` | `main` merged in; verify, lint, build | `pre-push` → `make check` | — | `verify`, `lint`, `build` jobs | skill `pre-push` |
 | `gh pr create` / `ready` / `merge` | released CHANGELOG sections; open tasks in a touched spec (the verify task includes a cluster run) | — | `pr-guard` (`--draft` passes) | `changelog-check.py`, `spec-tasks-check.py` | finish the tasks; draft until then |
 | PR green | trusted author → approve, merge | — | — | `automerge` job (`hold` label stops it) | — |
-| Merge | `[Unreleased]` → version, tag, binaries, cask | — | — | `release.yaml` | skill `release` |
+| Monday 12:00 UTC, `gh workflow run release.yaml`, or merge of a PR labelled `release` | `[Unreleased]` → version, tag, binaries, cask | — | — | `release.yaml` | skill `release` |
 
 What to run locally, and when:
 

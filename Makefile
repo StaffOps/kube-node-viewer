@@ -32,13 +32,13 @@ hooks: ## Use the repo git hooks (.githooks: pre-commit, commit-msg, pre-push)
 	git config core.hooksPath .githooks
 	@echo "git hooks: .githooks (pre-commit, commit-msg, pre-push)"
 
-check: ## Before a push: what CI checks (main merged in, verify, lint, build) and the version a merge releases
+check: ## Before a push: what CI checks (main merged in, verify, lint, build) and the next release version
 	git fetch -q origin main
 	@git merge-base --is-ancestor origin/main HEAD || { echo "main has moved: run 'git merge origin/main' first (CHANGELOG lines can land in a released section)"; exit 1; }
 	scripts/verify.sh
 	$(MAKE) lint
 	scripts/build.sh
-	@v=$$(python3 scripts/release-prepare.py); if [ -n "$$v" ] && ! git rev-parse -q --verify "refs/tags/v$$v" >/dev/null; then echo "check: ok; merging releases v$$v"; else echo "check: ok; merging releases nothing (no [Unreleased] entries)"; fi
+	@v=$$(python3 scripts/release-prepare.py); if [ -n "$$v" ] && ! git rev-parse -q --verify "refs/tags/v$$v" >/dev/null; then echo "check: ok; the next release (Monday, or on demand) is v$$v"; else echo "check: ok; no [Unreleased] entries: nothing to release"; fi
 
 lint: ## Lint with the pinned golangci-lint (built on first use)
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...
