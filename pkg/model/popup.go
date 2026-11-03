@@ -40,6 +40,11 @@ type panelView struct {
 	cursor int
 	// hint is the panel's keys, shown at the bottom of the box
 	hint string
+	// status is an optional line above the hint, such as how many labels the
+	// config file hides (label-visibility R6)
+	status string
+	// statusShort replaces status when the box is too narrow for it
+	statusShort string
 	// top is the first row shown when no row is selected (cursor < 0)
 	top int
 }
@@ -84,16 +89,43 @@ func (u *UIModel) popup(p panelView, height int) []string {
 	for _, r := range p.rows {
 		inner = max(inner, textWidth(r))
 	}
-	inner = max(inner, textWidth(p.title)+2, textWidth(p.hint))
+	inner = max(inner, textWidth(p.title)+2, textWidth(p.hint), textWidth(p.status))
 	if u.width > 0 {
 		inner = min(inner, u.width-6)
 	}
 	inner = max(inner, 1)
 
-	visible := max(height-2, 1)
-	if p.hint != "" {
-		visible = max(height-4, 1)
+	// the box never runs past height: the rows shrink to one, then the
+	// separator goes, then the status line, then the hint; below three lines
+	// the top border goes too. A 10-line window (5 lines here) keeps a row,
+	// the status line, the hint and the bottom border, and the hint and the
+	// bottom border outlast the status line (label-visibility R6).
+	height = max(height, 1)
+	status, hint := p.status, p.hint
+	if textWidth(status) > inner && p.statusShort != "" {
+		status = p.statusShort
 	}
+	separator := status != "" || hint != ""
+	// fixed is every line but the rows
+	fixed := func() int {
+		n := 2 // top and bottom borders
+		for _, on := range []bool{status != "", hint != "", separator} {
+			if on {
+				n++
+			}
+		}
+		return n
+	}
+	if fixed()+1 > height {
+		separator = false
+	}
+	if fixed()+1 > height {
+		status = ""
+	}
+	if fixed()+1 > height {
+		hint = ""
+	}
+	visible := max(height-fixed(), 1)
 	start, end := window(len(p.rows), max(p.cursor, 0), visible)
 	if p.cursor < 0 && p.top > 0 {
 		start = min(p.top, max(len(p.rows)-visible, 0))
@@ -119,12 +151,19 @@ func (u *UIModel) popup(p panelView, height int) []string {
 		}
 		lines = append(lines, popupBorder("│")+" "+row+"\x1b[0m "+popupBorder("│"))
 	}
-	if p.hint != "" {
-		lines = append(lines,
-			popupBorder("├"+strings.Repeat("─", inner+2)+"┤"),
-			popupBorder("│")+" "+pad(keyHint(ansi.Truncate(p.hint, inner, "…")), inner)+"\x1b[0m "+popupBorder("│"))
+	if separator {
+		lines = append(lines, popupBorder("├"+strings.Repeat("─", inner+2)+"┤"))
 	}
-	return append(lines, bottom)
+	for _, l := range []string{status, hint} {
+		if l != "" {
+			lines = append(lines, popupBorder("│")+" "+pad(keyHint(ansi.Truncate(l, inner, "…")), inner)+"\x1b[0m "+popupBorder("│"))
+		}
+	}
+	lines = append(lines, bottom)
+	if len(lines) > height {
+		lines = lines[len(lines)-height:]
+	}
+	return lines
 }
 
 // keyHint shows "key: action • key: action" with the keys in bold and the

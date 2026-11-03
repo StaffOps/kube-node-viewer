@@ -6,7 +6,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 
 ## Reading order
 
-1. [`rebrand/`](rebrand/) — **active**. Rename module, binary, config file and
+1. [`rebrand/`](rebrand/) — **shipped** in v0.10.0. Rename module, binary, config file and
    docs away from the upstream name.
    [requirements](rebrand/requirements.md) · [design](rebrand/design.md) ·
    [tasks](rebrand/tasks.md)
@@ -34,15 +34,20 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    a popup with its details: resources, conditions, taints, labels.
    [requirements](node-details/requirements.md) ·
    [design](node-details/design.md) · [tasks](node-details/tasks.md)
-7. [`sort-invert/`](sort-invert/) — **shipped** in v0.9.1. `I` (shift+i) flips the
+7. [`label-visibility/`](label-visibility/) — **shipped** in v0.10.0. Allow and deny
+   lists of label key patterns in `~/.config/kube-node-viewer/config.yaml`
+   decide which node labels the panels offer; `a` shows all.
+   [requirements](label-visibility/requirements.md) ·
+   [design](label-visibility/design.md) · [tasks](label-visibility/tasks.md)
+8. [`sort-invert/`](sort-invert/) — **shipped** in v0.9.1. `I` (shift+i) flips the
    sort between ascending and descending from the main screen.
    [requirements](sort-invert/requirements.md) ·
    [design](sort-invert/design.md) · [tasks](sort-invert/tasks.md)
-8. [`monthly-price-columns/`](monthly-price-columns/) — **active**. `PRICE/M`
+9. [`monthly-price-columns/`](monthly-price-columns/) — **active**. `PRICE/M`
    and `IDLE/M` columns, shown by default.
    [requirements](monthly-price-columns/requirements.md) ·
    [design](monthly-price-columns/design.md) · [tasks](monthly-price-columns/tasks.md)
-9. [`decisions/`](decisions/) — decision records (index below).
+10. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
