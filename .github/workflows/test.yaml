@@ -37,6 +37,9 @@ jobs:
       with:
         go-version-file: go.mod
     - name: Verify
+      env:
+        # private deny list for scripts/checks/content.sh; never in the repo
+        KNV_DENYLIST: ${{ secrets.KNV_DENYLIST }}
       run: scripts/verify.sh
 
   lint:

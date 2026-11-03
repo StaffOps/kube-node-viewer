@@ -183,6 +183,7 @@ the git hooks; the session-context hook does it on the first agent session.
 | Any shell command | history rewrite, force-push, hard reset, branch/tag delete | — | `guard-destructive` (asks / blocks) | — | owner runs it |
 | `git commit` | export files (cluster data) staged | `pre-commit` | `commit-guard` | — | `git rm --cached` |
 | `git commit` | lines added to a released CHANGELOG section | `pre-commit` | `commit-guard` | `changelog-check.py` | move them under `[Unreleased]` |
+| `git commit` | real cluster endpoints (EKS/AKS API hosts) or names in the private deny list | `pre-commit` | `commit-guard` | `verify.sh` (`scripts/checks/content.sh`) | use example values (`ABCDEF0123456789ABCDEF0123456789`, `example-…`) |
 | `git commit` | Go files not `gofmt -s` clean | `pre-commit` | `commit-guard` | `verify.sh` | `gofmt -s -w` |
 | `git commit` | new `.go`/`.sh`/`.py` without the Apache header | `pre-commit` | `commit-guard` | — | `make boilerplate` (Go) or copy the header |
 | `git commit` | Conventional Commit subject; no AI co-author / "generated with" | `commit-msg` | `commit-reminder` (checklist) | — | reword |
@@ -202,6 +203,13 @@ What to run locally, and when:
 | Before a push | `git merge origin/main`, then `make check` (`pre-push` runs it too) | 1–5 min |
 | After a push | `gh pr checks <n> --watch` | CI time |
 | After the merge | skill `release`: confirm the version, `brew upgrade` | minutes |
+
+Nothing from a real environment goes into this public repo: cluster
+names, API endpoints, node names, IPs, account or company names — in code,
+tests, specs, commit messages or PR text. Use made-up values. Names to
+block go in the private deny list, one regex per line: `.git/info/denylist`
+on your clone and the `KNV_DENYLIST` secret in CI; the list is never
+committed.
 
 `--no-verify` skips the git hooks; CI still runs every check that matters
 for a merge. Use it only for a WIP push to a draft PR.

@@ -30,7 +30,7 @@ import (
 // node's price is unknown, and no region from the server URL.
 func aksUI(t *testing.T) *UIModel {
 	u := newTestUI(t)
-	u.SetClusterInfo(ClusterInfo{Context: "aks", Server: "https://aks-abc.hcp.eastus2.azmk8s.io:443"})
+	u.SetClusterInfo(ClusterInfo{Context: "aks", Server: "https://example-aks.hcp.eastus2.azmk8s.io:443"})
 	u.advisor = fakeAdvisor{}
 	for i, pool := range []string{"system", "workers"} {
 		n := NewNode(&v1.Node{

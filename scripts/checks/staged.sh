@@ -21,6 +21,7 @@
 # - lines added inside a released CHANGELOG section (## [x.y.z])
 # - Go files not gofmt -s clean
 # - new .go/.sh/.py files without the Apache license header
+# - real cluster endpoints or deny-listed names (scripts/checks/content.sh)
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" || exit 0
 diffargs="--cached"
 [ "${1:-}" = --all ] && diffargs="HEAD"
@@ -63,6 +64,10 @@ for f in $(git diff $diffargs --name-only --diff-filter=A 2>/dev/null | grep -E 
   if [ "$diffargs" = HEAD ]; then body=$(head -20 "$f" 2>/dev/null); else body=$(git show ":$f" 2>/dev/null | head -20); fi
   printf '%s\n' "$body" | grep -q 'Licensed under the Apache License' || add "new file without the Apache license header: $f (make boilerplate adds it to Go files)"
 done
+
+if [ "$diffargs" = --cached ] && [ -f scripts/checks/content.sh ]; then
+  c=$(sh scripts/checks/content.sh --staged) || add "$c"
+fi
 
 [ -z "$problems" ] && exit 0
 printf '%s' "$problems"

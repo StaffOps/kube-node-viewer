@@ -24,6 +24,8 @@ go test -race $PKGS
 
 echo "==> spec lint"
 scripts/spec-lint.sh
+echo "==> real-environment identifiers"
+sh scripts/checks/content.sh
 echo "==> changelog"
 python3 scripts/changelog-check.py
 echo "==> spec tasks"
