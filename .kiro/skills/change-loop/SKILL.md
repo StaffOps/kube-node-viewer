@@ -23,10 +23,15 @@ disagree, they win — fix this file.
 - Tests next to the code (`pkg/model/*_test.go` style, table-driven).
 
 ## 3. Verify
-- `scripts/verify.sh` must pass (gofmt, vet, tests, spec lint).
-- UI change → `scripts/build.sh` and run `bin/kube-node-viewer` against a
-  cluster the owner named; otherwise state "not run against a cluster".
-- Tick the task `[x]` only when its "Verified by" line is satisfied.
+- `scripts/verify.sh` (gofmt, vet, tests, spec lint, CHANGELOG and spec-task
+  checks) and `make lint` must pass.
+- UI or behaviour change → `scripts/build.sh` and run `bin/kube-node-viewer`
+  against a cluster the owner named, from a scratch directory (exports land
+  in the working directory). Record it in the verify task as a dated note:
+  which cluster, what you checked. Never pick a cluster yourself.
+- Tick the task `[x]` only when its "Verified by" line is satisfied. Until
+  every task is `[x]`, the PR stays a draft: CI (`spec-tasks-check.py`) and
+  the `pr-guard` hook refuse it, so nothing untested merges or releases.
 
 ## 4. Independent review
 Launch the `spec-refuter` agent (never review your own change). Brief:
@@ -49,3 +54,6 @@ Fix → re-review the fixes (same agent) until no BLOCKING/HIGH remains.
 - Spec status → **shipped** when every task is `[x]` (or moved to Deferred).
 - Commit per validated task, Conventional Commits, no AI trailers. Push only
   when the owner asks.
+- Open the PR (`gh pr create`); with CI green it merges itself for a
+  writer of this repo and releases what `[Unreleased]` holds (skill
+  `release`). Label it `hold` to keep it open.
