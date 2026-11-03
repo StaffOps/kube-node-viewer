@@ -72,6 +72,7 @@ var helpKeys = [][2]string{
 	{"f", "filters: open a field, tick values; space turns a filter on/off; x keeps or excludes"},
 	{"g", "group by: tick up to 3 fields, K/J to reorder levels"},
 	{"s", "sort: any column, usage or label; flip ↑/↓"},
+	{"I", "flip the sort ↑/↓ without opening the Sort panel"},
 	{"o", "columns: show, hide, reorder"},
 	{"/", "search name, IP, instance type, labels; esc clears"},
 	{"r", "resources: cpu → memory → cpu+memory"},

@@ -144,6 +144,14 @@ func descendingFirst(f Field) bool {
 	return strings.HasPrefix(string(f), usageFieldPrefix)
 }
 
+// flipSort flips the direction of the current sort from the main screen,
+// the same change as space in the Sort panel.
+func (u *UIModel) flipSort() {
+	v := u.view
+	v.Sort.Descending = !v.Sort.Descending
+	u.setView(v)
+}
+
 func (u *UIModel) openSort() {
 	u.panel = panelSort
 	fields := u.sortChoices()
@@ -164,9 +172,7 @@ func (u *UIModel) sortKey(key string) {
 	case "esc":
 		u.panel = panelNone
 	case " ":
-		v := u.view
-		v.Sort.Descending = !v.Sort.Descending
-		u.setView(v)
+		u.flipSort()
 	case "enter":
 		field := p.fields[p.cursor]
 		v := u.view

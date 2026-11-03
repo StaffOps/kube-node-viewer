@@ -34,7 +34,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
    a popup with its details: resources, conditions, taints, labels.
    [requirements](node-details/requirements.md) ·
    [design](node-details/design.md) · [tasks](node-details/tasks.md)
-7. [`decisions/`](decisions/) — decision records (index below).
+7. [`sort-invert/`](sort-invert/) — **active**. `I` (shift+i) flips the
+   sort between ascending and descending from the main screen.
+   [requirements](sort-invert/requirements.md) ·
+   [design](sort-invert/design.md) · [tasks](sort-invert/tasks.md)
+8. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
