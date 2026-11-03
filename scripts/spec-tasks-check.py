@@ -14,8 +14,8 @@
 
 A change that touches code (cmd/, pkg/) and a spec (specs/<feature>/) can
 merge, and so release, only when every task of that spec is done ([x]),
-including its verify task (scripts/verify.sh, run on a cluster the owner
-named). Spec-only changes (planning) and code changes without a spec pass.
+including its verify task (scripts/verify.sh, a run on a cluster noting
+what was checked). Spec-only changes (planning) and code changes without a spec pass.
 
   scripts/spec-tasks-check.py [BASE]
 
@@ -60,7 +60,7 @@ def main():
         for mark, task in OPEN.findall(open(path).read()):
             bad.append(f"{path}: [{mark}] {task[:100]}")
     if bad:
-        print("Spec tasks still open; finish them (verify includes a run on a cluster the owner named) or move them to Deferred:", file=sys.stderr)
+        print("Spec tasks still open; finish them (verify includes a run on a cluster, noting what was checked) or move them to Deferred:", file=sys.stderr)
         for b in bad:
             print("  " + b, file=sys.stderr)
         return 1

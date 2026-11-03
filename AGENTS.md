@@ -86,7 +86,7 @@ The loop (skill `change-loop`):
 3. **Implement** task by task; tick the task only when its acceptance
    criteria are verified.
 4. **Verify** — `scripts/verify.sh` green; for UI changes, run the binary
-   against a cluster the owner named, or say it was not run.
+   on a cluster (agents: one the owner allows), or say it was not run.
 5. **Review the diff** (agent `spec-refuter` or `code-review`), fix, re-review.
 6. **Docs** — `CHANGELOG.md` (`## [Unreleased]`), `README.md` usage/flags,
    spec corrections recorded as dated notes, never silent edits.
@@ -107,8 +107,8 @@ Flow: branch → PR → CI → automatic approval and merge → automatic releas
 
 - **Tested before it ships**: a change to `cmd/` or `pkg/` that touches a
   spec merges only when every task of that spec is `[x]`, its verify task
-  included (`scripts/verify.sh`, `make lint`, a run on a cluster the owner
-  named, recorded as a dated note). `scripts/spec-tasks-check.py` fails CI
+  included (`scripts/verify.sh`, `make lint`, a run on any cluster,
+  recorded as a dated note of what was checked, never the cluster's name (this repo is public)). `scripts/spec-tasks-check.py` fails CI
   otherwise; open the PR as a draft until then.
 - **CI** (`test.yaml`): `verify`, `lint` and `build` run in parallel. On a
   PR from a branch of this repo whose author has write access, not a draft
@@ -199,7 +199,7 @@ What to run locally, and when:
 |--------|-----|-------|
 | While coding | `go test ./pkg/model/...` (or the package you touch) | seconds |
 | Before each commit | nothing extra: `pre-commit` runs the fast checks | < 1 s |
-| UI or behaviour change done | `scripts/build.sh`, then the binary against a cluster the owner named, from a scratch dir; note it in the spec's verify task | minutes |
+| UI or behaviour change done | `scripts/build.sh`, then the binary against any cluster (agents: one the owner allows), from a scratch dir; note what you checked (not which cluster) in the spec's verify task | minutes |
 | Before a push | `git merge origin/main`, then `make check` (`pre-push` runs it too) | 1–5 min |
 | After a push | `gh pr checks <n> --watch` | CI time |
 | After the merge | skill `release`: confirm the version, `brew upgrade` | minutes |

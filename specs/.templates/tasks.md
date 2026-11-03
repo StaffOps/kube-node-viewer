@@ -7,7 +7,7 @@
   - _Covers: R1 · Depends on: — · Verified by: <test name / command>_
 - [ ] T2. <docs: README, CHANGELOG [Unreleased]>
   - _Covers: — · Depends on: T1 · Verified by: review_
-- [ ] T3. Verify: `scripts/verify.sh` and `make lint` green; run on a cluster the owner names (which one, what was checked)
+- [ ] T3. Verify: `scripts/verify.sh` and `make lint` green; run on a cluster: note what was checked, never the cluster's name
   - _Covers: all · Depends on: T1, T2 · Verified by: command output and the cluster run, recorded here as a dated note_
 
 > A code change with open tasks here cannot merge, and so cannot release:

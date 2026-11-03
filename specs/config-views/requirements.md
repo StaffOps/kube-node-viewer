@@ -1,6 +1,6 @@
 # Requirements: config-views
 
-> Status: active · Owner: sule · Reviewed: 2026-11-02 (code-review agent, round 1; findings applied; approved by owner 2026-11-03)
+> Status: shipped (v0.12.0, 2026-11-03) · Owner: sule · Reviewed: 2026-11-02 (code-review agent, round 1; findings applied; approved by owner 2026-11-03)
 
 ## Context
 
