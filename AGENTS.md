@@ -109,7 +109,8 @@ Flow: branch → PR → CI → automatic approval and merge → automatic releas
   and without the `hold` label, the `automerge` job approves and merges it
   once all three pass. Forks and other authors wait for a person.
 - **CHANGELOG**: changes go under `## [Unreleased]` only (the
-  `commit-guard` hook blocks lines added to a released section). A
+  `commit-guard` hook blocks lines added to a released section, and
+  `scripts/changelog-check.py` in `verify.sh` fails CI on it). A
   released section (`## [x.y.z]`) is never edited, except for a dated
   correction.
 - **Release** (`release.yaml`, `scripts/release-prepare.py`): after a merge,
