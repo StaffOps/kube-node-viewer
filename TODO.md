@@ -83,6 +83,9 @@ Beyond the Guardrails section above.
       _Why:_ the checksum signature proves the files came from
       `release.yaml`; provenance also records the inputs of the build, and
       OpenSSF Scorecard gives Signed-Releases its top score only with it.
+      In the same change, move signing to its own job: today
+      `id-token: write` covers the whole release job, including
+      `make vuln licenses`, which runs downloaded tools.
 - [ ] **A goreleaser snapshot in CI**: `goreleaser release --snapshot
       --skip=sign,publish` with syft on PRs that touch `.goreleaser.yaml`
       or `release.yaml`.

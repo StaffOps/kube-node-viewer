@@ -68,14 +68,14 @@ This installs to your `GOBIN` directory, typically `~/go/bin`.
 Each release's checksum file is signed with [Sigstore](https://www.sigstore.dev)
 by the release workflow (no long-lived key), and each archive has an SPDX
 SBOM (`<archive>.sbom.json`) listed in that file. With
-[cosign](https://docs.sigstore.dev/cosign/system_config/installation/), for
-version `X.Y.Z`:
+[cosign](https://docs.sigstore.dev/cosign/system_config/installation/) 3 or
+later, for version `X.Y.Z`:
 
 ```shell
 f=kube-node-viewer_X.Y.Z_sha256_checksums.txt
 cosign verify-blob --bundle "$f.sigstore.json" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp '^https://github\.com/StaffOps/kube-node-viewer/\.github/workflows/release\.yaml@refs/(heads/main|tags/v.*)$' \
+  --certificate-identity-regexp '^https://github\.com/StaffOps/kube-node-viewer/\.github/workflows/release\.yaml@refs/(heads/main|tags/v[0-9][^/]*)$' \
   "$f"
 sha256sum --check --ignore-missing "$f"   # macOS: shasum -a 256 --check --ignore-missing
 ```

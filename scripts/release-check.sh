@@ -91,7 +91,7 @@ if grep -qxF "$sums.sigstore.json" names.txt; then
 	cosign verify-blob --bundle "$sums.sigstore.json" \
 		--certificate-oidc-issuer https://token.actions.githubusercontent.com \
 		--certificate-identity-regexp "^https://github\.com/$REPO/\.github/workflows/release\.yaml@refs/(heads/main|tags/v[0-9][^/]*)\$" \
-		"$sums" >/dev/null 2>&1 || fail "the signature of $sums does not verify"
+		"$sums" >/dev/null || fail "the signature of $sums does not verify"
 	ok "signature of $sums"
 elif $strict; then
 	fail "$sums.sigstore.json is not a release asset"
