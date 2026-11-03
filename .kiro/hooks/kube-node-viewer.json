@@ -43,6 +43,17 @@
         "command": "sh scripts/agent-hooks/commit-reminder.sh kiro"
       },
       "timeout": 10
+    },
+    {
+      "name": "kube-node-viewer: PR guard",
+      "description": "Before gh pr create (not --draft), gh pr ready or gh pr merge: no edits to released CHANGELOG sections and no open spec tasks, the verify task included (run on a cluster). Same checks as CI (scripts/agent-hooks/pr-guard.sh).",
+      "trigger": "PreToolUse",
+      "matcher": "shell",
+      "action": {
+        "type": "command",
+        "command": "sh scripts/agent-hooks/pr-guard.sh kiro"
+      },
+      "timeout": 30
     }
   ]
 }
