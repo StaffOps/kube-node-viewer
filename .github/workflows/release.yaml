@@ -1,11 +1,14 @@
 # Builds and publishes a release: binaries on GitHub and the Homebrew cask.
 #
-# Two ways in:
-# - a push to main whose CHANGELOG names a released version with no tag yet
-#   (merging the release PR that turns [Unreleased] into [x.y.z]): the tag
-#   vx.y.z is created on that commit and released;
-# - pushing a tag by hand, as before.
-# Any other push to main finds the tag already there and does nothing.
+# Ways in:
+# - a push to main, or a run started by the automerge job in test.yaml:
+#   when CHANGELOG [Unreleased] has entries, scripts/release-prepare.py
+#   picks the next version from them (Fixed only -> patch, Added/Changed/
+#   Removed -> minor), turns the section into [x.y.z], marks finished specs
+#   shipped, and that commit is pushed to main, tagged vx.y.z and released.
+#   An empty [Unreleased] releases the newest version only if its tag is
+#   missing (a hand-made release PR still works); otherwise nothing happens.
+# - pushing a tag by hand releases that tag.
 
 name: Binary release
 
@@ -14,6 +17,7 @@ on:
     branches: [ "main" ]
     tags:
       - '*'
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -28,9 +32,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v4.1.5
+      uses: actions/checkout@v6.1.0
       with:
-        fetch-depth: 0 # disable shallow clone - get all
+        fetch-depth: 0 # tags and history for the release notes
+        # runs queue up: always start from the newest main, not the commit
+        # that triggered this run
+        ref: ${{ startsWith(github.ref, 'refs/tags/') && github.ref || 'main' }}
 
     - name: Version to release
       id: version
@@ -42,8 +49,7 @@ jobs:
           echo "release=true" >> "$GITHUB_OUTPUT"
           exit 0
         fi
-        # the newest released section: "## [0.9.0] - 2026-11-02"
-        latest=$(grep -m1 -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+        latest=$(python3 scripts/release-prepare.py --write --date "$(date -u +%F)")
         if [ -z "$latest" ]; then
           echo "no released version in CHANGELOG.md"
           echo "release=false" >> "$GITHUB_OUTPUT"
@@ -51,7 +57,7 @@ jobs:
         fi
         tag="v$latest"
         if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-          echo "$tag is already tagged: nothing to release"
+          echo "$tag is already tagged and [Unreleased] is empty: nothing to release"
           echo "release=false" >> "$GITHUB_OUTPUT"
           exit 0
         fi
@@ -61,20 +67,24 @@ jobs:
           echo "tag=true"
         } >> "$GITHUB_OUTPUT"
 
-    - name: Tag the release
+    - name: Commit and tag the release
       if: steps.version.outputs.tag == 'true'
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        if ! git diff --quiet; then
+          git commit -am "chore: release $VERSION"
+          git push origin HEAD:main
+        fi
         git tag -a "$VERSION" -m "$VERSION"
         # pushed with GITHUB_TOKEN, so it doesn't start this workflow again
         git push origin "$VERSION"
 
     - name: Set up Go
       if: steps.version.outputs.release == 'true'
-      uses: actions/setup-go@v5.0.1
+      uses: actions/setup-go@v6.5.0
       with:
         go-version-file: go.mod
 
