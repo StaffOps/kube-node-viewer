@@ -1,6 +1,6 @@
 # Requirements: monthly-price-columns
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-02 (code-review agent)
+> Status: shipped (v0.11.0, 2026-11-03) · Owner: Carlos Gomes · Reviewed: 2026-11-02 (code-review agent)
 
 ## Context
 
