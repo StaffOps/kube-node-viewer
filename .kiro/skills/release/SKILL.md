@@ -57,5 +57,6 @@ brew update && brew upgrade --cask staffops/tap/kube-node-viewer && kube-node-vi
 | "already tagged and [Unreleased] is empty" | nothing new | expected |
 | Release commit pushed, tag created, GoReleaser failed | build or token error | fix in a PR; the owner re-runs the workflow on the tag |
 | Release ok, cask not updated | `HOMEBREW_TAP_GITHUB_TOKEN` missing or expired | owner renews the secret; re-run |
+| Push of the release commit or tag refused (rule violation / "protected") | `RELEASE_DEPLOY_KEY` missing, or its deploy key removed or read-only; GITHUB_TOKEN cannot bypass the rulesets | owner adds a new deploy key with write access and sets the secret; re-run |
 
 Never delete or move a published tag without the owner asking.

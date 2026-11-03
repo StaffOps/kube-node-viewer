@@ -12,25 +12,20 @@ their feature; the rows below link them.
 The layers in `AGENTS.md` ("Guardrails") stop honest mistakes; these close
 what they cannot. Listed by impact.
 
-- [ ] **Protect `main` with a repository ruleset**: require a PR and the
-      `verify`, `lint`, `build`, `secrets`, `guardrails`, `deps` and `workflows` checks; block force-pushes and deletion;
-      protect `v*` tags; let only the release workflow (GitHub Actions)
-      bypass, for its version commit and tag.
-      _Why:_ today anyone with write access can push to `main` with
-      `--no-verify` and skip CI, the spec-task gate and the cluster-run
-      rule; the `pre-push` hook only protects people who don't try. A
-      force-push to `main` also forces every clone and open branch to be
-      reset.
+- [ ] **Release push with a GitHub App instead of the deploy key**: the
+      rulesets on `main` and `v*` tags let deploy keys bypass, and
+      `release.yaml` pushes with `RELEASE_DEPLOY_KEY`. An app of the
+      StaffOps org (Contents: read & write, installed on this repository
+      only) with `actions/create-github-app-token` gives a one-hour token
+      instead; add the app as a bypass actor next to the deploy key, switch
+      the workflow, release once, then remove the key.
+      _Why:_ the deploy key is a long-lived credential that can push to
+      `main`; it has to be rotated by hand, and a leak lasts until then.
 - [ ] **Turn on secret scanning and push protection** (repository
       settings).
       _Why:_ both are free for public repos and refuse, on GitHub's side, a
       push that carries a credential, including one pushed with
       `--no-verify` past the local gitleaks check.
-- [ ] **Private vulnerability reporting on** (repository setting:
-      Security → Settings, or
-      `gh api -X PUT repos/StaffOps/kube-node-viewer/private-vulnerability-reporting`).
-      _Why:_ `SECURITY.md` sends reporters to Security → Report a
-      vulnerability, which exists only when this is on.
 - [ ] **CI tool versions nobody bumps**: zizmor (`pipx run zizmor==…`,
       test.yaml), actionlint (`go run …@v…`, test.yaml), gitleaks
       (`.github/actions/gitleaks`, version and sha256), govulncheck and

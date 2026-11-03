@@ -136,6 +136,13 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
   the compare links and the **shipped** status of finished specs, pushes
   that commit, tags it and publishes binaries and the Homebrew cask. See
   skill `release`.
+- **Rulesets** (repository settings): `main` takes changes only through a
+  PR whose `verify`, `lint`, `build`, `secrets`, `guardrails`, `deps` and
+  `workflows` checks passed (no force-push, no deletion; admins can bypass
+  only through a PR); `v*` tags cannot be created, moved or deleted.
+  Deploy keys bypass both: `release.yaml` pushes its commit and tag with
+  `RELEASE_DEPLOY_KEY`, since GitHub does not let `GITHUB_TOKEN` bypass a
+  ruleset.
 - Agents never push to `main` or push tags; they open PRs.
 - **Reviewing a PR** (skill `pr-review`): check it against the current
   `main`, not its base. A branch that predates a release merges its
@@ -199,7 +206,7 @@ the git hooks; the session-context hook does it on the first agent session.
 | `git commit` | new `.go`/`.sh`/`.py` without the Apache header | `pre-commit` | `commit-guard` | — | `make boilerplate` (Go) or copy the header |
 | `git commit` | Conventional Commit subject; no AI co-author / "generated with" | `commit-msg` | `commit-reminder` (checklist) | — | reword |
 | `git commit` | real-environment data in the message (same rules, e-mails excepted) | `commit-msg` | — | `secrets` job (`content.sh --commits`) | reword |
-| `git push` | push to `main` or a tag | `pre-push` (owner override `KNV_PUSH_MAIN=1`) | — | — | open a PR |
+| `git push` | push to `main` or a `v*` tag | `pre-push` (owner override `KNV_PUSH_MAIN=1`) | — | GitHub refuses it (rulesets; only the release deploy key bypasses) | open a PR |
 | `git push` | `main` merged in; verify, branch commits (messages, authors, secrets), hook tests, vulnerabilities and licenses, lint, build | `pre-push` → `make check` | — | `verify`, `secrets`, `guardrails`, `deps`, `lint`, `build` jobs | skill `pre-push` |
 | PR, weekly | known vulnerabilities reachable from our code (govulncheck); dependency licenses outside MIT / Apache-2.0 / BSD-3-Clause / ISC (go-licenses) | — | — | `deps` job | upgrade the module (`go get …@fixed`), or replace the dependency |
 | PR | the workflows: actionlint, and zizmor (actions pinned by commit SHA and not impostor commits, no workflow left on the default token permissions, no credential left in a checkout that does not push, no cache in the release build, injection) | — | — | `workflows` job (`.github/zizmor.yml` lists the reviewed exceptions) | pin with `@<sha> # vX.Y.Z`; add `permissions:` to the job |
