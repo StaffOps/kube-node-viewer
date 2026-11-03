@@ -15,7 +15,7 @@
   - _Covers: — · Depends on: T3, T4 · Verified by: review_
 - [x] T6. Verify: `scripts/verify.sh`, `make lint`, coverage ≥ 90% on new code
   - _Covers: R1, R2 · Depends on: T5 · Verified by: command output_
-- [-] T7. Measure heap with owner references in the bench pods and the slim pods kept alive, before and after T1, record both in D3; manual run on a cluster: note what was checked, never the cluster's name
+- [x] T7. Measure heap with owner references in the bench pods and the slim pods kept alive, before and after T1, record both in D3; manual run on a cluster: note what was checked, never the cluster's name
   - _Covers: D3 (and the manual run of R1–R8) · Depends on: T6 · Verified by: benchmark output and owner check_
 
 ## Notes
@@ -73,3 +73,15 @@
 | Search inside the Pods tab | Nodes with more pods than fit in the popup |
 
 > **Note 2026-11-03.** T8 verified: rebased on `origin/main` (`aaf0bab`), `scripts/verify.sh` green (content, changelog and spec-tasks checks included), golangci-lint v2.14.0 0 issues, `pkg/model` coverage 94.0%. `TestMonthlyColumnsOnScreen` (from main) read the new DaemonSets line as a node row; it now skips it. The DaemonSets line also shows absolute values (owner, 2026-11-03). T7's cluster run is still open.
+
+> **Verified 2026-11-03.** Ran the binary (`--resources cpu,memory`) on a
+> local kind cluster (3 nodes, Kubernetes v1.37) with a Deployment of three
+> 500m / 1Gi pods, a pod with no requests, a DaemonSet requesting 200m /
+> 256Mi next to the kind ones, and a node priced with the override label.
+> Checked: the node-list line (`DaemonSets: 2% of the node (cpu 300m 2% · mem
+> 306Mi 1%)`); Details with the monthly price, CPU in millicores, capacity
+> only where it differs, the Pods section (`7 (6%) / 110`) and the DaemonSets
+> section (3 pods, 3 sets, 300m, 306Mi); the Pods tab with `ds` marks and
+> `no requests` last; `d` with the Total line; `s` to CPU and `S` reversing
+> it. Node requests (1800m, 15%) and every pod's requests match `kubectl
+> describe node`; memory shows 11% where kubectl truncates to 10%.
