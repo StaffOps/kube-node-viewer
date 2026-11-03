@@ -147,6 +147,7 @@ With `ctrl+e` the header shrinks to two lines:
 | `f` | Filters panel |
 | `g` | Group by panel |
 | `s` | Sort panel |
+| `I` | Flip the sort between ascending and descending, without opening the Sort panel |
 | `o` | Columns panel |
 | `/` | Search name, IP, instance type and label values as you type; `enter` keeps it, `esc` clears it |
 | `r` | Resources: cpu → memory → cpu+memory (→ the `--resources` list, if different) |
@@ -237,7 +238,8 @@ Two presses and `d` (node groups carry the bars, their zones as one-line rows):
 
 Creation time, name, IP, price, pods, usage of each resource, any derived
 field or label. `enter` sorts by the row under the cursor; on the current
-sort it flips the direction, and so does `space`. Price, pods, usage and
+sort it flips the direction, and so does `space`; on the main screen `I`
+(shift+i) flips it without opening the panel. Price, pods, usage and
 creation start biggest or newest first. Nodes without a value sort last in
 either direction; ties break on the node name.
 

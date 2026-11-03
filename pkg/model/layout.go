@@ -210,7 +210,7 @@ func (u *UIModel) helpText() string {
 	if u.onRecommendations() {
 		return "↑/↓: select • enter: why • tab/:ov: Overview • f: filter • /: search • c: context • v: views • e: export • ?: help • q: quit"
 	}
-	keys := "f: filter • g: group • s: sort • o: columns • /: search • r: resources • c: context • v: views • e: export • tab: recommendations"
+	keys := "f: filter • g: group • s: sort • I: flip ↑/↓ • o: columns • /: search • r: resources • c: context • v: views • e: export • tab: recommendations"
 	if len(u.view.GroupBy) > 0 {
 		keys += " • enter: fold group • n: fold"
 	}
