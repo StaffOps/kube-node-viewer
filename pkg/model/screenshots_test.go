@@ -190,7 +190,7 @@ func TestScreenshots(t *testing.T) {
 	// one session, step by step, for the README animation: each frame is the
 	// screen after its key, with a caption naming the key
 	demo := demoUI(t)
-	demo.Update(tea.WindowSizeMsg{Width: 150, Height: 34})
+	demo.Update(tea.WindowSizeMsg{Width: 172, Height: 34})
 	steps := []struct {
 		caption string
 		keys    func(u *UIModel)

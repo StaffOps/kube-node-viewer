@@ -105,13 +105,19 @@ the node over its pod capacity, then the columns you picked. Default columns:
 |--------|---------------|
 | `INSTANCE` | instance type (`<cpu>vCPU-<mem>GB` for a Fargate pod) |
 | `PRICE/H` | hourly price; `~$` marks an on-demand equivalent for a reserved node (see [Pricing](#pricing)); `-` when unknown |
+| `PRICE/M` | the hourly price × 730, per month, with the same `~$` and `-` |
+| `IDLE/M` | what the node pays per month for capacity nothing requests: price × (1 − the larger of cpu and memory use) × 730; `-` without a real price |
 | `CAPACITY` | `OnDemand`, `Spot`, `Reserved`, `Fargate` or `Unknown`, with `/Auto` for EKS Auto Mode |
 | `NODEGROUP` | the Karpenter NodePool, or the EKS managed node group or AKS agent pool name in blue |
 | `ZONE` | availability zone |
 | `STATUS` | `Ready` or `NotReady/<for how long>`, plus `Cordoned`, `Deleting`, `Launching` (a Karpenter NodeClaim whose node has not registered yet) |
 
-The Columns panel (`o`) also offers `IP`, `REGION`, `AGE`, the computed labels
-and any node label.
+The Columns panel (`o`) also offers `IDLE/H` (the idle cost per hour), `IP`,
+`REGION`, `AGE`, the computed labels and any node label. Hourly and monthly
+columns are separate: show either or both. Sorting by `price` or `idle`
+orders both. With `--disable-pricing` no price or idle column is drawn. All
+the default columns need about 172 columns of terminal width; on a narrower
+window `ZONE`, `NODEGROUP` and `INSTANCE` go first.
 
 **Groups.** With a group-by, nodes nest under up to three levels. Top-level
 groups are in bold blue with a blank line between them; sub-groups hang off
@@ -508,7 +514,9 @@ view. Change it from the TUI, or quit and delete its entry from
 `~/.local/state/kube-node-viewer/state.json`.
 
 **A new default column or order does not show.** Columns saved for a cluster
-win over the defaults; adjust them with `o` (`space`, `K`/`J`).
+win over the defaults; adjust them with `o` (`space`, `K`/`J`). A cluster
+opened before `PRICE/M` and `IDLE/M` existed shows them only once added
+there.
 
 **NoCredentialProviders: no valid providers in chain.** Pricing needs AWS
 credentials unless you use `--disable-pricing`. Configure them through
