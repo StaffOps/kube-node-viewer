@@ -29,6 +29,16 @@ type Views interface {
 	DeleteView(name string)
 }
 
+// ReadOnlyViews is implemented by Views that hold views the TUI cannot change,
+// such as the views of config.yaml (config-views R3). They are listed with
+// a marker and can be applied, but not deleted or saved over.
+type ReadOnlyViews interface {
+	ReadOnly(name string) bool
+}
+
+// readOnlyMarker follows a read-only view's name in the Views panel.
+const readOnlyMarker = " (config)"
+
 // NoticeMsg puts a short message in the footer for noticeDuration.
 type NoticeMsg struct {
 	Text string
@@ -82,6 +92,12 @@ func (u *UIModel) viewNames() []string {
 	return u.views.ViewNames()
 }
 
+// readOnlyView tells whether the named view comes from config.yaml.
+func (u *UIModel) readOnlyView(name string) bool {
+	ro, ok := u.views.(ReadOnlyViews)
+	return ok && ro.ReadOnly(name)
+}
+
 func (u *UIModel) viewsKey(key string) {
 	p := &u.viewsPanel
 	if p.naming {
@@ -108,6 +124,10 @@ func (u *UIModel) viewsKey(key string) {
 		u.applyView(names[p.cursor])
 	case "d", "delete", "backspace":
 		if p.cursor < len(names) {
+			if u.readOnlyView(names[p.cursor]) {
+				u.notify("view " + names[p.cursor] + " is defined in config.yaml; remove it there")
+				return
+			}
 			u.views.DeleteView(names[p.cursor])
 			u.notify("deleted view " + names[p.cursor])
 			p.cursor = min(p.cursor, len(names)-1)
@@ -123,6 +143,10 @@ func (u *UIModel) nameKey(key string) {
 		name := strings.TrimSpace(p.name)
 		if name == "" {
 			u.notify("a view needs a name")
+			return
+		}
+		if u.readOnlyView(name) {
+			u.notify("view " + name + " is defined in config.yaml; pick another name")
 			return
 		}
 		u.views.SaveView(name, u.view.forSaving())
@@ -181,7 +205,13 @@ func (u *UIModel) applyView(name string) {
 func (u *UIModel) viewsPanelView() panelView {
 	p := &u.viewsPanel
 	names := u.viewNames()
-	rows := append([]string(nil), names...)
+	rows := make([]string, 0, len(names)+1)
+	for _, name := range names {
+		if u.readOnlyView(name) {
+			name += readOnlyMarker
+		}
+		rows = append(rows, name)
+	}
 	if p.naming {
 		rows = append(rows, "name: "+p.name+"█")
 	} else {

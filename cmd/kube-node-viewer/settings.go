@@ -20,6 +20,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -42,29 +44,37 @@ func settingsPath(home string) string {
 	return filepath.Join(dir, "kube-node-viewer", settingsFileName)
 }
 
-// settingsFile is the YAML file's shape. The list items are decoded as any so
-// that 123, yes and ~ are rejected instead of becoming strings (design D1).
-type settingsFile struct {
-	Labels labelLists `json:"labels"`
-}
+// Values of start-with (config-views R4, R5).
+const (
+	startWithDefaultView = "default-view"
+	startWithLastView    = "last-view"
+)
 
-type labelLists struct {
-	Allow []any `json:"allow"`
-	Deny  []any `json:"deny"`
+// settings is what config.yaml holds once checked.
+type settings struct {
+	policy model.LabelPolicy
+	// views are the config views, in file order
+	views []configView
+	// defaultView is the view each cluster opens with, nil without one
+	defaultView *model.ViewState
+	// lastView is start-with: last-view; a saved view wins over defaultView
+	lastView bool
 }
 
 // unmarshalPrefix is what sigs.k8s.io/yaml puts before every decoding error.
 const unmarshalPrefix = "error unmarshaling JSON: while decoding JSON: json: "
 
-// loadSettings reads the label lists from the config file at path, replaces
-// either with --labels-allow or --labels-deny when given on the command line
-// (R7), and compiles them. A missing file or directory means no lists; any
-// other problem is an error naming the file (R8).
-func loadSettings(path string, explicit map[string]string) (model.LabelPolicy, error) {
-	allow, deny, err := readLabelLists(path)
+// loadSettings reads config.yaml at path: the label lists, replaced by
+// --labels-allow or --labels-deny when given on the command line
+// (label-visibility R7), and the config views (config-views). A missing file
+// or directory means no settings; any other problem is an error naming the
+// file and the place in it (label-visibility R8, config-views R6).
+func loadSettings(path string, explicit map[string]string) (settings, error) {
+	file, err := readSettingsFile(path)
 	if err != nil {
-		return model.LabelPolicy{}, fmt.Errorf("config file %s: %w", path, err)
+		return settings{}, fmt.Errorf("config file %s: %w", path, err)
 	}
+	allow, deny := file.allow, file.deny
 	if v, ok := explicit["labels-allow"]; ok {
 		allow = splitPatterns(v)
 	}
@@ -73,37 +83,192 @@ func loadSettings(path string, explicit map[string]string) (model.LabelPolicy, e
 	}
 	policy, err := model.NewLabelPolicy(allow, deny)
 	if err != nil {
-		return model.LabelPolicy{}, fmt.Errorf("label lists: %w", err)
+		return settings{}, fmt.Errorf("label lists: %w", err)
 	}
-	return policy, nil
+	return settings{policy: policy, views: file.views, defaultView: file.defaultView, lastView: file.lastView}, nil
 }
 
-// readLabelLists decodes labels.allow and labels.deny strictly: unknown keys,
-// wrong types and items that are not non-empty strings are errors.
-func readLabelLists(path string) (allow, deny []string, err error) {
+// settingsFile is config.yaml as written, checked but before the label flags.
+type settingsFile struct {
+	allow, deny []string
+	views       []configView
+	defaultView *model.ViewState
+	lastView    bool
+}
+
+// readSettingsFile decodes the file into plain values and walks them by hand
+// (config-views D5): keys compare exactly, unknown keys and wrong types are
+// errors with their path, and scalars keep their YAML type, so 123, yes and
+// ~ are not strings.
+func readSettingsFile(path string) (settingsFile, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil, nil
+		return settingsFile{}, nil
 	}
 	if err != nil {
 		var pathErr *fs.PathError
 		if errors.As(err, &pathErr) {
 			// the message names the file already
-			return nil, nil, pathErr.Err
+			return settingsFile{}, pathErr.Err
 		}
+		return settingsFile{}, err
+	}
+	var doc any
+	// strict: a key written twice is an error
+	if err := yaml.UnmarshalStrict(data, &doc); err != nil {
+		return settingsFile{}, errors.New(strings.TrimPrefix(err.Error(), unmarshalPrefix))
+	}
+	top, err := mapping("", doc, "labels", "views", "default-view", "start-with")
+	if err != nil {
+		return settingsFile{}, err
+	}
+	var file settingsFile
+	if file.allow, file.deny, err = readLabelLists(top["labels"]); err != nil {
+		return settingsFile{}, err
+	}
+	if file.views, err = readViews(top["views"]); err != nil {
+		return settingsFile{}, err
+	}
+	if err := file.readStartView(top); err != nil {
+		return settingsFile{}, err
+	}
+	return file, nil
+}
+
+// readLabelLists checks labels.allow and labels.deny: lists of non-empty
+// strings, either may be missing or null.
+func readLabelLists(value any) (allow, deny []string, err error) {
+	labels, err := mapping("labels", value, "allow", "deny")
+	if err != nil {
 		return nil, nil, err
 	}
-	var s settingsFile
-	if err := yaml.UnmarshalStrict(data, &s); err != nil {
-		return nil, nil, errors.New(strings.TrimPrefix(err.Error(), unmarshalPrefix))
-	}
-	if allow, err = patternList("labels.allow", s.Labels.Allow); err != nil {
-		return nil, nil, err
-	}
-	if deny, err = patternList("labels.deny", s.Labels.Deny); err != nil {
-		return nil, nil, err
+	for _, l := range []struct {
+		key string
+		out *[]string
+	}{{"allow", &allow}, {"deny", &deny}} {
+		items, err := list("labels."+l.key, labels[l.key])
+		if err != nil {
+			return nil, nil, err
+		}
+		if *l.out, err = patternList("labels."+l.key, items); err != nil {
+			return nil, nil, err
+		}
 	}
 	return allow, deny, nil
+}
+
+// readStartView checks default-view and start-with.
+func (f *settingsFile) readStartView(top map[string]any) error {
+	name, hasDefault, err := optionalString("default-view", top)
+	if err != nil {
+		return err
+	}
+	startWith, hasStartWith, err := optionalString("start-with", top)
+	if err != nil {
+		return err
+	}
+	switch {
+	case !hasStartWith, startWith == startWithDefaultView:
+		if hasStartWith && !hasDefault {
+			return fmt.Errorf("start-with: %s needs default-view", startWithDefaultView)
+		}
+	case startWith == startWithLastView:
+		f.lastView = true
+	default:
+		return fmt.Errorf("start-with: %q is not %s or %s", startWith, startWithDefaultView, startWithLastView)
+	}
+	if !hasDefault {
+		return nil
+	}
+	for i := range f.views {
+		if f.views[i].name == name {
+			view := f.views[i].view
+			f.defaultView = &view
+			return nil
+		}
+	}
+	return fmt.Errorf("default-view: no view is named %q", name)
+}
+
+// optionalString is a string setting of the top level; ok is false when the
+// key is not in the file.
+func optionalString(key string, top map[string]any) (value string, ok bool, err error) {
+	raw, ok := top[key]
+	if !ok {
+		return "", false, nil
+	}
+	value, err = str(key, raw)
+	return value, true, err
+}
+
+// mapping checks that value is a map, or null for none, with only the given
+// keys, compared exactly. path names the value in errors; the top level has
+// none.
+func mapping(path string, value any, keys ...string) (map[string]any, error) {
+	if value == nil {
+		return map[string]any{}, nil
+	}
+	m, ok := value.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("%s is not a map of keys", orFile(path))
+	}
+	// sorted, so the error is the same on every run
+	names := make([]string, 0, len(m))
+	for k := range m {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	for _, k := range names {
+		if !slices.Contains(keys, k) {
+			if path == "" {
+				return nil, fmt.Errorf("unknown field %q", k)
+			}
+			return nil, fmt.Errorf("%s: unknown field %q", path, k)
+		}
+	}
+	return m, nil
+}
+
+// orFile is path, or "the file" for the top level.
+func orFile(path string) string {
+	if path == "" {
+		return "the file"
+	}
+	return path
+}
+
+// list checks that value is a list, or null for none.
+func list(path string, value any) ([]any, error) {
+	if value == nil {
+		return nil, nil
+	}
+	items, ok := value.([]any)
+	if !ok {
+		return nil, fmt.Errorf("%s: %s is not a list", path, describeItem(value))
+	}
+	return items, nil
+}
+
+// str checks that value is a non-empty string.
+func str(path string, value any) (string, error) {
+	s, ok := value.(string)
+	switch {
+	case !ok:
+		return "", fmt.Errorf("%s: %s is not a string; quote it", path, describeItem(value))
+	case strings.TrimSpace(s) == "":
+		return "", fmt.Errorf("%s: empty", path)
+	}
+	return s, nil
+}
+
+// boolean checks that value is true or false; YAML also reads yes/no and
+// on/off as those.
+func boolean(path string, value any) (bool, error) {
+	b, ok := value.(bool)
+	if !ok {
+		return false, fmt.Errorf("%s: %s is not true or false", path, describeItem(value))
+	}
+	return b, nil
 }
 
 // patternList checks that every item is a non-empty YAML string, naming the

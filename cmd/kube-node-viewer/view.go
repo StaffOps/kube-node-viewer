@@ -28,13 +28,22 @@ var viewKeys = []string{"group-by", "groups-only", "node-sort", "extra-labels", 
 
 // resolveView builds the starting view state (design D8): built-in defaults,
 // then the config file, then the state saved for the cluster (which replaces
-// both), then the flags given on the command line.
-func resolveView(cfg configFile, saved *model.ViewState, explicit map[string]string) (model.ViewState, error) {
+// both), then the flags given on the command line. A start view of
+// config.yaml takes the place of the saved view, keeping the header size,
+// the screen and the groups folded one by one from it, as applying a named
+// view does (config-views R4).
+func resolveView(cfg configFile, saved, start *model.ViewState, explicit map[string]string) (model.ViewState, error) {
 	view := model.DefaultViewState()
 	if err := applyViewKeys(&view, cfg); err != nil {
 		return model.ViewState{}, fmt.Errorf("config file: %w", err)
 	}
-	if saved != nil {
+	switch {
+	case start != nil:
+		view = cloneView(*start)
+		if saved != nil {
+			view.Header, view.Screen, view.Collapsed = saved.Header, saved.Screen, saved.Collapsed
+		}
+	case saved != nil:
 		view = *saved
 	}
 	if err := applyViewKeys(&view, explicit); err != nil {

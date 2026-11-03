@@ -18,7 +18,8 @@ nodes, pick columns and resources, search, fold groups and switch cluster
 without restarting. A second screen, Recommendations, says what to do about
 the cost: consolidate, rightsize, move to a newer generation or Graviton,
 recycle old nodes and, last, Spot. The last view used on each cluster comes
-back the next time.
+back the next time, or, if you prefer, a view written in `config.yaml`
+(see [Config views](#config-views)).
 
 ![kube-node-viewer: grouping by node group and zone, folding with n, details with d](.static/demo.gif)
 
@@ -36,6 +37,7 @@ with `scripts/screenshots.sh`.
 - [Saved view per cluster](#saved-view-per-cluster)
 - [Flags and config file](#flags-and-config-file)
 - [Label visibility](#label-visibility)
+- [Config views](#config-views)
 - [Pricing](#pricing)
 - [Computed labels](#computed-labels)
 - [Troubleshooting](#troubleshooting)
@@ -80,7 +82,8 @@ It connects to the current kubeconfig context. Then:
 5. `c` to look at another cluster.
 
 Quit with `q`. The next time you open the same cluster, the view is as you
-left it.
+left it, unless `config.yaml` sets a `default-view`
+(see [Config views](#config-views)).
 
 ## What is on screen
 
@@ -271,6 +274,10 @@ becomes the cluster's view, saved as usual), `d` deletes it, and
 cancels. Saving under an existing name replaces it. A named view leaves out
 the search text, groups folded one by one and the header size.
 
+Views written in `config.yaml` come first, marked `(config)`; see
+[Config views](#config-views). They apply like the others, but `d` and
+saving under their name are refused: edit the file instead.
+
 ### Export (`e`)
 
 `e` writes every node the filters and search keep (all pages, folded groups
@@ -350,7 +357,8 @@ At start the view is built from, lowest to highest:
 
 1. built-in defaults;
 2. the config file `~/.kube-node-viewer`;
-3. the saved view for this cluster, which replaces both;
+3. the saved view for this cluster, which replaces both, or the start view
+   of `config.yaml` (see [Config views](#config-views));
 4. flags given on the command line, for this run only: they are saved only
    once you change the view from the TUI.
 
@@ -371,7 +379,7 @@ Usage of kube-node-viewer:
   -extra-labels string
     	A comma separated set of extra node labels to display
   -group-by string
-    	Node label to summarize usage and cost by, optionally with a filter on a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. Applies to this run; the last view chosen in the TUI is restored per cluster
+    	Node label to summarize usage and cost by, optionally with a filter on a comma separated list of its values, e.g. 'karpenter.sh/nodepool' or 'karpenter.sh/nodepool=default,gpu'. Applies to this run; the last view chosen in the TUI is restored per cluster, unless config.yaml sets default-view with start-with: default-view
   -groups-only
     	Start folded to the --group-by groups, with the node list hidden. At runtime 'n' folds and unfolds one level per press
   -kubeconfig string
@@ -531,6 +539,33 @@ $ echo $?
 1
 ```
 
+## Config views
+
+`config.yaml` can also hold views written by hand: columns, group-by, sort,
+resources and filters. One of them can open every cluster
+(`default-view`), and `v` switches between them:
+
+```yaml
+views:
+  - name: cost
+    columns:
+      - instance-type
+      - price/h
+      - price/m
+      - capacity
+      - status
+    group-by:
+      - nodegroup
+    sort: price
+    resources:
+      - cpu
+      - memory
+default-view: cost
+```
+
+Every key, the field names, recipes, how the start view is chosen and the
+errors are in [docs/views.md](docs/views.md).
+
 ## Pricing
 
 Prices come from AWS: on-demand and Fargate from the Price List API, spot from
@@ -596,8 +631,12 @@ These names work anywhere a label does: columns, sort, group-by, filters,
 
 ## Troubleshooting
 
-**The view is not what I expect on one cluster.** It is that cluster's saved
-view. Change it from the TUI, or quit and delete its entry from
+**The view is not what I expect on one cluster.** If `config.yaml` sets
+`default-view` (and no `start-with: last-view`), every cluster opens with
+that view; set
+`start-with: last-view` to get each cluster's saved view back (see
+[Config views](#config-views)). Otherwise it is that cluster's saved view.
+Change it from the TUI, or quit and delete its entry from
 `~/.local/state/kube-node-viewer/state.json`.
 
 **A new default column or order does not show.** Columns saved for a cluster

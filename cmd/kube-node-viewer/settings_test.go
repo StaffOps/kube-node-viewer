@@ -121,7 +121,7 @@ func TestLoadSettingsValidFiles(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := shown(p); !reflect.DeepEqual(got, tt.want) {
+			if got := shown(p.policy); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("shows %v, want %v", got, tt.want)
 			}
 		})
@@ -139,7 +139,7 @@ func TestLoadSettingsMissingFileOrDir(t *testing.T) {
 			if err != nil {
 				t.Fatalf("not an error (R8): %v", err)
 			}
-			if got := shown(p); !reflect.DeepEqual(got, keys) {
+			if got := shown(p.policy); !reflect.DeepEqual(got, keys) {
 				t.Errorf("shows %v, want every key", got)
 			}
 		})
@@ -271,7 +271,7 @@ func TestLabelFlagsReplaceTheFileLists(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := shown(p); !reflect.DeepEqual(got, tt.want) {
+			if got := shown(p.policy); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("shows %v, want %v", got, tt.want)
 			}
 			// the run does not write the config file (R7)
@@ -287,7 +287,7 @@ func TestLabelFlagsWithoutAConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := shown(p), []string{"karpenter.sh/nodepool", "app.example.com/owner", "app.example.com/internal-id", "kubernetes.io/os"}; !reflect.DeepEqual(got, want) {
+	if got, want := shown(p.policy), []string{"karpenter.sh/nodepool", "app.example.com/owner", "app.example.com/internal-id", "kubernetes.io/os"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("shows %v, want %v", got, want)
 	}
 }
@@ -296,7 +296,7 @@ func TestLabelFlagsWithoutAConfigFile(t *testing.T) {
 // state that is saved per cluster.
 func TestLabelFlagsAreNotViewState(t *testing.T) {
 	explicit := map[string]string{"labels-allow": "team", "labels-deny": "env"}
-	got, err := resolveView(configFile{}, nil, explicit)
+	got, err := resolveView(configFile{}, nil, nil, explicit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,7 +340,7 @@ func TestLabelListsNotReadFromTheOldConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := shown(p); !reflect.DeepEqual(got, keys) {
+	if got := shown(p.policy); !reflect.DeepEqual(got, keys) {
 		t.Errorf("shows %v, want every key", got)
 	}
 }

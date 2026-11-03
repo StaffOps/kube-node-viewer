@@ -48,6 +48,76 @@ type sessions struct {
 	// explicit holds the command-line flags until the first connection; they
 	// apply to the cluster the run started on (R2)
 	explicit map[string]string
+	starts   *startViews
+}
+
+// startViews picks, per connection, the start view of config.yaml
+// (config-views R4, R5, D2). In default-view mode a cluster opens with the
+// default view the first time the run connects to it; in last-view mode only
+// when it has no saved view. A cluster opened with the default view comes
+// back, with c, as it was left in this run.
+type startViews struct {
+	// view is the default view, nil without one
+	view     *model.ViewState
+	lastView bool
+
+	mu        sync.Mutex
+	connected map[string]bool
+	// run is the view of each cluster opened with the default view, as it
+	// is now, by cluster key
+	run map[string]model.ViewState
+}
+
+func newStartViews(view *model.ViewState, lastView bool) *startViews {
+	return &startViews{view: view, lastView: lastView, connected: map[string]bool{}, run: map[string]model.ViewState{}}
+}
+
+// pick returns the saved view and the start view to resolve a connection to
+// the cluster from; either may be nil.
+func (p *startViews) pick(key string, saved *model.ViewState) (base, start *model.ViewState) {
+	if p == nil || p.view == nil {
+		return saved, nil
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if v, ok := p.run[key]; ok {
+		return &v, nil
+	}
+	switch {
+	case p.lastView && saved == nil:
+		return nil, p.view
+	case p.lastView:
+		return saved, nil
+	case !p.connected[key]:
+		return saved, p.view
+	}
+	return saved, nil
+}
+
+// opened records a connection made with the view it shows; fromStart is
+// whether pick gave a start view.
+func (p *startViews) opened(key string, view model.ViewState, fromStart bool) {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.connected[key] = true
+	if fromStart {
+		p.run[key] = view
+	}
+}
+
+// changed records a view change of a cluster opened with the default view.
+func (p *startViews) changed(key string, view model.ViewState) {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if _, ok := p.run[key]; ok {
+		p.run[key] = view
+	}
 }
 
 func (s *sessions) Contexts() ([]string, string, error) {
@@ -73,11 +143,13 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 	explicit := s.explicit
 	s.explicit = nil
 	s.mu.Unlock()
+	key := cluster.Key()
 	var saved *model.ViewState
-	if v, ok := s.states.Get(cluster.Key()); ok {
+	if v, ok := s.states.Get(key); ok {
 		saved = &v
 	}
-	view, err := resolveView(s.flags.Config, saved, explicit)
+	saved, start := s.starts.pick(key, saved)
+	view, err := resolveView(s.flags.Config, saved, start, explicit)
 	if err != nil {
 		return model.Session{}, err
 	}
@@ -107,12 +179,15 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 	// Start makes a blocking API call
 	go controller.Start(ctx)
 
-	key := cluster.Key()
+	s.starts.opened(key, view, start != nil)
 	return model.Session{
 		Cluster: store,
 		Info:    info,
 		View:    view,
-		Save:    func(v model.ViewState) { s.saver.Save(key, v) },
+		Save: func(v model.ViewState) {
+			s.starts.changed(key, v)
+			s.saver.Save(key, v)
+		},
 		Advisor: newAdvisor(prices),
 	}, nil
 }

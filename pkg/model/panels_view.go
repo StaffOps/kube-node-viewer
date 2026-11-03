@@ -129,10 +129,17 @@ type sortPanel struct {
 	fields []Field
 }
 
+// SortFields are the fields the Sort panel offers besides usage per resource
+// and labels, in panel order. Config views accept the same names
+// (config-views R2).
+func SortFields() []Field {
+	return []Field{FieldCreation, FieldName, FieldIP, FieldPrice, FieldIdle, FieldPods}
+}
+
 // sortChoices are the fields the node list sorts on (R5): creation, the
 // columns, usage per resource, then every label.
 func (u *UIModel) sortChoices() []Field {
-	fields := []Field{FieldCreation, FieldName, FieldIP, FieldPrice, FieldIdle, FieldPods}
+	fields := SortFields()
 	resources := []string{string(v1.ResourceCPU), string(v1.ResourceMemory)}
 	for _, r := range u.view.Resources {
 		if !slices.Contains(resources, r) {
@@ -146,9 +153,9 @@ func (u *UIModel) sortChoices() []Field {
 	return append(fields, choices...)
 }
 
-// descendingFirst are the sorts that start biggest first: newest, priciest,
-// fullest.
-func descendingFirst(f Field) bool {
+// DescendingFirst tells whether a sort on the field starts biggest first:
+// newest, priciest, fullest.
+func DescendingFirst(f Field) bool {
 	switch f {
 	case FieldCreation, FieldPrice, FieldIdle, FieldPods:
 		return true
@@ -199,7 +206,7 @@ func (u *UIModel) sortKey(key string) {
 		if v.Sort.Field == field {
 			v.Sort.Descending = !v.Sort.Descending
 		} else {
-			v.Sort = SortSpec{Field: field, Descending: descendingFirst(field)}
+			v.Sort = SortSpec{Field: field, Descending: DescendingFirst(field)}
 		}
 		u.setView(v)
 		u.panel = panelNone
@@ -232,6 +239,13 @@ type columnsPanel struct {
 	fields []Field
 }
 
+// ColumnFields are the columns the Columns panel offers besides labels: the
+// default columns, then the others. Config views accept the same names
+// (config-views R2).
+func ColumnFields() []Field {
+	return append(slices.Clone(DefaultColumns), FieldIdle, FieldRegion, FieldAge, FieldIP)
+}
+
 // columnChoices are the shown columns in order, then the fixed columns not
 // shown, then every label.
 func (u *UIModel) columnChoices() []Field {
@@ -241,12 +255,9 @@ func (u *UIModel) columnChoices() []Field {
 			fields = append(fields, f)
 		}
 	}
-	for _, f := range DefaultColumns {
+	for _, f := range ColumnFields() {
 		add(f)
 	}
-	add(FieldIdle)
-	add(FieldRegion)
-	add(FieldAge)
 	add(LabelField(LabelPrefix + "node-age"))
 	for _, r := range []v1.ResourceName{v1.ResourceCPU, v1.ResourceMemory} {
 		add(LabelField(LabelPrefix + "node-" + string(r) + "-usage"))

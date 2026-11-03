@@ -144,6 +144,11 @@ Beyond the Guardrails section above.
       node label `topology.kubernetes.io/region`. Use the node label for
       pricing too.
 
+- [ ] config-views error polish (spec-refuter 2026-11-03): `- label: zone`
+  (space after the colon) shows a Go `map[...]`; padded values in
+  `sort`/`resources`/`group-by` load silently; `sort: price/m` suggests
+  `label:` instead of `sort: price`. See `specs/config-views/`.
+
 ## Ideas
 
 - [ ] Recommendations for AKS: Azure VM catalog and family tables, so the
