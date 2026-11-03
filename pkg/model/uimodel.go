@@ -117,6 +117,8 @@ type UIModel struct {
 	detailsRows int
 	// searching is true while the search text takes the keys
 	searching bool
+	// labelPolicy picks the node labels the panels offer (label-visibility)
+	labelPolicy LabelPolicy
 	// customResources is a resource list other than cpu, memory or both,
 	// from --resources or saved state: the fourth step of r (R9)
 	customResources []string
@@ -242,6 +244,12 @@ func (u *UIModel) SetIssues(f func() (string, time.Time), logFile string) {
 func (u *UIModel) SetClusterInfo(info ClusterInfo) {
 	u.info = info
 	u.dirty = true
+}
+
+// SetLabelPolicy sets which node labels the Filters, Group by, Sort and
+// Columns panels offer; the zero policy offers them all.
+func (u *UIModel) SetLabelPolicy(p LabelPolicy) {
+	u.labelPolicy = p
 }
 
 // SetView replaces the view state, as loaded at start or for a new cluster.

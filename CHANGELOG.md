@@ -6,6 +6,18 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- Label visibility: `labels.allow` and `labels.deny` in
+  `~/.config/kube-node-viewer/config.yaml` (or under an absolute
+  `$XDG_CONFIG_HOME`) pick the node labels the Filters, Group by, Sort and
+  Columns panels offer. Patterns match the whole key, `*` matches anything,
+  deny wins. Labels the view uses stay listed; details, search and export
+  are unchanged. A status line counts the hidden labels and `a` shows them
+  until the panel closes. `--labels-allow` and `--labels-deny` replace a
+  list for one run. An invalid file stops the start with the file and the
+  reason.
+
 ## [0.9.1] - 2026-11-03
 
 ### Added
