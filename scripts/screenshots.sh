@@ -39,7 +39,7 @@ frames=("$work"/demo-*.ansi)
 : >"$work/frames.txt"
 for i in "${!frames[@]}"; do
   name=$(basename "${frames[$i]}" .ansi)
-  shoot "$name" 1240 540 1
+  shoot "$name" 1420 540 1
   hold=2.6
   [[ $i -eq 0 || $i -eq $((${#frames[@]} - 1)) ]] && hold=3.5
   printf "file '%s'\nduration %s\n" "$work/$name.png" "$hold" >>"$work/frames.txt"
