@@ -43,6 +43,9 @@ func TestSearchMatcher(t *testing.T) {
 		{"m7g\\.(large|xl)", "m7g.medium", false, true, false},
 		{"203.0.113.5|zz", "ip-203-0-113-5.example.com", true, true, false}, // in a regex `.` is any character
 		{"search | batch", "batch", false, true, false},                     // spaces inside count
+		{"a|", "zzz", true, true, false},                                    // an empty alternative matches everything
+		{"a||b", "zzz", true, true, false},                                  // (design, Failure modes)
+		{"ſ|zz", "s", true, true, false},                                    // non-ASCII: the regex, whose (?i) folds ſ to s
 		{"a(b", "xa(by", true, false, true},
 		{"a(b", "ab", false, false, true},
 		{"[", "a[b", true, false, true},
@@ -57,7 +60,7 @@ func TestSearchMatcher(t *testing.T) {
 			t.Errorf("%q on %q: got %v, want %v", c.text, c.value, got, c.want)
 		}
 		if m.hasRegex != (c.re || c.invalid) || m.invalid != c.invalid {
-			t.Errorf("%q: regex %v invalid %v, want regex %v invalid %v", c.text, m.re != nil, m.invalid, c.re, c.invalid)
+			t.Errorf("%q: regex characters %v invalid %v, want %v %v", c.text, m.hasRegex, m.invalid, c.re || c.invalid, c.invalid)
 		}
 	}
 	if m := newSearchMatcher("search|batch"); m.re != nil || len(m.words) != 2 {
@@ -76,7 +79,11 @@ func TestSearchMatcher(t *testing.T) {
 func TestSearchFooterHeaderAndHelp(t *testing.T) {
 	u := footerUI(t, 200, 40)
 	u.View()
-	press(u, "/", "n", "o", "d", "e", "|", "x")
+	press(u, "/", "n")
+	if got := u.helpText(); got != "type to search (regex) • enter: keep • esc: clear" {
+		t.Errorf("plain text footer: %q", got)
+	}
+	press(u, "o", "d", "e", "|", "x")
 	if got := u.helpText(); got != "type to search (regex) • enter: keep • esc: clear" {
 		t.Errorf("valid pattern footer: %q", got)
 	}

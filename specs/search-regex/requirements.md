@@ -31,44 +31,47 @@ THEN the system SHALL keep the nodes for which it matches, anywhere and
 ignoring case, the node name, the internal IP, the instance type or any
 label value.
 
-- [ ] `search|batch` keeps a node labelled `workload=search` and one
+- [x] `search|batch` keeps a node labelled `workload=search` and one
   labelled `workload=batch`, and no other.
-- [ ] `^node-1$` keeps `node-1` and not `node-12`.
-- [ ] `m7g\.(large|xl)` keeps `m7g.large` and `m7g.xlarge` nodes, not
+- [x] `^node-1$` keeps `node-1` and not `node-12`.
+- [x] `m7g\.(large|xl)` keeps `m7g.large` and `m7g.xlarge` nodes, not
   `m7g.medium`.
-- [ ] Matching ignores case: `BATCH|x` keeps the `batch` node; `(?-i)BATCH|x`
+- [x] Matching ignores case: `BATCH|x` keeps the `batch` node; `(?-i)BATCH|x`
   does not.
-- [ ] It is not anchored: `atc|x` keeps the `batch` node.
+- [x] It is not anchored: `atc|x` keeps the `batch` node.
 
 **R2** WHEN the search text holds no regular-expression character other than
 `.` THEN the system SHALL match it as literal text, ignoring case, as before
 this change.
 
-- [ ] `203.0.113.5` keeps the node with IP `203.0.113.5` and not a node
+- [x] `203.0.113.5` keeps the node with IP `203.0.113.5` and not a node
   named `ip-203-0-113-5.example.com` (which a regex `.` would keep).
-- [ ] Every existing search test passes unchanged.
+- [x] Every existing search test passes unchanged.
 
 **R3** WHEN the search text holds a regular-expression character but is not
 a valid expression (`a(b`, `[`, `*a`, a trailing `\`) THEN the system SHALL
 match it as literal text, and SHALL say so.
 
-- [ ] `a(b` keeps the nodes containing the literal `a(b`; no error and no
+- [x] `a(b` keeps the nodes containing the literal `a(b`; no error and no
   popup.
-- [ ] While typing, the footer reads `type to search (regex) • invalid
+- [x] While typing, the footer reads `type to search (regex) • invalid
   regex: as text • enter: keep • esc: clear`; otherwise `type to search
   (regex) • enter: keep • esc: clear`. `(regex)` says the search accepts
   one, also while the text is still plain (R2); kept short on purpose.
-- [ ] After `enter`, the header's search part reads `/a(b (as text)`; a
+- [x] After `enter`, the header's search part reads `/a(b (as text)`; a
   valid or plain search reads `/<text>` as today.
 
 **R4** WHEN the user opens the help (`?`) or reads the README THEN the
 system SHALL say the search takes a regular expression.
 
-- [ ] Help: `/` — `search name, IP, instance type, labels (regex, any case); esc clears`.
-- [ ] README keys table, the search paragraph and the export section (the
+- [x] Help: `/` — `search name, IP, instance type, labels (regex, any case); esc clears`.
+- [x] README keys table, the search paragraph and the export section (the
   `view.search` field) say the same, with one `a|b` example and how to
   escape (`\.`).
 
+> **Corrected 2026-11-04.** The header mark ` (as text)` follows the text,
+> so it shows while typing an invalid pattern too, not only after `enter`.
+>
 > **Corrected 2026-11-04.** R3 listed `x{2` as invalid; Go's RE2 reads an
 > unfinished `{` as a literal, so `x{2` is a valid pattern matching `x{2`.
 > Replaced by `*a` (repeat with nothing to repeat).

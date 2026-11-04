@@ -63,8 +63,15 @@ func newSearchMatcher(text string) searchMatcher {
 }
 
 // alternationOfWords returns the words of a pattern that is one word or
-// words joined by `|`, with no other regex syntax, lowercased.
+// words joined by `|`, with no other regex syntax, lowercased. ASCII only:
+// (?i) folds some non-ASCII letters differently from strings.ToLower (ſ and
+// s, ς and σ), and node names, IPs, types and label values are ASCII.
 func alternationOfWords(text string) ([]string, bool) {
+	for i := 0; i < len(text); i++ {
+		if text[i] >= 0x80 {
+			return nil, false
+		}
+	}
 	words := strings.Split(text, "|")
 	for _, w := range words {
 		if w == "" || strings.ContainsAny(w, regexChars) {

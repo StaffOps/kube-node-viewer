@@ -135,8 +135,9 @@ substring.
 |------|----------------|
 | a few compiles per frame | short patterns; the benchmark decides |
 
-**When this would be wrong**: the benchmark shows `Select` with a regex
-more than 2× slower than the substring at that size, or above 5 ms.
+**When this would be wrong**: at 5,000 nodes × 30 labels, words joined by
+`|` or an anchored pattern more than 2× slower than the substring, or a
+group (`x\.(a|b)`) more than about 6× (corrected 2026-11-04, see below).
 
 **Reversal action**: the matching, not the compile, is the cost, so:
 first match the regex against the name, IP and type and only then the

@@ -65,8 +65,8 @@ func TestSearchRegex(t *testing.T) {
 }
 
 // BenchmarkSelectSearch measures Select at 5,000 nodes x 30 labels with a
-// substring and a regex search (search-regex D3: the regex must stay
-// within 2x of the substring and under 5 ms).
+// substring and regex searches (search-regex D3: words joined by | and
+// anchored patterns within 2x of the substring, a group within about 6x).
 func BenchmarkSelectSearch(b *testing.B) {
 	nodes := make([]*model.Node, 0, 5000)
 	for i := range 5000 {
