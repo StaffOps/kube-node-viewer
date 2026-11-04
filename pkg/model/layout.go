@@ -225,7 +225,10 @@ func (u *UIModel) fit(s string) string {
 
 func (u *UIModel) helpText() string {
 	if u.searching {
-		return "type to search • enter: keep • esc: clear"
+		if searchInvalid(u.view.Search) {
+			return "type to search (regex) • invalid regex: as text • enter: keep • esc: clear"
+		}
+		return "type to search (regex) • enter: keep • esc: clear"
 	}
 	switch u.panel {
 	case panelHelp:

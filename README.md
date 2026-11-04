@@ -181,7 +181,7 @@ With `ctrl+e` the header shrinks to two lines:
 | `s` | Sort panel |
 | `I` | Flip the sort between ascending and descending, without opening the Sort panel |
 | `o` | Columns panel |
-| `/` | Search name, IP, instance type and label values as you type; `enter` keeps it, `esc` clears it |
+| `/` | Search name, IP, instance type and label values as you type, any case; a regular expression such as `search\|batch` (see [Search](#search-)); `enter` keeps it, `esc` clears it |
 | `r` | Resources: cpu → memory → cpu+memory (→ the `--resources` list, if different) |
 | `↑`/`↓`, `k`/`j` | Select a group heading or a node; the selected row is marked in the left margin |
 | `enter`, `space` | Fold or unfold the selected group on its own (`▸` marks a folded group) |
@@ -206,6 +206,25 @@ not commands, and `esc` closes the panel or steps back. `ctrl+c` and `ctrl+e`
 work everywhere. `esc` never quits. In Filters, Group by, Sort and Columns,
 `a` shows the labels the config file hides, until the panel closes (see
 [Label visibility](#label-visibility)).
+
+### Search (`/`)
+
+The search keeps the nodes whose name, internal IP, instance type or a label
+value contains the text, ignoring case. Text with any of
+`| ( ) [ ] { } ^ $ * + ? \` is a regular expression
+([RE2 syntax](https://github.com/google/re2/wiki/Syntax)), unanchored:
+
+| Search | Keeps |
+|--------|-------|
+| `batch` | anything containing `batch` |
+| `203.0.113.5` | the literal text: `.` alone does not make a regex |
+| `search\|batch` | either word (no spaces around `\|`: they would count) |
+| `^node-1$` | the value `node-1`, not `node-12` |
+| `m7g\.(large\|xl)` | `m7g.large` and `m7g.xlarge`; inside a regex `.` is any character, so write `\.` |
+
+A pattern that does not compile yet (`a(b` while typing) is matched as plain
+text; the footer says `invalid regex: as text` and the header shows
+`(as text)` after it. `(?-i)` at the start makes it case-sensitive.
 
 ## Panels
 
@@ -416,8 +435,9 @@ directory is not writable; the footer says where. The CSV has one row per
 node: name, group path, instance type, capacity, node group, zone, region,
 IP, status, age, pods, requested / allocatable / percent per resource, price
 per hour, price kind (`actual`, `equivalent`, `unknown`, `disabled`) and the
-label columns you picked. The JSON adds the view, the totals of the exported
-nodes and of the cluster, the context and the time.
+label columns you picked. The JSON adds the view (its `search` is the text
+as typed, a regular expression when it has regex characters), the totals of
+the exported nodes and of the cluster, the context and the time.
 
 ### Context (`c`)
 

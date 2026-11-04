@@ -74,7 +74,7 @@ var helpKeys = [][2]string{
 	{"s", "sort: any column, usage or label; flip ↑/↓"},
 	{"I", "flip the sort ↑/↓ without opening the Sort panel"},
 	{"o", "columns: show, hide, reorder"},
-	{"/", "search name, IP, instance type, labels; esc clears"},
+	{"/", "search name, IP, instance type, labels (regex, any case); esc clears"},
 	{"r", "resources: cpu → memory → cpu+memory"},
 	{"c", "switch to another kubeconfig context"},
 	{":", "command: overview (ov), recommendations (rec); tab completes"},

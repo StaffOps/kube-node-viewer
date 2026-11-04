@@ -327,10 +327,10 @@ func (s ViewState) VisibleDepth() int {
 // Select returns the nodes passing every enabled filter and the search text,
 // sorted. The input slice is left untouched.
 func (s ViewState) Select(nodes []*Node) []*Node {
-	search := strings.ToLower(strings.TrimSpace(s.Search))
+	search := newSearchMatcher(s.Search)
 	out := make([]*Node, 0, len(nodes))
 	for _, n := range nodes {
-		if s.matches(n) && (search == "" || n.contains(search)) {
+		if s.matches(n) && (search.empty() || n.contains(search)) {
 			out = append(out, n)
 		}
 	}
@@ -347,18 +347,16 @@ func (s ViewState) matches(n *Node) bool {
 	return true
 }
 
-// contains tells whether the node's name, internal IP, instance type or any
-// label value contains the lowercase text (R6).
-func (n *Node) contains(text string) bool {
-	if strings.Contains(strings.ToLower(n.Name()), text) ||
-		strings.Contains(strings.ToLower(n.InternalIP()), text) ||
-		strings.Contains(strings.ToLower(string(n.InstanceType())), text) {
+// contains tells whether the search matcher matches the node's name,
+// internal IP, instance type or any label value (R6; search-regex R1-R3).
+func (n *Node) contains(m searchMatcher) bool {
+	if m.match(n.Name()) || m.match(n.InternalIP()) || m.match(string(n.InstanceType())) {
 		return true
 	}
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	for _, v := range n.node.Labels {
-		if strings.Contains(strings.ToLower(v), text) {
+		if m.match(v) {
 			return true
 		}
 	}
