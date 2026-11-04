@@ -62,7 +62,12 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     matches as before.
     [requirements](search-regex/requirements.md) ·
     [design](search-regex/design.md) · [tasks](search-regex/tasks.md)
-13. [`decisions/`](decisions/) — decision records (index below).
+13. [`fix-config-errors/`](fix-config-errors/) — **active**. `config.yaml`
+    refuses label keys and resource names Kubernetes would refuse (padded,
+    `zone,region`, `PRICE/M`), with hints for `- label: zone` and
+    `sort: price/m`. [bugfix](fix-config-errors/bugfix.md) ·
+    [tasks](fix-config-errors/tasks.md)
+14. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated

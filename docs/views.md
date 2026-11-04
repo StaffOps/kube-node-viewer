@@ -260,7 +260,18 @@ built-in name not allowed in that key, an `order` or `start-with` value
 not listed above, a filter without `field`, with both or neither of
 `values` and `exclude`, or a second filter on the same field,
 `groups-only: true` without `group-by`, a `default-view` naming no config
-view, and `start-with: default-view` without `default-view`:
+view, and `start-with: default-view` without `default-view`.
+
+Names are checked the way Kubernetes checks them: a label key (bare or
+after `label:`) or a resource name (`resources`, `usage:`) with leading or
+trailing whitespace, a comma, an upper-case title with a `/` (`PRICE/M`;
+write `price/m`) or any other character a label key cannot have is an
+error, and so are filter values and `labels.allow`/`labels.deny` patterns
+with leading or trailing whitespace. Upper-case names without a `/`
+(`PRICE`, `MyLabel`) are valid label keys, so they are read as labels.
+`- label: zone`, with a space after the colon, is a YAML map: write
+`label:zone`. A price or idle column in `sort` (`price/m`) says to write
+`sort: price`, and `sort: age` says `sort: creation`:
 
 ```text
 $ kube-node-viewer
