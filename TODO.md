@@ -102,10 +102,16 @@ Beyond the Guardrails section above.
 
 ## Follow-ups
 
-- [ ] AWS pricing region when the API server is not an EKS URL (private
-      endpoint, proxy): prices use the SDK region while the header shows the
-      node label `topology.kubernetes.io/region`. Use the node label for
-      pricing too.
+- [ ] `-disable-pricing` ignores the region: the static provider uses
+      `AWS_REGION` or `us-east-1`, also with an EKS URL that names another
+      region, and the built-in tables hold only four regions
+      (`make prices`). _Why:_ prices without lookups are the `us-east-1`
+      list prices for most clusters, with no hint on screen.
+- [ ] EKS Auto Mode management fee region: `updateAutoManagementPricing`
+      (`pkg/aws/pricing.go`) always asks for the `us-west-2` fee, whatever
+      the cluster's region ([fix-aws-pricing-region](specs/fix-aws-pricing-region/bugfix.md)).
+      _Why:_ Auto Mode nodes outside `us-west-2` add another region's fee
+      if it differs.
 
 ## Ideas
 

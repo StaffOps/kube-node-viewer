@@ -71,7 +71,12 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     hook tests run from `pre-push` no longer write into the repository
     being pushed. [bugfix](fix-hook-tests-git-env/bugfix.md) ·
     [tasks](fix-hook-tests-git-env/tasks.md)
-15. [`decisions/`](decisions/) — decision records (index below).
+15. [`fix-aws-pricing-region/`](fix-aws-pricing-region/) — **active**. AWS
+    nodes priced in their own region when the API server URL names none.
+    [bugfix](fix-aws-pricing-region/bugfix.md) ·
+    [design](fix-aws-pricing-region/design.md) ·
+    [tasks](fix-aws-pricing-region/tasks.md)
+16. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
