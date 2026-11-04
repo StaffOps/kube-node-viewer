@@ -120,11 +120,6 @@ Beyond the Guardrails section above.
       _Why:_ Auto Mode nodes outside `us-west-2` add another region's fee
       if it differs.
 
-- [ ] config-views error polish (spec-refuter 2026-11-03): `- label: zone`
-  (space after the colon) shows a Go `map[...]`; padded values in
-  `sort`/`resources`/`group-by` load silently; `sort: price/m` suggests
-  `label:` instead of `sort: price`. See `specs/config-views/`.
-
 ## Ideas
 
 - [ ] **Search: negation and label keys** (`/`): `!text` to keep the nodes

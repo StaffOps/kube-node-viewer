@@ -62,12 +62,17 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     matches as before.
     [requirements](search-regex/requirements.md) ·
     [design](search-regex/design.md) · [tasks](search-regex/tasks.md)
-13. [`fix-aws-pricing-region/`](fix-aws-pricing-region/) — **active**. AWS
+13. [`fix-config-errors/`](fix-config-errors/) — **active**. `config.yaml`
+    refuses label keys and resource names Kubernetes would refuse (padded,
+    `zone,region`, `PRICE/M`), with hints for `- label: zone` and
+    `sort: price/m`. [bugfix](fix-config-errors/bugfix.md) ·
+    [tasks](fix-config-errors/tasks.md)
+14. [`fix-aws-pricing-region/`](fix-aws-pricing-region/) — **active**. AWS
     nodes priced in their own region when the API server URL names none.
     [bugfix](fix-aws-pricing-region/bugfix.md) ·
     [design](fix-aws-pricing-region/design.md) ·
     [tasks](fix-aws-pricing-region/tasks.md)
-14. [`decisions/`](decisions/) — decision records (index below).
+15. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated

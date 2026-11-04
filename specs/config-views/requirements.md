@@ -114,6 +114,12 @@ built-in names, and read any other name as a node label key:
 - [x] A built-in name used in a key that does not list it (`group-by:
   - price`) is an error (R6), not a label.
 
+> **Corrected 2026-11-04 ([fix-config-errors](../fix-config-errors/bugfix.md)).**
+> Also errors: a label key or resource name that is not a Kubernetes
+> qualified name (leading or trailing whitespace, `zone,region`,
+> `PRICE/M`), and padded filter values and `labels.*` patterns. "quote it"
+> follows only a scalar; maps and lists read `is a map, not a string`.
+
 > **Corrected 2026-11-03 (T2).** `price` alone was ambiguous next to
 > `PRICE/H` and `PRICE/M`: columns are also named by their lower-cased screen
 > titles (`price/h`, `price/m`, `idle/h`, `idle/m`), the field names stay

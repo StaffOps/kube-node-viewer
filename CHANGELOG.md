@@ -8,6 +8,15 @@ All notable changes to this project are documented here. Format:
 
 ### Fixed
 
+- `config.yaml` views no longer load names that can never match: a label
+  key or resource name with leading or trailing whitespace, a comma or an
+  upper-case title with a `/` (`"zone "`, `zone,region`, `PRICE/M`), a resource
+  written `usage:cpu`, and padded filter values or `labels.allow`/`deny`
+  patterns are errors with their place in the file. `- label: zone` (a
+  space after the colon) says to write `label:zone`; `sort: price/m` says
+  `sort: price`, `sort: age` says `sort: creation`. Values in errors read
+  as written (`{label: zone}`, `[a, b]`, `1000000`), and "quote it" is only
+  suggested for a value YAML read as a number, boolean or null.
 - Clusters reached through an API server URL that names no EKS region (a
   private endpoint behind your own DNS name, `kubectl proxy`, a
   self-managed cluster) price each AWS node in its own region, from its

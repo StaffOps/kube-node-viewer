@@ -924,10 +924,12 @@ func TestReadmeConfigViewsExamplesDecode(t *testing.T) {
 }
 
 func TestReadmeConfigViewsDocumentsTheContract(t *testing.T) {
-	section := viewsDoc(t)
+	// words joined by single spaces, so re-wrapping the doc changes nothing
+	section := strings.Join(strings.Fields(viewsDoc(t)), " ")
 	for _, s := range []string{
 		"default-view", "start-with", "last-view", "groups-only", "filters", "exclude", "order",
 		"label:zone", "usage:", "--group-by zone", "(config)",
+		"leading or trailing whitespace", "sort: price",
 	} {
 		if !strings.Contains(section, s) {
 			t.Errorf("docs/views.md does not mention %q", s)
