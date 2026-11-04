@@ -43,7 +43,7 @@ jobs:
       id-token: write # keyless Sigstore signature of the checksum file
     steps:
     - name: Checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # credentials kept: this job pushes the release commit and tag; it uploads no artifact
       with:
         ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }} # the rulesets let deploy keys push to main and v* tags
