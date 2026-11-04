@@ -159,15 +159,18 @@ jobs:
     - name: shellcheck
       run: shellcheck scripts/*.sh scripts/checks/*.sh scripts/agent-hooks/*.sh .githooks/*
     - name: Hook tests (dash, the /bin/sh of Ubuntu)
-      # with GIT_DIR set, as the pre-push hook runs them: the tests must
-      # leave this repository alone (fix-hook-tests-git-env)
+      run: dash scripts/checks/test-checks.sh
+    - name: Hook tests leave the calling repository alone
+      # as the pre-push hook of a worktree runs them: GIT_DIR set, absolute,
+      # and config from `git -c`; this checkout's config and refs must not
+      # change (fix-hook-tests-git-env)
       run: |
-        before=$(git rev-parse HEAD)
-        GIT_DIR=$(git rev-parse --absolute-git-dir) dash scripts/checks/test-checks.sh
-        test "$(git config --get core.bare)" = false
-        test -z "$(git config --local --get user.name || true)"
-        test -z "$(git tag -l v0.0.1)"
-        test "$(git rev-parse HEAD)" = "$before"
+        snapshot() { git config --local --list; git for-each-ref; git rev-parse HEAD; }
+        snapshot > "$RUNNER_TEMP/before"
+        GIT_DIR=$(git rev-parse --absolute-git-dir) GIT_WORK_TREE=$PWD \
+          GIT_CONFIG_PARAMETERS="'commit.gpgsign=true'" \
+          dash scripts/checks/test-checks.sh
+        snapshot | diff "$RUNNER_TEMP/before" -
 
   deps:
     # known vulnerabilities reachable from our code (govulncheck) and
@@ -221,6 +224,7 @@ jobs:
     name: tools
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:

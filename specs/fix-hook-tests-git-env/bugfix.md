@@ -1,6 +1,6 @@
 # Bugfix: hook-tests-git-env
 
-> Status: draft · Reported: 2026-11-04 · Reviewed: —
+> Status: active · Reported: 2026-11-04 · Reviewed: spec-refuter 2026-11-04 (after the first fix; findings applied)
 
 ## Current behavior
 
@@ -29,15 +29,19 @@ CI (which runs the script from a plain shell) never saw it.
 
 ## Expected behavior
 
-**R1** WHEN `scripts/checks/test-checks.sh` runs with any of git's
-repository variables set (`GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`,
-`GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY`…) THEN the system SHALL ignore them
-and leave the calling repository's config, refs, tags, index and HEAD
+**R1** WHEN `scripts/checks/test-checks.sh` runs with any variable that
+`git rev-parse --local-env-vars` lists (`GIT_DIR`, `GIT_WORK_TREE`,
+`GIT_COMMON_DIR`, `GIT_INDEX_FILE`, `GIT_CONFIG`, `GIT_CONFIG_PARAMETERS`
+from `git -c`…), or the author and committer identity variables, set
+THEN the system SHALL ignore them, read no global or system git config, and
+leave the calling repository's local config, refs, tags and HEAD
 unchanged.
 
-**R2** WHEN CI runs the hook tests THEN it SHALL run them with `GIT_DIR`
-set, as the pre-push hook does, and fail if the checkout's `core.bare`,
-local `user.name`, tags or HEAD changed.
+**R2** WHEN CI runs the hook tests THEN it SHALL run them once plainly and
+once with `GIT_DIR` (absolute), `GIT_WORK_TREE` and `GIT_CONFIG_PARAMETERS`
+set, as the pre-push hook of a worktree under `git -c` does, and fail if
+the checkout's `git config --local --list`, `git for-each-ref` or HEAD
+differ afterwards.
 
 ## Unchanged behavior
 
@@ -46,6 +50,12 @@ local `user.name`, tags or HEAD changed.
 
 ## Root cause
 
-`scripts/checks/test-checks.sh` changes directory into its throwaway
-repository but keeps the environment it was started with; git gives
-`GIT_DIR` precedence over the current directory, and git sets it for hooks.
+`scripts/checks/test-checks.sh` (`git init` at the top, `git config` and
+`git commit` right after, and the push cases' `git init --bare` and
+`git tag`) changes directory into its throwaway repository but keeps the
+environment it was started with; git gives `GIT_DIR` precedence over the
+current directory, and git sets it for hooks. From a worktree `GIT_DIR`
+is absolute (`.git/worktrees/<name>`), so it still names the pushed
+repository after the `cd`. Pushes from the main checkout were not seen to
+do this; the likely reason, not tested, is a relative `GIT_DIR=.git` that
+resolves inside the throwaway repository after the `cd`.

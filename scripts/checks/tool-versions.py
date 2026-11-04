@@ -14,12 +14,15 @@
 
     scripts/checks/tool-versions.py [--min-age DAYS]
 
-For each pin below, reads the version in the file and the newest release
-(Go module proxy, or PyPI for zizmor). A tool is behind when a newer
-release is at least --min-age days old (default 14: a release that young
-is not adopted yet). Also fails when the golangci-lint versions of the
-Makefile and test.yaml differ. Exit 1 when anything is behind; the weekly
-CI run fails, which mails the owner. Needs network; no token.
+For each pin below, reads the version in the file and every release newer
+than it (Go module proxy, or PyPI for zizmor; prereleases and yanked ones
+skipped). A tool is behind when one of those releases is at least
+--min-age days old (default 14: a release that young is not adopted yet),
+so a tool releasing every week is still caught. Also fails when the
+golangci-lint versions of the Makefile and test.yaml differ. Exit 1 when
+anything is behind, 2 when a lookup fails; the weekly CI run fails, which
+mails the owner. Needs network; no token. The Go proxy's time is the
+release commit's, close to the publication for these tools.
 """
 
 import argparse
@@ -27,15 +30,17 @@ import datetime
 import json
 import re
 import sys
+import urllib.error
 import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# name, file, regex with one group (the version), where the newest is
+# name, file, regex with one group (the version), where releases are listed;
+# "after>regex" reads the first match after a line matching after
 PINS = [
     ("golangci-lint", "Makefile", r"^GOLANGCI_LINT_VERSION=v?(\S+)", "go:github.com/golangci/golangci-lint/v2"),
-    ("golangci-lint (CI)", ".github/workflows/test.yaml", r"^\s+version: v?(\S+)", "go:github.com/golangci/golangci-lint/v2"),
+    ("golangci-lint (CI)", ".github/workflows/test.yaml", r"golangci-lint-action@>^\s+version: v?(\S+)", "go:github.com/golangci/golangci-lint/v2"),
     ("govulncheck", "Makefile", r"^GOVULNCHECK_VERSION=v?(\S+)", "go:golang.org/x/vuln"),
     ("go-licenses", "Makefile", r"^GO_LICENSES_VERSION=v?(\S+)", "go:github.com/google/go-licenses/v2"),
     ("actionlint", ".github/workflows/test.yaml", r"actionlint/cmd/actionlint@v?(\S+)", "go:github.com/rhysd/actionlint"),
@@ -46,8 +51,11 @@ PINS = [
 ]
 
 
+HEADERS = {"User-Agent": "kube-node-viewer-tool-versions"}
+
+
 def get_json(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "kube-node-viewer-tool-versions"})
+    req = urllib.request.Request(url, headers=HEADERS)
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.load(r)
 
@@ -56,25 +64,38 @@ def parse_time(s):
     return datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
 
 
-def newest(source):
-    """The newest release: (version without v, release time)."""
+STABLE = re.compile(r"^\d+(\.\d+)*$")
+
+
+def releases(source):
+    """Stable releases as {version without v: release time}, fetched lazily."""
     kind, name = source.split(":", 1)
     if kind == "go":
-        info = get_json(f"https://proxy.golang.org/{name}/@latest")
-        return info["Version"].lstrip("v"), parse_time(info["Time"])
+        req = urllib.request.Request(f"https://proxy.golang.org/{name}/@v/list", headers=HEADERS)
+        with urllib.request.urlopen(req, timeout=30) as r:
+            versions = [v.strip().lstrip("v") for v in r.read().decode().split()]
+        return {v: (lambda v=v: parse_time(get_json(f"https://proxy.golang.org/{name}/@v/v{v}.info")["Time"]))
+                for v in versions if STABLE.match(v)}
     info = get_json(f"https://pypi.org/pypi/{name}/json")
-    version = info["info"]["version"]
-    files = info["releases"].get(version) or [{"upload_time_iso_8601": "1970-01-01T00:00:00Z"}]
-    return version, parse_time(files[0]["upload_time_iso_8601"])
+    out = {}
+    for v, files in info["releases"].items():
+        files = [f for f in files if not f.get("yanked")]
+        if STABLE.match(v) and files:
+            when = min(parse_time(f["upload_time_iso_8601"]) for f in files)
+            out[v] = lambda when=when: when
+    return out
 
 
 def key(version):
-    return tuple(int(p) if p.isdigit() else 0 for p in re.split(r"[.+-]", version))
+    return tuple(int(p) for p in version.split("."))
 
 
 def pinned(file, pattern):
+    after, _, pattern = pattern.rpartition(">")
+    seen = not after
     for line in (ROOT / file).read_text().splitlines():
-        m = re.search(pattern, line)
+        seen = seen or bool(re.search(after, line))
+        m = seen and re.search(pattern, line)
         if m:
             return m.group(1)
     raise SystemExit(f"{file}: no line matches {pattern}")
@@ -88,16 +109,22 @@ def main():
     behind = 0
     seen = {}
     for name, file, pattern, source in PINS:
-        have = pinned(file, pattern)
-        if source not in seen:
-            seen[source] = newest(source)
-        latest, when = seen[source]
-        age = (now - when).days
-        if key(latest) > key(have) and age >= args.min_age:
+        have = pinned(file, pattern).lstrip("v")
+        try:
+            if source not in seen:
+                seen[source] = releases(source)
+            newer = sorted((v for v in seen[source] if key(v) > key(have)), key=key, reverse=True)
+            # the newest release old enough to adopt, if any
+            ripe = next(((v, (now - seen[source][v]()).days) for v in newer
+                         if (now - seen[source][v]()).days >= args.min_age), None)
+        except (urllib.error.URLError, OSError, ValueError, KeyError) as e:
+            print(f"ERROR   {name}: looking up {source}: {e}", file=sys.stderr)
+            return 2
+        if ripe:
             behind += 1
-            print(f"BEHIND  {name}: {have} in {file}; {latest} released {age} days ago")
-        elif key(latest) > key(have):
-            print(f"ok      {name}: {have} ({latest} is {age} days old, under {args.min_age})")
+            print(f"BEHIND  {name}: {have} in {file}; {ripe[0]} released {ripe[1]} days ago")
+        elif newer:
+            print(f"ok      {name}: {have} (newer: {', '.join(newer)}, all under {args.min_age} days)")
         else:
             print(f"ok      {name}: {have}")
     lint = {pinned(f, p) for n, f, p, _ in PINS if n.startswith("golangci-lint")}

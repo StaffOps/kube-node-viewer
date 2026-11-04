@@ -28,6 +28,12 @@ what they cannot. Listed by impact.
       _Why:_ if Kiro ignores a field, its agent loses the early warnings
       without any error; the git hooks and CI still hold.
 
+- [ ] **goreleaser floats**: `release.yaml` installs goreleaser with
+      `version: "~> v2"`, the one release tool not pinned and not covered by
+      `scripts/checks/tool-versions.py`.
+      _Why:_ a new goreleaser minor reaches the release run untested; pin it
+      and add it to the weekly check.
+
 ## Spec-driven sync
 
 Keep specs and code telling the same story, checked by CI rather than by

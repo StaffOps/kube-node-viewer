@@ -22,10 +22,15 @@ set -u
 # git hooks run with GIT_DIR (and in a worktree GIT_COMMON_DIR…) set to the
 # repository being pushed; left set, every git command below, `git init`
 # included, would act on that repository instead of the throwaway ones
-# (fix-hook-tests-git-env).
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_PREFIX \
-  GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE \
-  GIT_CEILING_DIRECTORIES GIT_DISCOVERY_ACROSS_FILESYSTEM
+# (fix-hook-tests-git-env). Drop every variable git itself treats as
+# repository-local, plus the ones that redirect identity, config and
+# templates, so the tests see only their own repositories.
+# shellcheck disable=SC2046 # the names are words, split on purpose
+unset $(git rev-parse --local-env-vars) GIT_NAMESPACE GIT_CEILING_DIRECTORIES \
+  GIT_DISCOVERY_ACROSS_FILESYSTEM GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL \
+  GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE \
+  GIT_TEMPLATE_DIR GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 src=$(cd "$(dirname "$0")/../.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
