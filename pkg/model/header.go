@@ -272,6 +272,9 @@ func (u *UIModel) viewSummary() string {
 	}
 	if u.view.Search != "" {
 		filterText += fmt.Sprintf(" · /%s", u.view.Search)
+		if searchInvalid(u.view.Search) {
+			filterText += " (as text)"
+		}
 	}
 
 	var group []string

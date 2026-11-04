@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Changed
+
+- The `/` search takes a regular expression: `search|batch` keeps the nodes
+  matching either word, `^node-1$` only that name. Text without regex
+  characters (`.` alone does not count, so IPs and instance types stay as
+  they were) matches as before. A pattern that does not compile yet is
+  matched as plain text, marked `invalid regex: as text` in the footer and
+  `(as text)` in the header.
+
 ## [0.13.1] - 2026-11-04
 
 ### Security

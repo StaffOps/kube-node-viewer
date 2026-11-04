@@ -57,7 +57,12 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     node list.
     [requirements](node-pods/requirements.md) ·
     [design](node-pods/design.md) · [tasks](node-pods/tasks.md)
-12. [`decisions/`](decisions/) — decision records (index below).
+12. [`search-regex/`](search-regex/) — **active**. The `/` search takes a regular
+    expression (`a|b`, `^name$`); text with no regex characters but `.`
+    matches as before.
+    [requirements](search-regex/requirements.md) ·
+    [design](search-regex/design.md) · [tasks](search-regex/tasks.md)
+13. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
