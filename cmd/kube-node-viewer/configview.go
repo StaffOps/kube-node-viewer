@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/staffops/kube-node-viewer/pkg/model"
 )
@@ -81,7 +82,12 @@ func isBuiltin(name string) bool {
 // field maps a name written in config.yaml to a field: a built-in name of
 // the key, label:<key> for a node label, usage:<resource> for sort, a
 // built-in name of another key is an error, and anything else is a label.
+// Label keys and resource names must be Kubernetes qualified names
+// (fix-config-errors R1).
 func (k fieldKind) field(path string, value any) (model.Field, error) {
+	if hint, ok := k.spacedPrefix(value); ok {
+		return "", fmt.Errorf("%s: write %s with no space after the colon", path, hint)
+	}
 	name, err := str(path, value)
 	if err != nil {
 		return "", err
@@ -90,11 +96,17 @@ func (k fieldKind) field(path string, value any) (model.Field, error) {
 		if strings.TrimSpace(key) == "" {
 			return "", fmt.Errorf("%s: %q names no label", path, name)
 		}
+		if err := qualifiedName(path, name, key, "label key"); err != nil {
+			return "", err
+		}
 		return model.LabelField(key), nil
 	}
 	if res, ok := strings.CutPrefix(name, usagePrefix); ok && k.usage {
 		if strings.TrimSpace(res) == "" {
 			return "", fmt.Errorf("%s: %q names no resource", path, name)
+		}
+		if err := qualifiedName(path, name, res, "resource name"); err != nil {
+			return "", err
 		}
 		return model.UsageField(v1.ResourceName(res)), nil
 	}
@@ -107,10 +119,73 @@ func (k fieldKind) field(path string, value any) (model.Field, error) {
 	if strings.HasPrefix(name, usagePrefix) {
 		return "", fmt.Errorf("%s: %s is not a %s field; usage:<resource> is a sort", path, name, k.key)
 	}
+	if hint, ok := k.sibling(name); ok {
+		return "", fmt.Errorf("%s: %s is not a %s field; %s", path, name, k.key, hint)
+	}
 	if isBuiltin(name) {
 		return "", fmt.Errorf("%s: %s is not a %s field; write label:%s for a node label", path, name, k.key, name)
 	}
+	if err := qualifiedName(path, name, name, "label key"); err != nil {
+		return "", err
+	}
 	return model.LabelField(name), nil
+}
+
+// spacedPrefix tells whether value is what YAML makes of "label: zone"
+// (a space after the colon): a map of one key, label (or usage for sort),
+// to a non-empty string, and the name the user meant (fix-config-errors R3).
+func (k fieldKind) spacedPrefix(value any) (string, bool) {
+	m, ok := value.(map[string]any)
+	if !ok || len(m) != 1 {
+		return "", false
+	}
+	for key, v := range m {
+		s, ok := v.(string)
+		if !ok || strings.TrimSpace(s) == "" || (key != "label" && (key != "usage" || !k.usage)) {
+			return "", false
+		}
+		// only a name the hint makes valid; label: a b stays a map error
+		if len(validation.IsQualifiedName(strings.TrimSpace(s))) > 0 {
+			return "", false
+		}
+		return key + ":" + strings.TrimSpace(s), true
+	}
+	return "", false
+}
+
+// siblings are built-in names refused by a key that has another name for
+// the same thing (fix-config-errors R5).
+var siblings = map[string]map[string]string{
+	"sort": {
+		"price/h":     "write sort: price, which orders PRICE/H and PRICE/M alike",
+		"price/m":     "write sort: price, which orders PRICE/H and PRICE/M alike",
+		"price-month": "write sort: price, which orders PRICE/H and PRICE/M alike",
+		"idle/h":      "write sort: idle, which orders IDLE/H and IDLE/M alike",
+		"idle/m":      "write sort: idle, which orders IDLE/H and IDLE/M alike",
+		"idle-month":  "write sort: idle, which orders IDLE/H and IDLE/M alike",
+		"age":         "write sort: creation, which orders by the node's age",
+	},
+	"column": {
+		"creation": "the column age shows the node's creation time",
+	},
+}
+
+func (k fieldKind) sibling(name string) (string, bool) {
+	// the titles as written on screen too (PRICE/M)
+	hint, ok := siblings[k.key][strings.ToLower(name)]
+	return hint, ok
+}
+
+// qualifiedName checks a label key or resource name, part of the item
+// written as raw: whitespace around it, or not a qualified name at all.
+func qualifiedName(path, raw, name, what string) error {
+	if len(validation.IsQualifiedName(name)) == 0 {
+		return nil
+	}
+	if trimmed := strings.TrimSpace(name); trimmed != name && len(validation.IsQualifiedName(trimmed)) == 0 {
+		return fmt.Errorf("%s: %q has leading or trailing whitespace", path, raw)
+	}
+	return fmt.Errorf("%s: %q is not a valid %s", path, raw, what)
 }
 
 // fieldList reads a non-empty list of fields without repeats.
@@ -159,10 +234,28 @@ func stringList(path string, value any) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := unpadded(itemPath, s); err != nil {
+			return nil, err
+		}
 		if slices.Contains(out, s) {
 			return nil, fmt.Errorf("%s: %s is repeated", itemPath, s)
 		}
 		out = append(out, s)
+	}
+	return out, nil
+}
+
+// resourceList reads resources: a string list of qualified names
+// (fix-config-errors R1).
+func resourceList(path string, value any) ([]string, error) {
+	out, err := stringList(path, value)
+	if err != nil {
+		return nil, err
+	}
+	for i, r := range out {
+		if err := qualifiedName(fmt.Sprintf("%s[%d]", path, i), r, r, "resource name"); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
@@ -226,7 +319,7 @@ func readView(path string, value any) (configView, error) {
 		return configView{}, err
 	}
 	if raw, ok := item["resources"]; ok {
-		if view.Resources, err = stringList(path+".resources", raw); err != nil {
+		if view.Resources, err = resourceList(path+".resources", raw); err != nil {
 			return configView{}, err
 		}
 	}
