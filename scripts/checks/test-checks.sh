@@ -19,6 +19,13 @@
 #                                     the /bin/sh of Ubuntu)
 # Cases needing gofmt, gitleaks, jq or python3 are skipped when missing.
 set -u
+# git hooks run with GIT_DIR (and in a worktree GIT_COMMON_DIR…) set to the
+# repository being pushed; left set, every git command below, `git init`
+# included, would act on that repository instead of the throwaway ones
+# (fix-hook-tests-git-env).
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_PREFIX \
+  GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE \
+  GIT_CEILING_DIRECTORIES GIT_DISCOVERY_ACROSS_FILESYSTEM
 src=$(cd "$(dirname "$0")/../.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT

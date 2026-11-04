@@ -159,7 +159,15 @@ jobs:
     - name: shellcheck
       run: shellcheck scripts/*.sh scripts/checks/*.sh scripts/agent-hooks/*.sh .githooks/*
     - name: Hook tests (dash, the /bin/sh of Ubuntu)
-      run: dash scripts/checks/test-checks.sh
+      # with GIT_DIR set, as the pre-push hook runs them: the tests must
+      # leave this repository alone (fix-hook-tests-git-env)
+      run: |
+        before=$(git rev-parse HEAD)
+        GIT_DIR=$(git rev-parse --absolute-git-dir) dash scripts/checks/test-checks.sh
+        test "$(git config --get core.bare)" = false
+        test -z "$(git config --local --get user.name || true)"
+        test -z "$(git tag -l v0.0.1)"
+        test "$(git rev-parse HEAD)" = "$before"
 
   deps:
     # known vulnerabilities reachable from our code (govulncheck) and
