@@ -193,17 +193,20 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 }
 
 // pricing builds the price provider for a cluster and the region to show.
-// EKS API server URLs name their region; other clusters look AWS prices up in
-// the AWS SDK's configured region, and the header shows their nodes' region
-// label instead. AKS clusters make no AWS lookup. Azure nodes are priced from
-// the public Retail Prices API, fetched only once one is seen (aks-pricing).
+// EKS API server URLs name their region; for other clusters each AWS node is
+// priced in its own region (its region label, or its zone's), and the rest in
+// the AWS SDK's configured region (fix-aws-pricing-region); the header shows
+// the nodes' region label. AKS clusters make no AWS lookup. Azure nodes are
+// priced from the public Retail Prices API, fetched only once one is seen
+// (aks-pricing).
 func (s *sessions) pricing(ctx context.Context, server string) (pricing.Provider, string, error) {
 	region := client.RegionFromServer(server)
+	aks := client.IsAKSServer(server)
 	if s.flags.DisablePricing {
 		return aws.NewStaticPricingProvider(), region, nil
 	}
 	var awsPrices pricing.Provider
-	if client.IsAKSServer(server) {
+	if aks {
 		awsPrices = aws.NewStaticPricingProvider()
 	} else {
 		cfg, err := config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile(""))
@@ -212,8 +215,10 @@ func (s *sessions) pricing(ctx context.Context, server string) (pricing.Provider
 		}
 		if region != "" {
 			cfg.Region = region
+			awsPrices = aws.NewPricingProvider(ctx, cfg)
+		} else {
+			awsPrices = aws.NewRegionalPricingProvider(ctx, cfg)
 		}
-		awsPrices = aws.NewPricingProvider(ctx, cfg)
 	}
 	return pricing.ByCloud{
 		Clouds:   map[string]pricing.Provider{"aws": awsPrices, "azure": azure.NewProvider(ctx, azure.Endpoint)},

@@ -62,7 +62,12 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     matches as before.
     [requirements](search-regex/requirements.md) ·
     [design](search-regex/design.md) · [tasks](search-regex/tasks.md)
-13. [`decisions/`](decisions/) — decision records (index below).
+13. [`fix-aws-pricing-region/`](fix-aws-pricing-region/) — **active**. AWS
+    nodes priced in their own region when the API server URL names none.
+    [bugfix](fix-aws-pricing-region/bugfix.md) ·
+    [design](fix-aws-pricing-region/design.md) ·
+    [tasks](fix-aws-pricing-region/tasks.md)
+14. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated

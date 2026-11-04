@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Fixed
+
+- Clusters reached through an API server URL that names no EKS region (a
+  private endpoint behind your own DNS name, `kubectl proxy`, a
+  self-managed cluster) price each AWS node in its own region, from its
+  region label or zone, instead of the AWS SDK's region, which could be a
+  different one than the header showed. Spot nodes no longer lose their
+  price when the SDK has no region configured.
+
 ### Changed
 
 - The `/` search takes a regular expression: `search|batch` keeps the nodes

@@ -732,9 +732,15 @@ taken into account.
 
 **Region.** For an EKS cluster the pricing region comes from its API server
 URL (`https://<id>.gr7.<region>.eks.amazonaws.com`), also after a context
-switch. For other servers prices are looked up in the AWS SDK's configured
-region (`AWS_REGION` or the profile), and the header shows the nodes'
-`topology.kubernetes.io/region`.
+switch. For other servers (a private endpoint behind your own DNS name,
+`kubectl proxy`, a self-managed cluster) each AWS node is priced in its own
+region: its `topology.kubernetes.io/region` label, or the region of its
+zone. Nodes with neither, and nodes outside AWS, use the AWS SDK's
+configured region (`AWS_REGION`, `AWS_DEFAULT_REGION` or the profile;
+`us-west-2` without one). On the Recommendations screen, on-demand list
+prices come from the region with the most nodes and spot prices from the
+zone's region. The EKS Auto Mode management fee is always the `us-west-2`
+one.
 
 **Reserved capacity.** Nodes on Karpenter reserved capacity or EKS capacity
 blocks are prepaid, so their real hourly cost is unknown here. They show the

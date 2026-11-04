@@ -22,6 +22,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,6 +55,8 @@ type pricingProvider struct {
 }
 
 func (p *pricingProvider) OnUpdate(onUpdate func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.onUpdateFuncs = append(p.onUpdateFuncs, onUpdate)
 }
 
@@ -147,18 +150,38 @@ func NewStaticPricingProvider() nvp.Provider {
 	if region == "" {
 		region = "us-east-1"
 	}
+	return newStaticPricingProvider(region)
+}
 
+// newStaticPricingProvider prices from the static table of the region, with
+// no AWS call.
+func newStaticPricingProvider(region string) *pricingProvider {
 	return &pricingProvider{
+		region:         region,
 		onDemandPrices: getStaticPrices(region),
 		spotPrices:     map[ec2types.InstanceType]zonalPricing{},
 	}
 }
 
+// defaultLookupRegion is where prices are looked up when the SDK has no
+// region.
+const defaultLookupRegion = "us-west-2"
+
 func NewPricingProvider(ctx context.Context, cfg aws.Config) nvp.Provider {
+	return newPricingProvider(ctx, cfg, nil)
+}
+
+// newPricingProvider is NewPricingProvider with a first OnUpdate callback,
+// registered before the refresh goroutine starts (fix-aws-pricing-region
+// D1).
+func newPricingProvider(ctx context.Context, cfg aws.Config, onUpdate func()) *pricingProvider {
 	region := cfg.Region
 	if region == "" {
-		region = "us-west-2"
+		region = defaultLookupRegion
 	}
+	// spot prices come from EC2 in the same region as the on-demand
+	// lookup, also when the SDK has none (fix-aws-pricing-region R4)
+	cfg.Region = region
 
 	ec2Client := ec2.NewFromConfig(cfg)
 	pricingClient, err := NewPricingClient(ctx, region)
@@ -173,6 +196,9 @@ func NewPricingProvider(ctx context.Context, cfg aws.Config) nvp.Provider {
 		spotPrices:     map[ec2types.InstanceType]zonalPricing{},
 		ec2Client:      ec2Client,
 		pricingClient:  pricingClient,
+	}
+	if onUpdate != nil {
+		p.onUpdateFuncs = []func(){onUpdate}
 	}
 
 	go func() {
@@ -287,7 +313,10 @@ func (p *pricingProvider) updatePricing(ctx context.Context) {
 	wg.Wait()
 
 	// notify anyone that cares
-	for _, f := range p.onUpdateFuncs {
+	p.mu.RLock()
+	funcs := slices.Clone(p.onUpdateFuncs)
+	p.mu.RUnlock()
+	for _, f := range funcs {
 		f()
 	}
 }
