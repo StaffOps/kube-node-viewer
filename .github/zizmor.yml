@@ -1,7 +1,14 @@
 # zizmor (workflow security audit; test.yaml `workflows` job). Reviewed
 # exceptions are inline (`# zizmor: ignore[…]`) next to the line, with the
-# reason; only whole rules we do not follow are here.
+# reason, except on `uses:` lines: Dependabot updates the `# vX.Y.Z`
+# comment only when it ends the line, so those exceptions are here, by file.
 rules:
   # suggests a `$/…` self-repository `uses:` form; local actions stay `./…`
   self-repository:
     disable: true
+  # checkout keeps its credentials only where the job pushes; every other
+  # checkout sets persist-credentials: false
+  artipacked:
+    ignore:
+      - release.yaml      # pushes the release commit and tag (deploy key); its only checkout
+      - refresh-data.yaml # the pull-request job pushes the refresh branch; the refresh job's checkout has persist-credentials: false
