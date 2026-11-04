@@ -21,13 +21,6 @@ what they cannot. Listed by impact.
       the workflow, release once, then remove the key.
       _Why:_ the deploy key is a long-lived credential that can push to
       `main`; it has to be rotated by hand, and a leak lasts until then.
-- [ ] **CI tool versions nobody bumps**: zizmor (`pipx run zizmor==…`,
-      test.yaml), actionlint (`go run …@v…`, test.yaml), gitleaks
-      (`.github/actions/gitleaks`, version and sha256), govulncheck and
-      go-licenses (Makefile). Dependabot does not see them.
-      _Why:_ a stale auditor misses new checks and advisories; a quarterly
-      look, or a requirements file with hashes Dependabot can update, keeps
-      them current.
 - [ ] **Confirm the Kiro hooks in a real session**: the Kiro config
       follows the Kiro docs but has not run in Kiro yet; a `git commit`
       with a non-conventional subject should be refused by both the git
@@ -59,12 +52,6 @@ memory. Listed by impact.
       _Why:_ behaviour changes made "while there" are the usual way
       specs and docs go stale; the spec-task gate only fires when a spec
       is touched.
-- [ ] **PR template** (`.github/pull_request_template.md`): spec link,
-      requirements covered, the cluster it ran on, the version the merge
-      releases (`python3 scripts/release-prepare.py`).
-      _Why:_ the same four facts are asked of every PR; a template makes
-      people and agents fill them in without being told, and reviewers
-      see them in one place.
 - [ ] **ADRs for the cross-cutting decisions**: automerge for writers,
       release from CHANGELOG headings, guardrail layers (git hooks + agent
       hooks + CI), history rewrite policy.

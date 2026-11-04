@@ -69,7 +69,7 @@ jobs:
       uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
       with:
         # keep in step with GOLANGCI_LINT_VERSION in the Makefile
-        version: v2.14.0
+        version: v2.15.0
 
   build:
     name: build
@@ -203,6 +203,24 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }} # online audits: impostor commits, known-vulnerable actions
       run: pipx run zizmor==1.31.1 --format=github . # `.`: annotations carry repo-relative paths
+
+  tools:
+    # CI tools pinned by version, which Dependabot does not update (zizmor,
+    # actionlint, gitleaks, golangci-lint, govulncheck, go-licenses, cosign,
+    # syft): fails the weekly run when one has a release at least 14 days
+    # old, which mails the owner. Not on PRs: a new upstream release must
+    # not block an unrelated merge.
+    name: tools
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Pinned tool versions
+      run: python3 scripts/checks/tool-versions.py
 
   automerge:
     name: automerge
