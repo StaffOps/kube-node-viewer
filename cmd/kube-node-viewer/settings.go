@@ -18,10 +18,12 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -254,11 +256,33 @@ func str(path string, value any) (string, error) {
 	s, ok := value.(string)
 	switch {
 	case !ok:
-		return "", fmt.Errorf("%s: %s is not a string; quote it", path, describeItem(value))
+		return "", notString(path, value)
 	case strings.TrimSpace(s) == "":
 		return "", fmt.Errorf("%s: empty", path)
 	}
 	return s, nil
+}
+
+// notString is the error for a value that should be a string: quoting is
+// the fix for a scalar YAML read as another type, not for a map or a list
+// (fix-config-errors R4).
+func notString(path string, value any) error {
+	switch value.(type) {
+	case map[string]any:
+		return fmt.Errorf("%s: %s is a map, not a string", path, describeItem(value))
+	case []any:
+		return fmt.Errorf("%s: %s is a list, not a string", path, describeItem(value))
+	}
+	return fmt.Errorf("%s: %s is not a string; quote it", path, describeItem(value))
+}
+
+// unpadded refuses a string with leading or trailing whitespace
+// (fix-config-errors R1, R2).
+func unpadded(path, s string) error {
+	if strings.TrimSpace(s) != s {
+		return fmt.Errorf("%s: %q has leading or trailing whitespace", path, s)
+	}
+	return nil
 }
 
 // boolean checks that value is true or false; YAML also reads yes/no and
@@ -276,23 +300,51 @@ func boolean(path string, value any) (bool, error) {
 func patternList(name string, items []any) ([]string, error) {
 	var out []string
 	for i, item := range items {
+		path := fmt.Sprintf("%s[%d]", name, i)
 		s, ok := item.(string)
 		switch {
 		case !ok:
-			return nil, fmt.Errorf("%s[%d]: %s is not a string; quote it", name, i, describeItem(item))
+			return nil, notString(path, item)
 		case s == "":
-			return nil, fmt.Errorf("%s[%d]: empty pattern", name, i)
+			return nil, fmt.Errorf("%s: empty pattern", path)
+		}
+		if err := unpadded(path, s); err != nil {
+			return nil, err
 		}
 		out = append(out, s)
 	}
 	return out, nil
 }
 
-// describeItem shows a decoded YAML item the way the user wrote it, as far as
-// JSON keeps it.
+// describeItem shows a decoded YAML item close to the way the user wrote
+// it, as far as JSON keeps it: maps as {key: value} with sorted keys, lists
+// as [a, b], whole numbers without an exponent (fix-config-errors R4).
 func describeItem(item any) string {
-	if item == nil {
+	switch v := item.(type) {
+	case nil:
 		return "null"
+	case map[string]any:
+		keys := make([]string, 0, len(v))
+		for k := range v {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		parts := make([]string, len(keys))
+		for i, k := range keys {
+			parts[i] = k + ": " + describeItem(v[k])
+		}
+		return "{" + strings.Join(parts, ", ") + "}"
+	case []any:
+		parts := make([]string, len(v))
+		for i, e := range v {
+			parts[i] = describeItem(e)
+		}
+		return "[" + strings.Join(parts, ", ") + "]"
+	case float64:
+		if v == math.Trunc(v) && math.Abs(v) < 1e21 {
+			return strconv.FormatFloat(v, 'f', -1, 64)
+		}
+		return strconv.FormatFloat(v, 'g', -1, 64)
 	}
 	return fmt.Sprint(item)
 }
