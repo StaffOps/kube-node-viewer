@@ -67,7 +67,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     `zone,region`, `PRICE/M`), with hints for `- label: zone` and
     `sort: price/m`. [bugfix](fix-config-errors/bugfix.md) ·
     [tasks](fix-config-errors/tasks.md)
-14. [`decisions/`](decisions/) — decision records (index below).
+14. [`fix-hook-tests-git-env/`](fix-hook-tests-git-env/) — **active**. The
+    hook tests run from `pre-push` no longer write into the repository
+    being pushed. [bugfix](fix-hook-tests-git-env/bugfix.md) ·
+    [tasks](fix-hook-tests-git-env/tasks.md)
+15. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated

@@ -6,7 +6,7 @@ YELLOW=\033[33;01m
 RED=\033[31;01m
 TEST_PKGS=./pkg/... ./cmd/...
 # keep in step with .github/workflows/test.yaml
-GOLANGCI_LINT_VERSION=v2.14.0
+GOLANGCI_LINT_VERSION=v2.15.0
 GOVULNCHECK_VERSION=v1.9.0
 GO_LICENSES_VERSION=v2.0.1
 
