@@ -91,7 +91,12 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     shows only that group's nodes; `esc` goes back; folding moves to
     `space`. [requirements](group-focus/requirements.md) ·
     [design](group-focus/design.md) · [tasks](group-focus/tasks.md)
-19. [`decisions/`](decisions/) — decision records (index below).
+19. [`search-negation/`](search-negation/) — **active**. `/!text` keeps the
+    nodes the text does not match; text with `=` also matches labels as
+    `key=value` (`/key=` for "has the label").
+    [requirements](search-negation/requirements.md) ·
+    [design](search-negation/design.md) · [tasks](search-negation/tasks.md)
+20. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated

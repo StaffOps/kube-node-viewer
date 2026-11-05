@@ -69,7 +69,30 @@ func TestSearchMatcher(t *testing.T) {
 	if m := newSearchMatcher("203.0.113.5|zz"); m.re == nil {
 		t.Error("a pattern with . is matched as words")
 	}
-	for _, text := range []string{"", "   "} {
+	neg := []struct {
+		text           string
+		negate, pairs  bool
+		invalid, empty bool
+	}{
+		{"!x", true, false, false, false},
+		{"! x", true, false, false, false},
+		{"a=b", false, true, false, false},
+		{"!a=b", true, true, false, false},
+		{"!a(b", true, false, true, false},
+		{"!", false, false, false, true},
+		{"  !  ", false, false, false, true},
+		{"\\!x", false, false, false, false},
+	}
+	for _, c := range neg {
+		m := newSearchMatcher(c.text)
+		if m.negate != c.negate || m.pairs != c.pairs || m.invalid != c.invalid || m.empty() != c.empty {
+			t.Errorf("%q: negate %v pairs %v invalid %v empty %v, want %v %v %v %v", c.text, m.negate, m.pairs, m.invalid, m.empty(), c.negate, c.pairs, c.invalid, c.empty)
+		}
+	}
+	if m := newSearchMatcher("\\!x"); !m.match("!x") || m.match("x") {
+		t.Error(`\\!x does not match the literal !x only`)
+	}
+	for _, text := range []string{"", "   ", "!"} {
 		if !newSearchMatcher(text).empty() {
 			t.Errorf("%q: not empty", text)
 		}
@@ -103,13 +126,41 @@ func TestSearchFooterHeaderAndHelp(t *testing.T) {
 		t.Errorf("header after a valid search:\n%s", out)
 	}
 
+	// search-negation R1: a negated invalid pattern is marked as text too
+	u = footerUI(t, 200, 40)
+	u.View()
+	press(u, "/", "!", "n", "(")
+	if got := u.helpText(); got != "type to search (regex) • invalid regex: as text • enter: keep • esc: clear" {
+		t.Errorf("negated invalid pattern footer: %q", got)
+	}
+	press(u, "enter")
+	if out := screen(u); !strings.Contains(out, "/!n( (as text)") {
+		t.Errorf("header after a negated invalid search lacks the mark:\n%s", out)
+	}
+
+	// search-negation R5: the help line
 	found := false
 	for _, k := range helpKeys {
 		if k[0] == "/" {
-			found = k[1] == "search name, IP, instance type, labels (regex, any case); esc clears"
+			found = k[1] == "search name, IP, type, labels (regex, any case; !x: not x; key=value); esc clears"
 		}
 	}
 	if !found {
-		t.Error("help line for / does not mention regex")
+		t.Error("help line for / does not mention regex, ! and key=value")
+	}
+}
+
+// matchPair must give what matching the built "key=value" text gives
+// (search-negation R2; design, Performance).
+func TestMatchPairSameAsPairText(t *testing.T) {
+	texts := []string{"workload=batch", "load=bat", "=", "==", "a=b=c", "gpu=", "=t4", "Team=A", "team=a|batch", "zone", "x", "^team=a$", "e=b|q"}
+	labels := [][2]string{{"workload", "batch"}, {"team", "a"}, {"Team", "Alpha"}, {"example.com/gpu", ""}, {"example.com/gpu", "t4"}, {"", ""}, {"a", "b=c"}, {"k=x", "v"}, {"topology.kubernetes.io/zone", "az-1"}}
+	for _, text := range texts {
+		m := newSearchMatcher(text)
+		for _, l := range labels {
+			if got, want := m.matchPair(l[0], l[1]), m.match(l[0]+"="+l[1]); got != want {
+				t.Errorf("%q on %s=%s: got %v, want %v", text, l[0], l[1], got, want)
+			}
+		}
 	}
 }

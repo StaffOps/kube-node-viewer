@@ -76,6 +76,12 @@ system SHALL say the search takes a regular expression.
 > unfinished `{` as a literal, so `x{2` is a valid pattern matching `x{2`.
 > Replaced by `*a` (repeat with nothing to repeat).
 
+> **Corrected 2026-11-04.** [search-negation](../search-negation/requirements.md)
+> adds a leading `!` (negation) and, for text with `=`, label keys as
+> `key=value`; the counter-example "not label keys" and the out-of-scope
+> negation item below are superseded there. Searches without `!` or `=`
+> are unchanged.
+
 ## Counter-examples
 
 - MUST NOT change what is searched (name, internal IP, instance type, label
