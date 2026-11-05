@@ -10,5 +10,4 @@ rules:
   # checkout sets persist-credentials: false
   artipacked:
     ignore:
-      - release.yaml      # the prepare job pushes the release commit and tag (deploy key); the publish and check checkouts have persist-credentials: false
       - refresh-data.yaml # the pull-request job pushes the refresh branch; the refresh job's checkout has persist-credentials: false

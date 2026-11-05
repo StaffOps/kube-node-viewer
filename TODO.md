@@ -76,6 +76,12 @@ memory. Listed by impact.
 
 ## Follow-ups
 
+- [ ] **Check the first attested release** (0.14.0): the release run's
+      `check` job, then `gh attestation verify` (README "Verifying a
+      release") on a downloaded archive and on an SBOM; record it under
+      R1 of [release-provenance](specs/release-provenance/requirements.md).
+      _Why:_ attestation can only be proven on a published release.
+
 ## Ideas
 
 - [ ] **Search: negation and label keys** (`/`): `!text` to keep the nodes

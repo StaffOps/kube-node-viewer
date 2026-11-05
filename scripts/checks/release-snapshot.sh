@@ -36,7 +36,9 @@ ok() { echo "ok: $*"; }
 cd "$dist"
 
 set -- kube-node-viewer_*_sha256_checksums.txt
-[ $# -eq 1 ] && [ -s "$1" ] || fail "expected one checksum file, found: $*"
+if [ $# -ne 1 ] || [ ! -s "$1" ]; then
+	fail "expected one checksum file, found: $*"
+fi
 sums=$1
 
 listed() { awk -v f="$1" '$2 == f { found = 1 } END { exit !found }' "$sums"; }

@@ -12,8 +12,9 @@ All notable changes to this project are documented here. Format:
   from the release workflow, checked with `gh attestation verify` (README
   "Verifying a release"); `scripts/release-check.sh --strict` requires it
   from 0.14.0. Signing runs in its own job, away from the dependency
-  checks and the key that pushes the release tag. Pull requests that
-  change the release configuration build a snapshot of the release first.
+  checks and the key that pushes the release tag, which no longer run
+  together either. Pull requests that change the release configuration
+  build a snapshot of the release first.
 
 ### Fixed
 
@@ -41,6 +42,12 @@ All notable changes to this project are documented here. Format:
   they were) matches as before. A pattern that does not compile yet is
   matched as plain text, marked `invalid regex: as text` in the footer and
   `(as text)` in the header.
+
+### Security
+
+- The release workflow starts only for pushed `v*` tags, the ones the tag
+  ruleset protects; pushing another tag (`1.2.3`) no longer starts a
+  release.
 
 ## [0.13.1] - 2026-11-04
 

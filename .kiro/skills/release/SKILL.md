@@ -56,10 +56,13 @@ brew update && brew upgrade --cask staffops/tap/kube-node-viewer && kube-node-vi
 |---------|-------|--------|
 | No release after a PR labelled `release` merged | `gh workflow run` failed in the automerge job | run `gh workflow run release.yaml --ref main` |
 | "already tagged and [Unreleased] is empty" | nothing new | expected |
-| Release commit pushed, tag created, GoReleaser failed | build or token error | fix in a PR; the owner re-runs the workflow on the tag |
+| Release commit pushed, tag created, GoReleaser failed before the GitHub release appeared | build or token error | fix in a PR; the owner re-runs the workflow on the tag |
 | A `v*` tag with no GitHub release; later runs say "already tagged" | the run failed after pushing the tag (GoReleaser, signing or SBOM) | owner re-runs the workflow on the tag: `gh workflow run release.yaml --ref vX.Y.Z` |
-| `Publish` failed after the GitHub release appeared (attestation step) | attestation API error | `gh run rerun <id> --failed`: `publish` finds the release, skips goreleaser and attests the published files |
-| "Check the published release" failed | the published files are wrong (signature, SBOM, provenance, checksum, binary version or cask); its message names which | fix in a PR and release again (a patch); never replace assets of a published release by hand |
+| `Dependency checks` failed | a new advisory or license | upgrade the module in a PR; nothing was tagged |
+| `Prepare` failed pushing the release commit | `main` moved after `Dependency checks` | re-run the workflow (`gh workflow run release.yaml --ref main`) |
+| `Publish` failed at the attestation step | attestation API error | `gh run rerun <id> --failed`: `publish` finds the release, checks its files against the signed checksum file, attests them, and `check` runs |
+| `Publish` failed inside GoReleaser after the GitHub release appeared (cask push, an upload) | tap token, network | a rerun attests only a complete release and never pushes the cask: fix the cause (e.g. renew `HOMEBREW_TAP_GITHUB_TOKEN`), add a `### Fixed` entry and release a patch |
+| "Check the published release" failed | the published files are wrong (signature, SBOM, provenance, checksum, binary version or cask); its message names which | fix in a PR and release again (a patch); rerunning `check` only fails again; never replace assets of a published release by hand |
 | Release ok, cask not updated | `HOMEBREW_TAP_GITHUB_TOKEN` missing or expired | owner renews the secret; re-run |
 | Push of the release commit or tag refused (rule violation / "protected") | `RELEASE_DEPLOY_KEY` missing, or its deploy key removed or read-only; GITHUB_TOKEN cannot bypass the rulesets | owner adds a new deploy key with write access and sets the secret; re-run |
 

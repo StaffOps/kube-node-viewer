@@ -20,7 +20,8 @@
 #   --strict fails when either is missing (releases since 0.13.1 have
 #   them), otherwise that is only reported;
 # - the archive for this machine has a SLSA build provenance attestation
-#   from release.yaml of this repository (gh attestation verify); --strict
+#   whose certificate names release.yaml of this repository run from main
+#   or from this release's tag (gh attestation verify); --strict
 #   fails without it from 0.14.0, the first release that has one; older
 #   releases only get a note;
 # - the archive for this machine matches the checksum file, and its binary
@@ -116,9 +117,19 @@ at_least() {
 			exit !(a3 >= b3)
 		}'
 }
-if gh attestation verify "$archive" -R "$REPO" \
-	--signer-workflow "$REPO/.github/workflows/release.yaml" \
-	--deny-self-hosted-runners >/dev/null 2>attest.err; then
+# the same identities as the signature above: release.yaml run from main
+# (schedule, workflow_dispatch) or from this tag (the tag-push run); gh
+# matches --cert-identity exactly, so each is tried
+attested=false
+for ref in refs/heads/main "refs/tags/$tag"; do
+	if gh attestation verify "$archive" -R "$REPO" \
+		--cert-identity "https://github.com/$REPO/.github/workflows/release.yaml@$ref" \
+		--deny-self-hosted-runners >/dev/null 2>attest.err; then
+		attested=true
+		break
+	fi
+done
+if $attested; then
 	ok "provenance of $archive"
 elif ! at_least "$v" "$FIRST_ATTESTED"; then
 	echo "note: $tag predates build provenance ($FIRST_ATTESTED)"
@@ -126,7 +137,7 @@ elif $strict; then
 	cat attest.err >&2
 	fail "$archive has no build provenance from release.yaml"
 else
-	echo "note: $archive has no build provenance from release.yaml"
+	echo "note: $archive has no build provenance from release.yaml ($(sed -n '/./{p;q;}' attest.err))"
 fi
 
 if command -v sha256sum >/dev/null; then
