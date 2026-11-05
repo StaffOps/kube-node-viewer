@@ -15,6 +15,17 @@ All notable changes to this project are documented here. Format:
   checks and the key that pushes the release tag, which no longer run
   together either. Pull requests that change the release configuration
   build a snapshot of the release first.
+- `enter` on a group heading shows only that group's nodes, listed even when
+  the list or the group is folded; `Focus: <field>=<value>` in the header,
+  whose counts and the cluster summary cover them. `enter` on a sub-group
+  narrows further and `esc` goes back one step, the cursor on the group it
+  left. The focus is not saved; `e` exports the focused nodes and writes the
+  focus in the JSON (`"focus"`).
+- The `/` search negates with a leading `!` (`!system` keeps the nodes
+  where nothing contains `system`), and text with `=` also matches labels
+  as `key=value`: `workload=batch` for a label pair, `karpenter.sh/nodepool=`
+  for the nodes that have that key, `!karpenter.sh/nodepool=` for those
+  that do not. Searches without `!` or `=` keep the same nodes as before.
 
 ### Fixed
 
@@ -46,6 +57,8 @@ All notable changes to this project are documented here. Format:
   write `kube-node-viewer/node-age`) and for `Label:zone`. A config that
   names a real node label such as `Zone` or `Status` bare must now write
   `label:Zone`.
+- Folding one group on its own moved from `enter` to `space` (`space`
+  already folded it); `enter` on a group heading now focuses it.
 - The `/` search takes a regular expression: `search|batch` keeps the nodes
   matching either word, `^node-1$` only that name. Text without regex
   characters (`.` alone does not count, so IPs and instance types stay as

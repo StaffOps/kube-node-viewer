@@ -143,8 +143,9 @@ func TestDetailsOfANodeThatGoesAway(t *testing.T) {
 	}
 }
 
-// node-details R1: enter on a group heading still folds it.
-func TestEnterOnAGroupStillFolds(t *testing.T) {
+// enter on a group heading focuses the group (group-focus R1); it never
+// opens the details popup.
+func TestEnterOnAGroupFocusesIt(t *testing.T) {
 	u := detailsUI(t)
 	v := u.view
 	v.SetGroupBy(FieldCapacity)
@@ -152,6 +153,9 @@ func TestEnterOnAGroupStillFolds(t *testing.T) {
 	press(u, "enter")
 	if u.panel != panelNone {
 		t.Errorf("enter on a group heading opened panel %v", u.panel)
+	}
+	if !u.focused() {
+		t.Error("enter on a group heading did not focus it")
 	}
 }
 

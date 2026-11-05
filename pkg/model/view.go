@@ -242,7 +242,7 @@ type ViewState struct {
 	// Details lists, while folded, the level below the barred one as
 	// one-line summaries.
 	Details bool `json:"details,omitempty"`
-	// Collapsed holds the groups folded one by one (enter on a heading), each
+	// Collapsed holds the groups folded one by one (space on a heading), each
 	// as its path joined by " › ".
 	Collapsed []string `json:"collapsed,omitempty"`
 	// Screen is Overview (empty) or Recommendations (recommendations R2)
@@ -347,16 +347,22 @@ func (s ViewState) matches(n *Node) bool {
 	return true
 }
 
-// contains tells whether the search matcher matches the node's name,
-// internal IP, instance type or any label value (R6; search-regex R1-R3).
+// contains tells whether the node passes the search: the matcher matches
+// its name, internal IP, instance type or any label value (R6; search-regex
+// R1-R3), or a label written as key=value when the text has `=`; a negated
+// matcher passes the nodes where nothing matches (search-negation R1, R2).
 func (n *Node) contains(m searchMatcher) bool {
+	return n.searchHit(m) != m.negate
+}
+
+func (n *Node) searchHit(m searchMatcher) bool {
 	if m.match(n.Name()) || m.match(n.InternalIP()) || m.match(string(n.InstanceType())) {
 		return true
 	}
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	for _, v := range n.node.Labels {
-		if m.match(v) {
+	for k, v := range n.node.Labels {
+		if m.match(v) || m.pairs && m.matchPair(k, v) {
 			return true
 		}
 	}
