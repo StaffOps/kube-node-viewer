@@ -13,7 +13,9 @@
 
 > **Partly verified 2026-11-04.** `go test -race ./pkg/azure/` passes, and
 > the new tests fail on the old `pricing.go` (Linux E4as_v5 0.458, D2as_v5
-> 0.178, B2s_v2 0.105, `Srs Win` read as Linux). `make lint` clean;
+> 0.178, B2s_v2 0.105, `Srs Win` read as Linux, Linux Spot NCC40ads_H100_v5
+> 1.629936); after the code review a Spot `Srs` case and the real
+> Dedicated Host item (asserted never to price a node) were added. `make lint` clean;
 > `scripts/verify.sh` green except this open task.
 > `KNV_AZURE_LIVE=1 go test -run Live ./pkg/azure/` against the public
 > API: westeurope E4as_v5 Linux 0.274 / Windows 0.458, B2s_v2 0.096 /

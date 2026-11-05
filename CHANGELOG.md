@@ -11,8 +11,9 @@ All notable changes to this project are documented here. Format:
 - AKS: a Linux node of a series that the Retail Prices API also lists as
   Cloud Services (Easv5, Eadsv5, Dasv5, Dadsv5, Bsv2, Bpsv2, Basv2) showed
   the Windows rate, e.g. `Standard_D2as_v5` in eastus2 at $0.178/h instead
-  of $0.086/h. Cloud Services items are ignored, `Srs Win` products count
-  as Windows, and on equal dates the lower price wins.
+  of $0.086/h. NCCadsv5 Linux and Spot nodes showed Windows prices, and
+  its Windows nodes none. Cloud Services items are ignored, `Srs Win`
+  products count as Windows, and on equal dates the lower price wins.
 - `config.yaml` views no longer load names that can never match: a label
   key or resource name with leading or trailing whitespace, a comma or an
   upper-case title with a `/` (`"zone "`, `zone,region`, `PRICE/M`), a resource

@@ -1,6 +1,6 @@
 # Bugfix: azure-price-product
 
-> Status: active · Reported: 2026-11-04 (retroactive spec-refuter review of [aks-pricing](../aks-pricing/requirements.md)) · Reviewed: 2026-11-04 (spec-refuter; 1 BLOCKING, 2 HIGH, 5 MEDIUM, 3 LOW, applied)
+> Status: active · Reported: 2026-11-04 (retroactive spec-refuter review of [aks-pricing](../aks-pricing/requirements.md)) · Reviewed: 2026-11-04 (spec-refuter; 1 BLOCKING, 2 HIGH, 5 MEDIUM, 3 LOW, applied; code 2026-11-04, 1 MEDIUM, 3 LOW, applied)
 
 ## Current behavior
 
@@ -47,8 +47,21 @@ prices, USD per hour):
 Sizes with a Cloud Services item, westeurope / eastus2: Easv5 20/20,
 Eadsv5 20/20, Dasv5 8/8, Dadsv5 8/8, Bpsv2 6/5, Bsv2 5/3, Basv2 4/5, 71/69
 in all. No Cloud Services item is a Spot meter, and none is cheaper than
-the Linux item, so the error only ever raises a Linux price. Other regions
-are not measured.
+the Linux item, so the Cloud Services error only ever raises a Linux price.
+The `Srs Win` error also hits Spot and Windows: a Linux Spot
+`Standard_NCC40ads_H100_v5` showed the Windows Spot price (eastus2
+1.629936 instead of 1.289904; westeurope 1.984752 instead of 1.64472), and
+Windows nodes of that series had no price. Other regions are not measured.
+
+> **Corrected 2026-11-04.** The counts above are sizes whose price changed
+> in the captured listing order, not sizes with a Cloud Services item. Each
+> region has 87 sizes with one (Easv5 20, Eadsv5 20, Bsv2 11, Basv2 11,
+> Bpsv2 9, Dasv5 8, Dadsv5 8). Replaying the old Go code on the captured
+> answers changes 72 prices in westeurope and 74 in eastus2 (75 with
+> NCC40ads_H100_v5): all 56 Easv5/Eadsv5/Dasv5/Dadsv5 sizes showed the
+> Windows rate through a later date; the 31 B-series sizes depended on the
+> API's order (same date). Measured by replaying `pkg/azure` on the
+> captured 2026-11-04 answers.
 
 The aks-pricing tests pass because their fixture has neither kind of item.
 

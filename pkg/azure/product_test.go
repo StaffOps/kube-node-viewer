@@ -64,9 +64,11 @@ var (
 	ncc40 = []retailItem{ // eastus2: "Srs Win" is the Windows product, same date as Linux
 		item("Standard_NCC40ads_H100_v5", "NCC40adsH100v5", "Virtual Machines NCCadsv5 Srs Win", 8.82, "2024-12-01T00:00:00Z"),
 		item("Standard_NCC40ads_H100_v5", "NCC40adsH100v5", "Virtual Machines NCCadsv5 Srs", 6.98, "2024-12-01T00:00:00Z"),
+		item("Standard_NCC40ads_H100_v5", "NCC40adsH100v5 Spot", "Virtual Machines NCCadsv5 Srs Win", 1.629936, "2026-08-01T00:00:00Z"),
+		item("Standard_NCC40ads_H100_v5", "NCC40adsH100v5 Spot", "Virtual Machines NCCadsv5 Srs", 1.289904, "2026-08-01T00:00:00Z"),
 	}
 	dedicated = []retailItem{ // a Dedicated Host sku: listed, but no node has this size, so it prices nothing
-		item("Lasv3_Type1", "Lasv3 Type1", "Lasv3 Series DedicatedHost", 7.0, "2022-06-01T00:00:00Z"),
+		item("Lasv3_Type1", "Lasv3 Type1", "Lasv3 Series DedicatedHost", 8.184, "2022-08-01T00:00:00Z"),
 	}
 )
 
@@ -143,6 +145,7 @@ func TestProductsOfTheVirtualMachinesService(t *testing.T) {
 		// R2: "Srs Win" is Windows
 		{"Srs, linux", "Standard_NCC40ads_H100_v5", nil, 6.98},
 		{"Srs Win, windows", "Standard_NCC40ads_H100_v5", windowsOS, 8.82},
+		{"Srs, linux spot", "Standard_NCC40ads_H100_v5", spotNode, 1.289904},
 	}
 	// R3: the answer does not depend on the order the API lists items in
 	for _, order := range []string{"as listed", "reversed"} {
@@ -157,6 +160,10 @@ func TestProductsOfTheVirtualMachinesService(t *testing.T) {
 			got, ok := price(c.size, c.labels)
 			if !ok || got != c.want {
 				t.Errorf("%s, %s: got %v %v, want %v", order, c.name, got, ok, c.want)
+			}
+			// the Dedicated Host item's price never reaches a node of a VM size
+			if got == dedicated[0].UnitPrice {
+				t.Errorf("%s, %s: the Dedicated Host price", order, c.name)
 			}
 		}
 	}
@@ -244,11 +251,13 @@ func TestCutShortIsLoggedOncePerRegion(t *testing.T) {
 	}
 }
 
+// fix-azure-price-product R1 R2 (live)
+//
 // TestLivePrices asks the public API (KNV_AZURE_LIVE=1). List prices change;
 // a failure here means the expected values below need a look, not
 // necessarily a bug.
 func TestLivePrices(t *testing.T) {
-	if os.Getenv("KNV_AZURE_LIVE") == "" {
+	if os.Getenv("KNV_AZURE_LIVE") != "1" {
 		t.Skip("set KNV_AZURE_LIVE=1 to ask the public Retail Prices API")
 	}
 	cases := []struct {
