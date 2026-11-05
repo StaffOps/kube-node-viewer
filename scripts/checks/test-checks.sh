@@ -104,6 +104,7 @@ hdr='# Licensed under the Apache License, Version 2.0 (the "License");'
 
 echo "== files a commit adds (pre-commit)"
 commit "export file"                 blocked kube-node-viewer-20260101.csv "node,cpu"
+commit "python bytecode"              blocked scripts/__pycache__/x.cpython-312.pyc "bytecode"
 commit "license header on new .sh"   blocked tool.sh "echo hi"
 commit "new .sh with header"         passes  tool.sh "$hdr"
 commit "EKS endpoint"                blocked:eks docs.md "https://0123456789ABCDEF0123456789ABCDEF.gr7.us-east-1.eks.amazonaws.com"
@@ -309,18 +310,18 @@ if command -v python3 >/dev/null 2>&1; then
     git -C "$sg" reset -q --hard "$sgbase"; git -C "$sg" clean -qfdx
 
   }
-  spec "spec trace: cited or marked"            passes  python3 scripts/spec-trace.py
-  spec "spec trace: requirement without a test" blocked sh -c 'printf "package model\n" > pkg/model/a_test.go && python3 scripts/spec-trace.py'
-  spec "spec trace: a range names each one"     passes  sh -c 'sed -i.b "/Test: manual/d" specs/demo/requirements.md && printf "package model\n\n// demo R1-R2\n" > pkg/model/a_test.go && python3 scripts/spec-trace.py'
+  spec "spec trace: cited or marked"            passes  python3 -B scripts/spec-trace.py
+  spec "spec trace: requirement without a test" blocked sh -c 'printf "package model\n" > pkg/model/a_test.go && python3 -B scripts/spec-trace.py'
+  spec "spec trace: a range names each one"     passes  sh -c 'sed -i.b "/Test: manual/d" specs/demo/requirements.md && printf "package model\n\n// demo R1-R2\n" > pkg/model/a_test.go && python3 -B scripts/spec-trace.py'
   spec "spec lint: reviewed by spec-refuter"    passes  bash scripts/spec-lint.sh
   spec "spec lint: active without spec-refuter" blocked sh -c 'sed -i.b "s/(spec-refuter)/(owner)/" specs/demo/requirements.md && rm specs/demo/*.b && bash scripts/spec-lint.sh'
-  spec "spec tasks: code under a draft spec"    blocked sh -c 'sed -i.b "s/Status: active/Status: draft/" specs/demo/requirements.md && printf "\n" >> pkg/model/view.go && python3 scripts/spec-tasks-check.py '"$sgbase"
-  spec "spec tasks: code under an active spec"  passes  sh -c 'printf "x\n" >> specs/demo/design.md && printf "\n" >> pkg/model/view.go && python3 scripts/spec-tasks-check.py '"$sgbase"
-  spec "drift: flag added, no docs"             blocked sh -c 'sed -i.b "s/^}/\tflagSet.BoolVar(\&flags.Y, \"y\", false, \"y\")\n}/" cmd/kube-node-viewer/flag.go && python3 scripts/drift-check.py '"$sgbase"
-  spec "drift: help key changed, no docs"       blocked sh -c 'sed -i.b "s/\"quit\"/\"leave\"/" pkg/model/panels.go && python3 scripts/drift-check.py '"$sgbase"
-  spec "drift: field added, README changed"     passes  sh -c 'sed -i.b "s/^)/\tFieldAge Field = \"age\"\n)/" pkg/model/view.go && printf "age\n" >> README.md && python3 scripts/drift-check.py '"$sgbase"
-  spec "drift: refactor, same sets"             passes  sh -c 'printf "\n// moved\n" >> pkg/model/panels.go && python3 scripts/drift-check.py '"$sgbase"
-  spec "drift: skipped by a trailer"            passes  sh -c 'sed -i.b "s/\"quit\"/\"leave\"/" pkg/model/panels.go && rm pkg/model/*.b && git add -A && git commit -q -m "fix: wording" -m "Drift-check: skip — typo only" && python3 scripts/drift-check.py '"$sgbase"
+  spec "spec tasks: code under a draft spec"    blocked sh -c 'sed -i.b "s/Status: active/Status: draft/" specs/demo/requirements.md && printf "\n" >> pkg/model/view.go && python3 -B scripts/spec-tasks-check.py '"$sgbase"
+  spec "spec tasks: code under an active spec"  passes  sh -c 'printf "x\n" >> specs/demo/design.md && printf "\n" >> pkg/model/view.go && python3 -B scripts/spec-tasks-check.py '"$sgbase"
+  spec "drift: flag added, no docs"             blocked sh -c 'sed -i.b "s/^}/\tflagSet.BoolVar(\&flags.Y, \"y\", false, \"y\")\n}/" cmd/kube-node-viewer/flag.go && python3 -B scripts/drift-check.py '"$sgbase"
+  spec "drift: help key changed, no docs"       blocked sh -c 'sed -i.b "s/\"quit\"/\"leave\"/" pkg/model/panels.go && python3 -B scripts/drift-check.py '"$sgbase"
+  spec "drift: field added, README changed"     passes  sh -c 'sed -i.b "s/^)/\tFieldAge Field = \"age\"\n)/" pkg/model/view.go && printf "age\n" >> README.md && python3 -B scripts/drift-check.py '"$sgbase"
+  spec "drift: refactor, same sets"             passes  sh -c 'printf "\n// moved\n" >> pkg/model/panels.go && python3 -B scripts/drift-check.py '"$sgbase"
+  spec "drift: skipped by a trailer"            passes  sh -c 'sed -i.b "s/\"quit\"/\"leave\"/" pkg/model/panels.go && rm pkg/model/*.b && git add -A && git commit -q -m "fix: wording" -m "Drift-check: skip — typo only" && python3 -B scripts/drift-check.py '"$sgbase"
 else skipped "spec gates" python3; fi
 
 echo "== push (pre-push)"

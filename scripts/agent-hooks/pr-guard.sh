@@ -20,7 +20,7 @@ cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo .)
 out=""; failed=false
 for check in scripts/changelog-check.py scripts/spec-tasks-check.py; do
   [ -f "$check" ] || continue # a branch cut before the check existed
-  o=$(python3 "$check" 2>&1) || { failed=true; out="$out $o"; }
+  o=$(python3 -B "$check" 2>&1) || { failed=true; out="$out $o"; }
 done
 $failed || exit 0
 reason=$(printf '%s' "$out" | grep -v ': ok' | tr '\n' ' ' | cut -c1-600)

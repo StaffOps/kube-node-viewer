@@ -3,6 +3,8 @@
 # `hack/` is excluded: several upstream main packages share that directory.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# no __pycache__ next to the scripts: bytecode records local paths
+export PYTHONDONTWRITEBYTECODE=1
 
 PKGS="./cmd/... ./pkg/..."
 

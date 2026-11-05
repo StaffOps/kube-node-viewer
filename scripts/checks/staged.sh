@@ -18,6 +18,7 @@
 # Prints one problem per line and exits 1 when any is found.
 #
 # - export files from the TUI (kube-node-viewer-*.csv / *.json): cluster data
+# - Python bytecode (__pycache__/, *.pyc): it records local paths
 # - lines added inside a released CHANGELOG section (## [x.y.z])
 # - Go files not gofmt -s clean
 # - new .go/.sh/.py files without the Apache license header
@@ -36,6 +37,10 @@ files=$(git diff $diffargs --name-only --diff-filter=ACMR 2>/dev/null)
 
 for f in $(printf '%s\n' "$files" | grep -E '(^|/)kube-node-viewer-[^/]*\.(csv|json)$'); do
   add "export file with cluster data: $f (exports are git-ignored; remove it with git rm --cached)"
+done
+
+for f in $(printf '%s\n' "$files" | grep -E '(^|/)__pycache__/|\.py[co]$'); do
+  add "Python bytecode: $f (it records the local path of the source; git-ignored; remove it with git rm --cached)"
 done
 
 if printf '%s\n' "$files" | grep -qx CHANGELOG.md; then
