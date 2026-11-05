@@ -94,7 +94,7 @@ func demoUI(t *testing.T) *UIModel {
 					v1.ResourceMemory: *resource.NewQuantity(allocMem.Value()+allocMem.Value()/8, resource.BinarySI),
 					v1.ResourcePods:   resource.MustParse("58"),
 				},
-				Addresses:  []v1.NodeAddress{{Type: v1.NodeInternalIP, Address: fmt.Sprintf("10.0.%d.%d", 11+i%3, 10+i*7)}},
+				Addresses:  []v1.NodeAddress{{Type: v1.NodeInternalIP, Address: fmt.Sprintf("192.0.2.%d", 10+i*7)}},
 				Conditions: []v1.NodeCondition{{Type: v1.NodeReady, Status: v1.ConditionTrue}},
 			},
 		})

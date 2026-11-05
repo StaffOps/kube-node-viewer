@@ -1,0 +1,37 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer · Overview                                                                                                                                          │
+│ Context:  demo-prod                                                                                                                       f filters     g group by   │
+│ Cluster:  https://0A1B2C3D4E5F.gr7.us-east-1.eks.amazonaws.com                                                                            s sort        o columns    │
+│ Region:   us-east-1                                                                                                                       / search      r resources  │
+│ Nodes:    10 of 10 shown · 220 pods · $728.102/month (+1 reserved, not priced) (global cluster)                                           c context     v views      │
+│ View:     Filters: none │ Group: nodegroup › zone │ Sort: creation ↓ │ cpu+memory                                                         ? help       ^e compact    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  25533m/35230m    72.5% cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.997/hour | $728.102/month (+1 reserved, not priced)
+  72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+
+      NAME                                                                           PODS   INSTANCE     PRICE/H   PRICE/M   IDLE/M  CAPACITY  NODEGROUP  STATUS
+▌ default        4 nodes  140 pods  cpu 76%  memory 66%  $0.713/hour | $520.490/month  idle $104.250/month
+  ├─ us-east-1a  2 nodes  69 pods   cpu 87%  memory 72%  $0.384/hour | $280.320/month  idle $36.470/month
+      ip-10-0-11-87.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  84% 31/58  m6i.xlarge   $0.1920   $140.16   $22.67  OnDemand  default    Ready
+                                 memory ███████████████████████████████████████  66%
+      ip-10-0-11-24.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  90% 38/58  m6i.xlarge   $0.1920   $140.16   $13.80  OnDemand  default    Ready
+                                 memory ███████████████████████████████████████  78%
+  ├─ us-east-1b  1 nodes  27 pods   cpu 62%  memory 71%  $0.192/hour | $140.160/month  idle $40.646/month
+      ip-10-0-12-15.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  62% 27/58  m6i.xlarge   $0.1920   $140.16   $40.65  OnDemand  default    Ready
+                                 memory ███████████████████████████████████████  71%
+  └─ us-east-1c  1 nodes  44 pods   cpu 73%  memory 58%  $0.137/hour | $100.010/month  idle $27.133/month
+      ip-10-0-13-40.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  73% 44/58  m6i.2xlarge  $0.1370   $100.01   $27.13  Spot      default    Ready
+                                 memory ███████████████████████████████████████  58%
+
+  gpu            1 nodes  6 pods    cpu 55%  memory 61% (+1 reserved, not priced)
+  └─ us-east-1b  1 nodes  6 pods    cpu 55%  memory 61% (+1 reserved, not priced)
+      ip-10-0-12-33.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  55% 6/58   g5.xlarge    ~$1.0060  ~$734.38  -       Reserved  gpu        Ready
+                                 memory ███████████████████████████████████████  61%
+
+  spot-arm       3 nodes  45 pods   cpu 81%  memory 68%  $0.118/hour | $86.140/month  idle $16.247/month
+  ├─ us-east-1a  1 nodes  14 pods   cpu 88%  memory 69%  $0.031/hour | $22.630/month  idle $2.767/month
+      ip-10-0-11-93.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  88% 14/58  c7g.large    $0.0310   $22.63    $2.77   Spot      spot-arm   Ready
+                                 memory ███████████████████████████████████████  69%
+
+  ••  1 column hidden, widen the window
+  f: filter • g: group • s: sort • I: flip ↑/↓ • o: columns • /: search • r: resources • c: context • v: views • e: export • tab: recommendations • enter: fold group •…

@@ -21,6 +21,15 @@ what they cannot. Listed by impact.
       the workflow, release once, then remove the key.
       _Why:_ the deploy key is a long-lived credential that can push to
       `main`; it has to be rotated by hand, and a leak lasts until then.
+- [ ] **Owner: require the `kind` check, and decide what it replaces**:
+      the `kind` job (`scripts/kind-it.sh`) gates automerge but is not in
+      the `main` ruleset's required checks (a repository setting), so a
+      person could merge with it red; add it next to the other seven.
+      Then decide whether it counts as the "run on a cluster" of a verify
+      task for changes that are not cloud-specific (AGENTS.md, "Tested
+      before it ships"), leaving real clusters for prices and node pools.
+      _Why:_ without the ruleset entry the gate holds only for automerged
+      PRs; without the decision every change still waits for a cluster.
 - [ ] **Confirm the Kiro hooks in a real session**: the Kiro config
       follows the Kiro docs but has not run in Kiro yet; a `git commit`
       with a non-conventional subject should be refused by both the git
@@ -78,21 +87,6 @@ Beyond the Guardrails section above.
       or `release.yaml`.
       _Why:_ a broken SBOM or archive setting shows today only on the
       Monday release, after the tag is pushed.
-
-## Evolution
-
-- [ ] **Integration tests on a `kind` cluster in CI**: start kind, apply
-      fixture nodes and pods, run the TUI headless, assert on the screen.
-      _Why:_ the "ran on a cluster" rule depends on someone having one;
-      on 2026-11-03 none was available. A kind run makes the basic
-      cluster check automatic, leaving real clusters for cloud-specific
-      behaviour (prices, node pools).
-- [ ] **Golden-file screen snapshots in PRs**: render the main screens
-      from the made-up cluster used for screenshots and show the text
-      diff in the PR.
-      _Why:_ UI changes are reviewed today by reading code or running the
-      binary; a diff of the screen makes layout regressions visible in
-      review.
 
 ## Follow-ups
 
