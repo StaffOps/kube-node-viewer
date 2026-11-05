@@ -138,6 +138,13 @@ the columns after `price`.
 | More columns hidden at 140–160 columns than today (two more defaults) | The footer counts hidden columns; all eight fit from 168 columns; columns can be hidden with `o` |
 | `INSTANCE` drops before today | Instance type is also in node details and the search |
 
+> **Corrected 2026-11-05.** The widths above (120, 140–160 and 168
+> columns; "about 172" in the README and the 0.11.0 CHANGELOG) were never
+> recorded as measured. With the `realisticUI` test fixture all default
+> columns show only from about 192 columns wide (cpu) or 195 (cpu and
+> memory), measured by the retroactive review; the real figure depends on
+> the length of the node names. The README now says so instead of a number.
+
 **When this would be wrong**: the owner prefers the hourly price on narrow
 windows, or `INSTANCE` is missed.
 

@@ -41,13 +41,6 @@ what they cannot. Listed by impact.
 Keep specs and code telling the same story, checked by CI rather than by
 memory. Listed by impact.
 
-- [ ] **Retroactive spec-refuter reviews**: `aks-pricing`, `config-views`,
-      `monthly-price-columns`, `node-details` and `sort-invert` shipped
-      reviewed by the owner or the code-review agent only; they pass the
-      review gate through `UNREVIEWED` in `scripts/spec-lint.sh`. Review
-      each, record findings as dated notes, drop it from the list.
-      _Why:_ the list is the gate's only exception; it should end empty.
-
 ## Follow-ups
 
 - [ ] **License headers everywhere** (rebrand R8): about ten shell scripts
@@ -86,6 +79,16 @@ memory. Listed by impact.
       `ip-10-0-…` (the allowed example names in `scripts/checks/content.sh`),
       so a node's name no longer matches its IP; rename them only together
       with that allowlist.
+- [ ] `pkg/model/node.go` imports `aws-sdk-go-v2/service/ec2/types`, which
+      crosses the "AWS SDK only in `pkg/aws`" rule (upstream code, there at
+      the import). _Why:_ the model should not depend on a cloud SDK.
+- [ ] spec-lint checks the decision sections only for `### D<n>` headings;
+      `aks-pricing` and `node-details` use `## D<n>.` and pass unchecked.
+      _Why:_ a design without "When this would be wrong" passed the gate.
+- [ ] Azure prices: one failure time is shared by every region, so a
+      failure in one region delays new sizes in all of them by a minute
+      ([aks-pricing](specs/aks-pricing/design.md) D2). _Why:_ clusters
+      across regions wait for a failure that is not theirs.
 
 ## Ideas
 

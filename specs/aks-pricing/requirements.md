@@ -1,6 +1,15 @@
 # Requirements: aks-pricing
 
-> Status: shipped (v0.9.0, 2026-11-02) · Owner: Carlos Gomes · Reviewed: 2026-11-02 (owner)
+> Status: shipped (v0.9.0, 2026-11-02) · Owner: Carlos Gomes · Reviewed: 2026-11-05 (spec-refuter, retroactive; 1 HIGH, 3 MEDIUM, 5 LOW; applied), earlier 2026-11-02 (owner)
+
+> **Corrected 2026-11-05.** The 2026-11-02 review was by the owner, who
+> is also the author, so it was not independent; the spec and the code
+> landed in one commit, and T2's AKS run left no note of what it checked.
+> A retroactive spec-refuter review on 2026-11-05 found one HIGH: Azure
+> Cloud Services items at the Windows rate counted as Linux prices, so
+> Linux nodes of the Easv5/Eadsv5/Dasv5/Dadsv5 and B-v2 series showed the
+> Windows price, against R1 and the counter-example
+> ([fix-azure-price-product](../fix-azure-price-product/bugfix.md)).
 
 ## Context
 
@@ -23,6 +32,9 @@ $ kube-node-viewer --context example1-demo1-aks
 ```
 
 On start the prices show `-` for a second or two, then fill in.
+
+> **Corrected 2026-11-05.** "A second or two" was never measured: the
+> prices show `-` until the first answer arrives (one request per region).
 
 ## Requirements
 
@@ -53,6 +65,15 @@ up in the background and re-price the nodes when the answer arrives.
   not asked again in the session.
 - [x] Timeout 20 s per request.
 - [x] With `--disable-pricing` nothing is fetched.
+
+> **Corrected 2026-11-05.** These boxes were ticked "by unit tests" that did
+> not check them all. Tests added on 2026-11-05: the retry delay is at least
+> 1 minute and no request is made before it
+> (`TestProviderRetryAndTimeoutDefaults`, `TestNoRequestBeforeTheRetryDelay`),
+> the 20 s timeout (same test), no Azure provider with `--disable-pricing`
+> (`TestSessionPricingPerServer`), an `aws://` node through `ByCloud`
+> makes no Azure request (`TestAWSNodeMakesNoAzureRequest`), and the
+> override label on an Azure node (`TestUpdatePriceOverrideOnAKSNode`).
 
 **R3** WHEN only Azure nodes are shown THEN the Recommendations screen SHALL
 keep saying it covers EKS nodes only (no Azure catalog yet).

@@ -7,7 +7,7 @@ errors=0
 # Shipped before the review gate without a spec-refuter review (owner or
 # code-review agent instead). Listed, not hidden; a spec leaves the list when
 # a spec-refuter review is recorded on it. Never add a new spec here.
-UNREVIEWED="aks-pricing config-views monthly-price-columns node-details sort-invert"
+UNREVIEWED=""
 
 err() { echo "spec-lint: $1" >&2; errors=$((errors + 1)); }
 
