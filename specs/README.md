@@ -115,7 +115,10 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 25. [`fix-spec-lint-markers/`](fix-spec-lint-markers/) — **active**. spec-lint checks
     each decision's own markers.
     [bugfix](fix-spec-lint-markers/bugfix.md) · [tasks](fix-spec-lint-markers/tasks.md)
-26. [`decisions/`](decisions/) — decision records (index below).
+26. [`compact-header-no-url/`](compact-header-no-url/) — **draft**. The compact
+    header box drops the API server URL; the full panel keeps it.
+    [requirements](compact-header-no-url/requirements.md) · [design](compact-header-no-url/design.md) · [tasks](compact-header-no-url/tasks.md)
+27. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>
