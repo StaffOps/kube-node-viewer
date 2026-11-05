@@ -112,7 +112,10 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 24. [`fix-azure-retry/`](fix-azure-retry/) — **active**. Azure prices honour
     `Retry-After`, retry per region, and clear a resolved error from the header.
     [bugfix](fix-azure-retry/bugfix.md) · [design](fix-azure-retry/design.md) · [tasks](fix-azure-retry/tasks.md)
-25. [`decisions/`](decisions/) — decision records (index below).
+25. [`fix-spec-lint-markers/`](fix-spec-lint-markers/) — **active**. spec-lint checks
+    each decision's own markers.
+    [bugfix](fix-spec-lint-markers/bugfix.md) · [tasks](fix-spec-lint-markers/tasks.md)
+26. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>
@@ -142,6 +145,11 @@ mechanical parts.
     significant decision: choice, justification (strongest first),
     trade-offs, **when it would be wrong**, **reversal action**, alternatives.
     Invariants. Pure reference tables are exempt from the decision format.
+    Each decision is a level-2 or level-3 heading `D<n>` (`## D1. …`,
+    `### D1: …`) whose own section, up to the next decision or the next
+    heading of its level or higher, holds the markers
+    `**When this would be wrong**` and `**Reversal action**` (`spec-lint.sh`
+    checks it; a marker in a code block does not count).
   - Each requirement is named by the test that checks it, in the comment
     block right above its `func Test…` (or `t.Run(`), on a line that gives
     the spec's folder name and then the requirement: `// node-pods R3`,

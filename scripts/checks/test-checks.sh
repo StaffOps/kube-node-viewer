@@ -330,13 +330,43 @@ if command -v python3 >/dev/null 2>&1; then
   spec "spec lint: reviewed but still UNREVIEWED"   blocked "sed -i.b 's/^UNREVIEWED=.*/UNREVIEWED=\"demo\"/' scripts/spec-lint.sh && rm scripts/*.b && bash scripts/spec-lint.sh"
   # fix-spec-tooling R2: '## D1.', '### D1:' and a bare '### D1' are decisions
   # the failure must be the marker count, not some other lint error
-  norule="bash scripts/spec-lint.sh 2>&1 | grep -q \"1 decisions but 0 'When this would be wrong'\""
+  norule="bash scripts/spec-lint.sh 2>&1 | grep -q \"D1 (design.md:[0-9]*) has no 'When this would be wrong'\""
   spec "spec lint: decision ## D1. without markers" passes "printf '\\n## D1. A choice\\n\\nText.\\n' >> specs/demo/design.md && $norule"
   spec "spec lint: decision ### D1: without markers" passes "printf '\\n### D1: A choice\\n\\nText.\\n' >> specs/demo/design.md && $norule"
   spec "spec lint: decision ### D1 bare, no markers" passes "printf '\\n### D1\\n\\nText.\\n' >> specs/demo/design.md && $norule"
   # fix-spec-tooling R2: both forms with the markers pass; '## Decisions' is not one
   spec "spec lint: decision, both forms with markers" passes "printf '\\n## D1. A\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n\\n### D2: B\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
   spec "spec lint: decision, ## Decisions not counted" passes "printf '\\n## Decisions\\n\\nNone yet.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
+  # fix-spec-lint-markers R1: each decision carries both markers in its own section
+  lint='bash scripts/spec-lint.sh'
+  # fix-spec-lint-markers R1
+  spec "spec lint: markers under one decision only"     passes  "printf '\\n## D1. A\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n**When this would be wrong**: x. **Reversal action**: y.\\n\\n## D2. B\\n\\nNone.\\n' >> specs/demo/design.md && ! $lint 2>/dev/null && $lint 2>&1 | grep -q 'demo: D2 (design.md:[0-9]*) has no'"
+  # fix-spec-lint-markers R1
+  spec "spec lint: markers in each decision"            passes  "printf '\\n## D1. A\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n\\n## D2. B\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && $lint"
+  # fix-spec-lint-markers R1
+  spec "spec lint: a ## decision ends at a ### decision" passes "printf '\\n## D1. A\\n\\nNone.\\n\\n### D2: B\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && ! $lint 2>/dev/null && $lint 2>&1 | grep -q 'demo: D1 (design.md:[0-9]*) has no'"
+  # fix-spec-lint-markers R1
+  spec "spec lint: markers in a correction note"        passes  "printf '\\n## D1. A\\n\\nText.\\n\\n> **Corrected 2026-11-05.** **When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && $lint"
+  # fix-spec-lint-markers R1
+  spec "spec lint: only the reversal is missing"        passes  "printf '\\n## D1. A\\n\\n**When this would be wrong**: x.\\n' >> specs/demo/design.md && ! $lint 2>/dev/null && $lint 2>&1 | grep -q \"D1 (design.md:[0-9]*) has no 'Reversal action'\" && ! $lint 2>&1 | grep -q 'would be wrong'"
+  # fix-spec-lint-markers R1
+  spec "spec lint: marker in a code block does not count" blocked "printf '\\n## D1. A\\n\\n\\140\\140\\140\\n**When this would be wrong**: x. **Reversal action**: y.\\n\\140\\140\\140\\n' >> specs/demo/design.md && $lint"
+  # fix-spec-lint-markers R1
+  spec "spec lint: marker in a ~~~ block does not count" blocked "printf '\\n## D1. A\\n\\n~~~\\n**When this would be wrong**: x. **Reversal action**: y.\\n~~~\\n' >> specs/demo/design.md && $lint"
+  # fix-spec-lint-markers R1
+  spec "spec lint: heading inside a fence ends nothing" passes  "printf '\\n## D1. A\\n\\n\\140\\140\\140\\n## not a heading\\n~~~\\n\\140\\140\\140\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && $lint"
+  # fix-spec-lint-markers R1
+  spec "spec lint: #### heading stays inside its decision" passes "printf '\\n### D1: A\\n\\n#### Detail\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && $lint"
+  # fix-spec-lint-markers R1
+  spec "spec lint: ### decisions end at the next ## heading" blocked "printf '\\n## Decisions\\n\\n### D1: A\\n\\nText.\\n\\n## Invariants\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && $lint"
+  # fix-spec-lint-markers R1
+  spec "spec lint: a ## decision ends at the next ## heading" passes "printf '\\n## D1. A\\n\\nText.\\n\\n## Invariants\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && ! $lint 2>/dev/null && $lint 2>&1 | grep -q 'demo: D1 (design.md:[0-9]*) has no'"
+  # fix-spec-lint-markers R1: a shorter fence does not close a longer one
+  spec "spec lint: a shorter fence does not close"   blocked "printf '\\n## D1. A\\n\\n\\140\\140\\140\\140\\n\\140\\140\\140\\n**When this would be wrong**: x. **Reversal action**: y.\\n\\140\\140\\140\\140\\n' >> specs/demo/design.md && $lint"
+  # fix-spec-lint-markers R1: an indented heading (up to three spaces) is a decision
+  spec "spec lint: an indented decision heading counts" passes "printf '\\n   ## D1. A\\n\\nText.\\n' >> specs/demo/design.md && ! $lint 2>/dev/null && $lint 2>&1 | grep -q 'demo: D1 (design.md:[0-9]*) has no'"
+  # fix-spec-lint-markers R1: a failing awk fails the lint
+  spec "spec lint: a failing awk fails the lint"     passes  "mkdir -p fakebin && printf '#!/bin/sh\\nexit 2\\n' > fakebin/awk && chmod +x fakebin/awk && ! PATH=\$PWD/fakebin:\$PATH bash scripts/spec-lint.sh 2>/dev/null && PATH=\$PWD/fakebin:\$PATH bash scripts/spec-lint.sh 2>&1 | grep -q 'marker check failed (awk)'"
   # fix-spec-tooling R3: the index entry's status matches the spec's
   spec "spec lint: index says draft, spec active"   blocked "sed -i.b 's|(demo/)\$|(demo/) — **draft**.|' specs/README.md && rm specs/*.b && grep -q 'demo/) — \*\*draft' specs/README.md && bash scripts/spec-lint.sh"
   spec "spec lint: index matches the spec"          passes  "sed -i.b 's|(demo/)\$|(demo/) — **active**.|' specs/README.md && rm specs/*.b && grep -q 'demo/) — \*\*active' specs/README.md && bash scripts/spec-lint.sh"

@@ -60,6 +60,13 @@ and SHALL fail when the design has fewer "When this would be wrong" or
 - [x] `### D1:` without the markers still fails
 - [x] both forms with the markers pass
 
+> **Corrected 2026-11-05.** The totals rule here ("fewer markers than
+> decisions") is replaced by a per-decision rule: each decision needs both
+> markers in its own section
+> ([fix-spec-lint-markers](../fix-spec-lint-markers/bugfix.md) R1). The
+> heading rule above is unchanged; the three "without markers" cases now
+> look for the per-decision message.
+
 **R3** WHEN a spec's `specs/README.md` entry names a status
 (`— **active**`) that differs from the status on the spec's own
 `> Status:` line THEN `spec-lint.sh` SHALL fail, and `release-prepare.py`

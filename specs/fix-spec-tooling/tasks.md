@@ -28,6 +28,10 @@
 > marking and none after it. `spec-lint: ok` on every existing design
 > with the new heading rule. shellcheck clean.
 
+> **Corrected 2026-11-05.** The marker check verified here was the
+> totals rule; it is now per decision
+> ([fix-spec-lint-markers](../fix-spec-lint-markers/bugfix.md)).
+
 > **Verified 2026-11-05 (after the code review).** The index lists this
 > spec as **active**; spec-lint now fails when an index entry's status
 > differs from the spec's (R3, T5), and `release-prepare.py` warns when it

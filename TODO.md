@@ -48,10 +48,6 @@ memory. Listed by impact.
       `scripts/checks/content.sh`) while their internal IPs are in
       192.0.2.0/24. _Why:_ cosmetic in the README images; rename the nodes
       only together with that allowlist.
-- [ ] spec-lint counts the "When this would be wrong" and "Reversal action"
-      markers over the whole design, not per decision: two decisions with
-      both markers under one pass ([fix-spec-tooling](specs/fix-spec-tooling/bugfix.md)).
-      _Why:_ a decision can still ship without its own failure case.
 
 ## Ideas
 
