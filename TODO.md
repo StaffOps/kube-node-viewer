@@ -90,6 +90,13 @@ Beyond the Guardrails section above.
 
 ## Follow-ups
 
+- [ ] Bugfix specs are never marked shipped: `ship_specs` in
+      `scripts/release-prepare.py` reads only `requirements.md`, so a
+      `fix-*/bugfix.md` stays **active** after its release
+      ([ADR-003](specs/decisions/ADR-003-release-from-changelog-headings.md)).
+      _Why:_ the specs index keeps showing released fixes as **active**,
+      as if still in progress.
+
 ## Ideas
 
 - [ ] **Search: negation and label keys** (`/`): `!text` to keep the nodes

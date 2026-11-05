@@ -1,21 +1,31 @@
 # ADR-003: Release in batches, with the version decided by the CHANGELOG headings
 
-> Status: Accepted · Date: 2026-11-04 · Recorded after the fact: the
-> decision was made on 2026-11-02 (`5a973d5`), and batching was added on
-> 2026-11-03 (`3cb4f3c`).
+> Status: Accepted · Date: 2026-11-04 · Recorded after the fact. The
+> decision was made in three steps on 2026-11-03 (UTC):
+>
+> - 01:41, PR #13 (`7c393ee`): release when a merged CHANGELOG names an
+>   untagged version;
+> - 02:36, PR #18 (`5a973d5`): release on every merge;
+> - 04:17, PR #27 (`3cb4f3c`): release in batches.
+>
+> Reviewed: 2026-11-04 (spec-refuter; 3 HIGH, 7 MEDIUM, 7 LOW, applied)
 
 ## Context
 
 - Every user-visible change already needs a `CHANGELOG.md` line under
-  `## [Unreleased]`, grouped by Keep a Changelog headings (`Added`,
-  `Changed`, `Fixed`, …). The `commit-guard` hook and
+  `## [Unreleased]`, grouped by Keep a Changelog headings (`### Added`,
+  `### Fixed`, …). The `commit-guard` hook and
   `scripts/changelog-check.py` enforce where those lines go.
+- Before automation, releases were tagged by hand. A person computed the
+  version and tagged v0.8.0, v0.8.1 and v0.8.2 on 2026-11-02, between
+  12:27 and 13:55 (-03:00).
 - Merges are automatic ([ADR-002](ADR-002-merge-green-prs-from-writers.md)).
-  Releasing on every merge produced a version per PR. On 2026-11-02 alone
-  that came to four releases (v0.8.0, v0.8.1, v0.8.2, v0.9.0), each one a
-  Homebrew upgrade for users.
-- The `main` and `v*` tag rulesets do not let `GITHUB_TOKEN` push, so the
-  release pushes its commit and tag with `RELEASE_DEPLOY_KEY` (`aa56b4a`).
+  Releasing on every merge (PR #18) produced one version per PR: v0.10.0,
+  v0.11.0 and v0.12.0 shipped in about 75 minutes (02:49–04:04 UTC on
+  2026-11-03), each one a Homebrew upgrade for users.
+- The rulesets on `main` and `v*` tags do not let `GITHUB_TOKEN` push, so
+  the release pushes its commit and tag with `RELEASE_DEPLOY_KEY`
+  (`aa56b4a`), which bypasses both rulesets.
 
 ## Decision
 
@@ -23,24 +33,30 @@
 
 - every Monday at 12:00 UTC;
 - on demand (`gh workflow run release.yaml`);
-- right after the merge of a PR labelled `release` (the automerge job
-  starts it).
+- right after the merge of a PR labelled `release`, started by the
+  automerge job;
+- when any tag is pushed (`on: push: tags: '*'`), the workflow's own tag
+  included; that run stops when the release already exists. Today a
+  non-`v*` tag pushed by any writer also starts a run. PR #43 narrows the
+  trigger to `v*`.
 
-When it runs, `scripts/release-prepare.py` reads the headings under
-`[Unreleased]` and picks the next version:
+`scripts/release-prepare.py` (`next_version`) picks the version from the
+body of `[Unreleased]`:
 
-| Headings under `[Unreleased]` | Next version |
-|-------------------------------|--------------|
-| `BREAKING` anywhere | major (minor while 0.x) |
-| any `Added`, `Changed`, `Removed` or `Deprecated` | minor |
-| only `Fixed` or `Security` | patch |
-| empty | no release (the run re-tags a released version only if its tag is missing) |
+| `[Unreleased]` body | Next version |
+|---------------------|--------------|
+| contains the text `BREAKING` anywhere (case-sensitive) | major (minor while 0.x) |
+| a heading `### Added`, `### Changed`, `### Removed` or `### Deprecated` (any case) | minor |
+| anything else: only `Fixed` or `Security`, misspelt headings, no headings | patch |
+| empty | no new version (the run re-tags the newest released version only if its tag is missing) |
 
-With `--write`, `release-prepare.py` then:
+With `--write` it also:
 
 - renames `[Unreleased]` to `[x.y.z] - DATE`;
 - updates the compare links;
-- marks as **shipped** every spec whose tasks are all done.
+- marks as **shipped** every feature spec (`requirements.md`) that is
+  `Status: active` with all tasks done. Bugfix specs (`bugfix.md`) are
+  not handled and stay **active**.
 
 The workflow then:
 
@@ -54,41 +70,52 @@ The workflow then:
 
 1. **One source for the version and the notes.** The headings a
    contributor already writes for users decide the bump. There is no
-   second label or commit-type convention to keep in sync with the
-   CHANGELOG.
+   label or commit-type convention to keep in sync with the CHANGELOG.
 2. **Batches give fewer, readable releases.** A week of merges ships as
-   one version with one set of notes, and an urgent fix still ships the
-   same day through the `release` label or a manual run.
+   one version with one set of notes. An urgent fix still ships the same
+   day, through the `release` label or a manual run.
 3. **Released sections never change.** A merge only adds to
    `[Unreleased]`. A branch that predates a release has to merge `main`
    in, and the checks refuse lines added to a released section.
 
 ## Consequences
 
-- A wrong heading means a wrong version: a feature filed under `Fixed`
-  ships as a patch. PR review has to read the headings.
+- A wrong heading means a wrong version. A feature filed under `Fixed`,
+  or under a misspelt heading such as `### Add`, ships as a patch. PR
+  review has to read the headings.
+- The word `BREAKING` anywhere in `[Unreleased]`, even in a sentence,
+  raises the version; `breaking` in lowercase does not.
 - Merged changes wait up to a week unless someone triggers a release.
-- The release commit is pushed to `main` by a deploy key, which bypasses
-  the rulesets. That key is a long-lived credential (`TODO.md`: replace
-  it with a GitHub App token).
-- A release run edits files (`CHANGELOG.md`, the spec statuses), so a PR
+- Bugfix specs have to be marked shipped by hand (`TODO.md`).
+- A deploy key bypasses both rulesets to push the release commit and
+  tag. It is a long-lived credential; `TODO.md` proposes a GitHub App
+  token instead. Admins can also create, move or delete `v*` tags: the tag
+  ruleset gives the admin role bypass mode `always`.
+- A release run edits files (`CHANGELOG.md`, spec statuses), so a PR left
   open across a release has to merge `main` again.
 
 ## When this would be wrong
 
 - If users need every fix as soon as it merges (an outage tool), the
   batch delay costs more than the extra releases.
-- If several people release independently, a version picked by the
-  headings in one shared file becomes a merge-conflict point; tooling
-  that keeps release notes per PR would fit better then.
+- If several people release independently, a version picked from one
+  shared file becomes a merge-conflict point, and notes kept per PR would
+  fit better.
+
+## Reversal
+
+Drop the `schedule` trigger and start `release.yaml` from the automerge
+job after every merge, as PR #18 did. Moving off CHANGELOG-driven
+versions means replacing `scripts/release-prepare.py`.
 
 ## Alternatives discarded
 
-- **A release on every merge** (`7c393ee`, `5a973d5`). Several versions
-  a day, each one a user upgrade; replaced by batches in `3cb4f3c`.
+- **Manual tags.** This was the practice before automation
+  (v0.8.0–v0.8.2): a person computes the version and tags it. The `v*`
+  tag ruleset now refuses that, except for admins and the deploy key.
+- **A release on every merge** (PR #18, `5a973d5`). It meant one version
+  per PR, three in about 75 minutes, and batches replaced it in PR #27.
 - **Versions from Conventional Commit types** (semantic-release,
-  release-please). Commit types are also written for every commit, but
-  they describe commits rather than user-visible changes, and they would
-  be a second source alongside the CHANGELOG.
-- **Manual tags.** GitHub refuses them anyway (`v*` tag ruleset), and they
-  rely on a person computing the version.
+  release-please). Commit types describe commits rather than
+  user-visible changes, and would be a second source next to the
+  CHANGELOG.

@@ -142,7 +142,8 @@ Why: [ADR-002](specs/decisions/ADR-002-merge-green-prs-from-writers.md)
 - **Rulesets** (repository settings): `main` takes changes only through a
   PR whose `verify`, `lint`, `build`, `secrets`, `guardrails`, `deps` and
   `workflows` checks passed (no force-push, no deletion; admins can bypass
-  only through a PR); `v*` tags cannot be created, moved or deleted.
+  only through a PR); `v*` tags cannot be created, moved or deleted
+  except by admins, whom the tag ruleset lets bypass it.
   Deploy keys bypass both: `release.yaml` pushes its commit and tag with
   `RELEASE_DEPLOY_KEY`, since GitHub does not let `GITHUB_TOKEN` bypass a
   ruleset.
