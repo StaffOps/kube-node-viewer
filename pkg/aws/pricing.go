@@ -64,7 +64,7 @@ func (p *pricingProvider) OnUpdate(onUpdate func()) {
 func (p *pricingProvider) NodePrice(n *model.Node) (float64, bool) {
 	autoManagementPrice := 0.0
 	if n.IsAuto() {
-		if price, ok := p.AutoManagementPrice(n.InstanceType()); ok {
+		if price, ok := p.AutoManagementPrice(ec2types.InstanceType(n.InstanceType())); ok {
 			autoManagementPrice = price
 		} else {
 			// don't return a price until we've looked up the management price
@@ -74,11 +74,11 @@ func (p *pricingProvider) NodePrice(n *model.Node) (float64, bool) {
 
 	// a reserved node is prepaid; its on-demand price is shown as an equivalent
 	if n.IsOnDemand() || n.CapacityType() == model.CapacityReserved {
-		if price, ok := p.OnDemandPrice(n.InstanceType()); ok {
+		if price, ok := p.OnDemandPrice(ec2types.InstanceType(n.InstanceType())); ok {
 			return autoManagementPrice + price, true
 		}
 	} else if n.IsSpot() {
-		if price, ok := p.SpotPrice(n.InstanceType(), n.Zone()); ok {
+		if price, ok := p.SpotPrice(ec2types.InstanceType(n.InstanceType()), n.Zone()); ok {
 			return autoManagementPrice + price, true
 		}
 	} else if n.IsFargate() && len(n.Pods()) == 1 {

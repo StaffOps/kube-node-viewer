@@ -93,7 +93,7 @@ func recommendNode(n *Node) recommend.Node {
 		return recommend.Resources{CPU: cpu.AsApproximateFloat64(), Mem: mem.AsApproximateFloat64() / (1 << 30), Pods: pods.AsApproximateFloat64()}
 	}
 	rn := recommend.Node{
-		Name: n.Name(), Type: string(n.InstanceType()), Zone: n.Zone(), Capacity: string(n.CapacityType()),
+		Name: n.Name(), Type: n.InstanceType(), Zone: n.Zone(), Capacity: string(n.CapacityType()),
 		Auto:        n.LabelValue("eks.amazonaws.com/compute-type") == "auto",
 		Allocatable: res(n.Allocatable()),
 		PriceKnown:  n.HasPrice(),

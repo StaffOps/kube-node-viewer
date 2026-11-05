@@ -103,7 +103,7 @@ func (u *UIModel) nodeDetailsRows(n *Node, now time.Time) []string {
 	}
 	section := func(title string) string { return titleStyle(title) }
 
-	instance := []string{orDash(string(n.InstanceType())), u.cell(n, FieldCapacity, now)}
+	instance := []string{orDash(n.InstanceType()), u.cell(n, FieldCapacity, now)}
 	if !u.DisablePricing {
 		price := u.cell(n, FieldPrice, now)
 		if price != "-" {
