@@ -175,11 +175,11 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 		region = stats.Nodes[0].Region()
 	}
 	if u.headerSize() == headerCompact {
+		// no API server URL here: it is the widest field and the full panel
+		// has it (compact-header-no-url R1)
 		where := []string{headerContext(context)}
-		for _, s := range []string{u.info.Server, region} {
-			if s != "" {
-				where = append(where, headerValue(s))
-			}
+		if region != "" {
+			where = append(where, headerValue(region))
 		}
 		where = append(where, u.countsWithCost(counts, stats))
 		body := strings.Join(where, headerLabel(" · ")) + "\n" + u.viewSummary()

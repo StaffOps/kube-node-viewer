@@ -1,0 +1,29 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ demo-prod · us-east-1 · 10 of 10 shown · 220 pods · $728.102/month (+1 reserved, not priced) (global cluster)                                                        │
+│ Filters: none │ Group: none │ Sort: creation ↓ │ cpu+memory                                                                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  25533m/35230m    72.5% cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.997/hour | $728.102/month (+1 reserved, not priced)
+  72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+
+  NAME                                                                   PODS   INSTANCE     PRICE/H   PRICE/M   IDLE/M  CAPACITY  NODEGROUP  ZONE        STATUS
+▌ ip-10-0-13-12.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  95% 22/58  c7g.xlarge   $0.0580   $42.34    $2.18   Spot      spot-arm   us-east-1c  Ready
+▌                            memory ███████████████████████████████  82%
+  ip-10-0-12-61.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  47% 9/58   c7g.large    $0.0290   $21.17    $11.30  Spot      spot-arm   us-east-1b  Ready
+                             memory ███████████████████████████████  35%
+  ip-10-0-11-93.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  88% 14/58  c7g.large    $0.0310   $22.63    $2.77   Spot      spot-arm   us-east-1a  Ready
+                             memory ███████████████████████████████  69%
+  ip-10-0-13-40.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  73% 44/58  m6i.2xlarge  $0.1370   $100.01   $27.13  Spot      default    us-east-1c  Ready
+                             memory ███████████████████████████████  58%
+  ip-10-0-12-15.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  62% 27/58  m6i.xlarge   $0.1920   $140.16   $40.65  OnDemand  default    us-east-1b  Ready
+                             memory ███████████████████████████████  71%
+  ip-10-0-11-87.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  84% 31/58  m6i.xlarge   $0.1920   $140.16   $22.67  OnDemand  default    us-east-1a  Ready
+                             memory ███████████████████████████████  66%
+  ip-10-0-11-24.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  90% 38/58  m6i.xlarge   $0.1920   $140.16   $13.80  OnDemand  default    us-east-1a  Ready
+                             memory ███████████████████████████████  78%
+  ip-10-0-12-33.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  55% 6/58   g5.xlarge    ~$1.0060  ~$734.38  -       Reserved  gpu        us-east-1b  Ready
+                             memory ███████████████████████████████  61%
+  ip-10-0-12-98.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  39% 12/58  t3.large     $0.0832   $60.74    $34.01  OnDemand  system-ng  us-east-1b  Ready/Cordoned
+                             memory ███████████████████████████████  44%
+  ip-10-0-13-12.ec2.internal · no DaemonSets
+  ••
+  f: filter • g: group • s: sort • I: flip ↑/↓ • o: columns • /: search • r: resources • c: context • v: views • e: export • tab: recommendations • ?: help • q: quit

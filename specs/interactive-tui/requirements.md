@@ -262,6 +262,13 @@ back to one header line with the view only.
 > compact box, as in sofka, from the main view or a panel; the pick is saved
 > with the cluster's view state.
 
+> **Corrected 2026-11-05 (compact-header-no-url).** The compact box no longer
+> shows the API server URL: its first line is the context, the region and
+> the counts with the cost; the full panel keeps the URL
+> ([compact-header-no-url](../compact-header-no-url/requirements.md) R1).
+> Also, the one-line header below 14 rows shows the context, the counts and
+> the view (`pkg/model/header.go:164-171`), not "the view only" as R16 says.
+
 **R17** WHEN the user presses `↑`/`↓` (or `k`/`j`) in the main view THEN the
 system SHALL move a cursor over group headings and nodes, marked in the left
 margin and followed across pages; WHEN they press `enter` on a group heading

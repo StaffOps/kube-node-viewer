@@ -181,7 +181,9 @@ a narrow window the least important columns are dropped first, and the footer
 says how many are hidden. Lines never run past the window edge.
 
 
-With `ctrl+e` the header shrinks to two lines:
+With `ctrl+e` the header shrinks to two lines: the context, the region and
+the counts with the cost, then the view. The API server URL is only in the
+full panel:
 
 ![Compact header](.static/header-compact.png)
 

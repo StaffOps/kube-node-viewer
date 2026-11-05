@@ -48,6 +48,12 @@ memory. Listed by impact.
       `scripts/checks/content.sh`) while their internal IPs are in
       192.0.2.0/24. _Why:_ cosmetic in the README images; rename the nodes
       only together with that allowlist.
+- [ ] EKS contexts named by ARN (`arn:aws:eks:<region>:<account>:cluster/<name>`,
+      the default of `aws eks update-kubeconfig`) show the account id in both
+      headers, and take most of the compact line
+      ([compact-header-no-url](specs/compact-header-no-url/requirements.md),
+      out of scope). _Why:_ a screenshot shares the account id; showing
+      `<name>` (and the region) would be shorter.
 
 ## Ideas
 

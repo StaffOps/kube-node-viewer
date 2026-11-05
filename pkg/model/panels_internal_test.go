@@ -240,6 +240,7 @@ func TestPaginationRepeatsGroupPath(t *testing.T) {
 }
 
 // interactive-tui R16: the header panel, and one line when the screen is short.
+// compact-header-no-url R1
 func TestHeaderPanelAndOneLineFallback(t *testing.T) {
 	u := capacityUI(t, 2)
 	u.SetClusterInfo(ClusterInfo{Context: "ctx-a", Server: "https://a.example", Region: "us-east-1"})
@@ -254,10 +255,13 @@ func TestHeaderPanelAndOneLineFallback(t *testing.T) {
 	u.Update(tea.WindowSizeMsg{Width: 160, Height: 20})
 	compact := u.View()
 	compactHeader := strings.Join(strings.SplitN(compact, "\n", 5)[:4], "\n")
-	for _, want := range []string{"╭", "ctx-a", "https://a.example", "2 of 2 shown", "Filters: none", "╰"} {
+	for _, want := range []string{"╭", "ctx-a", "us-east-1", "2 of 2 shown", "Filters: none", "╰"} {
 		if !strings.Contains(compactHeader, want) {
 			t.Errorf("compact header misses %q:\n%s", want, compactHeader)
 		}
+	}
+	if strings.Contains(compactHeader, "a.example") {
+		t.Errorf("compact header shows the server URL:\n%s", compactHeader)
 	}
 
 	u.Update(tea.WindowSizeMsg{Width: 160, Height: 10})
