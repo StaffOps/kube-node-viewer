@@ -109,7 +109,10 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 23. [`fix-spec-tooling/`](fix-spec-tooling/) — **active**. Release tooling
     ships bugfix specs; spec-lint reads `## D<n>` decisions.
     [bugfix](fix-spec-tooling/bugfix.md) · [tasks](fix-spec-tooling/tasks.md)
-24. [`decisions/`](decisions/) — decision records (index below).
+24. [`fix-spec-lint-markers/`](fix-spec-lint-markers/) — **draft**. spec-lint checks
+    each decision's own markers.
+    [bugfix](fix-spec-lint-markers/bugfix.md) · [tasks](fix-spec-lint-markers/tasks.md)
+25. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>
