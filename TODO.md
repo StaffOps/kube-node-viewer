@@ -90,6 +90,11 @@ Beyond the Guardrails section above.
 
 ## Follow-ups
 
+- [ ] Azure prices: on HTTP 429 the provider waits its fixed 1-minute
+      retry and ignores `Retry-After`, and the header keeps the resolved
+      error red for 2 minutes after the retry succeeded (`issueWindow`,
+      `pkg/model/header.go`). _Why:_ a transient rate limit looks like a
+      live failure.
 - [ ] `config.yaml` filter values in another case match nothing: `values:
       [Spot]` for `capacity` keeps no node, since capacity values are
       lower case (`spot`), with no error
