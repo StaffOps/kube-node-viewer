@@ -36,6 +36,7 @@ func sampleView() model.ViewState {
 	return v
 }
 
+// interactive-tui R1, R2: the view state saved and restored per cluster.
 func TestRoundTripPerCluster(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sub", "state.json")
 	s := state.Load(path, os.Stderr)
@@ -103,6 +104,7 @@ func TestSaverWritesOnCloseAndLeavesNoTempFiles(t *testing.T) {
 	}
 }
 
+// interactive-tui R2: saving is debounced off the UI path.
 func TestSaverDebounces(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.json")
 	saver := state.NewSaver(state.Load(path, os.Stderr), 20*time.Millisecond, func(err error) { t.Error(err) })

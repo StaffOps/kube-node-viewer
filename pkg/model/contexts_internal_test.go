@@ -90,6 +90,7 @@ func switchUI(t *testing.T) (*UIModel, *fakeSwitcher, *Cluster) {
 	return u, f, old
 }
 
+// interactive-tui R10: c lists the contexts and switches without restarting.
 func TestContextSwitch(t *testing.T) {
 	u, f, old := switchUI(t)
 	oldGen := u.gen

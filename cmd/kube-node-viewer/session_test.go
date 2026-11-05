@@ -22,6 +22,7 @@ import (
 	"github.com/staffops/kube-node-viewer/pkg/pricing"
 )
 
+// interactive-tui R10: each connection gets the pricing of its server.
 // Tests for specs/fix-aws-pricing-region: which AWS provider each kind of
 // API server gets, and that the Recommendations advisor still finds it.
 func TestSessionPricingPerServer(t *testing.T) {

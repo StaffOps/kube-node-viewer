@@ -15,10 +15,14 @@ limitations under the License.
 package main
 
 import (
+	"os"
 	"runtime/debug"
+	"strings"
 	"testing"
 )
 
+// rebrand R2: -version falls back to the module version from the build
+// info when built without ldflags.
 func TestResolveVersion(t *testing.T) {
 	info := &debug.BuildInfo{
 		Main:     debug.Module{Version: "v0.1.0"},
@@ -47,5 +51,28 @@ func TestResolveVersion(t *testing.T) {
 				t.Errorf("got (%q, %q), want (%q, %q)", v, cm, c.wantVersion, c.wantCommit)
 			}
 		})
+	}
+}
+
+// rebrand R1: the module path is github.com/staffops/kube-node-viewer, in
+// go.mod and in the linter's local prefix; no file imports the upstream path.
+func TestModulePath(t *testing.T) {
+	const module = "github.com/staffops/kube-node-viewer"
+	gomod, err := os.ReadFile("../../go.mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first := strings.SplitN(string(gomod), "\n", 2)[0]; first != "module "+module {
+		t.Errorf("go.mod: %q, want module %s", first, module)
+	}
+	lint, err := os.ReadFile("../../.golangci.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(lint), "- "+module) {
+		t.Errorf(".golangci.yaml local-prefixes does not name %s", module)
+	}
+	if strings.Contains(string(gomod), "github.com/awslabs/eks-node-viewer") {
+		t.Error("go.mod names the upstream module")
 	}
 }

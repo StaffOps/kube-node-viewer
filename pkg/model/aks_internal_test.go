@@ -76,6 +76,7 @@ func TestAKSShowsUnknownPricesNotZero(t *testing.T) {
 	}
 }
 
+// aks-pricing R3: with only Azure nodes, Recommendations says EKS only.
 func TestAKSRecommendationsSayEKSOnly(t *testing.T) {
 	u := aksUI(t)
 	pressAll(u, "tab")

@@ -108,7 +108,7 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-// R1, R2, R6: enter on a heading lists only that group, the header and the
+// group-focus R1, R2, R6: enter on a heading lists only that group, the header and the
 // summary count it, the View line shows it, and nothing is saved.
 func TestFocusShowsOnlyTheGroup(t *testing.T) {
 	u, saves := focusUI(t, poolField)
@@ -130,7 +130,7 @@ func TestFocusShowsOnlyTheGroup(t *testing.T) {
 	}
 }
 
-// R1: the <none> group focuses like any other.
+// group-focus R1: the <none> group focuses like any other.
 func TestFocusOnTheNoneGroup(t *testing.T) {
 	u, _ := focusUI(t, poolField)
 	cursorTo(t, u, "g:"+UngroupedValue)
@@ -138,7 +138,7 @@ func TestFocusOnTheNoneGroup(t *testing.T) {
 	wantListed(t, u, "n1")
 }
 
-// R1, R7: a list folded with n lists the focused group's nodes; n and d do
+// group-focus R1, R7: a list folded with n lists the focused group's nodes; n and d do
 // nothing while focused; esc brings the folded list back as it was.
 func TestFocusOnAFoldedList(t *testing.T) {
 	u, saves := focusUI(t, poolField, zoneField)
@@ -169,7 +169,7 @@ func TestFocusOnAFoldedList(t *testing.T) {
 	}
 }
 
-// R1, R5: a group folded on its own shows its nodes once focused and is
+// group-focus R1, R5: a group folded on its own shows its nodes once focused and is
 // folded again after esc; space on the focused heading does nothing.
 func TestFocusUnfoldsAFoldedGroup(t *testing.T) {
 	u, saves := focusUI(t, poolField)
@@ -192,7 +192,7 @@ func TestFocusUnfoldsAFoldedGroup(t *testing.T) {
 	}
 }
 
-// R3, R4: two levels, a sub-group focus, enter on an ancestor, one esc per
+// group-focus R3, R4: two levels, a sub-group focus, enter on an ancestor, one esc per
 // enter with the cursor back on the heading.
 func TestFocusTwoLevels(t *testing.T) {
 	u, _ := focusUI(t, poolField, zoneField)
@@ -229,7 +229,7 @@ func TestFocusTwoLevels(t *testing.T) {
 	}
 }
 
-// R3: one enter that adds two levels is undone by one esc.
+// group-focus R3: one enter that adds two levels is undone by one esc.
 func TestFocusOneEscPerEnter(t *testing.T) {
 	u, _ := focusUI(t, poolField, zoneField)
 	cursorTo(t, u, "g:default › us-east-1b")
@@ -241,7 +241,7 @@ func TestFocusOneEscPerEnter(t *testing.T) {
 	}
 }
 
-// R3: a cursor move pending when esc arrives does not move the cursor off
+// group-focus R3: a cursor move pending when esc arrives does not move the cursor off
 // the heading left.
 func TestFocusEscWithAPendingMove(t *testing.T) {
 	u, _ := focusUI(t, poolField)
@@ -253,7 +253,7 @@ func TestFocusEscWithAPendingMove(t *testing.T) {
 	}
 }
 
-// R3: the heading left on a later page brings that page back.
+// group-focus R3: the heading left on a later page brings that page back.
 func TestFocusEscFollowsTheHeadingsPage(t *testing.T) {
 	u := capacityUI(t, 40)
 	u.Update(tea.WindowSizeMsg{Width: 160, Height: 20})
@@ -285,7 +285,7 @@ func TestFocusEscFollowsTheHeadingsPage(t *testing.T) {
 	}
 }
 
-// R1: three levels; a level-2 group folded on its own stays folded inside a
+// group-focus R1: three levels; a level-2 group folded on its own stays folded inside a
 // level-1 focus.
 func TestFocusKeepsFoldedSubGroups(t *testing.T) {
 	u, _ := focusUI(t, poolField, zoneField, archField)
@@ -304,7 +304,7 @@ func TestFocusKeepsFoldedSubGroups(t *testing.T) {
 	wantListed(t, u)
 }
 
-// R4, R6: the focus survives a group-by change and enter adds the new
+// group-focus R4, R6: the focus survives a group-by change and enter adds the new
 // field's level; esc undoes that step only.
 func TestFocusAcrossAGroupByChange(t *testing.T) {
 	u, _ := focusUI(t, poolField)
@@ -330,7 +330,7 @@ func TestFocusAcrossAGroupByChange(t *testing.T) {
 	}
 }
 
-// R3, D4: esc clears a kept search first, then leaves the focus.
+// group-focus R3, D4: esc clears a kept search first, then leaves the focus.
 func TestFocusEscClearsTheSearchFirst(t *testing.T) {
 	u, _ := focusUI(t, poolField)
 	cursorTo(t, u, "g:gpu")
@@ -347,7 +347,7 @@ func TestFocusEscClearsTheSearchFirst(t *testing.T) {
 	}
 }
 
-// R6: a new cluster or a named view shows every group again.
+// group-focus R6: a new cluster or a named view shows every group again.
 func TestSetViewClearsTheFocus(t *testing.T) {
 	u, _ := focusUI(t, poolField)
 	cursorTo(t, u, "g:gpu")
@@ -359,7 +359,7 @@ func TestSetViewClearsTheFocus(t *testing.T) {
 	wantListed(t, u, "a1", "a2", "b1", "g1", "g2", "n1")
 }
 
-// R6: the two empty messages.
+// group-focus R6: the two empty messages.
 func TestFocusEmptyMessages(t *testing.T) {
 	u, _ := focusUI(t, poolField)
 	cursorTo(t, u, "g:gpu")
@@ -381,7 +381,7 @@ func TestFocusEmptyMessages(t *testing.T) {
 	}
 }
 
-// R1: enter on a node inside the focus opens its details.
+// group-focus R1: enter on a node inside the focus opens its details.
 func TestFocusEnterOnANodeOpensDetails(t *testing.T) {
 	u, _ := focusUI(t, poolField)
 	cursorTo(t, u, "g:gpu")
@@ -393,7 +393,7 @@ func TestFocusEnterOnANodeOpensDetails(t *testing.T) {
 	}
 }
 
-// R2: the key line.
+// group-focus R2: the key line.
 func TestFocusKeyLine(t *testing.T) {
 	u, _ := focusUI(t, poolField)
 	if help := u.helpText(); !strings.Contains(help, "enter: focus • space: fold • n: fold") {
@@ -414,7 +414,7 @@ func TestFocusKeyLine(t *testing.T) {
 	wantListed(t, u, "g1", "g2")
 }
 
-// R8: Recommendations ignore the focus (rows, counts, e, esc).
+// group-focus R8: Recommendations ignore the focus (rows, counts, e, esc).
 func TestFocusOnRecommendations(t *testing.T) {
 	u, _ := focusUI(t, poolField)
 	cursorTo(t, u, "g:gpu")
@@ -435,7 +435,7 @@ func TestFocusOnRecommendations(t *testing.T) {
 	wantListed(t, u, "g1", "g2")
 }
 
-// R8: e on Overview exports the focused nodes and the focus.
+// group-focus R8: e on Overview exports the focused nodes and the focus.
 func TestFocusExport(t *testing.T) {
 	u, _ := focusUI(t, poolField)
 	raw, _ := json.Marshal(u.exportDoc(time.Now()))
@@ -461,7 +461,7 @@ func TestFocusExport(t *testing.T) {
 	}
 }
 
-// R1, R2, R6 and the counter-example on order: the pod count follows the
+// group-focus R1, R2, R6 and the counter-example on order: the pod count follows the
 // focus, the View line has no Focus without one, the nodes keep their order,
 // and the focus stays across a sort change.
 func TestFocusPodsOrderAndSort(t *testing.T) {
@@ -491,7 +491,7 @@ func TestFocusPodsOrderAndSort(t *testing.T) {
 	wantListed(t, u, "g1", "g2")
 }
 
-// R5: space on a node does nothing.
+// group-focus R5: space on a node does nothing.
 func TestFocusSpaceOnANode(t *testing.T) {
 	u, saves := focusUI(t, poolField)
 	cursorTo(t, u, "n:g1")
@@ -501,7 +501,7 @@ func TestFocusSpaceOnANode(t *testing.T) {
 	}
 }
 
-// R6: a named view saved while focused does not bring the focus back.
+// group-focus R6: a named view saved while focused does not bring the focus back.
 func TestFocusNotInANamedView(t *testing.T) {
 	u, _ := focusUI(t, poolField)
 	cursorTo(t, u, "g:gpu")

@@ -71,7 +71,7 @@ check: ## Before a push: what CI checks (main merged in, verify, secrets, guardr
 	$(MAKE) vuln licenses
 	$(MAKE) lint
 	scripts/build.sh
-	@v=$$(python3 scripts/release-prepare.py); if [ -n "$$v" ] && ! git rev-parse -q --verify "refs/tags/v$$v" >/dev/null; then echo "check: ok; the next release (Monday, or on demand) is v$$v"; else echo "check: ok; no [Unreleased] entries: nothing to release"; fi
+	@v=$$(python3 -B scripts/release-prepare.py); if [ -n "$$v" ] && ! git rev-parse -q --verify "refs/tags/v$$v" >/dev/null; then echo "check: ok; the next release (Monday, or on demand) is v$$v"; else echo "check: ok; no [Unreleased] entries: nothing to release"; fi
 
 lint: ## Lint with the pinned golangci-lint (built on first use)
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...

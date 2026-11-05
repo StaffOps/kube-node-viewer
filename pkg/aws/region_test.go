@@ -72,6 +72,8 @@ func awsNode(name, providerID string, labels map[string]string) *model.Node {
 	return model.NewNode(n)
 }
 
+// fix-aws-pricing-region R1, R2 and R3: each AWS node priced in its own
+// region, three regions here; other nodes in the SDK's, with no provider.
 func TestByRegionPricesEachAWSNodeInItsRegion(t *testing.T) {
 	r := &recorder{}
 	b := newByRegion("us-west-2", r.build)
@@ -146,7 +148,7 @@ func TestByRegionOnUpdate(t *testing.T) {
 	}
 }
 
-// R5: spot by the zone's region, on-demand from the region with most nodes.
+// fix-aws-pricing-region R5: spot by the zone's region, on-demand from the region with most nodes.
 func TestByRegionAdvisorPrices(t *testing.T) {
 	r := &recorder{}
 	b := newByRegion("us-west-2", r.build)
@@ -173,6 +175,7 @@ func TestByRegionAdvisorPrices(t *testing.T) {
 	}
 }
 
+// fix-aws-pricing-region R1, R2: which zones and regions are AWS ones.
 func TestZoneRegion(t *testing.T) {
 	for zone, want := range map[string]string{
 		"eu-west-1a":              "eu-west-1",
@@ -200,7 +203,7 @@ func TestZoneRegion(t *testing.T) {
 	}
 }
 
-// R4: with no SDK region, the EC2 client (spot) uses the on-demand lookup
+// fix-aws-pricing-region R4: with no SDK region, the EC2 client (spot) uses the on-demand lookup
 // region.
 func TestPricingProviderWithoutRegionUsesOneRegion(t *testing.T) {
 	// no AWS config, credentials or instance metadata from this machine

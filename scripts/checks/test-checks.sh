@@ -104,6 +104,7 @@ hdr='# Licensed under the Apache License, Version 2.0 (the "License");'
 
 echo "== files a commit adds (pre-commit)"
 commit "export file"                 blocked kube-node-viewer-20260101.csv "node,cpu"
+commit "python bytecode"              blocked scripts/__pycache__/x.cpython-312.pyc "bytecode"
 commit "license header on new .sh"   blocked tool.sh "echo hi"
 commit "new .sh with header"         passes  tool.sh "$hdr"
 commit "EKS endpoint"                blocked:eks docs.md "https://0123456789ABCDEF0123456789ABCDEF.gr7.us-east-1.eks.amazonaws.com"
@@ -279,7 +280,76 @@ printf 'module m\n\nrequire (\n\ta v1.0.1\n  )\n\nreplace a => ./evil\n' > "$tmp
 out=$(sh scripts/checks/dependabot-patch.sh "$tmp/base.mod" "$tmp/head.mod" 2>&1)
 verdict "replace after an indented )" blocked $? "$out"
 
+echo "== spec gates"
+if command -v python3 >/dev/null 2>&1; then
+  sg=$tmp/specs-repo
+  git init -q -b main "$sg"
+  mkdir -p "$sg/scripts" "$sg/specs/demo" "$sg/specs/rough" "$sg/pkg/model" "$sg/cmd/kube-node-viewer"
+  cp "$src/scripts/spec-lint.sh" "$src/scripts/spec-trace.py" "$src/scripts/drift-check.py" "$src/scripts/spec-tasks-check.py" "$sg/scripts/"
+  # shellcheck disable=SC2016 # backticks are markdown
+  printf '# Specs\n\n1. [`demo/`](demo/)\n2. [`rough/`](rough/)\n' > "$sg/specs/README.md"
+  printf '# Requirements: demo\n\n> Status: active · Owner: x · Reviewed: 2026-01-01 (spec-refuter)\n\n**R1** WHEN a THEN the system SHALL b.\n\n**R2** WHEN c THEN the system SHALL d.\n\n_Test: manual — docs._\n' > "$sg/specs/demo/requirements.md"
+  printf '# Requirements: rough\n\n> Status: draft · Owner: x · Reviewed: —\n\n**R1** WHEN a THEN the system SHALL b.\n' > "$sg/specs/rough/requirements.md"
+  for d in demo rough; do
+    printf '# Design: %s\n' "$d" > "$sg/specs/$d/design.md"
+    printf '# Tasks: %s\n\n- [x] T1. Do it\n  _Covers: R1, R2_\n' "$d" > "$sg/specs/$d/tasks.md"
+  done
+  printf 'package model\n\n// demo R1: covered\nfunc TestA(t *testing.T) {}\n' > "$sg/pkg/model/a_test.go"
+  printf 'package main\n\nfunc f() {\n\tflagSet.BoolVar(&flags.X, "xflag", cfg.getBoolValue("xflag", false), "x")\n}\n' > "$sg/cmd/kube-node-viewer/flag.go"
+  printf 'package model\n\nvar helpKeys = [][2]string{\n\t{"q", "quit"},\n}\n' > "$sg/pkg/model/panels.go"
+  printf 'package model\n\nfunc k(s string) {\n\tswitch s {\n\tcase "q":\n\t}\n}\n' > "$sg/pkg/model/uimodel.go"
+  printf 'package model\n\nconst (\n\tFieldZone Field = "zone"\n)\n' > "$sg/pkg/model/view.go"
+  printf '# demo\n\n-xflag, q\n' > "$sg/README.md"
+  (
+    cd "$sg" || exit 1
+    git config user.name "Example Dev"; git config user.email "dev@example.com"; git config commit.gpgsign false
+    git add -A && git commit -q -m "chore: base"
+  )
+  sgbase=$(git -C "$sg" rev-parse HEAD)
+  # spec CASE WANT SCRIPT: run SCRIPT with sh in the spec repo ($B is the
+  # base commit), then reset it
+  spec() {
+    out=$(cd "$sg" && B=$sgbase PYTHONDONTWRITEBYTECODE=1 sh -c "$3" 2>&1)
+    verdict "$1" "$2" $? "$out"
+    git -C "$sg" checkout -q main; git -C "$sg" reset -q --hard "$sgbase"; git -C "$sg" clean -qfdx
+  }
+  trace='python3 scripts/spec-trace.py'
+  spec "spec trace: cited or marked"                passes  "$trace"
+  spec "spec trace: requirement without a test"     blocked "printf 'package model\n' > pkg/model/a_test.go && $trace"
+  spec "spec trace: a file header does not count"   blocked "printf 'package model\n\n// demo R1: covered\n\nfunc TestA(t *testing.T) {}\n' > pkg/model/a_test.go && $trace"
+  spec "spec trace: a range names each one"         passes  "sed -i.b '/Test: manual/d' specs/demo/requirements.md && printf 'package model\n\n// demo R1-R2\nfunc TestA(t *testing.T) {}\n' > pkg/model/a_test.go && $trace"
+  spec "spec trace: R10 is not R1"                  blocked "printf 'package model\n\n// demo R10\nfunc TestA(t *testing.T) {}\n' > pkg/model/a_test.go && $trace"
+  spec "spec trace: unknown spec cited"             blocked "printf 'package model\n\n// demo R1, no-such-spec R2\nfunc TestA(t *testing.T) {}\n' > pkg/model/a_test.go && $trace"
+  spec "spec trace: draft spec cited"               blocked "printf 'package model\n\n// demo R1, rough R1\nfunc TestA(t *testing.T) {}\n' > pkg/model/a_test.go && $trace"
+  spec "spec trace: withdrawn marker"               passes  "sed -i.b 's/Test: manual — docs/Test: withdrawn — a dated note/' specs/demo/requirements.md && $trace"
+  spec "spec trace: marker naming its requirement"  passes  "sed -i.b 's/Test: manual — docs/Test: ci (R2) — the guardrails job/' specs/demo/requirements.md && $trace"
+  spec "spec lint: reviewed by spec-refuter"        passes  "bash scripts/spec-lint.sh"
+  spec "spec lint: active without spec-refuter"     blocked "sed -i.b 's/(spec-refuter)/(owner)/' specs/demo/requirements.md && rm specs/demo/*.b && bash scripts/spec-lint.sh"
+  spec "spec lint: spec-refuter not run"            blocked "sed -i.b 's/(spec-refuter)/(code-review; spec-refuter not run)/' specs/demo/requirements.md && rm specs/demo/*.b && bash scripts/spec-lint.sh"
+  spec "spec lint: unknown status"                  blocked "sed -i.b 's/Status: draft/Status: wip/' specs/rough/requirements.md && rm specs/rough/*.b && bash scripts/spec-lint.sh"
+  spec "spec lint: reviewed but still UNREVIEWED"   blocked "git mv -k specs/demo specs/sort-invert && sed -i.b 's/demo/sort-invert/g' specs/README.md && rm specs/*.b && bash scripts/spec-lint.sh"
+  spec "spec tasks: code under a draft spec"        blocked "printf 'x\n' >> specs/rough/design.md && printf '\n' >> pkg/model/view.go && python3 scripts/spec-tasks-check.py \$B"
+  spec "spec tasks: a script under a draft spec"    blocked "printf 'x\n' >> specs/rough/design.md && printf '\n' >> scripts/spec-lint.sh && python3 scripts/spec-tasks-check.py \$B"
+  spec "spec tasks: code under an active spec"      passes  "printf 'x\n' >> specs/demo/design.md && printf '\n' >> pkg/model/view.go && python3 scripts/spec-tasks-check.py \$B"
+  # shellcheck disable=SC2016 # $B expands in the case's shell
+  drift='python3 scripts/drift-check.py $B'
+  addflag="sed -i.b 's/^}/\tflagSet.BoolVar(\&flags.Y, \"yflag\", false, \"y\")\n}/' cmd/kube-node-viewer/flag.go && rm cmd/kube-node-viewer/*.b"
+  spec "drift: new flag not in README"              blocked "$addflag && printf 'x\n' >> specs/demo/design.md && $drift"
+  spec "drift: new flag named in README"            passes  "$addflag && printf -- '-yflag\n' >> README.md && $drift"
+  spec "drift: help text changed, no docs"          blocked "sed -i.b 's/\"quit\"/\"leave\"/' pkg/model/panels.go && $drift"
+  spec "drift: specs/README.md is not a spec"       blocked "sed -i.b 's/\"quit\"/\"leave\"/' pkg/model/panels.go && printf 'x\n' >> specs/README.md && $drift"
+  spec "drift: field added, README changed"         passes  "sed -i.b 's/^)/\tFieldAge Field = \"age\"\n)/' pkg/model/view.go && printf 'age\n' >> README.md && $drift"
+  spec "drift: refactor, same sets"                 passes  "printf '\n// moved\n' >> pkg/model/panels.go && $drift"
+  spec "drift: key handled, not in help"            blocked "sed -i.b 's/case \"q\":/case \"q\", \"x\":/' pkg/model/uimodel.go && printf 'x\n' >> README.md && $drift"
+  spec "drift: nothing found means the code moved"  blocked "printf 'package model\n' > pkg/model/panels.go && $drift"
+  spec "drift: skipped by a trailer"                passes  "sed -i.b 's/\"quit\"/\"leave\"/' pkg/model/panels.go && rm pkg/model/*.b && git add -A && git commit -q -m 'fix: wording' -m 'Drift-check: skip — typo only' && $drift"
+  spec "drift: trailer on another commit"           blocked "printf 'x\n' > other.txt && git add -A && git commit -q -m 'chore: x' -m 'Drift-check: skip — not this' && sed -i.b 's/\"quit\"/\"leave\"/' pkg/model/panels.go && rm pkg/model/*.b && git add -A && git commit -q -m 'fix: wording' && $drift"
+  spec "drift: trailer before the base"             blocked "git commit -q --allow-empty -m 'chore: x' -m 'Drift-check: skip — old' && nb=\$(git rev-parse HEAD) && sed -i.b 's/\"quit\"/\"leave\"/' pkg/model/panels.go && rm pkg/model/*.b && git add -A && git commit -q -m 'fix: wording' && python3 scripts/drift-check.py \$nb"
+  spec "drift: pull_request base is HEAD^1"         blocked "git checkout -q -b pr && sed -i.b 's/\"quit\"/\"leave\"/' pkg/model/panels.go && rm pkg/model/*.b && git add -A && git commit -q -m 'fix: wording' && git checkout -q main && git merge -q --no-ff -m merge pr && GITHUB_EVENT_NAME=pull_request python3 scripts/drift-check.py"
+else skipped "spec gates" python3; fi
+
 echo "== push (pre-push)"
+
 reset
 git init -q --bare "$tmp/remote.git"
 git remote add origin "$tmp/remote.git" 2>/dev/null
