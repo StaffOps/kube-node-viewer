@@ -53,26 +53,6 @@ memory. Listed by impact.
       specs and docs go stale; the spec-task gate only fires when a spec
       is touched.
 
-## Security
-
-Beyond the Guardrails section above.
-
-- [ ] **Build provenance (SLSA)**: `actions/attest-build-provenance` on
-      the archives in `release.yaml` (`attestations: write`), checked with
-      `gh attestation verify`; `scripts/release-check.sh --strict` would
-      then require it.
-      _Why:_ the checksum signature proves the files came from
-      `release.yaml`; provenance also records the inputs of the build, and
-      OpenSSF Scorecard gives Signed-Releases its top score only with it.
-      In the same change, move signing to its own job: today
-      `id-token: write` covers the whole release job, including
-      `make vuln licenses`, which runs downloaded tools.
-- [ ] **A goreleaser snapshot in CI**: `goreleaser release --snapshot
-      --skip=sign,publish` with syft on PRs that touch `.goreleaser.yaml`
-      or `release.yaml`.
-      _Why:_ a broken SBOM or archive setting shows today only on the
-      Monday release, after the tag is pushed.
-
 ## Evolution
 
 - [ ] **Integration tests on a `kind` cluster in CI**: start kind, apply
@@ -90,6 +70,13 @@ Beyond the Guardrails section above.
 
 ## Follow-ups
 
+- [ ] **Check the first attested release** (0.14.0): the release run's
+      `check` job, then `gh attestation verify` (README "Verifying a
+      release") on a downloaded archive and on an SBOM; record it under
+      R1 of [release-provenance](specs/release-provenance/requirements.md),
+      and under R5 the next PR's `release-snapshot` "no release files
+      changed" pass.
+      _Why:_ attestation can only be proven on a published release.
 - [ ] `config.yaml` filter values in another case match nothing: `values:
       [Spot]` for `capacity` keeps no node, since capacity values are
       lower case (`spot`), with no error

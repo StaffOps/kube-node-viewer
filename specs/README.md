@@ -81,7 +81,13 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     `Zone`, `PRICE/M`) instead of reading it as an empty label; YAML errors
     on one line. [bugfix](fix-config-case/bugfix.md) ·
     [tasks](fix-config-case/tasks.md)
-17. [`decisions/`](decisions/) — decision records (index below).
+17. [`release-provenance/`](release-provenance/) — **active**. SLSA build
+    provenance for every release file, signing in its own job, and a
+    goreleaser snapshot on PRs that change the release.
+    [requirements](release-provenance/requirements.md) ·
+    [design](release-provenance/design.md) ·
+    [tasks](release-provenance/tasks.md)
+18. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
