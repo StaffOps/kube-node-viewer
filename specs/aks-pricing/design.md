@@ -30,3 +30,11 @@ Items are kept when `type == Consumption`, `unitOfMeasure == 1 Hour`,
 `currencyCode == USD` and the meter has no `Low Priority`. Spot is a meter
 name ending in ` Spot`; Windows is a product name containing `Windows`. The
 latest `effectiveStartDate` not in the future wins.
+
+> **Corrected 2026-11-04.** The `Virtual Machines` service also lists
+> Cloud Services products (`… Series CloudServices`, `… Series Cloud
+> Services`) at the Windows rate, and some Windows products name it `Win`
+> (`… Srs Win`); both counted as regular, so Linux nodes of those series
+> showed the Windows price. Cloud Services items are now ignored, `Win` as
+> a word means Windows, and on equal dates the lower price wins —
+> [fix-azure-price-product](../fix-azure-price-product/bugfix.md).
