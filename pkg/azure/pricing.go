@@ -19,6 +19,7 @@ package azure
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -60,8 +61,9 @@ type Provider struct {
 	mu        sync.Mutex
 	prices    map[key]*sizePrices
 	wanted    map[key]bool
-	failedAt  time.Time
-	cutShort  map[string]bool // regions whose cut-short answer was logged
+	retryAt   map[string]time.Time // region → not asked again before (fix-azure-retry R2)
+	failed    map[string]bool      // regions whose failure was logged and not yet resolved
+	cutShort  map[string]bool      // regions whose cut-short answer was logged
 	onUpdate  []func()
 	wake      chan struct{}
 	startOnce sync.Once
@@ -76,6 +78,7 @@ func NewProvider(ctx context.Context, endpoint string) *Provider {
 		now:    time.Now,
 		retry:  retryAfter,
 		prices: map[key]*sizePrices{}, wanted: map[key]bool{}, cutShort: map[string]bool{},
+		retryAt: map[string]time.Time{}, failed: map[string]bool{},
 		wake: make(chan struct{}, 1),
 	}
 }
@@ -123,54 +126,76 @@ func (p *Provider) NodePrice(n *model.Node) (float64, bool) {
 	return sp.regular, sp.hasRegular
 }
 
-// run fetches wanted sizes whenever woken, one request per region.
+// run fetches wanted sizes whenever woken, one request per due region, and
+// wakes itself when the earliest deferred region is due again.
 func (p *Provider) run() {
+	var due <-chan time.Time
 	for {
 		select {
 		case <-p.ctx.Done():
 			return
 		case <-p.wake:
+		case <-due:
 		}
-		p.mu.Lock()
-		wait := p.failedAt.Add(p.retry).Sub(p.now())
-		p.mu.Unlock()
-		if wait > 0 {
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-time.After(wait):
-			}
+		due = nil
+		if next := p.fetchWanted(); !next.IsZero() {
+			due = time.After(next.Sub(p.now()))
 		}
-		p.fetchWanted()
 	}
 }
 
-func (p *Provider) fetchWanted() {
+// failurePrefix starts the log line of a failed request for region; a
+// resolution line repeats it after model.ResolvedPrefix (fix-azure-retry R3).
+func failurePrefix(region string) string {
+	return "updating Azure pricing for " + region
+}
+
+// fetchWanted asks for the wanted sizes of every region whose retry time has
+// passed, and returns the earliest retry time of a region still waiting
+// (zero: none).
+func (p *Provider) fetchWanted() time.Time {
 	p.mu.Lock()
+	now := p.now()
 	byRegion := map[string][]string{}
+	var next time.Time
 	for k := range p.wanted {
+		if at := p.retryAt[k.region]; at.After(now) {
+			if next.IsZero() || at.Before(next) {
+				next = at
+			}
+			continue
+		}
 		byRegion[k.region] = append(byRegion[k.region], k.size)
 	}
 	p.mu.Unlock()
-	if len(byRegion) == 0 {
-		return
-	}
 	got := false
 	for region, sizes := range byRegion {
 		sort.Strings(sizes)
 		found, err := p.fetch(region, sizes)
 		p.mu.Lock()
 		if err != nil {
-			p.failedAt = p.now()
+			delay, note := p.retry, ""
+			var se *statusError
+			if errors.As(err, &se) {
+				delay, note = retryDelay(se.code, se.header, p.now(), p.retry)
+			}
+			at := p.now().Add(delay)
+			p.retryAt[region] = at
+			p.failed[region] = true
+			if next.IsZero() || at.Before(next) {
+				next = at
+			}
 			p.mu.Unlock()
-			log.Printf("updating Azure pricing for %s, %s", region, err)
-			// try again later: wake ourselves once the retry delay passes
-			select {
-			case p.wake <- struct{}{}:
-			default:
+			if note != "" {
+				log.Printf("%s, %s (%s)", failurePrefix(region), err, note)
+			} else {
+				log.Printf("%s, %s", failurePrefix(region), err)
 			}
 			continue
 		}
+		delete(p.retryAt, region)
+		resolved := p.failed[region]
+		delete(p.failed, region)
 		for _, size := range sizes {
 			k := key{region, size}
 			sp := found[size]
@@ -182,6 +207,9 @@ func (p *Provider) fetchWanted() {
 			delete(p.wanted, k)
 		}
 		p.mu.Unlock()
+		if resolved {
+			log.Printf("%s%s", model.ResolvedPrefix, failurePrefix(region))
+		}
 		got = true
 	}
 	if got {
@@ -192,6 +220,7 @@ func (p *Provider) fetchWanted() {
 			f()
 		}
 	}
+	return next
 }
 
 type retailItem struct {
@@ -336,7 +365,7 @@ func (p *Provider) get(u string) (retailPage, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return retailPage{}, fmt.Errorf("retail prices API: %s", resp.Status)
+		return retailPage{}, &statusError{code: resp.StatusCode, status: resp.Status, header: resp.Header}
 	}
 	var page retailPage
 	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {

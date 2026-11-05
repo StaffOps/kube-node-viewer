@@ -19,11 +19,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"k8s.io/klog/v2"
+
+	"github.com/staffops/kube-node-viewer/pkg/model"
 )
 
 // errorLog takes what client-go (klog) and the standard logger print while
@@ -42,7 +45,17 @@ func (l *errorLog) Write(p []byte) (int, error) {
 	if l.out != nil {
 		_, _ = l.out.Write(p)
 	}
-	if line := lastLine(string(p)); line != "" {
+	line := lastLine(string(p))
+	if text, ok := strings.CutPrefix(line, model.ResolvedPrefix); ok {
+		// a resolution: clear the kept error it names, never keep it
+		// (fix-azure-retry R3); text must end at the end or at a comma, so
+		// "eastus" does not resolve "eastus2"
+		if text != "" && (l.last == text || strings.HasPrefix(l.last, text+",")) {
+			l.last, l.at = "", time.Time{}
+		}
+		return len(p), nil
+	}
+	if line != "" {
 		l.last, l.at = line, time.Now()
 	}
 	return len(p), nil
@@ -55,15 +68,19 @@ func (l *errorLog) Last() (string, time.Time) {
 	return l.last, l.at
 }
 
+// stdLogTime is the date and time the standard logger puts first.
+var stdLogTime = regexp.MustCompile(`^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}(\.\d+)? `)
+
 // lastLine is the last non-empty line, without klog's header (severity,
-// timestamp, pid, file:line) when it has one.
+// timestamp, pid, file:line) or the standard logger's date and time when it
+// has one (fix-azure-retry R4).
 func lastLine(s string) string {
 	lines := strings.Split(strings.TrimSpace(s), "\n")
 	line := strings.TrimSpace(lines[len(lines)-1])
 	if i := strings.Index(line, "] "); i > 0 && len(line) > 0 && strings.ContainsRune("IWEF", rune(line[0])) {
 		line = line[i+2:]
 	}
-	return line
+	return stdLogTime.ReplaceAllString(line, "")
 }
 
 // captureLogs sends klog and the standard logger to path (truncated) and to

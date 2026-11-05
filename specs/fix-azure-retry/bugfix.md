@@ -1,134 +1,148 @@
 # Bugfix: azure-retry
 
-> Status: draft · Reported: 2026-11-05 (owner's AKS run, [fix-azure-price-product](../fix-azure-price-product/tasks.md) T4; [aks-pricing](../aks-pricing/design.md) D2 retroactive review) · Reviewed: —
+> Status: active · Reported: 2026-11-05 (owner's AKS run, [fix-azure-price-product](../fix-azure-price-product/tasks.md) T4; [aks-pricing](../aks-pricing/design.md) D2 retroactive review) · Reviewed: 2026-11-05 (spec-refuter; 2 BLOCKING, 3 HIGH, 4 MEDIUM, 5 LOW, applied)
+
+Decisions: [design](design.md).
 
 ## Current behavior
 
 Three problems in how the Azure provider (`pkg/azure`) handles a failed
-Retail Prices API request:
+Retail Prices API request, and one in how the header shows log lines:
 
-1. **`Retry-After` is ignored.** On HTTP 429 the API answers with a
-   `Retry-After` header. `get` turns any non-200 answer into the error
-   `retail prices API: 429 Too Many Requests` and drops the headers, and
-   the provider always waits its fixed 1-minute retry delay. If the API
-   asks for longer, the next request comes too early and is refused
-   again.
-2. **A resolved error stays red.** The failure is logged
-   (`updating Azure pricing for eastus2, retail prices API: 429 Too Many
-   Requests`) and the header shows the last logged line in red for 2
-   minutes (`issueWindow`). When the retry a minute later succeeds and the
-   prices appear, the red line still shows for about another minute, so a
-   transient rate limit looks like a live failure. Seen on the owner's
-   AKS run on 2026-11-05: prices filled in at the retry, the warning left
-   2 minutes after the 429.
+1. **A retry header is ignored.** `get` turns any non-200 answer into the
+   error `retail prices API: 429 Too Many Requests` and drops the headers,
+   so the provider always waits its fixed 1-minute retry delay. Whether
+   the API sends a retry header on 429 is unmeasured: the dropped headers
+   were never seen.
+2. **A resolved error stays red.** The failure is logged and the header
+   shows the last logged line in red for 2 minutes (`issueWindow`). When
+   the retry a minute later succeeds and prices appear, the red line
+   stays for about another minute. Seen on the owner's AKS run on
+   2026-11-05: prices filled in at the retry, the warning left 2 minutes
+   after the 429.
 3. **One region's failure delays every region.** The provider keeps one
-   failure time for all regions. After a failure in region A, a size
-   first seen in region B waits out A's retry delay before it is asked
-   for, though B never failed.
+   failure time; after a failure in region A, a size first seen in region
+   B waits out A's retry delay, though B never failed.
+4. **The header shows the standard logger's date and time.** `lastLine`
+   strips klog's header but not the `2026/11/05 13:28:32 ` that
+   `log.Printf` puts first, so the header reads
+   `2026/11/05 13:28:32 updating Azure pricing for …`.
 
-Reproduction (fakes; no real API needed): an `httptest` server that
-answers 429 with `Retry-After: 120` for region A and 200 for region B.
+Reproduction (fakes; no real API needed): an `httptest` server answering
+429 for one region and 200 for another; `log.Printf` through
+`captureLogs`.
 
 ## Expected behavior
 
-**R1** WHEN a request for a region is answered HTTP 429 or 503 with a
-`Retry-After` header (delay in seconds, or an HTTP date) THEN the system
-SHALL ask that region again no sooner than the later of the retry delay
-(1 minute) and the `Retry-After` time, capped at 10 minutes. A missing,
-unparsable, negative or past `Retry-After` SHALL leave the 1-minute
-delay. Other failures keep the 1-minute delay.
+**R1** WHEN a request for a region is answered HTTP 429 or 503 THEN the
+system SHALL not ask that region again before `max(retry delay,
+min(retry header, 10 minutes))`, where the retry header is the larger
+usable value of `Retry-After` and
+`x-ms-ratelimit-microsoft.consumption-retry-after` (a non-negative
+integer of seconds, or an HTTP date in the future), and SHALL put the
+parsed value, or `no retry header`, at the end of the failure log line.
+An unusable value (`soon`, `-5`, `+120`, `1.5`, a past date) counts as
+none. Any other failure, or none usable, keeps the retry delay (1
+minute).
 
-Tests: `// fix-azure-retry R1` on `TestRetryAfterSecondsDelaysTheRegion`,
-`TestRetryAfterDateAndBadValues` and `TestRetryAfterIsCapped`.
+Tests: `// fix-azure-retry R1` on `TestRetryDelay` (pure, table, fixed
+time), `TestRetryAfterDelaysTheRegion` and `TestRetryAfterOnALaterPage`.
 
-- [ ] `Retry-After: 120` → the region is not asked again for 2 minutes
-- [ ] `Retry-After: 10` → still 1 minute
-- [ ] an HTTP date 5 minutes ahead → 5 minutes; `Retry-After: 3600` → 10 minutes
-- [ ] `Retry-After: soon`, `-5`, a past date, or none → 1 minute
+- [x] `Retry-After: 120` → `retryAt = now + 2m`; woken 5 times in that
+      time, the region gets no new request
+- [x] `Retry-After: 10` → 1 minute; a date 5 minutes ahead → 5 minutes;
+      `3600` → 10 minutes; a 1-hour retry delay stays 1 hour
+- [x] both headers → the larger; 503 is read like 429; 500 is not
+- [x] `soon`, `-5`, `+120`, `1.5`, a past date, none → 1 minute and
+      `(no retry header)` in the log line
+- [x] a 429 on page 2 of an answer is read the same way
 
 **R2** WHEN a request for a region fails THEN only that region SHALL wait
-out its retry time; wanted sizes of other regions SHALL be asked for at
-once, and each region SHALL keep its own retry time.
+out its retry time: wanted sizes of other regions SHALL be asked for in
+the same pass, without waiting for it, and each region SHALL keep its own
+retry time. A wake while only waiting regions have wanted sizes SHALL
+send no request.
 
 Tests: `// fix-azure-retry R2` on `TestRegionsRetryIndependently`.
 
-- [ ] region A answers 429, a size of region B is wanted afterwards: B is
-      asked for without waiting, A not before its retry time
-- [ ] A's later success does not reset B's retry time, and vice versa
+- [x] westeurope answers 429, a size of eastus2 is wanted afterwards:
+      eastus2 is priced without waiting (one westeurope request may be in
+      flight in the same pass)
+- [x] westeurope's success after its time leaves eastus2's later retry
+      time and request count unchanged
 
-**R3** WHEN a region's request succeeds after that region's failure was
-logged THEN the system SHALL log a resolution line for it, and the header
-SHALL stop showing the failure if it is still the last logged error. A
-newer, unrelated error SHALL stay.
+**R3** WHEN a region's request succeeds after a logged failure of that
+region THEN the system SHALL log `resolved: updating Azure pricing for
+<region>`, and the header SHALL stop showing the failure if the kept line
+is exactly `updating Azure pricing for <region>` or starts with it
+followed by `,`. A newer unrelated error, or another region's failure,
+SHALL stay; a resolution line is never kept for the header; a region
+that never failed logs no resolution.
 
-Mechanism (decision): a log line that starts with `model.ResolvedPrefix`
-(`resolved: `) followed by the text a failure line starts with is a
-resolution. The error log (`cmd/kube-node-viewer/errlog.go`) writes it to
-the log file like any line, and clears the line kept for the header only
-when that line starts with the given text; the resolution line itself is
-never kept for the header. The provider logs failures as `updating Azure
-pricing for <region>, <error>` and resolutions as `resolved: updating
-Azure pricing for <region>`.
+Tests: `// fix-azure-retry R3` on `TestResolvedLineClearsTheMatchingIssue`,
+`TestResolvedThroughCaptureLogs` (errlog) and
+`TestSuccessAfterFailureLogsResolved` (azure).
 
-Tests: `// fix-azure-retry R3` on `TestResolvedLineClearsTheMatchingIssue`
-(errlog) and `TestSuccessAfterFailureLogsResolved` (azure).
+- [x] failure eastus2 then its resolution → `Last()` is empty; the log
+      file has both lines
+- [x] failure eastus2, an unrelated error, the resolution → the unrelated
+      error stays
+- [x] failure eastus2, resolution westeurope → stays; resolution `eastus`
+      → stays
+- [x] two failures then one success → one resolution line; a region that
+      never failed logs none
+- [x] through `captureLogs` and `log.Printf` (with its date and time)
 
-- [ ] failure for eastus2, then `resolved: updating Azure pricing for
-      eastus2` → `Last()` is empty; the log file has both lines
-- [ ] failure for eastus2, then an unrelated error, then the resolution →
-      the unrelated error stays
-- [ ] failure for eastus2, resolution for westeurope → the eastus2 failure
-      stays
-- [ ] a region that never failed logs no resolution line on success
+**R4** WHEN a log line starts with the standard logger's date and time
+(`YYYY/MM/DD hh:mm:ss`, optionally with fractional seconds) THEN the
+header SHALL show the line without it, as it already does for klog's
+header.
+
+Tests: `// fix-azure-retry R4` on `TestLastLine`.
+
+- [x] `2026/11/02 12:00:01 Failed to create pricing client: no region` →
+      `Failed to create pricing client: no region`
+- [x] `2026/11/02 not a time` is kept as is
 
 ## Unchanged behavior
 
-- The 1-minute retry delay after a failure without `Retry-After`
-  (`TestFailureIsRetriedLater`, `TestProviderRetryAndTimeoutDefaults`).
-- Nothing is asked for a region before its retry time, even when new
-  sizes are wanted (`TestNoRequestBeforeTheRetryDelay`).
-- One request per region per wake; sizes the API does not list are not
+- The 1-minute retry delay after a failure without a usable retry header
+  (`TestFailureIsRetriedLater`, adapted to read `retryAt` instead of
+  `failedAt`, same behaviour; `TestProviderRetryAndTimeoutDefaults`).
+- Nothing is asked for a waiting region, even when new sizes are wanted
+  (`TestNoRequestBeforeTheRetryDelay`, retry delay 1 hour).
+- One request per region per pass; sizes the API does not list are not
   asked again; the 20-page cap and its once-per-region log.
 - The 20-second request timeout.
-- The header keeps any other logged error for `issueWindow` (2 minutes);
-  `issueWindow` itself is unchanged (`pkg/model/header.go`).
+- Any other logged error stays in the header for `issueWindow` (2
+  minutes); klog lines are shown as before (`TestLastLine`,
+  `TestCaptureLogsKeepsTheTerminalClean`).
 - AWS nodes make no Azure request; `--disable-pricing` builds no Azure
-  provider.
-- Which items price a node (fix-azure-price-product): untouched.
+  provider (`TestAWSNodeMakesNoAzureRequest`, `TestSessionPricingPerServer`).
+- Which items price a node (fix-azure-price-product): untouched
+  (`product_test.go`).
+
+> **Corrected 2026-11-05.** `TestLastLine`'s standard-logger case now
+> expects the line without its date and time (R4); the klog case is
+> unchanged.
 
 ## Root cause
 
 - `pkg/azure/pricing.go:338-340` (`get`): a non-200 answer becomes a plain
   error; `resp.Header` is never read.
-- `pkg/azure/pricing.go:63` and `:135`, `:164`: one `failedAt` for the
-  provider; `run` waits `failedAt + retry` before fetching any region.
-- `pkg/azure/pricing.go:166`: the failure is logged, but a later success
-  logs nothing, and `cmd/kube-node-viewer/errlog.go` (`Write`, `Last`)
-  only ever replaces the kept line with a newer one.
-
-## Fix
-
-- `get` returns a `retryError{after time.Duration}` wrapping the status
-  error when the answer is 429 or 503 with a usable `Retry-After`.
-- The provider keeps `retryAt map[region]time.Time` instead of
-  `failedAt`; `fetchWanted` skips regions whose `retryAt` is in the
-  future and returns the earliest one; `run` waits for a wake or that
-  time, whichever comes first.
-- `model.ResolvedPrefix` in `pkg/model` (the provider already imports
-  it); `errlog.Write` handles a line with that prefix as above.
-
-**Why this design.** It keeps Azure HTTP in `pkg/azure` and the header in
-`pkg/model`/`cmd`, with one string convention between them, and no new
-API between the provider and the UI. **Alternatives:** shorten
-`issueWindow` (hides every other error sooner too); a structured issue
-API keyed by source (more code for one producer); log nothing on 429
-(hides real outages). **When this would be wrong:** if another producer
-starts logging lines that begin with `resolved: `, it would clear issues
-it did not cause; only an exact prefix match clears, which limits it.
-**Reversal action:** drop the prefix handling in `errlog.Write` and the
-resolution log; go back to one `failedAt`.
+- `pkg/azure/pricing.go:63`, `:135`, `:164`: one `failedAt` for the
+  provider; `run` waits `failedAt + retry` before fetching any region,
+  and the failure path wakes itself to wait again.
+- `pkg/azure/pricing.go:166`: a failure is logged, a later success logs
+  nothing; `cmd/kube-node-viewer/errlog.go` (`Write`) only replaces the
+  kept line with a newer one.
+- `cmd/kube-node-viewer/errlog.go:60-67` (`lastLine`): strips klog's
+  header only.
 
 ## Not done
 
-- A Retry-After for the AWS pricing provider (different SDK, own retries).
+- After `c` (context switch) the old session's failure line is not
+  resolved by the new session; it expires with `issueWindow` (2 minutes).
+- A retry header for the AWS pricing provider (different SDK, own
+  retries).
 - Showing the remaining wait in the header.

@@ -55,17 +55,43 @@ type fakeAPI struct {
 	filters []string
 	fail    bool
 	hits    int // every request, failed ones included
+	// fix-azure-retry: fail only the first page of one region's requests
+	// (failIn), or only page 2 (failPage2), with these headers; failTimes > 0
+	// fails that many requests and then answers
+	failIn    string
+	failPage2 bool
+	failTimes int
+	header    http.Header
+	byRegion  map[string]int // first-page requests per region
 }
 
 func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.hits++
-	if f.fail {
+	filter := r.URL.Query().Get("$filter")
+	page2 := r.URL.Query().Get("page") == "2"
+	if !page2 {
+		if f.byRegion == nil {
+			f.byRegion = map[string]int{}
+		}
+		f.byRegion[regionOf(filter)]++
+	}
+	fail := f.fail ||
+		(f.failIn != "" && !page2 && regionOf(filter) == f.failIn) ||
+		(f.failPage2 && page2)
+	if f.failTimes > 0 {
+		f.failTimes--
+		fail = true
+	}
+	if fail {
+		for k, v := range f.header {
+			w.Header()[k] = v
+		}
 		http.Error(w, "busy", http.StatusTooManyRequests)
 		return
 	}
-	if r.URL.Query().Get("page") == "2" {
+	if page2 {
 		_ = json.NewEncoder(w).Encode(retailPage{Items: items[4:]})
 		return
 	}
@@ -183,7 +209,7 @@ func TestFailureIsRetriedLater(t *testing.T) {
 	}
 	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(5 * time.Millisecond) {
 		p.mu.Lock()
-		failed := !p.failedAt.IsZero()
+		failed := len(p.retryAt) > 0 // fix-azure-retry: per region, same behaviour
 		p.mu.Unlock()
 		if failed {
 			break
