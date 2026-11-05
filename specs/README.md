@@ -96,7 +96,10 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     `key=value` (`/key=` for "has the label").
     [requirements](search-negation/requirements.md) ·
     [design](search-negation/design.md) · [tasks](search-negation/tasks.md)
-20. [`decisions/`](decisions/) — decision records (index below).
+20. [`fix-export-search/`](fix-export-search/) — **draft**. The JSON
+    export writes the search as `view.search`.
+    [bugfix](fix-export-search/bugfix.md) · [tasks](fix-export-search/tasks.md)
+21. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
