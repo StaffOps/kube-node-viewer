@@ -56,10 +56,6 @@ memory. Listed by impact.
 - [ ] `pkg/model/node.go` imports `aws-sdk-go-v2/service/ec2/types`, which
       crosses the "AWS SDK only in `pkg/aws`" rule (upstream code, there at
       the import). _Why:_ the model should not depend on a cloud SDK.
-- [ ] spec-lint counts the "When this would be wrong" and "Reversal action"
-      markers over the whole design, not per decision: two decisions with
-      both markers under one pass ([fix-spec-tooling](specs/fix-spec-tooling/bugfix.md)).
-      _Why:_ a decision can still ship without its own failure case.
 - [ ] Azure prices: one failure time is shared by every region, so a
       failure in one region delays new sizes in all of them by a minute
       ([aks-pricing](specs/aks-pricing/design.md) D2). _Why:_ clusters

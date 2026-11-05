@@ -109,7 +109,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 23. [`fix-spec-tooling/`](fix-spec-tooling/) — **active**. Release tooling
     ships bugfix specs; spec-lint reads `## D<n>` decisions.
     [bugfix](fix-spec-tooling/bugfix.md) · [tasks](fix-spec-tooling/tasks.md)
-24. [`fix-spec-lint-markers/`](fix-spec-lint-markers/) — **draft**. spec-lint checks
+24. [`fix-spec-lint-markers/`](fix-spec-lint-markers/) — **active**. spec-lint checks
     each decision's own markers.
     [bugfix](fix-spec-lint-markers/bugfix.md) · [tasks](fix-spec-lint-markers/tasks.md)
 25. [`decisions/`](decisions/) — decision records (index below).
@@ -142,6 +142,11 @@ mechanical parts.
     significant decision: choice, justification (strongest first),
     trade-offs, **when it would be wrong**, **reversal action**, alternatives.
     Invariants. Pure reference tables are exempt from the decision format.
+    Each decision is a level-2 or level-3 heading `D<n>` (`## D1. …`,
+    `### D1: …`) whose own section, up to the next decision or the next
+    heading of its level or higher, holds the markers
+    `**When this would be wrong**` and `**Reversal action**` (`spec-lint.sh`
+    checks it; a marker in a code block does not count).
   - Each requirement is named by the test that checks it, in the comment
     block right above its `func Test…` (or `t.Run(`), on a line that gives
     the spec's folder name and then the requirement: `// node-pods R3`,

@@ -87,12 +87,41 @@ for dir in specs/*/; do
   fi
 
   if [ -f "$dir/design.md" ]; then
-    # '## D1. …' and '### D1: …' alike, not '## Decisions' (fix-spec-tooling R2)
-    decisions=$(grep -cE '^#{2,3} D[0-9]+([.: ]|$)' "$dir/design.md")
-    wrong=$(grep -cE '\*\*When this would be wrong\*\*' "$dir/design.md")
-    reversal=$(grep -cE '\*\*Reversal action\*\*' "$dir/design.md")
-    [ "$wrong" -ge "$decisions" ] || err "$name: $decisions decisions but $wrong 'When this would be wrong'"
-    [ "$reversal" -ge "$decisions" ] || err "$name: $decisions decisions but $reversal 'Reversal action'"
+    # each decision ('## D1. …', '### D1: …', not '## Decisions';
+    # fix-spec-tooling R2) carries both markers in its own section, which
+    # ends at the next decision or the next heading of its level or higher;
+    # fenced code blocks are skipped (fix-spec-lint-markers R1)
+    while IFS= read -r missing; do
+      err "$name: $missing"
+    done < <(awk '
+      function flush() {
+        if (cur == "") return
+        if (!w) printf "%s (design.md:%d) has no '\''When this would be wrong'\''\n", cur, at
+        if (!r) printf "%s (design.md:%d) has no '\''Reversal action'\''\n", cur, at
+        cur = ""
+      }
+      {
+        if (match($0, /^(   |  | )?(```|~~~)/)) {
+          c = substr($0, RSTART + RLENGTH - 1, 1)
+          if (fence == "") { fence = c; next }
+          if (c == fence) { fence = ""; next }
+        }
+        if (fence != "") next
+        if (match($0, /^#+( |$)/)) {
+          level = RLENGTH - ($0 ~ /^#+ / ? 1 : 0)
+          if ($0 ~ /^###? D[0-9]+([.: ]|$)/) {
+            flush()
+            split($0, f, /[ .:]+/); cur = f[2]; at = NR; lvl = level; w = 0; r = 0
+            next
+          }
+          if (cur != "" && level <= lvl) flush()
+        }
+        if (cur != "") {
+          if (index($0, "**When this would be wrong**")) w = 1
+          if (index($0, "**Reversal action**")) r = 1
+        }
+      }
+      END { flush() }' "$dir/design.md")
   fi
 done
 
