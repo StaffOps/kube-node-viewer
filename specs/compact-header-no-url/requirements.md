@@ -1,6 +1,6 @@
 # Requirements: compact-header-no-url
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-05 (spec-refuter; 3 HIGH, 6 MEDIUM, 5 LOW, applied)
+> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-05 (spec-refuter; 3 HIGH, 6 MEDIUM, 5 LOW, applied), 2026-11-05 (spec-refuter, code; 4 LOW, applied)
 
 ## Context
 
@@ -60,8 +60,9 @@ SHALL NOT show the API server URL.
   unchanged.
 
 _Test: `// compact-header-no-url R1` on `TestCompactHeaderHasNoServerURL`
-and `TestHeaderPanelAndOneLineFallback` (pkg/model), and the golden screen
-`header-compact.txt`._
+(with a pending pod and pricing off), `TestCompactHeaderNarrowAndIssue`
+(80 columns, the warning line) and `TestHeaderPanelAndOneLineFallback`
+(pkg/model), and the golden screen `header-compact.txt`._
 
 **R2** WHEN the header is the full panel or the one-line header THEN it SHALL
 be unchanged: the full panel keeps its `Cluster:` row with the URL (or `-`),

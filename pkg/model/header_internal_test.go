@@ -17,8 +17,12 @@ package model
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // firstHeaderLine is the first line inside the header box.
@@ -35,20 +39,32 @@ func firstHeaderLine(t *testing.T, view string) string {
 func TestCompactHeaderHasNoServerURL(t *testing.T) {
 	const server = "https://0A1B2C3D4E5F.gr7.us-east-1.eks.amazonaws.com"
 	for _, tc := range []struct {
-		name   string
-		height int
-		ctrlE  bool
-		region string
-		want   string
+		name      string
+		height    int
+		ctrlE     bool
+		region    string
+		pending   bool
+		noPricing bool
+		want      string
 	}{
-		{"ctrl+e, region known", 40, true, "us-east-1", "ctx-a · us-east-1 · 2 of 2 shown · 0 pods · $0.000/month (global cluster)"},
-		{"by height, region known", 20, false, "us-east-1", "ctx-a · us-east-1 · 2 of 2 shown · 0 pods · $0.000/month (global cluster)"},
-		{"ctrl+e, no region", 40, true, "", "ctx-a · 2 of 2 shown · 0 pods · $0.000/month (global cluster)"},
-		{"by height, no region", 20, false, "", "ctx-a · 2 of 2 shown · 0 pods · $0.000/month (global cluster)"},
+		{"ctrl+e, region known", 40, true, "us-east-1", false, false, "ctx-a · us-east-1 · 2 of 2 shown · 0 pods · $0.000/month (global cluster)"},
+		{"by height, region known", 20, false, "us-east-1", false, false, "ctx-a · us-east-1 · 2 of 2 shown · 0 pods · $0.000/month (global cluster)"},
+		{"ctrl+e, no region", 40, true, "", false, false, "ctx-a · 2 of 2 shown · 0 pods · $0.000/month (global cluster)"},
+		{"by height, no region", 20, false, "", false, false, "ctx-a · 2 of 2 shown · 0 pods · $0.000/month (global cluster)"},
+		{"a pod not on a node yet", 20, false, "us-east-1", true, false, "ctx-a · us-east-1 · 2 of 2 shown · 0 pods (1 pending) · $0.000/month (global cluster)"},
+		{"pricing off", 20, false, "us-east-1", false, true, "ctx-a · us-east-1 · 2 of 2 shown · 0 pods"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// capacityUI's nodes carry no region label, so "no region" has none at all
 			u := capacityUI(t, 2)
+			u.DisablePricing = tc.noPricing
+			if tc.pending {
+				u.cluster.AddPod(NewPod(&v1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "waiting", Namespace: "default"},
+					Status:     v1.PodStatus{Phase: v1.PodPending},
+				}))
+				u.Refresh()
+			}
 			u.SetClusterInfo(ClusterInfo{Context: "ctx-a", Server: server, Region: tc.region})
 			u.Update(tea.WindowSizeMsg{Width: 200, Height: tc.height})
 			if tc.ctrlE {
@@ -85,5 +101,29 @@ func TestFullHeaderKeepsServerURL(t *testing.T) {
 	u.Update(tea.WindowSizeMsg{Width: 200, Height: 10})
 	if first := strings.SplitN(u.View(), "\n", 2)[0]; strings.Contains(first, "a.example") {
 		t.Errorf("one-line header shows the server URL: %q", first)
+	}
+}
+
+// compact-header-no-url R1
+func TestCompactHeaderNarrowAndIssue(t *testing.T) {
+	u := capacityUI(t, 2)
+	u.SetClusterInfo(ClusterInfo{Context: "ctx-a", Server: "https://0A1B2C3D4E5F.gr7.us-east-1.eks.amazonaws.com", Region: "us-east-1"})
+
+	// a normal 80-column window: the line fits, starting with context and region
+	u.Update(tea.WindowSizeMsg{Width: 80, Height: 20})
+	view := u.View()
+	if w := lipgloss.Width(strings.Split(view, "\n")[1]); w > 80 {
+		t.Errorf("first header line is %d wide on 80 columns", w)
+	}
+	if line := firstHeaderLine(t, view); !strings.HasPrefix(line, "ctx-a · us-east-1 · ") {
+		t.Errorf("first line %q", line)
+	}
+
+	// a recent error adds a third line to the box, unchanged
+	u.SetIssues(func() (string, time.Time) { return "something failed", time.Now() }, "/tmp/log")
+	u.Update(tea.WindowSizeMsg{Width: 200, Height: 20})
+	lines := strings.Split(u.View(), "\n")
+	if got := strings.TrimSpace(strings.Trim(lines[3], "│")); got != "⚠ something failed" {
+		t.Errorf("third box line %q, want the warning", got)
 	}
 }
