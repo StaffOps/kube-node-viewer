@@ -10,25 +10,25 @@
   72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
 
   NAME                                         ╭─ Columns (shown first, in screen order) ────────────────────────────────╮APACITY  NODEGROUP  ZONE        STATUS
-  ip-10-0-13-12.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] INSTANCE                                                            │pot      spot-arm   us-east-1c  Ready
+  ip-192-0-2-52.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] INSTANCE                                                            │pot      spot-arm   us-east-1c  Ready
                              memory ███████████│ [x] PRICE/H                                                             │
-  ip-10-0-12-61.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] PRICE/M                                                             │pot      spot-arm   us-east-1b  Ready
+  ip-192-0-2-45.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] PRICE/M                                                             │pot      spot-arm   us-east-1b  Ready
                              memory ███████████│ [x] IDLE/M                                                              │
-  ip-10-0-11-93.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] CAPACITY                                                            │pot      spot-arm   us-east-1a  Ready
+  ip-192-0-2-38.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] CAPACITY                                                            │pot      spot-arm   us-east-1a  Ready
                              memory ███████████│ [x] NODEGROUP                                                           │
-  ip-10-0-13-40.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] ZONE                                                                │pot      default    us-east-1c  Ready
+  ip-192-0-2-31.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] ZONE                                                                │pot      default    us-east-1c  Ready
                              memory ███████████│ [x] STATUS                                                              │
-  ip-10-0-12-15.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] IDLE/H                                                              │nDemand  default    us-east-1b  Ready
+  ip-192-0-2-24.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] IDLE/H                                                              │nDemand  default    us-east-1b  Ready
                              memory ███████████│ [ ] REGION                                                              │
-  ip-10-0-11-87.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] AGE                                                                 │nDemand  default    us-east-1a  Ready
+  ip-192-0-2-17.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] AGE                                                                 │nDemand  default    us-east-1a  Ready
                              memory ███████████│ [ ] IP                                                                  │
-  ip-10-0-11-24.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] kube-node-viewer/node-age                                           │nDemand  default    us-east-1a  Ready
+  ip-192-0-2-10.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] kube-node-viewer/node-age                                           │nDemand  default    us-east-1a  Ready
                              memory ███████████│ [ ] kube-node-viewer/node-cpu-usage                                     │
-  ip-10-0-12-33.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] kube-node-viewer/node-memory-usage                                  │eserved  gpu        us-east-1b  Ready
+  ip-192-0-2-59.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] kube-node-viewer/node-memory-usage                                  │eserved  gpu        us-east-1b  Ready
                              memory ███████████│ [ ] eks.amazonaws.com/capacityType                                      │
-  ip-10-0-12-98.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] eks.amazonaws.com/nodegroup                                         │nDemand  system-ng  us-east-1b  Ready/Cordoned
+  ip-192-0-2-73.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] eks.amazonaws.com/nodegroup                                         │nDemand  system-ng  us-east-1b  Ready/Cordoned
                              memory ███████████│ [ ] karpenter.sh/capacity-type                                          │
-  ip-10-0-11-70.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] karpenter.sh/nodepool                                               │nDemand  system-ng  us-east-1a  Ready
+  ip-192-0-2-66.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] karpenter.sh/nodepool                                               │nDemand  system-ng  us-east-1a  Ready
                              memory ███████████│ [ ] node.kubernetes.io/instance-type                                    │
                                                │ [ ] topology.kubernetes.io/region                                       │
                                                ├─────────────────────────────────────────────────────────────────────────┤
