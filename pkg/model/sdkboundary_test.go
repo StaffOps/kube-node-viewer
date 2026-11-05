@@ -24,18 +24,34 @@ import (
 	"testing"
 )
 
-// sdkAllowed says whether a Go file under cmd/ or pkg/ may import the AWS
-// SDK: AGENTS.md keeps the SDK in pkg/aws and its wiring in cmd/*/session.go.
+// sdkAllowed says whether a Go file under cmd/ or pkg/ may use the AWS SDK:
+// AGENTS.md keeps it in pkg/aws and its wiring in cmd/<dir>/session.go.
+// hack/ tools (hack/catalog) are outside cmd/ and pkg/, so exempt.
 func sdkAllowed(rel string) bool {
 	rel = filepath.ToSlash(rel)
 	if strings.HasPrefix(rel, "pkg/aws/") {
 		return true
 	}
-	return strings.HasPrefix(rel, "cmd/") && filepath.Base(rel) == "session.go"
+	parts := strings.Split(rel, "/")
+	return len(parts) == 3 && parts[0] == "cmd" && parts[2] == "session.go"
 }
 
+// pkgAWSAllowed says whether a file may import pkg/aws, which pulls the SDK
+// in: the files sdkAllowed accepts, and the wiring's test.
+func pkgAWSAllowed(rel string) bool {
+	if sdkAllowed(rel) {
+		return true
+	}
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	return len(parts) == 3 && parts[0] == "cmd" && parts[2] == "session_test.go"
+}
+
+const pkgAWS = "github.com/staffops/kube-node-viewer/pkg/aws"
+
 // TestAWSSDKStaysInPkgAWS fails when a file under cmd/ or pkg/, tests
-// included, imports github.com/aws/aws-sdk-go-v2 outside the allowed places.
+// included, uses the AWS SDK outside the allowed places: directly (an import
+// of github.com/aws/aws-sdk-go-v2), and through pkg/aws (an import of it,
+// which pulls the SDK in). hack/ is not checked.
 func TestAWSSDKStaysInPkgAWS(t *testing.T) {
 	root := filepath.Join("..", "..")
 	fset := token.NewFileSet()
@@ -62,6 +78,9 @@ func TestAWSSDKStaysInPkgAWS(t *testing.T) {
 				if strings.HasPrefix(p, "github.com/aws/aws-sdk-go-v2") && !sdkAllowed(rel) {
 					t.Errorf("%s imports %s: the AWS SDK belongs in pkg/aws (and its wiring in cmd/*/session.go)", rel, p)
 				}
+				if p == pkgAWS && !pkgAWSAllowed(rel) {
+					t.Errorf("%s imports %s, which pulls the AWS SDK in: only cmd/*/session.go wires it", rel, p)
+				}
 			}
 			return nil
 		})
@@ -75,18 +94,24 @@ func TestAWSSDKStaysInPkgAWS(t *testing.T) {
 }
 
 func TestSDKAllowed(t *testing.T) {
-	for rel, want := range map[string]bool{
-		"pkg/aws/pricing.go":                true,
-		"pkg/aws/region_test.go":            true,
-		"cmd/kube-node-viewer/session.go":   true,
-		"cmd/kube-node-viewer/main.go":      false,
-		"pkg/model/node.go":                 false,
-		"pkg/awsx/x.go":                     false,
-		"pkg/client/controller.go":          false,
-		"cmd/kube-node-viewer/session_x.go": false,
+	for rel, want := range map[string][2]bool{ // sdkAllowed, pkgAWSAllowed
+		"pkg/aws/pricing.go":                   {true, true},
+		"pkg/aws/region_test.go":               {true, true},
+		"cmd/kube-node-viewer/session.go":      {true, true},
+		"cmd/kube-node-viewer/session_test.go": {false, true},
+		"cmd/kube-node-viewer/main.go":         {false, false},
+		"cmd/a/b/session.go":                   {false, false},
+		"cmd/session.go":                       {false, false},
+		"pkg/model/node.go":                    {false, false},
+		"pkg/awsx/x.go":                        {false, false},
+		"pkg/client/controller.go":             {false, false},
+		"cmd/kube-node-viewer/session_x.go":    {false, false},
 	} {
-		if got := sdkAllowed(rel); got != want {
-			t.Errorf("sdkAllowed(%q) = %v, want %v", rel, got, want)
+		if got := sdkAllowed(rel); got != want[0] {
+			t.Errorf("sdkAllowed(%q) = %v, want %v", rel, got, want[0])
+		}
+		if got := pkgAWSAllowed(rel); got != want[1] {
+			t.Errorf("pkgAWSAllowed(%q) = %v, want %v", rel, got, want[1])
 		}
 	}
 }

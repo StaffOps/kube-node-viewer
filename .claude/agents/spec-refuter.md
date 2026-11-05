@@ -21,7 +21,7 @@ Look for:
 - Code vs spec drift; invariants broken (requests not usage; flag > config file
   precedence (`KUBECONFIG` env only for `-kubeconfig`); the `kube-node-viewer/` label prefix).
 - Package boundaries crossed (Kubernetes I/O outside `pkg/client`, AWS SDK
-  outside `pkg/aws` and its wiring in `cmd/*/main.go`).
+  outside `pkg/aws` and its wiring in `cmd/*/session.go`).
 - Licensing: `LICENSE`/`NOTICE` changed, existing Apache headers removed, new files
   without Apache header, AWS/Amazon/EKS branding implying endorsement,
   imported commits whose author was rewritten.
