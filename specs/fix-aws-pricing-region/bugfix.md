@@ -86,6 +86,10 @@ region THEN an AWS node SHALL get the static list price of its region
   and such a node causes no provider to be built.
 - The Auto Mode management fee stays the `us-west-2` one in every case
   (`updateAutoManagementPricing`); `TODO.md` lists it.
+
+  > Correction 2026-11-04: the owner dropped this follow-up (no Auto Mode
+  > cluster to test on); it is no longer in `TODO.md`.
+
 - The header's region comes from the same places as today.
 - A context switch stops every provider of the old connection.
 

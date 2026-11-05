@@ -28,12 +28,6 @@ what they cannot. Listed by impact.
       _Why:_ if Kiro ignores a field, its agent loses the early warnings
       without any error; the git hooks and CI still hold.
 
-- [ ] **goreleaser floats**: `release.yaml` installs goreleaser with
-      `version: "~> v2"`, the one release tool not pinned and not covered by
-      `scripts/checks/tool-versions.py`.
-      _Why:_ a new goreleaser minor reaches the release run untested; pin it
-      and add it to the weekly check.
-
 ## Spec-driven sync
 
 Keep specs and code telling the same story, checked by CI rather than by
@@ -101,17 +95,6 @@ Beyond the Guardrails section above.
       review.
 
 ## Follow-ups
-
-- [ ] `-disable-pricing` ignores the region: the static provider uses
-      `AWS_REGION` or `us-east-1`, also with an EKS URL that names another
-      region, and the built-in tables hold only four regions
-      (`make prices`). _Why:_ prices without lookups are the `us-east-1`
-      list prices for most clusters, with no hint on screen.
-- [ ] EKS Auto Mode management fee region: `updateAutoManagementPricing`
-      (`pkg/aws/pricing.go`) always asks for the `us-west-2` fee, whatever
-      the cluster's region ([fix-aws-pricing-region](specs/fix-aws-pricing-region/bugfix.md)).
-      _Why:_ Auto Mode nodes outside `us-west-2` add another region's fee
-      if it differs.
 
 ## Ideas
 
