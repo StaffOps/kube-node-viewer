@@ -18,10 +18,11 @@ All notable changes to this project are documented here. Format:
 
 ### Fixed
 
+- A `config.yaml` error from the YAML parser, such as a key written twice,
+  is one line with its line number, without the library's prefix.
 - `config.yaml` views no longer load names that can never match: a label
-  key or resource name with leading or trailing whitespace, a comma or an
-  upper-case title with a `/` (`"zone "`, `zone,region`, `PRICE/M`), a resource
-  written `usage:cpu`, and padded filter values or `labels.allow`/`deny`
+  key or resource name with leading or trailing whitespace or a comma
+  (`"zone "`, `zone,region`), a resource written `usage:cpu`, and padded filter values or `labels.allow`/`deny`
   patterns are errors with their place in the file. `- label: zone` (a
   space after the colon) says to write `label:zone`; `sort: price/m` says
   `sort: price`, `sort: age` says `sort: creation`. Values in errors read
@@ -36,6 +37,15 @@ All notable changes to this project are documented here. Format:
 
 ### Changed
 
+- `config.yaml` views refuse a built-in name or column title in another
+  case instead of reading it as a node label: `columns: [INSTANCE]`,
+  `[instance]` or `group-by: [Zone]` showed an empty column or group that
+  looked like the real one, and now say to write `instance-type` or
+  `zone`; `columns: [PRICE/M]` says to write `price/m`. The same goes for
+  a computed label without its prefix or in another case (`node-age`:
+  write `kube-node-viewer/node-age`) and for `Label:zone`. A config that
+  names a real node label such as `Zone` or `Status` bare must now write
+  `label:Zone`.
 - The `/` search takes a regular expression: `search|batch` keeps the nodes
   matching either word, `^node-1$` only that name. Text without regex
   characters (`.` alone does not count, so IPs and instance types stay as

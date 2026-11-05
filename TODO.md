@@ -77,6 +77,11 @@ memory. Listed by impact.
       and under R5 the next PR's `release-snapshot` "no release files
       changed" pass.
       _Why:_ attestation can only be proven on a published release.
+- [ ] `config.yaml` filter values in another case match nothing: `values:
+      [Spot]` for `capacity` keeps no node, since capacity values are
+      lower case (`spot`), with no error
+      ([fix-config-case](specs/fix-config-case/bugfix.md)). _Why:_ the
+      same silent empty result the case check fixed for field names.
 - [ ] Bugfix specs are never marked shipped: `ship_specs` in
       `scripts/release-prepare.py` reads only `requirements.md`, so a
       `fix-*/bugfix.md` stays **active** after its release

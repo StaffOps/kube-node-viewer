@@ -27,6 +27,10 @@ the loaded view:
 | `views: {a: b}`; `columns:` then `  price: 1` | `map[a:b] is not a list`, `map[price:1] is not a list` |
 | `columns: [1000000]` | `1e+06 is not a string; quote it` |
 
+> **Corrected 2026-11-04 ([fix-config-case](../fix-config-case/bugfix.md)).**
+> `columns: [PRICE/M]` now says `PRICE/M is not a column field; write
+> price/m` instead of `"PRICE/M" is not a valid label key`.
+
 ## Expected behavior
 
 **R1** WHEN a label key (a bare name read as a label, or the key after

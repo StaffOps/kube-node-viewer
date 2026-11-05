@@ -930,6 +930,8 @@ func TestReadmeConfigViewsDocumentsTheContract(t *testing.T) {
 		"default-view", "start-with", "last-view", "groups-only", "filters", "exclude", "order",
 		"label:zone", "usage:", "--group-by zone", "(config)",
 		"leading or trailing whitespace", "sort: price",
+		// fix-config-case R1, R2
+		"another case", "label:INSTANCE", "kube-node-viewer/node-age", "written twice",
 	} {
 		if !strings.Contains(section, s) {
 			t.Errorf("docs/views.md does not mention %q", s)
