@@ -48,12 +48,21 @@ func TestExportWritesTheSearch(t *testing.T) {
 			if got := viewJSON(t, u); got != want {
 				t.Errorf("view\n got %s\nwant %s", got, want)
 			}
+			raw, _ := json.Marshal(u.exportDoc(time.Now()))
+			var doc exportDoc
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				t.Fatal(err)
+			}
+			if doc.View.Search != search {
+				t.Errorf("read back %q, want %q", doc.View.Search, search)
+			}
 		})
 	}
 }
 
-// fix-export-search R1: the exported nodes are still the ones the search
-// keeps, a negated search included.
+// fix-export-search, unchanged behavior: which nodes are exported. A
+// regression test: the nodes are still the ones the search keeps, a negated
+// search included.
 func TestExportWithANegatedSearchKeepsTheOtherNodes(t *testing.T) {
 	u := demoUI(t)
 	want := 0

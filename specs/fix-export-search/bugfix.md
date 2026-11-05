@@ -1,6 +1,6 @@
 # Bugfix: export-search
 
-> Status: active · Reported: 2026-11-04 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 5 MEDIUM, 4 LOW, applied)
+> Status: active · Reported: 2026-11-04 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 5 MEDIUM, 4 LOW, applied) · 2026-11-05 (spec-refuter, code 2026-11-05; 5 LOW, applied)
 
 Found in the [`search-negation`](../search-negation/) cluster run
 (2026-11-04) and listed in `TODO.md`.

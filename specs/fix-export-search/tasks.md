@@ -9,8 +9,9 @@
 - [x] T3. Verify: `scripts/verify.sh` and `make lint` green; a run on a local kind cluster exports a searched view and the JSON holds `view.search`
   - _Covers: R1, R2, R3 · Depends on: T1, T2 · Verified by: command output, recorded here as a dated note_
 
-> **Verified 2026-11-05.** `scripts/verify.sh` (apart from these open
-> tasks before ticking) and `make lint` green (0 issues). Without the fix,
+> **Verified 2026-11-05.** Before the tasks were ticked, `scripts/verify.sh`
+> failed only in `spec-tasks-check`, on these open tasks; after ticking it
+> is fully green, and `make lint` reports 0 issues. Without the fix,
 > `TestExportWritesTheSearch` fails for all six texts and
 > `TestExportOmitsAnEmptySearch` passes (the empty case is today's
 > document). On a local kind cluster of one node, with its own kubeconfig
