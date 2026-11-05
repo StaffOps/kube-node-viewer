@@ -15,6 +15,7 @@ limitations under the License.
 package model
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -125,5 +126,131 @@ func TestCompactHeaderNarrowAndIssue(t *testing.T) {
 	lines := strings.Split(u.View(), "\n")
 	if got := strings.TrimSpace(strings.Trim(lines[3], "│")); got != "⚠ something failed" {
 		t.Errorf("third box line %q, want the warning", got)
+	}
+}
+
+const demoARN = "arn:aws:eks:us-east-1:111122223333:cluster/demo-prod"
+
+// short-arn-context R1 R2
+func TestShortContextName(t *testing.T) {
+	long := strings.Repeat("a", 100)
+	for _, tc := range []struct{ in, want string }{
+		// R1: EKS cluster ARNs show their cluster name
+		{demoARN, "demo-prod"},
+		{"arn:aws-cn:eks:cn-north-1:111122223333:cluster/demo", "demo"},
+		{"arn:aws-us-gov:eks:us-gov-west-1:111122223333:cluster/demo", "demo"},
+		{"arn:aws-iso-b:eks:us-isob-east-1:111122223333:cluster/demo", "demo"},
+		{"arn:aws-eusc:eks:eusc-de-east-1:111122223333:cluster/demo", "demo"},
+		{"arn:aws:eks:us-east-1:111122223333:cluster/my_cluster-2", "my_cluster-2"},
+		{"arn:aws:eks:us-east-1:111122223333:cluster/x", "x"},
+		{"arn:aws:eks:us-east-1:111122223333:cluster/" + long, long},
+		// R2: anything else is shown as it is
+		{"demo-prod", "demo-prod"},
+		{"kind-knv", "kind-knv"},
+		{"", ""},
+		{"gke_example-project_us-central1-a_demo", "gke_example-project_us-central1-a_demo"},
+		{"arn:aws:iam::111122223333:role/demo", "arn:aws:iam::111122223333:role/demo"},
+		{"arn:aws:eks:us-east-1:111122223333:nodegroup/demo/ng/1", "arn:aws:eks:us-east-1:111122223333:nodegroup/demo/ng/1"},
+		{"arn:aws:eks:us-east-1:11112222333:cluster/demo", "arn:aws:eks:us-east-1:11112222333:cluster/demo"},
+		{"arn:aws:eks:us-east-1:1111222233334:cluster/demo", "arn:aws:eks:us-east-1:1111222233334:cluster/demo"},
+		{"arn:aws:eks:us-east-1:111122223333:cluster/", "arn:aws:eks:us-east-1:111122223333:cluster/"},
+		{"arn:aws:eks:us-east-1:111122223333:cluster/" + long + "a", "arn:aws:eks:us-east-1:111122223333:cluster/" + long + "a"},
+		{"arn:aws:eks:us-east-1:111122223333:cluster/a/b", "arn:aws:eks:us-east-1:111122223333:cluster/a/b"},
+		{"arn:aws:eks:us-east-1:111122223333:cluster/a:b", "arn:aws:eks:us-east-1:111122223333:cluster/a:b"},
+		{"arn:aws:eks:us-east-1:111122223333:cluster/a b", "arn:aws:eks:us-east-1:111122223333:cluster/a b"},
+		{"arn:aws:eks:us-east-1:111122223333:cluster/-demo", "arn:aws:eks:us-east-1:111122223333:cluster/-demo"},
+		{"arn:aws:eks::111122223333:cluster/demo", "arn:aws:eks::111122223333:cluster/demo"},
+		{"arn:aws:eks:us-east-1::cluster/demo", "arn:aws:eks:us-east-1::cluster/demo"},
+		{"x arn:aws:eks:us-east-1:111122223333:cluster/demo", "x arn:aws:eks:us-east-1:111122223333:cluster/demo"},
+		{demoARN + " ", demoARN + " "},
+		{"arn:azure:eks:us-east-1:111122223333:cluster/demo", "arn:azure:eks:us-east-1:111122223333:cluster/demo"},
+	} {
+		if got := shortContext(tc.in); got != tc.want {
+			t.Errorf("shortContext(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// short-arn-context R1 R2
+func TestHeadersShowTheShortContextName(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		height int
+		ctrlE  bool
+		size   headerSize
+	}{
+		{"full panel", 40, false, headerFull},
+		{"compact box", 40, true, headerCompact},
+		{"one line", 10, false, headerLine},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			render := func(context string) string {
+				u := capacityUI(t, 2)
+				u.SetClusterInfo(ClusterInfo{Context: context, Server: "https://example.com", Region: "us-east-1"})
+				u.Update(tea.WindowSizeMsg{Width: 200, Height: tc.height})
+				if tc.ctrlE {
+					u.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
+				}
+				if u.headerSize() != tc.size {
+					t.Fatalf("header size %v, want %v", u.headerSize(), tc.size)
+				}
+				return u.View()
+			}
+			arn := render(demoARN)
+			if !strings.Contains(arn, "demo-prod") || strings.Contains(arn, "111122223333") || strings.Contains(arn, "arn:") {
+				t.Errorf("ARN context header:\n%s", arn)
+			}
+			// a plain name renders exactly as a short ARN does
+			if plain := render("demo-prod"); plain != arn {
+				t.Errorf("plain-name header differs:\n%s\nwant\n%s", plain, arn)
+			}
+		})
+	}
+}
+
+// short-arn-context R3
+func TestShortNameOnlyInTheHeaders(t *testing.T) {
+	u := capacityUI(t, 2)
+	u.SetClusterInfo(ClusterInfo{Context: demoARN, Server: "https://example.com"})
+	u.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
+
+	u.panel = panelContexts
+	u.contextsLoaded(contextsMsg{names: []string{demoARN, "staging"}, current: demoARN})
+	rows := strings.Join(u.contextsPanel().rows, "\n")
+	if !strings.Contains(rows, demoARN) || !strings.Contains(rows, "(current)") {
+		t.Errorf("contexts popup rows:\n%s", rows)
+	}
+
+	u.contexts.switching = demoARN
+	if rows := strings.Join(u.contextsPanel().rows, "\n"); !strings.Contains(rows, "connecting to "+demoARN) {
+		t.Errorf("switching row:\n%s", rows)
+	}
+	u.switched(switchedMsg{context: demoARN, err: errors.New("unreachable")})
+	if rows := strings.Join(u.contextsPanel().rows, "\n"); !strings.Contains(rows, demoARN+": unreachable") {
+		t.Errorf("switch error row:\n%s", rows)
+	}
+
+	if doc := u.exportDoc(time.Now()); doc.Context != demoARN {
+		t.Errorf("export context %q, want the full ARN", doc.Context)
+	}
+}
+
+// short-arn-context R1: the ARN's region is not the pricing region
+func TestARNRegionIsNotThePricingRegion(t *testing.T) {
+	const arn = "arn:aws:eks:eu-west-1:111122223333:cluster/demo"
+	for _, ctrlE := range []bool{false, true} {
+		u := newTestUI(t)
+		u.SetClusterInfo(ClusterInfo{Context: arn, Server: "https://example.com"})
+		u.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
+		if ctrlE {
+			u.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
+		}
+		h := u.View()
+		if strings.Contains(h, "eu-west-1") {
+			t.Errorf("ctrl+e %v: header shows the ARN's region:\n%s", ctrlE, h)
+		}
+		if !ctrlE && !strings.Contains(h, "Region:   -") {
+			t.Errorf("full panel Region row is not -:\n%s", h)
+		}
 	}
 }

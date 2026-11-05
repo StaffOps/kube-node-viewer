@@ -28,12 +28,13 @@ they are untouched.
 | Path | Change |
 |------|--------|
 | `pkg/model/header.go` | `shortContext` and its use at line 158 |
-| `pkg/model/header_internal_test.go` | `TestShortContextName`, `TestHeadersShowTheShortContextName`, `TestShortNameOnlyInTheHeaders` |
-| `README.md` | the header paragraph says an EKS ARN context shows as its cluster name |
+| `pkg/model/header_internal_test.go` | `TestShortContextName`, `TestHeadersShowTheShortContextName`, `TestShortNameOnlyInTheHeaders`, `TestARNRegionIsNotThePricingRegion` |
+| `pkg/client/client_test.go` | `TestClusterKeyKeepsTheFullContext` |
+| `README.md` | both header paragraphs (full panel and compact box) say an EKS ARN context shows as its cluster name |
 | `CHANGELOG.md` | `[Unreleased]` `Changed` |
-| `specs/compact-header-no-url/requirements.md` | dated note: its counter-example "SHALL NOT shorten the context name" and the ARN out-of-scope bullet are superseded here |
-| `specs/interactive-tui/requirements.md` | dated note under R16: the header shows an EKS ARN context as its cluster name |
-| `TODO.md` | remove the ARN item; add GKE context names |
+| `specs/compact-header-no-url/requirements.md` | dated note after its counter-example "SHALL NOT shorten the context name" and its ARN out-of-scope bullet: superseded by short-arn-context |
+| `specs/interactive-tui/requirements.md` | dated note under R16: the context name is superseded for ARN contexts by short-arn-context |
+| `TODO.md` | remove the ARN item; add GKE context names and a shorter export file name |
 
 ## Decisions
 
@@ -55,7 +56,8 @@ cluster name of an EKS ARN context; every other place keeps the full name.
 
 | Cost | Why acceptable |
 |------|----------------|
-| Two ARN contexts for clusters with the same name in different accounts look alike in the headers | the full panel's `Cluster:` row (the endpoint) and the region still tell them apart, and the contexts popup lists the full ARNs |
+| Two ARN contexts for clusters with the same name in different accounts look alike in the headers. Per header: the full panel still shows the endpoint (`Cluster:`) and the region; the compact box shows only the region; the one-line header shows neither, so nothing there tells them apart | the contexts popup lists the full ARNs, and `ctrl+e` brings the full panel; adding the region or server to the one-line header is out of scope |
+| The full panel's `Context:` row shows a cluster name, not the kubeconfig context name the user would type in `--context` | the README says so; `c` shows the kubeconfig name |
 | The full panel no longer shows the account id at all | the account is not something the tool acts on; the popup and the export keep it |
 | A screenshot of the contexts popup still shows account ids | the popup is where a user picks among ARNs, which needs the full names (D3) |
 
@@ -76,16 +78,19 @@ long and the region twice.
 ### D2: A strict pattern, anything else unchanged
 
 **Choice**: shorten only a name matching, in full,
-`^arn:aws(-[a-z]+)*:eks:[a-z]{2}(-[a-z]+)+-[0-9]+:[0-9]{12}:cluster/([0-9A-Za-z][0-9A-Za-z_-]{0,99})$`;
+`^arn:aws(-[a-z]+)*:eks:[a-z]+(-[a-z]+)+-[0-9]+:[0-9]{12}:cluster/([0-9A-Za-z][0-9A-Za-z_-]{0,99})$`;
 return every other name as it is.
 
 **Justification, strongest first**:
 1. A context name is free text; a loose rule (for example "the text after the
    last `/`") would rename contexts that only look like ARNs, and the header
    would show a name the user never chose.
-2. The fields follow AWS's formats: partitions `aws`, `aws-cn`,
-   `aws-us-gov` and the `aws-iso…` family; region codes like `us-east-1`,
-   `cn-north-1`, `us-gov-west-1`, `us-iso-east-1`; 12-digit accounts;
+2. The fields follow AWS's formats: partition `aws`, optionally followed by
+   `-<letters>` groups (`aws-cn`, `aws-us-gov`, the `aws-iso…` family,
+   `aws-eusc`); region codes made of lower-case letter groups joined by `-`
+   and ending in `-<digits>` (`us-east-1`, `cn-north-1`, `us-gov-west-1`,
+   `us-iso-east-1`, `eusc-de-east-1`, whose first group has four letters);
+   12-digit accounts;
    EKS cluster names of 1 to 100 letters, digits, `-` and `_`, starting with
    a letter or digit.
 3. Anything outside the pattern renders as today, so the worst case of a
@@ -156,7 +161,7 @@ popup (a new format to read, and still the account id).
 ## Test plan
 
 - `TestShortContextName`, table: the R1 examples (aws, aws-cn, aws-us-gov,
-  aws-iso-b; names with `-` and `_`, 1 and 100 characters) and the R2
+  aws-iso-b, aws-eusc with `eusc-de-east-1`; names with `-` and `_`, 1 and 100 characters) and the R2
   examples (plain names, `gke_…`, an IAM ARN, a nodegroup ARN, 11 and 13
   digit accounts, empty name, 101 characters, `/`, `:` or a space in the
   name, leading or trailing text, empty string).
@@ -165,7 +170,13 @@ popup (a new format to read, and still the account id).
   each show `demo-prod` and none contains `111122223333`; with `demo-prod`
   as the context the output equals today's.
 - `TestShortNameOnlyInTheHeaders`: with an ARN context, the contexts popup
-  rows and the export's `context` field hold the full ARN.
+  rows, the "connecting to …" row, a switch error row and the export's
+  `context` field hold the full ARN.
+- `TestARNRegionIsNotThePricingRegion`: an ARN in `eu-west-1`, no region
+  from the server, no nodes → the full panel's `Region:` row is `-`, the
+  compact box has no `eu-west-1`.
+- `TestClusterKeyKeepsTheFullContext` (pkg/client): the state key is the
+  full ARN plus `@` and the server.
 - The golden screens stay byte-identical.
 - Run on a local kind cluster whose kubeconfig context is renamed to a
   made-up ARN with account 111122223333: the three headers and `c`.

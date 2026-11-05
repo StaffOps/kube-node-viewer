@@ -118,7 +118,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 26. [`compact-header-no-url/`](compact-header-no-url/) — **active**. The compact
     header box drops the API server URL; the full panel keeps it.
     [requirements](compact-header-no-url/requirements.md) · [design](compact-header-no-url/design.md) · [tasks](compact-header-no-url/tasks.md)
-27. [`short-arn-context/`](short-arn-context/) — **draft**. The headers show an
+27. [`short-arn-context/`](short-arn-context/) — **active**. The headers show an
     EKS ARN context as its cluster name.
     [requirements](short-arn-context/requirements.md) · [design](short-arn-context/design.md) · [tasks](short-arn-context/tasks.md)
 28. [`decisions/`](decisions/) — decision records (index below).

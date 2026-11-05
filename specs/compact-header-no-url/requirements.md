@@ -84,9 +84,16 @@ _Test: `// compact-header-no-url R2` on `TestFullHeaderKeepsServerURL`
 - The system SHALL NOT drop the region from the compact box.
 - The system SHALL NOT shorten the context name.
 
+  > **Corrected 2026-11-05.** Superseded for EKS ARN contexts by
+  > [short-arn-context](../short-arn-context/requirements.md): the headers
+  > show such a context as its cluster name.
+
 ## Out of scope
 
 - Making the compact fields configurable.
 - Changing which window heights pick the compact box.
 - Shortening an ARN-style context name (`arn:aws:eks:<region>:<account>:cluster/<name>`):
   both headers show it as it is (`TODO.md`).
+
+  > **Corrected 2026-11-05.** Done in
+  > [short-arn-context](../short-arn-context/requirements.md).
