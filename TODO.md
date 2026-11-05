@@ -29,10 +29,16 @@ what they cannot. Listed by impact.
       real clusters for prices and node pools; if so, make it gate
       automerge and a required check.
       _Why:_ until then every change still waits for a real cluster.
-- [ ] **Confirm the Kiro hooks in a real session**: the Kiro config
-      follows the Kiro docs but has not run in Kiro yet; a `git commit`
-      with a non-conventional subject should be refused by both the git
-      hook and the Kiro `commit-guard`.
+- [ ] **Run [docs/kiro-validation.md](docs/kiro-validation.md) in a real Kiro
+      session and report** (IDE 1.x or CLI V3; its report template goes in
+      an issue or PR comment). Checked offline on 2026-11-05 against the
+      Kiro docs (hooks, hook types and actions, agent configuration, CLI V3
+      migration): the hook file schema, triggers and `shell` matcher, the
+      agent profiles, and every hook script fed Kiro's documented payloads
+      (`make kiro-selftest`, also in `test-checks.sh`). Open: whether
+      `tool_input.command` is the field Kiro sends, whether each hook fires
+      once, and whether the commit checklist (stdout of a PreToolUse hook)
+      reaches the agent; the docs say that stdout is ignored.
       _Why:_ if Kiro ignores a field, its agent loses the early warnings
       without any error; the git hooks and CI still hold.
 
