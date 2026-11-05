@@ -86,13 +86,6 @@ memory. Listed by impact.
       ([group-focus](specs/group-focus/tasks.md) T4). _Why:_ the GIF still
       shows `enter` folding; the script needs ffmpeg, missing on the
       machine that made the change.
-- [ ] The JSON export has no `view.search`: `exportDoc.View` is a
-      `ViewState`, whose `Search` is `json:"-"` (so the state file never
-      saves it), and `export.go` sets `doc.View.Search` anyway; README
-      ("Export") says the JSON holds the search text. Found in the
-      [search-negation](specs/search-negation/tasks.md) cluster run.
-      _Why:_ an export of a searched view does not say which search made
-      it.
 - [ ] Regenerate the README images (`scripts/screenshots.sh`): the demo
       nodes' internal IPs moved to 192.0.2.0/24 for the golden screens,
       and `.static/` still shows the old ones. The node names stay

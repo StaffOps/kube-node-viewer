@@ -69,6 +69,11 @@ system SHALL say the search takes a regular expression.
   `view.search` field) say the same, with one `a|b` example and how to
   escape (`\.`).
 
+> **Corrected 2026-11-05.** The export never wrote `view.search`: the
+> field was dropped by `json:"-"` on `ViewState.Search`, so the box above
+> held for the README text only. Fixed by
+> [`fix-export-search`](../fix-export-search/bugfix.md).
+
 > **Corrected 2026-11-04.** The header mark ` (as text)` follows the text,
 > so it shows while typing an invalid pattern too, not only after `enter`.
 >

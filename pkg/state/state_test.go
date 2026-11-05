@@ -173,3 +173,27 @@ func TestViewsWithoutClustersAndOldFiles(t *testing.T) {
 		t.Error("an old file lost its cluster")
 	}
 }
+
+// fix-export-search R3: the state file never holds the search text, for a
+// cluster's view or a named view, even when the view given has one.
+func TestStateNeverSavesTheSearch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.json")
+	s := state.Load(path, os.Stderr)
+	v := sampleView()
+	v.Search = "!secret-search"
+	s.Put("a@https://a", v)
+	s.PutView("mine", v)
+	if err := s.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(raw, []byte(`"search"`)) || bytes.Contains(raw, []byte("secret-search")) {
+		t.Errorf("state file holds the search: %s", raw)
+	}
+	if !bytes.Contains(raw, []byte(`"mine"`)) || !bytes.Contains(raw, []byte(`"a@https://a"`)) {
+		t.Errorf("state file lacks the saved views: %s", raw)
+	}
+}
