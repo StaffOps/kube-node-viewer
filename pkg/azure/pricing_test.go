@@ -113,6 +113,8 @@ func newTestProvider(t *testing.T, api *fakeAPI) (*Provider, chan struct{}) {
 	return p, updated
 }
 
+// aks-pricing R1 and R2: Azure nodes priced by region and VM size, looked
+// up in the background, with a re-price signal when the answer arrives.
 func TestPricesByMeter(t *testing.T) {
 	api := &fakeAPI{}
 	p, updated := newTestProvider(t, api)

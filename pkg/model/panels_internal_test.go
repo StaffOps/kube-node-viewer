@@ -90,6 +90,7 @@ func capacityUI(t *testing.T, count int) *UIModel {
 	return u
 }
 
+// interactive-tui R12: q and ctrl+c quit, esc does not.
 func TestQuitKeys(t *testing.T) {
 	u := capacityUI(t, 1)
 	if quits(press(u, "esc")) {
@@ -107,6 +108,7 @@ func TestQuitKeys(t *testing.T) {
 	}
 }
 
+// interactive-tui R12: esc closes a panel.
 func TestEscClosesPanels(t *testing.T) {
 	u := capacityUI(t, 1)
 	press(u, "?")
@@ -127,6 +129,7 @@ func TestEscClosesPanels(t *testing.T) {
 	}
 }
 
+// interactive-tui R3: f adds a filter from the panel.
 func TestAddFilterFromPanel(t *testing.T) {
 	u := capacityUI(t, 4)
 	var saved int
@@ -163,6 +166,7 @@ func TestAddFilterFromPanel(t *testing.T) {
 	}
 }
 
+// interactive-tui R3: a filter toggled on and off, and removed.
 func TestToggleAndClearFilter(t *testing.T) {
 	u := capacityUI(t, 2)
 	v := u.view
@@ -212,6 +216,7 @@ func TestPanelIsAPopupOverTheNodeList(t *testing.T) {
 	}
 }
 
+// interactive-tui R14: pages repeat the group path.
 func TestPaginationRepeatsGroupPath(t *testing.T) {
 	u := capacityUI(t, 30)
 	u.Update(tea.WindowSizeMsg{Width: 160, Height: 20})
@@ -234,6 +239,7 @@ func TestPaginationRepeatsGroupPath(t *testing.T) {
 	}
 }
 
+// interactive-tui R16: the header panel, and one line when the screen is short.
 func TestHeaderPanelAndOneLineFallback(t *testing.T) {
 	u := capacityUI(t, 2)
 	u.SetClusterInfo(ClusterInfo{Context: "ctx-a", Server: "https://a.example", Region: "us-east-1"})
@@ -261,6 +267,7 @@ func TestHeaderPanelAndOneLineFallback(t *testing.T) {
 	}
 }
 
+// interactive-tui R14: a narrow screen hides the lowest-priority columns and says so.
 func TestNarrowScreenHidesColumns(t *testing.T) {
 	u := capacityUI(t, 2)
 	u.Update(tea.WindowSizeMsg{Width: 70, Height: 40})
@@ -317,6 +324,7 @@ func TestManagedNodeGroupShownByNameInColour(t *testing.T) {
 	}
 }
 
+// interactive-tui R4: g picks ordered group-by keys; nested groups with subtotals.
 func TestGroupByPanel(t *testing.T) {
 	u := capacityUI(t, 4)
 	var saved int
@@ -353,6 +361,7 @@ func TestGroupByPanel(t *testing.T) {
 	}
 }
 
+// interactive-tui R4: at most three levels.
 func TestGroupByPanelAtMostThreeLevels(t *testing.T) {
 	u := capacityUI(t, 2)
 	v := u.view
@@ -365,6 +374,7 @@ func TestGroupByPanelAtMostThreeLevels(t *testing.T) {
 	}
 }
 
+// interactive-tui R5: s sorts by a column or label, either way.
 func TestSortPanel(t *testing.T) {
 	u := capacityUI(t, 3)
 	// s → name (second choice) sorts ascending
@@ -388,6 +398,7 @@ func TestSortPanel(t *testing.T) {
 	}
 }
 
+// interactive-tui R7: o shows, hides and reorders columns.
 func TestColumnsPanel(t *testing.T) {
 	u := capacityUI(t, 2)
 	// the first row is the first shown column (instance-type): hide it
@@ -418,6 +429,7 @@ func TestColumnsPanel(t *testing.T) {
 	}
 }
 
+// interactive-tui R6: / filters as you type; esc clears.
 func TestSearchTypesKeysAndEscClears(t *testing.T) {
 	u := capacityUI(t, 12)
 	var saved int
@@ -431,7 +443,7 @@ func TestSearchTypesKeysAndEscClears(t *testing.T) {
 	if !strings.Contains(out, "node-11") || strings.Contains(out, "node-10") {
 		t.Errorf("not filtered while typing:\n%s", out)
 	}
-	// q and f are typed, not commands (R12)
+	// q and f are typed, not commands (interactive-tui R12)
 	if quits(press(u, "q")) || u.panel != panelNone {
 		t.Error("a command key acted while searching")
 	}
@@ -448,6 +460,7 @@ func TestSearchTypesKeysAndEscClears(t *testing.T) {
 	}
 }
 
+// interactive-tui R9: r cycles cpu, memory, cpu+memory and the --resources list.
 func TestResourcesCycle(t *testing.T) {
 	u := capacityUI(t, 1)
 	var got []string
@@ -579,6 +592,7 @@ func selectedLine(t *testing.T, u *UIModel) string {
 	return ""
 }
 
+// interactive-tui R17: the cursor moves; enter folds a group, saved with the view.
 func TestCursorMovesAndFoldsAGroup(t *testing.T) {
 	u := capacityUI(t, 4)
 	v := u.view
@@ -611,6 +625,7 @@ func TestCursorMovesAndFoldsAGroup(t *testing.T) {
 	}
 }
 
+// interactive-tui R17: the cursor is followed across pages.
 func TestCursorFollowsToNextPage(t *testing.T) {
 	u := capacityUI(t, 30)
 	u.Update(tea.WindowSizeMsg{Width: 160, Height: 20})
@@ -642,6 +657,7 @@ func TestNoCursorMarkWhileAPanelIsOpen(t *testing.T) {
 	}
 }
 
+// views-and-export R1: x switches a filter between keeping and excluding.
 func TestXSwitchesKeepAndExclude(t *testing.T) {
 	u := capacityUI(t, 4)
 	v := u.view

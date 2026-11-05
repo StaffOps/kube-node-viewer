@@ -73,6 +73,7 @@ func screenOrder(t *testing.T, out string, names ...string) []string {
 	return sorted
 }
 
+// sort-invert R1: I flips the current sort's direction, keeping its field.
 func TestFlipSortBothWaysFromANamedSort(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -203,6 +204,7 @@ func TestSortInvertLowercaseIIsNotBound(t *testing.T) {
 	}
 }
 
+// sort-invert R2: I does nothing on Recommendations.
 func TestSortInvertNoOpOnRecommendations(t *testing.T) {
 	u := recUI(t)
 	pressAll(u, "tab")
@@ -224,6 +226,7 @@ func TestSortInvertNoOpOnRecommendations(t *testing.T) {
 	}
 }
 
+// sort-invert R3: with a panel open, I is the panel's key.
 func TestSortInvertNoOpWithPanelOpen(t *testing.T) {
 	for _, open := range []string{"s", "f"} {
 		t.Run(open, func(t *testing.T) {
@@ -241,6 +244,7 @@ func TestSortInvertNoOpWithPanelOpen(t *testing.T) {
 	}
 }
 
+// sort-invert R3: in the search, command line or view-name prompt, I is text.
 func TestSortInvertTypedAsText(t *testing.T) {
 	cases := []struct {
 		name string
@@ -323,6 +327,7 @@ func TestSortInvertMissingValuesStayLast(t *testing.T) {
 	}
 }
 
+// sort-invert R4: the help and the footer list I.
 func TestSortInvertHelpAndFooter(t *testing.T) {
 	style, err := ParseStyle("#04B575,#FFFF00,#FF0000")
 	if err != nil {

@@ -115,6 +115,7 @@ func moveTo(t *testing.T, u *UIModel, name string) {
 	}
 }
 
+// label-visibility R1: labels.allow keeps the matching keys, derived fields stay.
 func TestPanelsListOnlyAllowedLabels(t *testing.T) {
 	for _, pn := range labelPanels {
 		t.Run(pn.name, func(t *testing.T) {
@@ -215,6 +216,7 @@ func TestPrefixedRealLabelFollowsTheLists(t *testing.T) {
 	}
 }
 
+// label-visibility R2: labels.deny leaves keys out, also when allowed.
 func TestPanelsLeaveOutDeniedLabels(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -261,6 +263,7 @@ func TestPanelsLeaveOutDeniedLabels(t *testing.T) {
 	}
 }
 
+// label-visibility R3: no lists, every label key listed.
 func TestNoListsListEveryLabel(t *testing.T) {
 	for _, lists2 := range []struct {
 		name        string
@@ -304,6 +307,7 @@ func TestNoListsListEveryLabel(t *testing.T) {
 	}
 }
 
+// label-visibility R5: a hidden label in use stays listed and applied.
 func TestHiddenLabelInUseStaysListedAndApplied(t *testing.T) {
 	deny := []string{"env"}
 	env := LabelField("env")
@@ -383,6 +387,7 @@ func TestHiddenLabelInUseStaysListedAndApplied(t *testing.T) {
 	}
 }
 
+// label-visibility R5: a hidden label in use is still applied.
 func TestHiddenInUseLabelIsStillApplied(t *testing.T) {
 	env := LabelField("env")
 	t.Run("filter", func(t *testing.T) {
@@ -503,6 +508,7 @@ func TestUntickedHiddenLabelStaysUntilThePanelCloses(t *testing.T) {
 	})
 }
 
+// label-visibility R6: the panel says how many keys are hidden and that a shows them.
 func TestStatusLineCountsHiddenLabels(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -542,6 +548,7 @@ func TestStatusLineCountsHiddenLabels(t *testing.T) {
 	}
 }
 
+// label-visibility R6: a shows every label key until the panel closes.
 func TestShowAllToggles(t *testing.T) {
 	for _, pn := range labelPanels {
 		t.Run(pn.name, func(t *testing.T) {

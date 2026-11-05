@@ -228,7 +228,7 @@ func TestNodePodsShareAndCost(t *testing.T) {
 	}
 }
 
-// R3: on a $1000/month node, 10% cpu and 25% memory cost $250/month.
+// node-pods R3: on a $1000/month node, 10% cpu and 25% memory cost $250/month.
 func TestNodePodsShareIsTheLargerPercent(t *testing.T) {
 	r := newPodRow("k", "a",
 		v1.ResourceList{v1.ResourceCPU: resource.MustParse("400m"), v1.ResourceMemory: resource.MustParse("4Gi")},
@@ -255,7 +255,7 @@ func TestNodePodsFargateShareAgainstAllocatable(t *testing.T) {
 	}
 }
 
-// R2: the listed pods are what the node's totals count.
+// node-pods R2: the listed pods are what the node's totals count.
 func TestNodePodsListWhatTheNodeTotalsCount(t *testing.T) {
 	u, n := podsUI(t, 160, fourCPU16Gi,
 		podSpec{name: "web-1", cpu: "250m", mem: "512Mi"},
@@ -313,7 +313,7 @@ func TestNodePodsFollowTheLiveNode(t *testing.T) {
 	}
 }
 
-// R2: the fixed node line and column header.
+// node-pods R2: the fixed node line and column header.
 func TestNodePodsNodeLineAndHeader(t *testing.T) {
 	u, _ := podsUI(t, 160, fourCPU16Gi,
 		podSpec{name: "a", cpu: "2", mem: "4Gi"}, podSpec{name: "b", cpu: "1", mem: "4Gi"})
@@ -337,6 +337,7 @@ func TestNodePodsNodeLineAndHeader(t *testing.T) {
 	}
 }
 
+// node-pods R4: an unknown cost shows -, an equivalent one ~.
 func TestNodePodsPrices(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -382,6 +383,7 @@ func TestNodePodsUnknownPriceCostSortIsByShare(t *testing.T) {
 	}
 }
 
+// node-pods R4: with pricing disabled, no COST/H and no cost sort.
 func TestNodePodsPricingDisabled(t *testing.T) {
 	u := newTestUI(t)
 	u.DisablePricing = true
@@ -433,7 +435,7 @@ func TestNodePodsNoRequests(t *testing.T) {
 	}
 }
 
-// R5: pods with no requests go after every pod with requests, in every sort
+// node-pods R5: pods with no requests go after every pod with requests, in every sort
 // and direction, the name sort included.
 func TestNodePodsNoRequestsSortLast(t *testing.T) {
 	u, _ := podsUI(t, 160, fourCPU16Gi,
@@ -544,7 +546,7 @@ func TestNodePodsNoDaemonSetRow(t *testing.T) {
 	}
 }
 
-// R7: cycle, directions, flip and the sort shown on the tab line.
+// node-pods R7: cycle, directions, flip and the sort shown on the tab line.
 func TestNodePodsSortCycle(t *testing.T) {
 	u, _ := podsUI(t, 160, fourCPU16Gi,
 		podSpec{name: "c-cpu", cpu: "2", mem: "1Gi"},     // share 50%
@@ -595,7 +597,7 @@ func TestNodePodsSortTiesOnName(t *testing.T) {
 	}
 }
 
-// R7, R9: DaemonSet pods sort among the pods; the DaemonSet rows follow the
+// node-pods R7, R9: DaemonSet pods sort among the pods; the DaemonSet rows follow the
 // same sort under a Total line that does not move.
 func TestNodePodsDaemonSetRowsSort(t *testing.T) {
 	ds := func(pod, set, cpu string) podSpec {
@@ -636,7 +638,7 @@ func manyPods(n int) []podSpec {
 	return pods
 }
 
-// R8: the cursor keys.
+// node-pods R8: the cursor keys.
 func TestNodePodsKeys(t *testing.T) {
 	u, _ := podsUI(t, 160, fourCPU16Gi, append(manyPods(30),
 		podSpec{ns: "kube-system", name: "ds-1", cpu: "1", ownerKind: "DaemonSet", ownerName: "ds"})...)
@@ -704,7 +706,7 @@ func TestNodePodsKeys(t *testing.T) {
 	}
 }
 
-// R8: the cursor never lands on the tab line, the node line or the header.
+// node-pods R8: the cursor never lands on the tab line, the node line or the header.
 func TestNodePodsCursorNeverOnFixedLines(t *testing.T) {
 	u, _ := podsUI(t, 160, fourCPU16Gi, manyPods(3)...)
 	fixed := box(u)[1:4]
@@ -722,7 +724,7 @@ func TestNodePodsCursorNeverOnFixedLines(t *testing.T) {
 	}
 }
 
-// R8 and R2: only the pod rows scroll, and the cursor stays visible.
+// node-pods R8 and R2: only the pod rows scroll, and the cursor stays visible.
 func TestNodePodsScrollKeepsFixedLinesAndCursor(t *testing.T) {
 	u, _ := podsUI(t, 160, fourCPU16Gi, manyPods(40)...)
 	u.Update(tea.WindowSizeMsg{Width: 160, Height: 20})
@@ -848,7 +850,7 @@ func TestNodePodsReopenDefaultWithPricingDisabled(t *testing.T) {
 	}
 }
 
-// R2: narrow windows cut the name, then drop the percents; SHARE and COST/H
+// node-pods R2: narrow windows cut the name, then drop the percents; SHARE and COST/H
 // stay. No line runs past the window.
 func TestNodePodsNarrowWindows(t *testing.T) {
 	long := "a-very-long-deployment-name-that-will-never-fit-7d9c8b6f5-x2kq"

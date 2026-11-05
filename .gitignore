@@ -6,6 +6,9 @@ coverage.out
 kube-node-viewer-*.csv
 kube-node-viewer-*.json
 /bin
+# Python bytecode: it records the absolute path of the source
+__pycache__/
+*.pyc
 
 # Agent tooling: shared config is versioned, personal overrides are not
 .claude/settings.local.json

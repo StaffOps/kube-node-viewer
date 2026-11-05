@@ -60,6 +60,7 @@ func run(u *UIModel, msg tea.Msg) {
 	}
 }
 
+// interactive-tui R11: a change notification redraws from a new snapshot.
 func TestChangedMsgRefreshesSnapshot(t *testing.T) {
 	u := newTestUI(t)
 	addTestNode(u, "node-a")
@@ -84,7 +85,7 @@ func TestChangedMsgFromOldGenerationIsDropped(t *testing.T) {
 	}
 }
 
-// R11: keys and frames never wait for the cluster lock, which informer
+// interactive-tui R11: keys and frames never wait for the cluster lock, which informer
 // handlers hold while they apply events.
 func TestKeysDoNotWaitForClusterLock(t *testing.T) {
 	u := newTestUI(t)
@@ -112,6 +113,7 @@ func TestKeysDoNotWaitForClusterLock(t *testing.T) {
 	}
 }
 
+// interactive-tui R2 and R13: n is a view change, reported for saving.
 func TestNodeListToggleReportsViewChange(t *testing.T) {
 	u := newTestUI(t)
 	v := DefaultViewState()

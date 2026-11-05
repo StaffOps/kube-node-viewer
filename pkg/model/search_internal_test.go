@@ -15,6 +15,7 @@ limitations under the License.
 package model
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -22,6 +23,7 @@ import (
 // Tests for specs/search-regex: the matcher (R1-R3) and the footer, header
 // and help wording (R3, R4). Node selection is in search_test.go.
 
+// search-regex R1, R2, R3: regex, literal text, and an invalid regex read as text.
 func TestSearchMatcher(t *testing.T) {
 	cases := []struct {
 		text, value string
@@ -99,6 +101,9 @@ func TestSearchMatcher(t *testing.T) {
 	}
 }
 
+// search-negation R1, R5: a negated invalid pattern is marked as text; the help says ! and key=value.
+// search-regex R3 and R4: the footer and header say an invalid pattern is
+// read as text; the help says the search takes a regex.
 func TestSearchFooterHeaderAndHelp(t *testing.T) {
 	u := footerUI(t, 200, 40)
 	u.View()
@@ -161,6 +166,48 @@ func TestMatchPairSameAsPairText(t *testing.T) {
 			if got, want := m.matchPair(l[0], l[1]), m.match(l[0]+"="+l[1]); got != want {
 				t.Errorf("%q on %s=%s: got %v, want %v", text, l[0], l[1], got, want)
 			}
+		}
+	}
+}
+
+// search-regex R4, search-negation R5: the README says the search takes a
+// regular expression, how to negate and how to search a label pair:
+// the key table with an a|b example, the Search section with RE2 and the
+// escaped dot.
+func TestSearchREADMESaysRegex(t *testing.T) {
+	b, err := os.ReadFile("../../README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	readme := string(b)
+	section := func(title string) string {
+		i := strings.Index(readme, "\n"+title+"\n")
+		if i < 0 {
+			t.Fatalf("README has no %q section", title)
+		}
+		rest := readme[i+len(title)+2:]
+		if j := strings.Index(rest, "\n#"); j >= 0 {
+			rest = rest[:j]
+		}
+		return rest
+	}
+	row := ""
+	for _, line := range strings.Split(readme, "\n") {
+		if strings.HasPrefix(line, "| `/` |") {
+			row = line
+		}
+	}
+	if !strings.Contains(row, "regular expression") || !strings.Contains(row, `search\|batch`) {
+		t.Errorf("README key row for / lacks the regex wording or its a|b example: %q", row)
+	}
+	// search-negation R5: the README says how to negate and search a pair
+	if !strings.Contains(row, "`!text`") || !strings.Contains(row, "`key=value`") {
+		t.Errorf("README key row for / lacks !text or key=value: %q", row)
+	}
+	search := section("### Search (`/`)")
+	for _, want := range []string{"regular expression", "RE2", `\.`, "invalid regex: as text"} {
+		if !strings.Contains(search, want) {
+			t.Errorf("README Search section lacks %q", want)
 		}
 	}
 }

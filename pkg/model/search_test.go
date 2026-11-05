@@ -40,6 +40,7 @@ func searchNodes() []*model.Node {
 	return nodes
 }
 
+// search-regex R1, R2: which nodes a regex or a literal search keeps.
 func TestSearchRegex(t *testing.T) {
 	cases := []struct {
 		text string
@@ -115,6 +116,7 @@ func negationNodes() []*model.Node {
 	return nodes
 }
 
+// search-negation R1, R2, R3, R4: which nodes a negated or label-pair search keeps.
 func TestSearchNegationAndPairs(t *testing.T) {
 	all := []string{"node-a", "node-b", "node-c", "node-d", "node-e"}
 	cases := []struct {

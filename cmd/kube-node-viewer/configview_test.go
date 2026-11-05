@@ -68,6 +68,7 @@ func onlyView(t *testing.T, body string) model.ViewState {
 	return s.views[0].view
 }
 
+// config-views R1: a key left out of a view takes the built-in default.
 func TestConfigViewKeyLeftOutTakesTheBuiltInDefault(t *testing.T) {
 	got := onlyView(t, oneView())
 	if !reflect.DeepEqual(got, model.DefaultViewState()) {
@@ -75,6 +76,7 @@ func TestConfigViewKeyLeftOutTakesTheBuiltInDefault(t *testing.T) {
 	}
 }
 
+// config-views R1: each key of a view read from config.yaml.
 func TestConfigViewKeys(t *testing.T) {
 	gpu := "nvidia.com/gpu"
 	tests := []struct {
@@ -225,7 +227,7 @@ func TestConfigViewSortOrder(t *testing.T) {
 	}
 }
 
-// TestConfigViewFieldNamesPerKey checks R2: each key's built-in names, any
+// TestConfigViewFieldNamesPerKey checks config-views R2: each key's built-in names, any
 // other name a label, label: forcing a label.
 func TestConfigViewFieldNamesPerKey(t *testing.T) {
 	label := model.LabelField
@@ -290,7 +292,7 @@ func TestConfigViewFieldNamesPerKey(t *testing.T) {
 	}
 }
 
-// TestConfigViewErrors checks every R6 case: the start fails with the file
+// TestConfigViewErrors checks every config-views R6 case: the start fails with the file
 // and the path of the problem.
 func TestConfigViewErrors(t *testing.T) {
 	tests := []struct {
@@ -433,6 +435,7 @@ func TestConfigViewErrorsDoNotBreakTheLabelLists(t *testing.T) {
 	}
 }
 
+// config-views R4, R5: default-view and start-with read and checked.
 func TestConfigViewStartSettings(t *testing.T) {
 	two := "views:\n  - name: a\n    sort: price\n  - name: b\n    sort: name\n"
 	tests := []struct {
@@ -467,6 +470,7 @@ func TestConfigViewStartSettings(t *testing.T) {
 	}
 }
 
+// config-views R1: views keep the file's order.
 func TestConfigViewsKeepFileOrder(t *testing.T) {
 	s := loadOK(t, "views:\n  - name: zeta\n  - name: alpha\n  - name: mid\n")
 	var names []string
@@ -501,6 +505,7 @@ func savedWithUI() *model.ViewState {
 	return &v
 }
 
+// config-views R4, R5: the start view against flags and saved state.
 func TestResolveViewWithStartView(t *testing.T) {
 	cfg := configFile{"resources": "memory", "group-by": pool, "node-sort": "name", "extra-labels": "team", "groups-only": "true"}
 	t.Run("replaces defaults and the config file", func(t *testing.T) {
@@ -639,6 +644,7 @@ func newStates(t *testing.T) *state.Store {
 	return state.Load(filepath.Join(t.TempDir(), "state.json"), io.Discard)
 }
 
+// config-views R4: start-with default-view on first connection, c and back.
 func TestSessionsDefaultViewMode(t *testing.T) {
 	states := newStates(t)
 	states.Put(keyA, *savedWithUI())
@@ -703,6 +709,7 @@ func TestSessionsDefaultViewModeBackWithoutChanges(t *testing.T) {
 	}
 }
 
+// config-views R5: start-with last-view opens each cluster's saved view.
 func TestSessionsLastViewMode(t *testing.T) {
 	states := newStates(t)
 	states.Put(keyA, *savedWithUI())
@@ -730,6 +737,7 @@ func TestSessionsLastViewMode(t *testing.T) {
 	}
 }
 
+// config-views R5: last-view with no default-view.
 func TestSessionsLastViewModeWithoutDefaultView(t *testing.T) {
 	states := newStates(t)
 	run := newRun(t, states, configFile{"resources": "memory"}, nil, nil, true)
@@ -775,6 +783,7 @@ func (m stateViews) View(name string) (model.ViewState, bool) { v, ok := m[name]
 func (m stateViews) SaveView(name string, v model.ViewState)  { m[name] = v }
 func (m stateViews) DeleteView(name string)                   { delete(m, name) }
 
+// config-views R3: config views listed next to the state's named views.
 func TestCombinedViews(t *testing.T) {
 	cfg := loadOK(t, "views:\n  - name: spot\n    sort: name\n  - name: cost\n    sort: price\n").views
 	stateView := model.DefaultViewState()
@@ -829,6 +838,7 @@ func TestCombinedViews(t *testing.T) {
 	}
 }
 
+// config-views R3: the Views panel lists the combined views.
 func TestCombinedViewsIsWhatTheViewsPanelUses(t *testing.T) {
 	// the UI model applies a config view through combinedViews
 	cfg := loadOK(t, "views:\n  - name: spot\n    group-by: [capacity]\n").views
@@ -883,6 +893,7 @@ func readmeSection(t *testing.T, heading string) string {
 
 var yamlBlock = regexp.MustCompile("(?s)```yaml\n(.*?)```")
 
+// config-views R8: the README's examples decode.
 func TestReadmeConfigViewsExamplesDecode(t *testing.T) {
 	readme := readmeSection(t, "## Config views")
 	if !strings.Contains(readme, "(docs/views.md)") {
@@ -923,6 +934,7 @@ func TestReadmeConfigViewsExamplesDecode(t *testing.T) {
 	}
 }
 
+// config-views R8: the README documents keys, names and start settings.
 func TestReadmeConfigViewsDocumentsTheContract(t *testing.T) {
 	// words joined by single spaces, so re-wrapping the doc changes nothing
 	section := strings.Join(strings.Fields(viewsDoc(t)), " ")

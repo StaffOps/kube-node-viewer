@@ -41,6 +41,7 @@ func typeText(u *UIModel, text string) {
 	}
 }
 
+// views-and-export R2: save the current view under a name, apply it.
 func TestSaveAndApplyNamedView(t *testing.T) {
 	u := capacityUI(t, 4)
 	views := memViews{}
@@ -100,6 +101,7 @@ func TestApplyingAViewSetsItsResources(t *testing.T) {
 	}
 }
 
+// views-and-export R2: d deletes a view; an empty name is refused.
 func TestEmptyNameIsRefusedAndDeleteWorks(t *testing.T) {
 	u := capacityUI(t, 2)
 	views := memViews{"old": DefaultViewState()}

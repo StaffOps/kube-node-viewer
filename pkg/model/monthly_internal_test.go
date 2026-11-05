@@ -49,6 +49,7 @@ type monthlyNode struct {
 var monthlyNodes = []monthlyNode{
 	{"node-real", map[string]string{"karpenter.sh/capacity-type": "on-demand"},
 		0.154, false, "$0.1540", "$112.42", "$112.42"},
+	// interactive-tui R8: a reserved node's price is the list price marked ~
 	{"node-resv", map[string]string{"karpenter.sh/capacity-type": "reserved"},
 		0.1008, true, "~$0.1008", "~$73.58", "-"},
 	{"node-unkn", map[string]string{"karpenter.sh/capacity-type": "on-demand"},
@@ -173,7 +174,7 @@ func monthlyNames() []string {
 	return names
 }
 
-// R1, R2 and the counter-example on PRICE/H: the cells of each column.
+// monthly-price-columns R1, R2 and the counter-example on PRICE/H: the cells of each column.
 func TestMonthlyCells(t *testing.T) {
 	u := monthlyUI(t)
 	now := time.Now()
@@ -196,7 +197,7 @@ func TestMonthlyCells(t *testing.T) {
 	}
 }
 
-// R1, R2 on screen: each value sits in its own column of the node's row.
+// monthly-price-columns R1, R2 on screen: each value sits in its own column of the node's row.
 func TestMonthlyColumnsOnScreen(t *testing.T) {
 	u := monthlyUI(t)
 	out := u.View()
@@ -218,7 +219,7 @@ func TestMonthlyColumnsOnScreen(t *testing.T) {
 	}
 }
 
-// R2: IDLE/M is IDLE/H × 730 with two decimals and separators, on nodes
+// monthly-price-columns R2: IDLE/M is IDLE/H × 730 with two decimals and separators, on nodes
 // that have pods; no idle cost shows "-".
 func TestIdleMonthlyIsIdleHourlyTimes730(t *testing.T) {
 	u := demoUI(t)
@@ -265,7 +266,7 @@ func TestMonthlyColumnTitles(t *testing.T) {
 	}
 }
 
-// R3: the defaults and their order, in the state and on screen.
+// monthly-price-columns R3: the defaults and their order, in the state and on screen.
 func TestDefaultColumnsOrder(t *testing.T) {
 	want := []Field{FieldInstanceType, FieldPrice, FieldPriceMonthly, FieldIdleMonthly, FieldCapacity, FieldNodeGroup, FieldZone, FieldStatus}
 	if got := DefaultViewState().Columns; !slices.Equal(got, want) {
@@ -282,7 +283,7 @@ func TestDefaultColumnsOrder(t *testing.T) {
 // oldDefaults are the columns a cluster saved before this feature.
 var oldDefaults = []Field{FieldInstanceType, FieldPrice, FieldCapacity, FieldNodeGroup, FieldZone, FieldStatus}
 
-// R3: a saved view keeps its columns, no migration.
+// monthly-price-columns R3: a saved view keeps its columns, no migration.
 func TestSavedColumnsAreUntouched(t *testing.T) {
 	u := monthlyUI(t)
 	v := DefaultViewState()
@@ -303,7 +304,7 @@ func TestSavedColumnsAreUntouched(t *testing.T) {
 	}
 }
 
-// R3: the Columns panel of an old saved view lists the shown columns first,
+// monthly-price-columns R3: the Columns panel of an old saved view lists the shown columns first,
 // then offers PRICE/M, IDLE/M and IDLE/H.
 func TestColumnsPanelOfAnOldSavedView(t *testing.T) {
 	u := monthlyUI(t)
@@ -345,7 +346,7 @@ func pressOn(t *testing.T, u *UIModel, f Field, key string) {
 	press(u, key)
 }
 
-// R3: space shows or hides each price column on its own.
+// monthly-price-columns R3: space shows or hides each price column on its own.
 func TestColumnsPanelTogglesEachPriceColumn(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -390,7 +391,7 @@ func TestColumnsPanelTogglesEachPriceColumn(t *testing.T) {
 	}
 }
 
-// R3: K/J move a monthly column like any other.
+// monthly-price-columns R3: K/J move a monthly column like any other.
 func TestColumnsPanelMovesMonthlyColumns(t *testing.T) {
 	u := monthlyUI(t)
 	press(u, "o")
@@ -404,7 +405,7 @@ func TestColumnsPanelMovesMonthlyColumns(t *testing.T) {
 	}
 }
 
-// R5: with pricing disabled none of the four price columns is drawn, and no
+// monthly-price-columns R5: with pricing disabled none of the four price columns is drawn, and no
 // node row shows a price.
 func TestDisablePricingLeavesOutAllPriceColumns(t *testing.T) {
 	u := monthlyUI(t)
@@ -435,7 +436,7 @@ func TestDisablePricingLeavesOutAllPriceColumns(t *testing.T) {
 	}
 }
 
-// R6: at 120 columns, cpu only, PRICE/M, CAPACITY and STATUS stay, and any
+// monthly-price-columns R6: at 120 columns, cpu only, PRICE/M, CAPACITY and STATUS stay, and any
 // dropped column is less important than every kept one.
 func TestNarrowWindowKeepsTheMostImportantColumns(t *testing.T) {
 	order := []string{"STATUS", "PRICE/M", "CAPACITY", "PRICE/H", "IDLE/M", "INSTANCE", "IDLE/H", "NODEGROUP", "ZONE", "IP", "AGE", "REGION"}
@@ -473,7 +474,7 @@ func TestNarrowWindowKeepsTheMostImportantColumns(t *testing.T) {
 	}
 }
 
-// R4: the Sort panel keeps price and idle and has no monthly sort.
+// monthly-price-columns R4: the Sort panel keeps price and idle and has no monthly sort.
 func TestSortPanelHasNoMonthlyFields(t *testing.T) {
 	u := monthlyUI(t)
 	press(u, "s")
@@ -514,7 +515,7 @@ func dollars(t *testing.T, cell string) (float64, bool) {
 	return v, true
 }
 
-// R4: sorting by price or idle orders the monthly columns too, with the
+// monthly-price-columns R4: sorting by price or idle orders the monthly columns too, with the
 // nodes that have no value last.
 func TestSortingByPriceOrdersMonthlyColumns(t *testing.T) {
 	cases := []struct {
