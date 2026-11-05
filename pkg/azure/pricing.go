@@ -37,6 +37,7 @@ const Endpoint = "https://prices.azure.com/api/retail/prices"
 const (
 	requestTimeout = 20 * time.Second
 	retryAfter     = time.Minute
+	maxPages       = 20
 )
 
 // sizePrices are the prices of one VM size in one region; the has* fields
@@ -60,6 +61,7 @@ type Provider struct {
 	prices    map[key]*sizePrices
 	wanted    map[key]bool
 	failedAt  time.Time
+	cutShort  map[string]bool // regions whose cut-short answer was logged
 	onUpdate  []func()
 	wake      chan struct{}
 	startOnce sync.Once
@@ -73,7 +75,7 @@ func NewProvider(ctx context.Context, endpoint string) *Provider {
 		client: &http.Client{Timeout: requestTimeout},
 		now:    time.Now,
 		retry:  retryAfter,
-		prices: map[key]*sizePrices{}, wanted: map[key]bool{},
+		prices: map[key]*sizePrices{}, wanted: map[key]bool{}, cutShort: map[string]bool{},
 		wake: make(chan struct{}, 1),
 	}
 }
@@ -224,7 +226,8 @@ func (p *Provider) fetch(region string, sizes []string) (map[string]*sizePrices,
 	}
 	best := map[string]map[string]pick{} // size → variant → latest price
 	now := p.now()
-	for pages := 0; next != "" && pages < 20; pages++ {
+	pages := 0
+	for ; next != "" && pages < maxPages; pages++ {
 		page, err := p.get(next)
 		if err != nil {
 			return nil, err
@@ -237,11 +240,25 @@ func (p *Provider) fetch(region string, sizes []string) (map[string]*sizePrices,
 			if best[it.ArmSkuName] == nil {
 				best[it.ArmSkuName] = map[string]pick{}
 			}
-			if cur, seen := best[it.ArmSkuName][variant]; !seen || it.EffectiveStartDate.After(cur.at) {
+			// a later date wins; on the same date the lower price, so the
+			// API's order never decides (fix-azure-price-product R3)
+			cur, seen := best[it.ArmSkuName][variant]
+			if !seen || it.EffectiveStartDate.After(cur.at) ||
+				(it.EffectiveStartDate.Equal(cur.at) && it.UnitPrice < cur.price) {
 				best[it.ArmSkuName][variant] = pick{it.UnitPrice, it.EffectiveStartDate}
 			}
 		}
 		next = page.NextPageLink
+	}
+	if next != "" {
+		// defensive: a filtered answer is one page (fix-azure-price-product R4)
+		p.mu.Lock()
+		first := !p.cutShort[region]
+		p.cutShort[region] = true
+		p.mu.Unlock()
+		if first {
+			log.Printf("Azure pricing for %s: answer cut short after %d pages, some sizes have no price", region, pages)
+		}
 	}
 	out := map[string]*sizePrices{}
 	for size, variants := range best {
@@ -264,14 +281,15 @@ func (p *Provider) fetch(region string, sizes []string) (map[string]*sizePrices,
 }
 
 // variantOf names the price an item is: regular, spot, windows or
-// windowsSpot; false for items never used (Low Priority, other units).
+// windowsSpot; false for items never used (Low Priority, other units, Cloud
+// Services).
 func variantOf(it retailItem) (string, bool) {
 	if it.Type != "Consumption" || it.UnitOfMeasure != "1 Hour" || it.CurrencyCode != "USD" ||
-		strings.Contains(it.MeterName, "Low Priority") {
+		strings.Contains(it.MeterName, "Low Priority") || isCloudServices(it.ProductName) {
 		return "", false
 	}
 	spot := strings.HasSuffix(it.MeterName, " Spot")
-	windows := strings.Contains(it.ProductName, "Windows")
+	windows := isWindows(it.ProductName)
 	switch {
 	case windows && spot:
 		return "windowsSpot", true
@@ -281,6 +299,28 @@ func variantOf(it retailItem) (string, bool) {
 		return "spot", true
 	}
 	return "regular", true
+}
+
+// isCloudServices tells a Cloud Services product ("Easv5 Series
+// CloudServices", "Dasv5 Series Cloud Services"): the same sizes at the
+// Windows rate, never a node's price (fix-azure-price-product R1). Not
+// logged: it is expected, and logs reach the header.
+func isCloudServices(product string) bool {
+	return strings.Contains(strings.ToLower(strings.ReplaceAll(product, " ", "")), "cloudservices")
+}
+
+// isWindows tells a Windows product: "Windows" in the name, or "Win" as a
+// word ("Virtual Machines NCCadsv5 Srs Win"; fix-azure-price-product R2).
+func isWindows(product string) bool {
+	if strings.Contains(product, "Windows") {
+		return true
+	}
+	for _, w := range strings.FieldsFunc(product, func(r rune) bool { return r == ' ' || r == '-' }) {
+		if w == "Win" {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Provider) get(u string) (retailPage, error) {

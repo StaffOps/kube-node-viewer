@@ -206,8 +206,8 @@ func (m *Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) 
 
 func (m *Controller) updatePrice(node *model.Node) {
 	// If the node has the instance-price override label, don't look up pricing
-	// and use the value here. The new prefix wins over the upstream one, and a
-	// value that doesn't parse falls through to the next source.
+	// and use the value here; a value that doesn't parse falls through to the
+	// lookup.
 	labels := node.Labels()
 	for _, key := range []string{model.LabelPrefix + "instance-price"} {
 		if val, ok := labels[key]; ok {
