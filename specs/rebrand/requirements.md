@@ -128,9 +128,23 @@ modification note of D5; new code is licensed Apache 2.0.
 - [ ] Every `.go`/`.sh` file in `git diff --name-only --diff-filter=M af96088`
   contains the D5 note.
 
-_Test: manual — license files and headers, reviewed with the rebrand; the
-`pre-commit` hook checks the header of each new file only. A check over
-every file would fail today (TODO.md) (marker added 2026-11-05)._
+_Test: ci (R8) — `scripts/checks/headers.sh` in `verify.sh` (the `verify`
+job): every `.go`/`.sh`/`.py` file and git hook has the Apache header, every
+upstream file changed since the import carries the D5 note, `LICENSE` is the
+imported one and `NOTICE` keeps its first line; its cases are in
+`scripts/checks/test-checks.sh` (marker changed 2026-11-05)._
+
+> **Corrected 2026-11-05.** The criteria above name `af96088`, which is no
+> longer reachable (ADR-005); the check compares against the import commit
+> `f3aceaa`, which has the same tree. The two static price tables changed
+> since the import (`pkg/aws/zz_generated_aws.pricing.go`,
+> `zz_generated_aws_us_gov.pricing.go`) carry no D5 note: `make prices`
+> copies them verbatim from Karpenter, header included, and they are never
+> edited by hand, so a note would be lost on the next refresh and would
+> claim a change this project did not make. Twelve scripts without a header
+> (the git hooks, the agent hooks, `scripts/build.sh`, `verify.sh`,
+> `spec-lint.sh`, `hack/gen_licenses.sh`) got one, and `pkg/model/stats.go`,
+> `style.go` and `pkg/text/colortabwriter.go` got the D5 note.
 
 > **Corrected 2026-11-04.** After a history rewrite, `af96088` is no
 > longer reachable from any branch or tag, although GitHub still serves it

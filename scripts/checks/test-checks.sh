@@ -348,6 +348,34 @@ if command -v python3 >/dev/null 2>&1; then
   spec "drift: pull_request base is HEAD^1"         blocked "git checkout -q -b pr && sed -i.b 's/\"quit\"/\"leave\"/' pkg/model/panels.go && rm pkg/model/*.b && git add -A && git commit -q -m 'fix: wording' && git checkout -q main && git merge -q --no-ff -m merge pr && GITHUB_EVENT_NAME=pull_request python3 scripts/drift-check.py"
 else skipped "spec gates" python3; fi
 
+echo "== license headers"
+hd=$tmp/headers-repo
+git init -q -b main "$hd"
+mkdir -p "$hd/scripts/checks" "$hd/pkg/aws"
+cp "$src/scripts/checks/headers.sh" "$hd/scripts/checks/"
+lic='Licensed under the Apache License, Version 2.0'
+printf 'Apache License\n' > "$hd/LICENSE"
+printf 'upstream notice\n' > "$hd/NOTICE"
+printf '/*\n%s\n*/\n\npackage x\n' "$lic" > "$hd/up.go"
+printf '/*\n%s\n*/\n\npackage aws\n' "$lic" > "$hd/pkg/aws/zz_generated_aws.pricing.go"
+(cd "$hd" && git add -A && git -c user.name=x -c user.email=x@example.com commit -q --no-verify -m import)
+himp=$(git -C "$hd" rev-parse HEAD)
+headers() {
+  name=$1 want=$2 cmd=$3
+  git -C "$hd" reset -q --hard "$himp"; git -C "$hd" clean -qfdx
+  out=$(cd "$hd" && sh -c "$cmd" 2>&1 && git add -A && KNV_IMPORT_COMMIT=$himp sh scripts/checks/headers.sh 2>&1)
+  verdict "$name" "$want" $? "$out"
+}
+headers "headers: untouched import"                 passes  "true"
+headers "headers: upstream file changed, no note"   blocked:"upstream file changed since the import without the modification note" "printf '// x\n' >> up.go"
+headers "headers: upstream file changed, with note" passes  "printf '// Modified by the kube-node-viewer authors, 2026.\n' >> up.go"
+headers "headers: new script without a header"      blocked:"no Apache license header" "printf '#!/bin/sh\necho\n' > new.sh"
+headers "headers: price table refreshed"            passes  "printf '// refreshed\n' >> pkg/aws/zz_generated_aws.pricing.go"
+headers "headers: LICENSE changed"                  blocked:"LICENSE differs from the imported one" "printf 'x\n' >> LICENSE"
+headers "headers: NOTICE first line changed"        blocked:"NOTICE first line changed" "printf 'other\n' > NOTICE"
+out=$(cd "$hd" && KNV_IMPORT_COMMIT=0000000000000000000000000000000000000000 sh scripts/checks/headers.sh 2>&1)
+verdict "headers: import commit missing"             blocked $? "$out"
+
 echo "== push (pre-push)"
 
 reset
