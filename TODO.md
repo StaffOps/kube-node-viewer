@@ -55,12 +55,6 @@ memory. Listed by impact.
       and under R5 the next PR's `release-snapshot` "no release files
       changed" pass.
       _Why:_ attestation can only be proven on a published release.
-- [ ] Bugfix specs are never marked shipped: `ship_specs` in
-      `scripts/release-prepare.py` reads only `requirements.md`, so a
-      `fix-*/bugfix.md` stays **active** after its release
-      ([ADR-003](specs/decisions/ADR-003-release-from-changelog-headings.md)).
-      _Why:_ the specs index keeps showing released fixes as **active**,
-      as if still in progress.
 - [ ] Regenerate `.static/demo.gif` with `scripts/screenshots.sh`: its
       captions now fold with `space` and show `enter` focusing a group
       ([group-focus](specs/group-focus/tasks.md) T4). _Why:_ the GIF still
@@ -75,9 +69,10 @@ memory. Listed by impact.
 - [ ] `pkg/model/node.go` imports `aws-sdk-go-v2/service/ec2/types`, which
       crosses the "AWS SDK only in `pkg/aws`" rule (upstream code, there at
       the import). _Why:_ the model should not depend on a cloud SDK.
-- [ ] spec-lint checks the decision sections only for `### D<n>` headings;
-      `aks-pricing` and `node-details` use `## D<n>.` and pass unchecked.
-      _Why:_ a design without "When this would be wrong" passed the gate.
+- [ ] spec-lint counts the "When this would be wrong" and "Reversal action"
+      markers over the whole design, not per decision: two decisions with
+      both markers under one pass ([fix-spec-tooling](specs/fix-spec-tooling/bugfix.md)).
+      _Why:_ a decision can still ship without its own failure case.
 - [ ] Azure prices: one failure time is shared by every region, so a
       failure in one region delays new sizes in all of them by a minute
       ([aks-pricing](specs/aks-pricing/design.md) D2). _Why:_ clusters

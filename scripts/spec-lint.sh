@@ -67,6 +67,10 @@ for dir in specs/*/; do
     *) err "$name: status '${status:-none}' on '> Status:' is not draft, active, shipped or superseded" ;;
   esac
 
+  # the index entry says the same status as the spec (fix-spec-tooling R3)
+  listed=$(grep -E "\]\($name/\) — \*\*[a-z]+\*\*" "$index" | sed -E 's/.* — \*\*([a-z]+)\*\*.*/\1/' | head -1)
+  [ -z "$listed" ] || [ "$listed" = "$status" ] || err "$name: $index lists it as $listed, its status line says ${status:-none}"
+
   # an active or shipped spec names its independent review on the status
   # line: 'Reviewed: <date> (spec-refuter…' or 'Reviewed: spec-refuter
   # <date>' (AGENTS.md step 2)
@@ -83,7 +87,8 @@ for dir in specs/*/; do
   fi
 
   if [ -f "$dir/design.md" ]; then
-    decisions=$(grep -cE '^### D[0-9]+' "$dir/design.md")
+    # '## D1. …' and '### D1: …' alike, not '## Decisions' (fix-spec-tooling R2)
+    decisions=$(grep -cE '^#{2,3} D[0-9]+([.: ]|$)' "$dir/design.md")
     wrong=$(grep -cE '\*\*When this would be wrong\*\*' "$dir/design.md")
     reversal=$(grep -cE '\*\*Reversal action\*\*' "$dir/design.md")
     [ "$wrong" -ge "$decisions" ] || err "$name: $decisions decisions but $wrong 'When this would be wrong'"

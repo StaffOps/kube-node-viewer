@@ -1,6 +1,10 @@
 # Bugfix: export-search
 
-> Status: active · Reported: 2026-11-04 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 5 MEDIUM, 4 LOW, applied) · 2026-11-05 (spec-refuter, code 2026-11-05; 5 LOW, applied)
+> Status: shipped (v0.14.0, 2026-11-05) · Reported: 2026-11-04 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 5 MEDIUM, 4 LOW, applied) · 2026-11-05 (spec-refuter, code 2026-11-05; 5 LOW, applied)
+
+> **Corrected 2026-11-05.** Marked shipped by hand: this fix shipped in
+> v0.14.0, when `scripts/release-prepare.py` did not ship bugfix specs
+> ([fix-spec-tooling](../fix-spec-tooling/bugfix.md)).
 
 Found in the [`search-negation`](../search-negation/) cluster run
 (2026-11-04) and listed in `TODO.md`.

@@ -58,6 +58,13 @@ With `--write` it also:
   `Status: active` with all tasks done. Bugfix specs (`bugfix.md`) are
   not handled and stay **active**.
 
+> **Corrected 2026-11-05.** Bugfix specs are handled now: `--write` also
+> ships a `fix-*` spec from its `bugfix.md`, and reads the status only from
+> a spec's first `> Status:` line
+> ([fix-spec-tooling](../fix-spec-tooling/bugfix.md)). The consequence
+> "Bugfix specs have to be marked shipped by hand" below no longer holds;
+> the six shipped in v0.14.0 were marked by hand once.
+
 The workflow then:
 
 - runs `make vuln licenses`;
