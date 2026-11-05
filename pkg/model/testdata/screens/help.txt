@@ -16,7 +16,7 @@
                              memory│ s           sort: any column, usage or label; flip ↑/↓                                           │
   ip-10-0-11-93.ec2.internal cpu   │ I           flip the sort ↑/↓ without opening the Sort panel                                     │-arm   us-east-1a  Ready
                              memory│ o           columns: show, hide, reorder                                                         │
-  ip-10-0-13-40.ec2.internal cpu   │ /           search name, IP, instance type, labels (regex, any case); esc clears                 │ult    us-east-1c  Ready
+  ip-10-0-13-40.ec2.internal cpu   │ /           search name, IP, type, labels (regex, any case; !x: not x; key=value); esc clears    │ult    us-east-1c  Ready
                              memory│ r           resources: cpu → memory → cpu+memory                                                 │
   ip-10-0-12-15.ec2.internal cpu   │ c           switch to another kubeconfig context                                                 │ult    us-east-1b  Ready
                              memory│ :           command: overview (ov), recommendations (rec); tab completes                         │
