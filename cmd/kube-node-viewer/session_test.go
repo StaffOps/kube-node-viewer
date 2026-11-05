@@ -23,6 +23,8 @@ import (
 )
 
 // interactive-tui R10: each connection gets the pricing of its server.
+// aks-pricing R2: with --disable-pricing no Azure provider is built, so
+// nothing is fetched from Azure.
 // Tests for specs/fix-aws-pricing-region: which AWS provider each kind of
 // API server gets, and that the Recommendations advisor still finds it.
 func TestSessionPricingPerServer(t *testing.T) {
@@ -70,6 +72,12 @@ func TestSessionPricingPerServer(t *testing.T) {
 			}
 			if _, regional := awsP.(*aws.ByRegion); regional != tt.regional {
 				t.Errorf("AWS provider %T, per-region %v, want %v", awsP, regional, tt.regional)
+			}
+			if tt.disable {
+				switch p.(type) {
+				case pricing.ByCloud, *pricing.ByCloud:
+					t.Errorf("pricing off, but %T can reach the Azure prices API", p)
+				}
 			}
 			if newAdvisor(p) == nil {
 				t.Error("no Recommendations advisor for this provider")

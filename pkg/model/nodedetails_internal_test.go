@@ -254,3 +254,37 @@ func TestNodeDetailsScrollKeysUnchanged(t *testing.T) {
 		}
 	}
 }
+
+// The popup follows the live node: a changed value shows on the next frame;
+// labels are sorted by key; enter closes it like esc.
+// node-details R1
+func TestDetailsAreLiveSortedAndEnterCloses(t *testing.T) {
+	u := detailsUI(t)
+	press(u, "enter")
+	out := ansi.Strip(u.View())
+	if !strings.Contains(out, "$1.0060/h") {
+		t.Fatalf("price before the change:\n%s", out)
+	}
+	keys := []string{"karpenter.sh/capacity-type=", "karpenter.sh/nodepool=", "node.kubernetes.io/instance-type=",
+		"topology.kubernetes.io/region=", "topology.kubernetes.io/zone="}
+	last := -1
+	for _, k := range keys {
+		i := strings.Index(out, k)
+		if i < 0 || i < last {
+			t.Errorf("label %q missing or out of key order:\n%s", k, out)
+		}
+		last = i
+	}
+
+	n, _ := u.cluster.GetNodeByName("aaa-gpu-node")
+	n.SetPrice(2)
+	u.Refresh()
+	if out := ansi.Strip(u.View()); !strings.Contains(out, "$2.0000/h") || u.panel != panelNode {
+		t.Errorf("the popup did not follow the new price:\n%s", out)
+	}
+
+	press(u, "enter")
+	if u.panel != panelNone {
+		t.Errorf("enter did not close the details (panel %v)", u.panel)
+	}
+}

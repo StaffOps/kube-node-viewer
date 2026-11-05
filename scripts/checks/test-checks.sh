@@ -327,7 +327,7 @@ if command -v python3 >/dev/null 2>&1; then
   spec "spec lint: active without spec-refuter"     blocked "sed -i.b 's/(spec-refuter)/(owner)/' specs/demo/requirements.md && rm specs/demo/*.b && bash scripts/spec-lint.sh"
   spec "spec lint: spec-refuter not run"            blocked "sed -i.b 's/(spec-refuter)/(code-review; spec-refuter not run)/' specs/demo/requirements.md && rm specs/demo/*.b && bash scripts/spec-lint.sh"
   spec "spec lint: unknown status"                  blocked "sed -i.b 's/Status: draft/Status: wip/' specs/rough/requirements.md && rm specs/rough/*.b && bash scripts/spec-lint.sh"
-  spec "spec lint: reviewed but still UNREVIEWED"   blocked "git mv -k specs/demo specs/sort-invert && sed -i.b 's/demo/sort-invert/g' specs/README.md && rm specs/*.b && bash scripts/spec-lint.sh"
+  spec "spec lint: reviewed but still UNREVIEWED"   blocked "sed -i.b 's/^UNREVIEWED=.*/UNREVIEWED=\"demo\"/' scripts/spec-lint.sh && rm scripts/*.b && bash scripts/spec-lint.sh"
   spec "spec tasks: code under a draft spec"        blocked "printf 'x\n' >> specs/rough/design.md && printf '\n' >> pkg/model/view.go && python3 scripts/spec-tasks-check.py \$B"
   spec "spec tasks: a script under a draft spec"    blocked "printf 'x\n' >> specs/rough/design.md && printf '\n' >> scripts/spec-lint.sh && python3 scripts/spec-tasks-check.py \$B"
   spec "spec tasks: code under an active spec"      passes  "printf 'x\n' >> specs/demo/design.md && printf '\n' >> pkg/model/view.go && python3 scripts/spec-tasks-check.py \$B"

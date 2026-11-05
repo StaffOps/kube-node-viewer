@@ -51,6 +51,33 @@ func TestUpdatePriceLabelPrefixes(t *testing.T) {
 	}
 }
 
+// The override label wins on an AKS node too: the Azure provider is never
+// consulted for it.
+// aks-pricing R1
+func TestUpdatePriceOverrideOnAKSNode(t *testing.T) {
+	node := model.NewNode(&v1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: "aks-node", Labels: map[string]string{
+			model.LabelPrefix + "instance-price": "0.5",
+			v1.LabelTopologyRegion:               "eastus2",
+			v1.LabelInstanceTypeStable:           "Standard_D2s_v5",
+		}},
+		Spec: v1.NodeSpec{ProviderID: "azure:///subscriptions/s/resourceGroups/rg/providers/Microsoft.Compute/virtualMachineScaleSets/x/virtualMachines/0"},
+	})
+	calls := &countingPricing{}
+	(&Controller{pricing: calls}).updatePrice(node)
+	if node.Price() != 0.5 {
+		t.Errorf("price = %v, want the label's 0.5", node.Price())
+	}
+	if calls.n != 0 {
+		t.Errorf("the provider was asked %d times despite the override", calls.n)
+	}
+}
+
+type countingPricing struct{ n int }
+
+func (p *countingPricing) NodePrice(*model.Node) (float64, bool) { p.n++; return 9, true }
+func (p *countingPricing) OnUpdate(func())                       {}
+
 func TestUpdatePriceReservedIsEquivalent(t *testing.T) {
 	reserved := model.NewNode(&v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "r",
 		Labels: map[string]string{"karpenter.sh/capacity-type": "reserved"}}})

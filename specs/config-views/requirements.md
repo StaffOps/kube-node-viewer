@@ -1,6 +1,20 @@
 # Requirements: config-views
 
-> Status: shipped (v0.12.0, 2026-11-03) · Owner: sule · Reviewed: 2026-11-02 (code-review agent, round 1; findings applied; approved by owner 2026-11-03)
+> Status: shipped (v0.12.0, 2026-11-03) · Owner: sule · Reviewed: 2026-11-04 (spec-refuter, retroactive; 2 MEDIUM, 4 LOW; applied), earlier 2026-11-03 (spec-refuter, commit 23a0008) and 2026-11-02 (code-review agent, round 1; findings applied; approved by owner 2026-11-03)
+
+> **Corrected 2026-11-05.** The header named only the code-review round;
+> a spec-refuter review was also applied on 2026-11-03 (commit 23a0008).
+> A retroactive spec-refuter review on 2026-11-04 found the code matching
+> R1–R8 as amended. Three of its findings were fixed in
+> [fix-config-case](../fix-config-case/bugfix.md): built-in names in another
+> case (`columns: [INSTANCE]`) loaded as empty look-alike label columns,
+> a repeated YAML key gave a raw two-line error, and `PRICE/M` in
+> `columns` gave no hint. The connection
+> switch (`sessions.Switch`: explicit flags only on the first connection,
+> `opened` only after a successful connect, the save callback feeding both
+> the start views and the state file) is not unit-tested; it is covered by
+> the T6 cluster run only. R5 (`start-with: last-view`) and the R3 name
+> clashes are unit-tested but were not part of that run.
 
 ## Context
 

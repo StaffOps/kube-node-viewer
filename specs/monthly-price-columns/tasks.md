@@ -12,3 +12,8 @@
   - _Covers: R1–R6 · Depends on: T1–T3 · Verified by: command output and the cluster run, recorded here as a dated note_
   - _Note (2026-11-03): added when merging main; the release gate now needs the cluster run before merge._
   - _Note (2026-11-03): the author ran it on a cluster; confirmed by the owner. `scripts/verify.sh`, `make lint` and `scripts/build.sh` green on the merged branch._
+
+> **Corrected 2026-11-05.** The note above does not record `make check`
+> (vuln, licenses, hook tests) or the three cluster checks T4 names (the
+> monthly columns show, the narrow-window drop order, `--disable-pricing`);
+> only verify, lint and build are recorded as passing.

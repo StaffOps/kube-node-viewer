@@ -1,6 +1,12 @@
 # Requirements: sort-invert
 
-> Status: shipped (v0.9.1, 2026-11-03) · Owner: Carlos Gomes · Reviewed: 2026-11-02 (code-review agent; spec-refuter not run)
+> Status: shipped (v0.9.1, 2026-11-03) · Owner: Carlos Gomes · Reviewed: 2026-11-04 (spec-refuter, retroactive; 1 MEDIUM, 1 LOW; applied), earlier 2026-11-02 (code-review agent)
+
+> **Corrected 2026-11-05.** A retroactive spec-refuter review found every
+> requirement matched by the code and covered by `sortinvert_internal_test.go`.
+> No verify task or cluster run was recorded; the spec and the code landed
+> in one commit. Line references in the design are as of 2026-11-02 and
+> have since moved.
 
 ## Context
 

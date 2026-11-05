@@ -13,6 +13,14 @@ behaviour for EKS, kind and the override label is unchanged.
 dispatching per node keeps it unaware of clouds and lets one cluster mix
 both, which a per-session choice by server URL could not.
 
+> **Corrected 2026-11-05.** The decision format asks for more than a
+> rationale (retroactive review). Trade-offs: every node pays one map
+> lookup on its provider-ID scheme; an unknown scheme falls back to AWS,
+> which prices nothing without AWS labels. **When this would be wrong**: a
+> cloud whose provider IDs do not name it, or nodes priced by a source
+> other than their cloud. **Reversal action**: a per-session provider
+> chosen by the API server URL, as before v0.9.0.
+
 ## D2. Cache and fetch
 
 The Azure provider keeps `region|size → {regular, spot, windows,
@@ -23,6 +31,13 @@ without items as unknown, and calls the `OnUpdate` functions.
 
 **Rationale:** the region has thousands of VM items (dozens of pages); a
 cluster has a handful of sizes, so a filtered query is one page.
+
+> **Corrected 2026-11-05.** Trade-offs (retroactive review): one failure
+> time is shared by every region, so a failure in one region delays new
+> sizes in all of them by the retry delay; a fetch stops after 20 pages.
+> **When this would be wrong**: clusters spanning many regions, or sizes
+> whose answer is longer than 20 pages. **Reversal action**: keep the
+> failure time per region, and raise or drop the page cap.
 
 ## D3. Matching
 
@@ -38,3 +53,11 @@ latest `effectiveStartDate` not in the future wins.
 > showed the Windows price. Cloud Services items are now ignored, `Win` as
 > a word means Windows, and on equal dates the lower price wins —
 > [fix-azure-price-product](../fix-azure-price-product/bugfix.md).
+
+> **Corrected 2026-11-05.** Trade-offs (retroactive review): the rules are
+> read from product and meter names, which Azure does not document as
+> stable. **When this would be wrong**: a product family that names its
+> variant differently, which happened (see the correction above and
+> [fix-azure-price-product](../fix-azure-price-product/bugfix.md)).
+> **Reversal action**: match on the API's `skuName`/`productId` fields
+> instead of names.

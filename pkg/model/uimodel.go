@@ -44,8 +44,9 @@ var (
 	inactiveDot = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "250", Dark: "238"}).Render("•")
 )
 
-// avgHoursPerMonth turns an hourly price into a monthly one
-const avgHoursPerMonth = (365 * 24) / 12
+// avgHoursPerMonth turns an hourly price into a monthly one; the same
+// factor as the Recommendations screen (monthly-price-columns counter-example)
+const avgHoursPerMonth = recommend.HoursPerMonth
 
 // ClusterInfo names the cluster on screen, for the header (R16).
 type ClusterInfo struct {
