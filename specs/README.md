@@ -57,7 +57,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     node list.
     [requirements](node-pods/requirements.md) ·
     [design](node-pods/design.md) · [tasks](node-pods/tasks.md)
-12. [`search-regex/`](search-regex/) — **active**. The `/` search takes a regular
+12. [`search-regex/`](search-regex/) — **shipped** in v0.14.0. The `/` search takes a regular
     expression (`a|b`, `^name$`); text with no regex characters but `.`
     matches as before.
     [requirements](search-regex/requirements.md) ·
@@ -81,17 +81,17 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     `Zone`, `PRICE/M`) instead of reading it as an empty label; YAML errors
     on one line. [bugfix](fix-config-case/bugfix.md) ·
     [tasks](fix-config-case/tasks.md)
-17. [`release-provenance/`](release-provenance/) — **active**. SLSA build
+17. [`release-provenance/`](release-provenance/) — **shipped** in v0.14.0. SLSA build
     provenance for every release file, signing in its own job, and a
     goreleaser snapshot on PRs that change the release.
     [requirements](release-provenance/requirements.md) ·
     [design](release-provenance/design.md) ·
     [tasks](release-provenance/tasks.md)
-18. [`group-focus/`](group-focus/) — **active**. `enter` on a group heading
+18. [`group-focus/`](group-focus/) — **shipped** in v0.14.0. `enter` on a group heading
     shows only that group's nodes; `esc` goes back; folding moves to
     `space`. [requirements](group-focus/requirements.md) ·
     [design](group-focus/design.md) · [tasks](group-focus/tasks.md)
-19. [`search-negation/`](search-negation/) — **active**. `/!text` keeps the
+19. [`search-negation/`](search-negation/) — **shipped** in v0.14.0. `/!text` keeps the
     nodes the text does not match; text with `=` also matches labels as
     `key=value` (`/key=` for "has the label").
     [requirements](search-negation/requirements.md) ·

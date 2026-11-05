@@ -1,6 +1,6 @@
 # Requirements: search-negation
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-04 (spec-refuter, two rounds; findings applied)
+> Status: shipped (v0.14.0, 2026-11-05) · Owner: Carlos Gomes · Reviewed: 2026-11-04 (spec-refuter, two rounds; findings applied)
 
 ## Context
 

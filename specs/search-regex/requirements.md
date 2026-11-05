@@ -1,6 +1,6 @@
 # Requirements: search-regex
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-04 (spec-refuter, two rounds)
+> Status: shipped (v0.14.0, 2026-11-05) · Owner: Carlos Gomes · Reviewed: 2026-11-04 (spec-refuter, two rounds)
 
 ## Context
 

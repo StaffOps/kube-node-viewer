@@ -1,6 +1,6 @@
 # Requirements: release-provenance
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-04 (spec-refuter; 1 BLOCKING, 2 HIGH, 5 MEDIUM, 6 LOW, applied)
+> Status: shipped (v0.14.0, 2026-11-05) · Owner: Carlos Gomes · Reviewed: 2026-11-04 (spec-refuter; 1 BLOCKING, 2 HIGH, 5 MEDIUM, 6 LOW, applied)
 
 ## Context
 

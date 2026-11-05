@@ -1,6 +1,6 @@
 # Requirements: group-focus
 
-> Status: active · Owner: sule · Reviewed: 2026-11-04 (spec-refuter, three rounds; findings fixed)
+> Status: shipped (v0.14.0, 2026-11-05) · Owner: sule · Reviewed: 2026-11-04 (spec-refuter, three rounds; findings fixed)
 
 ## Context
 
