@@ -76,7 +76,12 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     [bugfix](fix-aws-pricing-region/bugfix.md) ·
     [design](fix-aws-pricing-region/design.md) ·
     [tasks](fix-aws-pricing-region/tasks.md)
-16. [`decisions/`](decisions/) — decision records (index below).
+16. [`fix-config-case/`](fix-config-case/) — **active**. `config.yaml`
+    refuses a built-in name or column title in another case (`INSTANCE`,
+    `Zone`, `PRICE/M`) instead of reading it as an empty label; YAML errors
+    on one line. [bugfix](fix-config-case/bugfix.md) ·
+    [tasks](fix-config-case/tasks.md)
+17. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
