@@ -30,6 +30,9 @@ set -u
 unset $(git rev-parse --local-env-vars 2>/dev/null) GIT_NAMESPACE GIT_CEILING_DIRECTORIES \
   GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL \
   GIT_TEMPLATE_DIR CLAUDE_PROJECT_DIR
+# in a CI pull_request run changelog-check compares with HEAD^1, which the
+# throwaway repository lacks; the selftest is a local run
+unset GITHUB_EVENT_NAME GITHUB_ACTIONS
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 src=$(cd "$(dirname "$0")/../.." && pwd)
 hooks=$src/.kiro/hooks/kube-node-viewer.json
