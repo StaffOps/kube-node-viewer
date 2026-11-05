@@ -46,8 +46,6 @@ kube-node-viewer: reading legacy config ~/.eks-node-viewer; move it to ~/.kube-n
   `grep -rn 'github.com/awslabs/eks-node-viewer' --include='*.go' --include=go.mod --include='*.yaml' .` is empty.
 - [ ] After the first push and tag: `go install github.com/staffops/kube-node-viewer/cmd/kube-node-viewer@<tag>` produces `kube-node-viewer`.
 
-
-
 **R2** WHEN the binary runs THEN it SHALL identify itself as
 `kube-node-viewer` (`-version`, `-h` usage text, flag descriptions), and WHEN
 it was built without ldflags THEN `-version` SHALL report the module version

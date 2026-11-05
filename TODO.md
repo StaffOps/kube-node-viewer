@@ -57,6 +57,13 @@ memory. Listed by impact.
 
 ## Follow-ups
 
+- [ ] **License headers everywhere** (rebrand R8): about ten shell scripts
+      (`.githooks/*`, `scripts/agent-hooks/*.sh`, `scripts/build.sh`,
+      `hack/gen_licenses.sh`) have no Apache header, and five upstream Go
+      files changed since the import (`pkg/model/stats.go`, `style.go`,
+      `pkg/text/colortabwriter.go`, the two `zz_generated` price tables) lack
+      the D5 note. Add them, then a check over every file cited for R8.
+      _Why:_ `pre-commit` checks only new files, so R8 is manual today.
 - [ ] **Check the first attested release** (0.14.0): the release run's
       `check` job, then `gh attestation verify` (README "Verifying a
       release") on a downloaded archive and on an SBOM; record it under

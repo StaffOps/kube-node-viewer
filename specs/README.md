@@ -126,14 +126,18 @@ mechanical parts.
     significant decision: choice, justification (strongest first),
     trade-offs, **when it would be wrong**, **reversal action**, alternatives.
     Invariants. Pure reference tables are exempt from the decision format.
-  - Each requirement is named by the test that checks it, in a comment
-    line that gives the spec's folder name and then the requirement:
-    `// node-pods R3`, `// search-regex R1, R2` or `// config-views R1-R6`
-    (a range names each one). One no automated test can check (docs, CI
-    behaviour, a run on a cluster) carries `_Test: manual — <how it is
-    checked>._` inside its block; one a dated note withdrew carries
-    `_Test: withdrawn — <the note>._` (markers may be added to a shipped
-    spec). `scripts/spec-trace.py` fails CI otherwise.
+  - Each requirement is named by the test that checks it, in the comment
+    block right above its `func Test…` (or `t.Run(`), on a line that gives
+    the spec's folder name and then the requirement: `// node-pods R3`,
+    `// search-regex R1, R2` or `// config-views R1-R3` (a range names each
+    one). A file header does not count. One no automated test can check
+    carries a marker inside its block, or anywhere with its id:
+    `_Test: manual — <how it is checked>._` (docs, a run on a cluster),
+    `_Test: ci — <the CI job>._` (CI behaviour), or
+    `_Test: withdrawn (R6) — <the dated note>._`. Markers may be added to a
+    shipped spec, dated. `scripts/spec-trace.py` fails CI on a requirement
+    with neither, and on a citation of an unknown or draft spec or of a
+    requirement the spec lacks.
   - `tasks.md` — Kiro checkbox list: `- [ ] T<n>. <task>` (`[-]` in
     progress, `[x]` done) with a `_Covers: R<n> · Depends on: … · Verified
     by: …_` line under each. Deferred work goes in a table with its

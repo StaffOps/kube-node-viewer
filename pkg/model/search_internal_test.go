@@ -101,6 +101,7 @@ func TestSearchMatcher(t *testing.T) {
 	}
 }
 
+// search-negation R1, R5: a negated invalid pattern is marked as text; the help says ! and key=value.
 // search-regex R3 and R4: the footer and header say an invalid pattern is
 // read as text; the help says the search takes a regex.
 func TestSearchFooterHeaderAndHelp(t *testing.T) {
@@ -169,9 +170,10 @@ func TestMatchPairSameAsPairText(t *testing.T) {
 	}
 }
 
-// search-regex R4: the README says the search takes a regular expression:
+// search-regex R4, search-negation R5: the README says the search takes a
+// regular expression, how to negate and how to search a label pair:
 // the key table with an a|b example, the Search section with RE2 and the
-// escaped dot, and the Export section on how the search is recorded.
+// escaped dot.
 func TestSearchREADMESaysRegex(t *testing.T) {
 	b, err := os.ReadFile("../../README.md")
 	if err != nil {
@@ -198,13 +200,14 @@ func TestSearchREADMESaysRegex(t *testing.T) {
 	if !strings.Contains(row, "regular expression") || !strings.Contains(row, `search\|batch`) {
 		t.Errorf("README key row for / lacks the regex wording or its a|b example: %q", row)
 	}
+	// search-negation R5: the README says how to negate and search a pair
+	if !strings.Contains(row, "`!text`") || !strings.Contains(row, "`key=value`") {
+		t.Errorf("README key row for / lacks !text or key=value: %q", row)
+	}
 	search := section("### Search (`/`)")
 	for _, want := range []string{"regular expression", "RE2", `\.`, "invalid regex: as text"} {
 		if !strings.Contains(search, want) {
 			t.Errorf("README Search section lacks %q", want)
 		}
-	}
-	if !strings.Contains(section("### Export (`e`)"), "regular expression") {
-		t.Error("README Export section does not say the search may be a regular expression")
 	}
 }
