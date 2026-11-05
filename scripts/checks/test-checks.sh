@@ -328,6 +328,13 @@ if command -v python3 >/dev/null 2>&1; then
   spec "spec lint: spec-refuter not run"            blocked "sed -i.b 's/(spec-refuter)/(code-review; spec-refuter not run)/' specs/demo/requirements.md && rm specs/demo/*.b && bash scripts/spec-lint.sh"
   spec "spec lint: unknown status"                  blocked "sed -i.b 's/Status: draft/Status: wip/' specs/rough/requirements.md && rm specs/rough/*.b && bash scripts/spec-lint.sh"
   spec "spec lint: reviewed but still UNREVIEWED"   blocked "sed -i.b 's/^UNREVIEWED=.*/UNREVIEWED=\"demo\"/' scripts/spec-lint.sh && rm scripts/*.b && bash scripts/spec-lint.sh"
+  # fix-spec-tooling R2: '## D1.', '### D1:' and a bare '### D1' are decisions
+  spec "spec lint: decision ## D1. without markers" blocked "printf '\\n## D1. A choice\\n\\nText.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
+  spec "spec lint: decision ### D1: without markers" blocked "printf '\\n### D1: A choice\\n\\nText.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
+  spec "spec lint: decision ### D1 bare, no markers" blocked "printf '\\n### D1\\n\\nText.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
+  # fix-spec-tooling R2: both forms with the markers pass; '## Decisions' is not one
+  spec "spec lint: decision, both forms with markers" passes "printf '\\n## D1. A\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n\\n### D2: B\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
+  spec "spec lint: decision, ## Decisions not counted" passes "printf '\\n## Decisions\\n\\nNone yet.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
   spec "spec tasks: code under a draft spec"        blocked "printf 'x\n' >> specs/rough/design.md && printf '\n' >> pkg/model/view.go && python3 scripts/spec-tasks-check.py \$B"
   spec "spec tasks: a script under a draft spec"    blocked "printf 'x\n' >> specs/rough/design.md && printf '\n' >> scripts/spec-lint.sh && python3 scripts/spec-tasks-check.py \$B"
   spec "spec tasks: code under an active spec"      passes  "printf 'x\n' >> specs/demo/design.md && printf '\n' >> pkg/model/view.go && python3 scripts/spec-tasks-check.py \$B"
@@ -347,6 +354,47 @@ if command -v python3 >/dev/null 2>&1; then
   spec "drift: trailer before the base"             blocked "git commit -q --allow-empty -m 'chore: x' -m 'Drift-check: skip — old' && nb=\$(git rev-parse HEAD) && sed -i.b 's/\"quit\"/\"leave\"/' pkg/model/panels.go && rm pkg/model/*.b && git add -A && git commit -q -m 'fix: wording' && python3 scripts/drift-check.py \$nb"
   spec "drift: pull_request base is HEAD^1"         blocked "git checkout -q -b pr && sed -i.b 's/\"quit\"/\"leave\"/' pkg/model/panels.go && rm pkg/model/*.b && git add -A && git commit -q -m 'fix: wording' && git checkout -q main && git merge -q --no-ff -m merge pr && GITHUB_EVENT_NAME=pull_request python3 scripts/drift-check.py"
 else skipped "spec gates" python3; fi
+
+echo "== release prepare"
+if command -v python3 >/dev/null 2>&1; then
+  rp=$tmp/release-repo
+  # rp CASE CHECK: a fresh tree with a feature spec, a done bugfix spec, an
+  # open bugfix spec, a draft whose prose quotes the status, a shipped spec
+  # whose note quotes it; release-prepare --write, then CHECK in that tree
+  rp() {
+    rm -rf "$rp"; mkdir -p "$rp/specs"
+    for d in feat fix-done fix-open rough old; do mkdir -p "$rp/specs/$d"; done
+    # shellcheck disable=SC2016 # backticks are markdown
+    printf '# Specs\n\n1. [`feat/`](feat/) — **active**. F.\n2. [`fix-done/`](fix-done/) — **active**. B.\n3. [`fix-open/`](fix-open/) — **active**. O.\n4. [`rough/`](rough/) — **draft**. R.\n5. [`old/`](old/) — **shipped** in v0.1.0. S.\n' > "$rp/specs/README.md"
+    printf '# R\n\n> Status: active · Owner: x\n' > "$rp/specs/feat/requirements.md"
+    printf '# D\n\n> Implements [requirements](requirements.md).\n' > "$rp/specs/feat/design.md"
+    printf '# B\n\n> Status: active · Reported: x\n\nThe text "Status: active" in prose.\n' > "$rp/specs/fix-done/bugfix.md"
+    printf '# B\n\n> Status: active · Reported: x\n' > "$rp/specs/fix-open/bugfix.md"
+    printf '# R\n\n> Status: draft · Owner: x\n\nWas it "Status: active"? No.\n> Status: active is quoted here.\n' > "$rp/specs/rough/requirements.md"
+    printf '# R\n\n> Status: shipped (v0.1.0, 2026-01-01) · Owner: x\n\n> **Corrected 2026-01-02.** It said Status: active by mistake.\n' > "$rp/specs/old/requirements.md"
+    for d in feat fix-done rough old; do printf '# T\n\n- [x] T1. Do it\n' > "$rp/specs/$d/tasks.md"; done
+    printf '# T\n\n- [x] T1. Do it\n- [-] T2. Doing it\n' > "$rp/specs/fix-open/tasks.md"
+    printf '# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n- A fix.\n\n## [0.1.0] - 2026-01-01\n\n### Added\n\n- First.\n\n[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.1.0...HEAD\n[0.1.0]: https://github.com/StaffOps/kube-node-viewer/releases/tag/v0.1.0\n' > "$rp/CHANGELOG.md"
+    [ "${RP_EMPTY:-}" ] && printf '# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-01-01\n\n- First.\n' > "$rp/CHANGELOG.md"
+    (cd "$rp" && find specs -type f -exec cksum {} + | sort > "$tmp/rp.before")
+    out=$(cd "$rp" && python3 -B "$src/scripts/release-prepare.py" --write --date 2026-02-02 --root . 2>&1 && sh -c "$2" 2>&1)
+    verdict "$1" passes $? "$out"
+  }
+  # fix-spec-tooling R1: a bugfix spec with every task done ships, files and index
+  rp "release prepare: a done bugfix spec ships" "grep -q '^> Status: shipped (v0.1.1, 2026-02-02) · Reported: x' specs/fix-done/bugfix.md && grep -q 'fix-done/) — \*\*shipped\*\* in v0.1.1' specs/README.md && grep -q 'The text \"Status: active\" in prose' specs/fix-done/bugfix.md"
+  # fix-spec-tooling R1: an open task keeps a bugfix spec active
+  rp "release prepare: an open bugfix spec stays" "grep -q '^> Status: active' specs/fix-open/bugfix.md && grep -q 'fix-open/) — \*\*active\*\*' specs/README.md"
+  # fix-spec-tooling R1: prose quoting the status does not ship a draft
+  rp "release prepare: a draft quoting it stays" "grep -q '^> Status: draft' specs/rough/requirements.md && grep -q '^> Status: active is quoted here' specs/rough/requirements.md"
+  # fix-spec-tooling R1: a shipped spec's note quoting the status is unchanged
+  rp "release prepare: a shipped spec is unchanged" "grep -q 'It said Status: active by mistake' specs/old/requirements.md && grep -q '^> Status: shipped (v0.1.0' specs/old/requirements.md"
+  # unchanged: a feature spec still ships, files and index
+  rp "release prepare: a feature spec ships" "grep -q '^> Status: shipped (v0.1.1, 2026-02-02) · Owner: x' specs/feat/requirements.md && grep -q 'feat/) — \*\*shipped\*\* in v0.1.1' specs/README.md"
+  # unchanged: the CHANGELOG and compare links as before
+  rp "release prepare: the CHANGELOG as before" "printf '# Changelog\n\n## [Unreleased]\n\n## [0.1.1] - 2026-02-02\n\n### Fixed\n\n- A fix.\n\n## [0.1.0] - 2026-01-01\n\n### Added\n\n- First.\n\n[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.1.1...HEAD\n[0.1.1]: https://github.com/StaffOps/kube-node-viewer/compare/v0.1.0...v0.1.1\n[0.1.0]: https://github.com/StaffOps/kube-node-viewer/releases/tag/v0.1.0\n' | cmp - CHANGELOG.md"
+  # unchanged: no [Unreleased] entries, nothing marked
+  RP_EMPTY=1 rp "release prepare: nothing to release" "find specs -type f -exec cksum {} + | sort | cmp - $tmp/rp.before"
+else skipped "release prepare" python3; fi
 
 echo "== push (pre-push)"
 

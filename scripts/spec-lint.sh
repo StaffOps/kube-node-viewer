@@ -71,7 +71,8 @@ for dir in specs/*/; do
   fi
 
   if [ -f "$dir/design.md" ]; then
-    decisions=$(grep -cE '^### D[0-9]+' "$dir/design.md")
+    # '## D1. …' and '### D1: …' alike, not '## Decisions' (fix-spec-tooling R2)
+    decisions=$(grep -cE '^#{2,3} D[0-9]+([.: ]|$)' "$dir/design.md")
     wrong=$(grep -cE '\*\*When this would be wrong\*\*' "$dir/design.md")
     reversal=$(grep -cE '\*\*Reversal action\*\*' "$dir/design.md")
     [ "$wrong" -ge "$decisions" ] || err "$name: $decisions decisions but $wrong 'When this would be wrong'"

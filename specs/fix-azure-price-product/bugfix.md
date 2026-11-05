@@ -1,6 +1,10 @@
 # Bugfix: azure-price-product
 
-> Status: active · Reported: 2026-11-04 (retroactive spec-refuter review of [aks-pricing](../aks-pricing/requirements.md)) · Reviewed: 2026-11-04 (spec-refuter; 1 BLOCKING, 2 HIGH, 5 MEDIUM, 3 LOW, applied; code 2026-11-04, 1 MEDIUM, 3 LOW, applied)
+> Status: shipped (v0.14.0, 2026-11-05) · Reported: 2026-11-04 (retroactive spec-refuter review of [aks-pricing](../aks-pricing/requirements.md)) · Reviewed: 2026-11-04 (spec-refuter; 1 BLOCKING, 2 HIGH, 5 MEDIUM, 3 LOW, applied; code 2026-11-04, 1 MEDIUM, 3 LOW, applied)
+
+> **Corrected 2026-11-05.** Marked shipped by hand: this fix shipped in
+> v0.14.0, when `scripts/release-prepare.py` did not ship bugfix specs
+> ([fix-spec-tooling](../fix-spec-tooling/bugfix.md)).
 
 ## Current behavior
 

@@ -24,7 +24,8 @@ Next version, from the newest released one and the [Unreleased] headings:
 
 With --write, also: renames [Unreleased] to [x.y.z] - DATE under a new
 empty [Unreleased], updates the compare links, and marks specs shipped
-whose tasks are all done.
+whose tasks are all done: the first "> Status:" line, when it says active,
+of requirements.md (bugfix.md for a fix-* spec), design.md and tasks.md.
 
   scripts/release-prepare.py [--write] [--date YYYY-MM-DD] [--root DIR]
 """
@@ -60,6 +61,19 @@ def next_version(latest, body):
     return (major, minor, patch + 1)
 
 
+# a spec's status is its first "> Status:" line, never a quote of it in
+# prose or a note (fix-spec-tooling R1)
+STATUS = re.compile(r"^> Status: (\w+)", re.M)
+
+
+def ship(text, version, date):
+    """text with its status line shipped, or None when that line is not active."""
+    m = STATUS.search(text)
+    if not m or m.group(1) != "active":
+        return None
+    return text[:m.start(1)] + f"shipped (v{version}, {date})" + text[m.end(1):]
+
+
 def ship_specs(root, version, date):
     readme_path = os.path.join(root, "specs", "README.md")
     readme = open(readme_path).read() if os.path.exists(readme_path) else None
@@ -69,14 +83,17 @@ def ship_specs(root, version, date):
         boxes = re.findall(r"^- \[(.)\] T\d+", open(tasks).read(), re.M)
         if not boxes or any(b != "x" for b in boxes):
             continue
-        req = os.path.join(spec_dir, "requirements.md")
-        if not os.path.exists(req) or "Status: active" not in open(req).read():
+        # a bugfix spec keeps its status in bugfix.md (fix-spec-tooling R1)
+        main = "bugfix.md" if name.startswith("fix-") else "requirements.md"
+        req = os.path.join(spec_dir, main)
+        if not os.path.exists(req) or ship(open(req).read(), version, date) is None:
             continue
-        for f in ("requirements.md", "design.md", "tasks.md"):
+        for f in (main, "design.md", "tasks.md"):
             p = os.path.join(spec_dir, f)
             if os.path.exists(p):
-                s = open(p).read()
-                open(p, "w").write(s.replace("Status: active", f"Status: shipped (v{version}, {date})", 1))
+                t = ship(open(p).read(), version, date)
+                if t is not None:
+                    open(p, "w").write(t)
         if readme is not None:
             readme = readme.replace(f"[`{name}/`]({name}/) — **active**.", f"[`{name}/`]({name}/) — **shipped** in v{version}.", 1)
         print(f"shipped spec: {name}", file=sys.stderr)

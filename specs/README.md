@@ -62,21 +62,21 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     matches as before.
     [requirements](search-regex/requirements.md) ·
     [design](search-regex/design.md) · [tasks](search-regex/tasks.md)
-13. [`fix-config-errors/`](fix-config-errors/) — **active**. `config.yaml`
+13. [`fix-config-errors/`](fix-config-errors/) — **shipped** in v0.14.0. `config.yaml`
     refuses label keys and resource names Kubernetes would refuse (padded,
     `zone,region`, `PRICE/M`), with hints for `- label: zone` and
     `sort: price/m`. [bugfix](fix-config-errors/bugfix.md) ·
     [tasks](fix-config-errors/tasks.md)
-14. [`fix-hook-tests-git-env/`](fix-hook-tests-git-env/) — **active**. The
+14. [`fix-hook-tests-git-env/`](fix-hook-tests-git-env/) — **shipped** in v0.14.0. The
     hook tests run from `pre-push` no longer write into the repository
     being pushed. [bugfix](fix-hook-tests-git-env/bugfix.md) ·
     [tasks](fix-hook-tests-git-env/tasks.md)
-15. [`fix-aws-pricing-region/`](fix-aws-pricing-region/) — **active**. AWS
+15. [`fix-aws-pricing-region/`](fix-aws-pricing-region/) — **shipped** in v0.14.0. AWS
     nodes priced in their own region when the API server URL names none.
     [bugfix](fix-aws-pricing-region/bugfix.md) ·
     [design](fix-aws-pricing-region/design.md) ·
     [tasks](fix-aws-pricing-region/tasks.md)
-16. [`fix-config-case/`](fix-config-case/) — **active**. `config.yaml`
+16. [`fix-config-case/`](fix-config-case/) — **shipped** in v0.14.0. `config.yaml`
     refuses a built-in name or column title in another case (`INSTANCE`,
     `Zone`, `PRICE/M`) instead of reading it as an empty label; YAML errors
     on one line. [bugfix](fix-config-case/bugfix.md) ·
@@ -96,10 +96,10 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     `key=value` (`/key=` for "has the label").
     [requirements](search-negation/requirements.md) ·
     [design](search-negation/design.md) · [tasks](search-negation/tasks.md)
-20. [`fix-export-search/`](fix-export-search/) — **active**. The JSON
+20. [`fix-export-search/`](fix-export-search/) — **shipped** in v0.14.0. The JSON
     export writes the search as `view.search`.
     [bugfix](fix-export-search/bugfix.md) · [tasks](fix-export-search/tasks.md)
-21. [`fix-azure-price-product/`](fix-azure-price-product/) — **active**. AKS
+21. [`fix-azure-price-product/`](fix-azure-price-product/) — **shipped** in v0.14.0. AKS
     Linux nodes of some series took the Cloud Services (Windows) price.
     [bugfix](fix-azure-price-product/bugfix.md) ·
     [tasks](fix-azure-price-product/tasks.md)
