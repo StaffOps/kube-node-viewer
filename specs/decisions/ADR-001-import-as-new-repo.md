@@ -2,6 +2,13 @@
 
 > Status: Accepted · Date: 2026-10-30 · Recorded after the fact (no
 > independent review at decision time).
+>
+> **Corrected 2026-11-04.** The history was rewritten after this record.
+> `af96088` and `6b6779a` are no longer reachable from any branch or tag,
+> although GitHub still serves them by SHA. The import is now `f3aceaa`,
+> on top of `11dc2e0`. Both pairs have identical trees: only the parents
+> differ, and the GitHub signature of the initial commit is gone
+> ([ADR-005](ADR-005-never-rewrite-published-history.md)).
 
 ## Context
 
