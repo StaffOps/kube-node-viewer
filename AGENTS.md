@@ -278,7 +278,7 @@ Change the source, never a copy.
 | Backlog | `TODO.md` | via this file | via this file |
 | Skills | `.kiro/skills/<name>/SKILL.md` | `.claude/skills` → `.kiro/skills` (symlink) | IDE: native; CLI agent: `skill://` resource |
 | Reviewer agent | `.claude/agents/spec-refuter.md` | native | `.kiro/agents/spec-refuter.json` (prompt via `file://`) |
-| Hook scripts | `scripts/agent-hooks/` (one script, a `claude`/`kiro` mode where output differs) | `.claude/settings.json` | `.kiro/hooks/kube-node-viewer.json`, loaded by the IDE (1.x) and CLI V3 (`kiro-cli chat --agent kube-node-viewer`); offline check `scripts/agent-hooks/kiro-selftest.sh`, real-session check [`docs/kiro-validation.md`](docs/kiro-validation.md) |
+| Hook scripts | `scripts/agent-hooks/` (one script, a `claude`/`kiro` mode where output differs) | `.claude/settings.json` | `.kiro/hooks/kube-node-viewer.json`, loaded by the IDE 1.x and CLI V3 in any session (`kiro-cli chat --agent kube-node-viewer` included); CLI 2.x: none (the git hooks and CI still apply); offline check `scripts/agent-hooks/kiro-selftest.sh`, real-session check [`docs/kiro-validation.md`](docs/kiro-validation.md) |
 | Permissions | — | `.claude/settings.json` (`settings.local.json` is personal) | per agent in `.kiro/agents/*.json` |
 | Model | not pinned | session choice | session choice (`/model`) |
 

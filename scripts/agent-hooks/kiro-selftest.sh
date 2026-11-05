@@ -15,11 +15,12 @@
 # (docs/kiro-validation.md). No Kiro needed:
 #   1. checks .kiro/hooks/kube-node-viewer.json and .kiro/agents/*.json
 #      against the documented schema (kiro.dev/docs/hooks,
-#      kiro.dev/docs/custom-agents/configuration-reference);
-#   2. feeds each hook script, in kiro mode, the JSON Kiro documents on
-#      stdin (hook_event_name, cwd, session_id, tool_name, tool_input) in a
-#      throwaway repository, and checks the exit code Kiro acts on:
-#      2 blocks the tool, 0 allows it.
+#      kiro.dev/docs/custom-agents/configuration-reference): each of the
+#      five hook scripts wired once, with its trigger and `kiro` mode;
+#   2. runs each hook's command, exactly as the hook file states it, in a
+#      throwaway repository, with the JSON Kiro documents on stdin
+#      (hook_event_name, cwd, session_id, tool_name, tool_input), and checks
+#      the exit code Kiro acts on: 2 blocks the tool, 0 allows it.
 #   scripts/agent-hooks/kiro-selftest.sh     (also run by test-checks.sh)
 # Prints PASS / FAIL / SKIP per case; exits 1 when a case fails.
 set -u
@@ -31,6 +32,7 @@ unset $(git rev-parse --local-env-vars 2>/dev/null) GIT_NAMESPACE GIT_CEILING_DI
   GIT_TEMPLATE_DIR CLAUDE_PROJECT_DIR
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 src=$(cd "$(dirname "$0")/../.." && pwd)
+hooks=$src/.kiro/hooks/kube-node-viewer.json
 pass=0 fail=0 skip=0
 ok()   { pass=$((pass + 1)); printf 'PASS  %s\n' "$1"; }
 bad()  { fail=$((fail + 1)); printf 'FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '%s\n' "$2" | sed 's/^/      /'; return 0; }
@@ -46,26 +48,33 @@ fi
 ok "jq is installed ($(jq --version))"
 
 # --- 1. configuration -------------------------------------------------------
-hooks=$src/.kiro/hooks/kube-node-viewer.json
 if jq -e '.version == "v1" and (.hooks | type == "array" and length > 0)' "$hooks" >/dev/null 2>&1; then
   ok "hook file: version v1 with a hooks array"
 else
   bad "hook file: version v1 with a hooks array" "$hooks"
 fi
 # documented PascalCase triggers (kiro.dev/docs/hooks/types)
-wrong=$(jq -r '.hooks[] | select(.trigger | IN("SessionStart","UserPromptSubmit","PreToolUse","PostToolUse","Stop","SessionEnd","PostFileCreate","PostFileSave","PostFileDelete","PreTaskExecution","PostTaskExecution") | not) | .name' "$hooks")
-none "hook file: every trigger is a documented PascalCase trigger" "$wrong"
-wrong=$(jq -r '.hooks[] | select((.name | type) != "string" or .action.type != "command" or (.action.command | type) != "string") | .name // "(no name)"' "$hooks")
-none "hook file: every hook has a name and a command action" "$wrong"
-wrong=$(jq -r '.hooks[] | select(.trigger == "PreToolUse" and .matcher != "shell") | .name' "$hooks")
-none "hook file: tool hooks match the shell tag" "$wrong"
-missing=""
-for f in $(jq -r '.hooks[].action.command' "$hooks" | grep -oE 'scripts/agent-hooks/[a-z-]+\.sh'); do
-  [ -f "$src/$f" ] || missing="$missing $f"
-done
-none "hook file: every command's script exists" "$missing"
-# the agent profile must not repeat the hooks: CLI V3 loads .kiro/hooks for
-# every session, so profile hooks would run each one twice
+none "hook file: every trigger is a documented PascalCase trigger" \
+  "$(jq -r '.hooks[] | select(.trigger | IN("SessionStart","UserPromptSubmit","PreToolUse","PostToolUse","Stop","SessionEnd","PostFileCreate","PostFileSave","PostFileDelete","PreTaskExecution","PostTaskExecution") | not) | .name' "$hooks")"
+none "hook file: every hook has a name and a command action" \
+  "$(jq -r '.hooks[] | select((.name | type) != "string" or .action.type != "command" or (.action.command | type) != "string") | .name // "(no name)"' "$hooks")"
+none "hook file: tool hooks match the shell tag" \
+  "$(jq -r '.hooks[] | select(.trigger == "PreToolUse" and .matcher != "shell") | .name' "$hooks")"
+# wired SCRIPT TRIGGER ARG: the script appears in exactly one hook, with that
+# trigger and that argument (the kiro mode prints what Kiro reads)
+wired() {
+  n=$(jq --arg s "scripts/agent-hooks/$1" '[.hooks[] | select(.action.command | contains($s))] | length' "$hooks")
+  want="sh scripts/agent-hooks/$1${3:+ $3}"
+  got=$(jq -r --arg s "scripts/agent-hooks/$1" '.hooks[] | select(.action.command | contains($s)) | "\(.trigger) \(.action.command)"' "$hooks")
+  if [ "$n" -eq 1 ] && [ "$got" = "$2 $want" ]; then ok "hook file: $1 wired once ($2, \"$want\")"
+  else bad "hook file: $1 wired once ($2, \"$want\")" "found $n: ${got:-none}"; fi
+}
+wired session-context.sh SessionStart ""
+wired guard-destructive.sh PreToolUse kiro
+wired commit-guard.sh PreToolUse kiro
+wired commit-reminder.sh PreToolUse kiro
+wired pr-guard.sh PreToolUse kiro
+# one source of truth: the hooks live in the hook file, not in the profile
 if jq -e 'has("hooks") | not' "$src/.kiro/agents/kube-node-viewer.json" >/dev/null; then
   ok "agent profile: no inline hooks (they live in the hook file)"
 else
@@ -74,8 +83,10 @@ fi
 # CLI V3 tool selectors: category tags, tool ids, @server, * (CLI 2.x names
 # such as grep or glob are not V3 tags)
 for a in "$src"/.kiro/agents/*.json; do
-  wrong=$(jq -r '(.tools // [])[] | select(IN("*","read","write","shell","web","subagent","spec","context","knowledge","@builtin","@mcp") or startswith("@") | not)' "$a")
-  none "agent $(basename "$a"): tools are V3 selectors" "$wrong"
+  none "agent $(basename "$a"): tools are V3 selectors" \
+    "$(jq -r '(.tools // [])[] | select(IN("*","read","write","shell","web","subagent","spec","context","knowledge","@builtin","@mcp") or startswith("@") | not)' "$a")"
+  none "agent $(basename "$a"): permission rules use documented capabilities and effects" \
+    "$(jq -r '(.permissions.rules // [])[] | select((.capability | IN("fs_read","fs_write","shell","web_fetch","web_search","mcp","subagent","skill","power","context","diagnostics","sandbox_network","all","builtin","filesystem") | not) or (.effect | IN("allow","ask","deny") | not)) | tojson' "$a")"
   case $(jq -r '.prompt // ""' "$a") in
     file://*)
       p=$(jq -r '.prompt' "$a"); p=${p#file://}
@@ -83,7 +94,7 @@ for a in "$src"/.kiro/agents/*.json; do
   esac
 done
 
-# --- 2. hook scripts with Kiro's payloads -----------------------------------
+# --- 2. the hooks' commands with Kiro's payloads ----------------------------
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 repo=$tmp/repo
@@ -91,11 +102,14 @@ git init -q -b main "$repo"
 cd "$repo" || exit 1
 mkdir -p scripts
 cp -R "$src/scripts/agent-hooks" "$src/scripts/checks" scripts/
+cp "$src/scripts/changelog-check.py" scripts/
+cp "$src/.gitignore" .
 git config user.name "Example Dev"
 git config user.email "dev@example.com"
 git config commit.gpgsign false
-printf '# Changelog\n\n## [Unreleased]\n' > CHANGELOG.md
+printf '# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-01-01\n\n### Added\n\n- First.\n\n[0.1.0]: https://example.com/compare\n' > CHANGELOG.md
 git add -A && git commit -q --no-verify -m "chore: base"
+git update-ref refs/remotes/origin/main HEAD # changelog-check compares with it
 
 # payload EVENT [COMMAND]: the hook event JSON Kiro sends on stdin
 payload() {
@@ -105,9 +119,12 @@ payload() {
     jq -cn --arg e "$1" --arg cwd "$repo" '{hook_event_name: $e, cwd: $cwd, session_id: "kiro-selftest"}'
   fi
 }
-# run SCRIPT EVENT [COMMAND]: sets rc, out, err
+# run HOOK-SCRIPT EVENT [COMMAND]: runs that hook's command from the hook
+# file, in the repository root as Kiro does; sets rc, out, err
 run() {
-  payload "$2" "${3:-}" | sh "scripts/agent-hooks/$1" kiro >"$tmp/out" 2>"$tmp/err"
+  hc=$(jq -r --arg s "scripts/agent-hooks/$1" '.hooks[] | select(.action.command | contains($s)) | .action.command' "$hooks" | head -1)
+  [ -n "$hc" ] || hc="false # $1 is not in the hook file"
+  payload "$2" "${3:-}" | sh -c "$hc" >"$tmp/out" 2>"$tmp/err"
   rc=$?; out=$(cat "$tmp/out"); err=$(cat "$tmp/err")
 }
 # expect NAME blocks|allows|tells: 2 with a reason on stderr; 0 and quiet;
@@ -123,47 +140,52 @@ expect() {
 
 run session-context.sh SessionStart
 if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q "kube-node-viewer session context"; then
-  ok "session-context: SessionStart prints the context (exit 0)"
+  ok "session context: SessionStart prints the context (exit 0)"
 else
-  bad "session-context: SessionStart prints the context (exit 0)" "exit $rc; $out$err"
+  bad "session context: SessionStart prints the context (exit 0)" "exit $rc; $out$err"
 fi
 
+# the checklist (docs/kiro-validation.md) uses echo-prefixed forms; both reach the guard
+run guard-destructive.sh PreToolUse 'echo git push --force origin kiro-validation'
+expect "guard: blocks echo git push --force (checklist test 3)" blocks
 run guard-destructive.sh PreToolUse 'git push --force origin feature'
-expect "guard-destructive: blocks git push --force" blocks
-run guard-destructive.sh PreToolUse 'git reset --hard HEAD~1'
-expect "guard-destructive: blocks git reset --hard" blocks
+expect "guard: blocks git push --force" blocks
+run guard-destructive.sh PreToolUse 'echo git reset --hard HEAD'
+expect "guard: blocks echo git reset --hard (checklist test 4)" blocks
 run guard-destructive.sh PreToolUse 'git tag -d v1.0.0'
-expect "guard-destructive: blocks a tag delete" blocks
+expect "guard: blocks a tag delete" blocks
 run guard-destructive.sh PreToolUse 'git commit -m "docs: mention git push --force"'
-expect "guard-destructive: allows a commit quoting a force push" allows
-run guard-destructive.sh PreToolUse 'ls -la'
-expect "guard-destructive: allows ls" allows
+expect "guard: allows a commit quoting a force push" allows
+run guard-destructive.sh PreToolUse 'ls'
+expect "guard: allows ls (checklist test 10)" allows
 
-echo "node,cpu" > kube-node-viewer-1.csv && git add kube-node-viewer-1.csv
+# exports are git-ignored, so the checklist stages one with -f
+echo "node,cpu" > kube-node-viewer-validation.csv && git add -f kube-node-viewer-validation.csv
+run commit-guard.sh PreToolUse 'git commit -m "test: kiro validation"'
+expect "commit guard: blocks a commit with an export file staged (checklist test 5)" blocks
+git rm -q --cached kube-node-viewer-validation.csv && rm -f kube-node-viewer-validation.csv
 run commit-guard.sh PreToolUse 'git commit -m "feat: add"'
-expect "commit-guard: blocks a commit with an export file staged" blocks
-git rm -q --cached kube-node-viewer-1.csv && rm -f kube-node-viewer-1.csv
-run commit-guard.sh PreToolUse 'git commit -m "feat: add"'
-expect "commit-guard: allows a clean commit" allows
+expect "commit guard: allows a clean commit" allows
 run commit-guard.sh PreToolUse 'git status'
-expect "commit-guard: allows other commands" allows
+expect "commit guard: allows other commands" allows
 
-run commit-reminder.sh PreToolUse 'git commit -m "feat: add"'
-expect "commit-reminder: prints the checklist on git commit" tells
+run commit-reminder.sh PreToolUse 'git commit --allow-empty -m "bad subject"'
+expect "commit checklist: printed on git commit (checklist test 7)" tells
 run commit-reminder.sh PreToolUse 'go test ./...'
-expect "commit-reminder: quiet on other commands" allows
+expect "commit checklist: quiet on other commands" allows
 
 if command -v python3 >/dev/null 2>&1; then
-  # stands in for scripts/spec-tasks-check.py finding an open task
-  printf 'import sys\nprint("specs/x/tasks.md: 1 open task")\nsys.exit(1)\n' > scripts/spec-tasks-check.py
-  run pr-guard.sh PreToolUse 'gh pr create --fill'
-  expect "pr-guard: blocks gh pr create with an open task" blocks
-  run pr-guard.sh PreToolUse 'gh pr create --draft --fill'
-  expect "pr-guard: allows a draft PR" allows
-  run pr-guard.sh PreToolUse 'gh pr merge 12'
-  expect "pr-guard: blocks gh pr merge with an open task" blocks
+  run pr-guard.sh PreToolUse 'echo gh pr create --fill'
+  expect "PR guard: allows a PR when nothing is wrong (checklist test 8)" allows
+  # the command checklist test 9 gives: a line under the newest released heading
+  python3 -c "p='CHANGELOG.md';t=open(p).read();i=t.index(chr(10),t.index(chr(10)+'## [0.')+1);open(p,'w').write(t[:i]+chr(10)+'- test'+t[i:])"
+  run pr-guard.sh PreToolUse 'echo gh pr create --fill'
+  expect "PR guard: blocks a PR that edits a released CHANGELOG section (checklist test 9)" blocks
+  run pr-guard.sh PreToolUse 'echo gh pr create --draft --fill'
+  expect "PR guard: allows a draft PR" allows
+  git checkout -q CHANGELOG.md
 else
-  skipped "pr-guard cases" "python3 missing; the PR guard lets everything through without it"
+  skipped "PR guard cases" "python3 missing; the PR guard lets everything through without it"
 fi
 
 printf '\n%d passed, %d failed, %d skipped\n' "$pass" "$fail" "$skip"

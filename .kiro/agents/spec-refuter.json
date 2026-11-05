@@ -2,9 +2,84 @@
   "name": "spec-refuter",
   "description": "Adversarial, read-only reviewer for kube-node-viewer specs, ADRs and diffs. Use for the independent review in the AGENTS.md change loop.",
   "prompt": "file://../../.claude/agents/spec-refuter.md",
-  "tools": ["read", "shell", "web"],
+  "tools": [
+    "read",
+    "shell",
+    "web"
+  ],
   "resources": [
     "file://AGENTS.md",
     "file://specs/README.md"
-  ]
+  ],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "effect": "allow"
+      },
+      {
+        "capability": "fs_write",
+        "effect": "deny"
+      },
+      {
+        "capability": "shell",
+        "effect": "allow",
+        "match": [
+          "git log *",
+          "git show *",
+          "git diff *",
+          "git status*",
+          "git grep *",
+          "git ls-files*",
+          "git rev-parse *",
+          "git merge-base *",
+          "git cat-file *",
+          "git blame *",
+          "go test *",
+          "go vet *",
+          "go list *",
+          "gofmt -l *",
+          "grep *",
+          "rg *",
+          "cat *",
+          "ls*",
+          "head *",
+          "tail *",
+          "wc *",
+          "find *",
+          "jq *",
+          "sh scripts/spec-lint.sh*",
+          "python3 -B scripts/spec-trace.py*",
+          "python3 -B scripts/spec-tasks-check.py*",
+          "gh pr view *",
+          "gh pr diff *",
+          "gh pr checks *"
+        ],
+        "exclude": [
+          "find * -delete*",
+          "find * -exec*"
+        ]
+      },
+      {
+        "capability": "shell",
+        "effect": "deny",
+        "match": [
+          "git push*",
+          "git commit*",
+          "git reset*",
+          "git checkout*",
+          "git switch*",
+          "git merge*",
+          "git rebase*",
+          "git tag*",
+          "git branch -d*",
+          "git branch -D*",
+          "rm *",
+          "gh pr merge*",
+          "gh pr create*",
+          "gh api *"
+        ]
+      }
+    ]
+  }
 }

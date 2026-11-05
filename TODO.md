@@ -30,15 +30,19 @@ what they cannot. Listed by impact.
       automerge and a required check.
       _Why:_ until then every change still waits for a real cluster.
 - [ ] **Run [docs/kiro-validation.md](docs/kiro-validation.md) in a real Kiro
-      session and report** (IDE 1.x or CLI V3; its report template goes in
+      session and report** (IDE 1.x or CLI V3; the report template goes in
       an issue or PR comment). Checked offline on 2026-11-05 against the
-      Kiro docs (hooks, hook types and actions, agent configuration, CLI V3
-      migration): the hook file schema, triggers and `shell` matcher, the
-      agent profiles, and every hook script fed Kiro's documented payloads
-      (`make kiro-selftest`, also in `test-checks.sh`). Open: whether
-      `tool_input.command` is the field Kiro sends, whether each hook fires
-      once, and whether the commit checklist (stdout of a PreToolUse hook)
-      reaches the agent; the docs say that stdout is ignored.
+      Kiro docs (hooks, hook types and actions, agent configuration,
+      permissions, CLI V3 migration): the hook file schema, triggers and
+      `shell` matcher, each script wired once in `kiro` mode, the agent
+      profiles and the reviewer's permission rules, and every hook command
+      run with Kiro's documented payloads (`make kiro-selftest`, also in
+      `test-checks.sh`). Open, for the real session: whether Kiro sends
+      `tool_input.command`; whether each hook fires exactly once with no
+      hooks in the profile (unverified; if none fire under `--agent` on CLI
+      V3, put them back in the profile); whether a PreToolUse hook's stdout
+      reaches the agent (the docs disagree); and which exit codes block in
+      the IDE and the CLI.
       _Why:_ if Kiro ignores a field, its agent loses the early warnings
       without any error; the git hooks and CI still hold.
 

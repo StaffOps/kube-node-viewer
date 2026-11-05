@@ -1,6 +1,6 @@
 {
   "name": "kube-node-viewer",
-  "description": "Spec-driven development agent for kube-node-viewer. Loads AGENTS.md, the specs index, the backlog and the project skills. Its hooks (session context, destructive-git guard, commit guard, commit reminder, PR guard) live in .kiro/hooks/kube-node-viewer.json, which Kiro CLI V3 and the IDE both load.",
+  "description": "Spec-driven development agent for kube-node-viewer. Loads AGENTS.md, the specs index, the backlog and the project skills. Its hooks (session context, destructive-git guard, commit guard, commit reminder, PR guard) live in .kiro/hooks/kube-node-viewer.json, the one source of truth, which Kiro CLI V3 and the IDE load in every session (docs/kiro-validation.md checks it).",
   "prompt": "Follow AGENTS.md: it is the single source of rules for this repo, shared with Claude Code. Work spec-first: specs live in specs/ at the repo root, never in a separate .kiro/specs copy. Use the project skills (spec-new, change-loop, upstream-sync, release, pr-review). Independent reviews go to the spec-refuter agent. Out-of-scope findings go to TODO.md.",
   "tools": [
     "*"
