@@ -42,16 +42,16 @@ type demoNode struct {
 }
 
 var demoNodes = []demoNode{
-	{"ip-10-0-11-24.ec2.internal", "m6i.xlarge", "us-east-1a", "default", "", "on-demand", "3920m", "14Gi", 0.91, 0.78, 38, 0.192, 52 * time.Hour, false},
-	{"ip-10-0-11-87.ec2.internal", "m6i.xlarge", "us-east-1a", "default", "", "on-demand", "3920m", "14Gi", 0.84, 0.66, 31, 0.192, 49 * time.Hour, false},
-	{"ip-10-0-12-15.ec2.internal", "m6i.xlarge", "us-east-1b", "default", "", "on-demand", "3920m", "14Gi", 0.62, 0.71, 27, 0.192, 30 * time.Hour, false},
-	{"ip-10-0-13-40.ec2.internal", "m6i.2xlarge", "us-east-1c", "default", "", "spot", "7910m", "29Gi", 0.73, 0.58, 44, 0.137, 6 * time.Hour, false},
-	{"ip-10-0-11-93.ec2.internal", "c7g.large", "us-east-1a", "spot-arm", "", "spot", "1930m", "3Gi", 0.88, 0.69, 14, 0.031, 3 * time.Hour, false},
-	{"ip-10-0-12-61.ec2.internal", "c7g.large", "us-east-1b", "spot-arm", "", "spot", "1930m", "3Gi", 0.47, 0.35, 9, 0.029, 2 * time.Hour, false},
-	{"ip-10-0-13-12.ec2.internal", "c7g.xlarge", "us-east-1c", "spot-arm", "", "spot", "3920m", "7Gi", 0.95, 0.82, 22, 0.058, 90 * time.Minute, false},
-	{"ip-10-0-12-33.ec2.internal", "g5.xlarge", "us-east-1b", "gpu", "", "reserved", "3920m", "14Gi", 0.55, 0.61, 6, 1.006, 14 * 24 * time.Hour, false},
-	{"ip-10-0-11-70.ec2.internal", "t3.large", "us-east-1a", "", "system-ng", "", "1930m", "7Gi", 0.68, 0.52, 17, 0.0832, 40 * 24 * time.Hour, false},
-	{"ip-10-0-12-98.ec2.internal", "t3.large", "us-east-1b", "", "system-ng", "", "1930m", "7Gi", 0.39, 0.44, 12, 0.0832, 40 * 24 * time.Hour, true},
+	{"ip-192-0-2-10.ec2.internal", "m6i.xlarge", "us-east-1a", "default", "", "on-demand", "3920m", "14Gi", 0.91, 0.78, 38, 0.192, 52 * time.Hour, false},
+	{"ip-192-0-2-17.ec2.internal", "m6i.xlarge", "us-east-1a", "default", "", "on-demand", "3920m", "14Gi", 0.84, 0.66, 31, 0.192, 49 * time.Hour, false},
+	{"ip-192-0-2-24.ec2.internal", "m6i.xlarge", "us-east-1b", "default", "", "on-demand", "3920m", "14Gi", 0.62, 0.71, 27, 0.192, 30 * time.Hour, false},
+	{"ip-192-0-2-31.ec2.internal", "m6i.2xlarge", "us-east-1c", "default", "", "spot", "7910m", "29Gi", 0.73, 0.58, 44, 0.137, 6 * time.Hour, false},
+	{"ip-192-0-2-38.ec2.internal", "c7g.large", "us-east-1a", "spot-arm", "", "spot", "1930m", "3Gi", 0.88, 0.69, 14, 0.031, 3 * time.Hour, false},
+	{"ip-192-0-2-45.ec2.internal", "c7g.large", "us-east-1b", "spot-arm", "", "spot", "1930m", "3Gi", 0.47, 0.35, 9, 0.029, 2 * time.Hour, false},
+	{"ip-192-0-2-52.ec2.internal", "c7g.xlarge", "us-east-1c", "spot-arm", "", "spot", "3920m", "7Gi", 0.95, 0.82, 22, 0.058, 90 * time.Minute, false},
+	{"ip-192-0-2-59.ec2.internal", "g5.xlarge", "us-east-1b", "gpu", "", "reserved", "3920m", "14Gi", 0.55, 0.61, 6, 1.006, 14 * 24 * time.Hour, false},
+	{"ip-192-0-2-66.ec2.internal", "t3.large", "us-east-1a", "", "system-ng", "", "1930m", "7Gi", 0.68, 0.52, 17, 0.0832, 40 * 24 * time.Hour, false},
+	{"ip-192-0-2-73.ec2.internal", "t3.large", "us-east-1b", "", "system-ng", "", "1930m", "7Gi", 0.39, 0.44, 12, 0.0832, 40 * 24 * time.Hour, true},
 }
 
 // demoSwitcher lists made-up contexts for the context popup.

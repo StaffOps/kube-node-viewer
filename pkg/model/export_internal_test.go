@@ -66,7 +66,7 @@ func TestExportWritesTheFilteredNodes(t *testing.T) {
 	// one node without a price, one reserved (equivalent price)
 	// stats.Nodes comes from a map: pick a node by name, not by position
 	for _, n := range u.stats.Nodes {
-		if n.Name() == "ip-10-0-12-15.ec2.internal" {
+		if n.Name() == "ip-192-0-2-24.ec2.internal" {
 			n.SetPrice(math.NaN())
 		}
 	}
