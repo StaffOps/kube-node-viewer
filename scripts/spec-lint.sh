@@ -4,6 +4,11 @@ set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
 errors=0
+# Shipped before the review gate without a spec-refuter review (owner or
+# code-review agent instead). Listed, not hidden; a spec leaves the list when
+# a spec-refuter review is recorded on it. Never add a new spec here.
+UNREVIEWED="aks-pricing config-views monthly-price-columns node-details sort-invert"
+
 err() { echo "spec-lint: $1" >&2; errors=$((errors + 1)); }
 
 index=specs/README.md
@@ -42,6 +47,22 @@ for dir in specs/*/; do
 
   if grep -qE '^> Status: (active|shipped)' "$reqfile" && grep -q '\[TO CONFIRM\]' "$reqfile"; then
     err "$name: status active/shipped but [TO CONFIRM] remains"
+  fi
+
+  # an active or shipped spec names its independent review: the Reviewed:
+  # part of the status line has spec-refuter and a date (AGENTS.md step 2)
+  if grep -qE '^> Status: (active|shipped)' "$reqfile"; then
+    reviewed=$(grep -m1 -E '^> Status:' "$reqfile" | sed -n 's/.*Reviewed:[[:space:]]*//p' | sed 's/ · .*//')
+    if printf '%s' "$reviewed" | grep -q 'spec-refuter' &&
+      ! printf '%s' "$reviewed" | grep -q 'spec-refuter not run' &&
+      printf '%s' "$reviewed" | grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
+      case " $UNREVIEWED " in *" $name "*) err "$name: reviewed by spec-refuter now; remove it from UNREVIEWED in scripts/spec-lint.sh" ;; esac
+    else
+      case " $UNREVIEWED " in
+        *" $name "*) ;;
+        *) err "$name: status active/shipped needs 'Reviewed: <date> (spec-refuter…)' on its status line; run the spec-refuter review first (draft until then)" ;;
+      esac
+    fi
   fi
 
   if [ -f "$dir/design.md" ]; then

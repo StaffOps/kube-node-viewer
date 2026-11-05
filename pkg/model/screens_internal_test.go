@@ -80,6 +80,8 @@ func pressAll(u *UIModel, keys ...string) {
 	}
 }
 
+// recommendations R1 and R2: : runs a command; tab switches the screens,
+// and the header names the screen.
 func TestCommandLineSwitchesScreens(t *testing.T) {
 	u := recUI(t)
 	var saved []ViewState
@@ -106,6 +108,7 @@ func TestCommandLineSwitchesScreens(t *testing.T) {
 	}
 }
 
+// recommendations R1: tab completes, an unknown command is reported.
 func TestCommandLineTextCompletionAndErrors(t *testing.T) {
 	u := recUI(t)
 	pressAll(u, ":", "q")
@@ -126,6 +129,7 @@ func TestCommandLineTextCompletionAndErrors(t *testing.T) {
 	}
 }
 
+// recommendations R3: the screen's columns, Spot after the others.
 func TestRecommendationsScreen(t *testing.T) {
 	u := recUI(t)
 	pressAll(u, "tab")

@@ -36,7 +36,7 @@ func flagsOnly(explicit map[string]string) func(t *testing.T) model.ViewState {
 	return func(t *testing.T) model.ViewState { return resolve(t, nil, nil, explicit) }
 }
 
-// One test per row of the flag table (design D8, R15).
+// One test per row of the flag table (interactive-tui design D8, R15).
 
 func TestFlagTableNodeSelectorIsNotViewState(t *testing.T) {
 	got := flagsOnly(map[string]string{"node-selector": "team=a"})(t)
@@ -65,7 +65,7 @@ func TestFlagTableGroupsOnly(t *testing.T) {
 	if got.ShowNodes {
 		t.Error("--groups-only with --group-by kept the node list")
 	}
-	// R13: never hide both
+	// interactive-tui R13: never hide both
 	got = flagsOnly(map[string]string{"groups-only": "true"})(t)
 	if !got.ShowNodes {
 		t.Error("--groups-only without --group-by hid everything")
@@ -136,7 +136,7 @@ func TestFlagTableClusterAndRunOptionsAreNotViewState(t *testing.T) {
 	}
 }
 
-// Precedence (R1, R2): explicit flag > saved state > config file > default.
+// Precedence (interactive-tui R1, R2): explicit flag > saved state > config file > default.
 
 func savedView() *model.ViewState {
 	v := model.DefaultViewState()

@@ -15,6 +15,7 @@ limitations under the License.
 package model
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -76,6 +77,8 @@ func TestSearchMatcher(t *testing.T) {
 	}
 }
 
+// search-regex R3 and R4: the footer and header say an invalid pattern is
+// read as text; the help says the search takes a regex.
 func TestSearchFooterHeaderAndHelp(t *testing.T) {
 	u := footerUI(t, 200, 40)
 	u.View()
@@ -112,4 +115,22 @@ func TestSearchFooterHeaderAndHelp(t *testing.T) {
 	if !found {
 		t.Error("help line for / does not mention regex")
 	}
+}
+
+// search-regex R4: the README's key table says the search takes a regular
+// expression.
+func TestSearchREADMESaysRegex(t *testing.T) {
+	b, err := os.ReadFile("../../README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if strings.HasPrefix(line, "| `/` |") {
+			if !strings.Contains(line, "regular expression") {
+				t.Errorf("README key row for / does not say regular expression: %s", line)
+			}
+			return
+		}
+	}
+	t.Error("README has no key row for /")
 }

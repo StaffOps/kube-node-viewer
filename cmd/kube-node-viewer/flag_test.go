@@ -37,6 +37,7 @@ func TestConfigFile(t *testing.T) {
 	}
 }
 
+// rebrand R3, as corrected 2026-11-02: only ~/.kube-node-viewer is read.
 func TestOnlyTheKubeNodeViewerConfigFileIsRead(t *testing.T) {
 	home := t.TempDir()
 	if err := os.WriteFile(filepath.Join(home, ".eks-node-viewer"), []byte("style=#ff0000\n"), 0o600); err != nil {

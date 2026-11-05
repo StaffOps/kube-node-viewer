@@ -35,7 +35,11 @@ func find(t *testing.T, r Result, kind Kind, target string) Rec {
 
 func near(a, b float64) bool { return math.Abs(a-b) < 0.01 }
 
-// The usage example of the spec, end to end.
+// The usage example of the spec, end to end:
+// recommendations R3, R6, R7, R8, R9, R10, R11: the rows and their savings;
+// recommendations R13: generation, Graviton and Spot per pool or group,
+// rightsize and old node per node;
+// recommendations R14: the total, Spot left out.
 func TestSpecFixture(t *testing.T) {
 	r := Analyze(fixtureInput(fixtureNodes()))
 	want := []struct {
@@ -71,6 +75,29 @@ func TestSpecFixture(t *testing.T) {
 	}
 }
 
+// recommendations R5: idle cost is listed per group as info, with no action,
+// and stays out of the total.
+func TestIdleIsInfoOutOfTheTotal(t *testing.T) {
+	r := Analyze(fixtureInput(fixtureNodes()))
+	idle := 0
+	for _, x := range r.Recs {
+		if x.Kind != Idle {
+			continue
+		}
+		idle++
+		if !x.Info || x.Monthly <= 0 {
+			t.Errorf("idle row not info or without its cost: %+v", x)
+		}
+		if len(x.perNode) != 0 {
+			t.Errorf("idle row counts towards the total: %+v", x)
+		}
+	}
+	if idle == 0 {
+		t.Fatalf("the fixture has no idle row: %v", r.Recs)
+	}
+}
+
+// recommendations R3 and R11: Spot rows come last.
 func TestSpotIsAlwaysLast(t *testing.T) {
 	r := Analyze(fixtureInput(fixtureNodes()))
 	seenSpot := false
@@ -101,6 +128,7 @@ func groupAt(share float64) []Node {
 	return nodes
 }
 
+// recommendations R6: consolidation packs by requests at the headroom.
 func TestConsolidationByUse(t *testing.T) {
 	for _, c := range []struct {
 		share  float64
@@ -165,6 +193,7 @@ func TestKarpenterConsolidationIsInfo(t *testing.T) {
 	}
 }
 
+// recommendations R15: nodes that can't be compared get no catalog advice.
 func TestExcludedNodesGetNoCatalogAdvice(t *testing.T) {
 	base := node("x", "t3.large", "z", "", "g", 0.0832, Resources{2, 8, 30}, time.Hour, app(0.1, 0.5))
 	fargate, auto, untyped := base, base, base
@@ -198,6 +227,7 @@ func TestSwapsNeedTheSizeAndALowerPrice(t *testing.T) {
 	find(t, r, Generation, "node group h")
 }
 
+// recommendations R15: an instance-price label is used and said in the math.
 func TestOverridePriceShowsInTheMath(t *testing.T) {
 	n := node("o", "m6i.xlarge", "z", "", "", 0.30, Resources{3.92, 14, 58}, time.Hour, app(1, 4))
 	n.Override = true

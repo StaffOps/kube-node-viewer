@@ -257,6 +257,8 @@ func TestDefaultViewState(t *testing.T) {
 	}
 }
 
+// views-and-export R1: an excluding filter keeps the nodes with none of the
+// values (d has no capacity value).
 func TestExcludingFilter(t *testing.T) {
 	s := model.ViewState{Sort: byName(), Filters: []model.Filter{
 		{Field: model.FieldCapacity, Excluded: []string{"Spot"}, Enabled: true},

@@ -24,6 +24,9 @@ $ kube-node-viewer --<flag> <value>
 
 - [ ] <acceptance criterion that a test or a manual check can prove>
 
+<Name the test: `// <feature> R1` on a comment line of it. No automated
+test possible: `_Test: manual — <how it is checked>._` here instead.>
+
 **R2** WHEN <condition> THEN the system SHALL <observable behavior>.
 
 - [ ] <acceptance criterion>

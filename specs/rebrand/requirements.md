@@ -46,6 +46,9 @@ kube-node-viewer: reading legacy config ~/.eks-node-viewer; move it to ~/.kube-n
   `grep -rn 'github.com/awslabs/eks-node-viewer' --include='*.go' --include=go.mod --include='*.yaml' .` is empty.
 - [ ] After the first push and tag: `go install github.com/staffops/kube-node-viewer/cmd/kube-node-viewer@<tag>` produces `kube-node-viewer`.
 
+_Test: manual — the module path is `go.mod`'s; every build and import of CI
+uses it._
+
 **R2** WHEN the binary runs THEN it SHALL identify itself as
 `kube-node-viewer` (`-version`, `-h` usage text, flag descriptions), and WHEN
 it was built without ldflags THEN `-version` SHALL report the module version
@@ -90,11 +93,15 @@ results.
 (origin at AWS, talks) as credit only, point badges at this repository, and
 use no AWS/Amazon branding implying endorsement.
 
+_Test: manual — README content, reviewed with the rebrand._
+
 **R6** WHEN the repository is inspected THEN AWS governance files SHALL be
 gone or replaced: `CODEOWNERS` reads `* @karlipegomes @sule26`,
 `CODE_OF_CONDUCT.md` deleted, `CONTRIBUTING.md` rewritten to
 point to `AGENTS.md`; Homebrew `aws/tap` instructions and `hack/homebrew.go`
 removed.
+
+_Test: manual — repository files, reviewed with the rebrand._
 
 **R7** WHEN a tag is pushed THEN the release workflow SHALL build with
 goreleaser from the committed tree (no network refresh of generated files)
@@ -105,6 +112,9 @@ run `scripts/verify.sh` and `scripts/build.sh`.
   `dist/kube-node-viewer_*`.
 - [ ] Neither workflow runs `make generate`.
 
+_Test: manual — CI and release workflows; `release.yaml`'s
+`scripts/release-check.sh --strict` checks the published artifacts._
+
 **R8** WHEN the code is distributed THEN `LICENSE`, the original `NOTICE`
 line and every existing Apache license header SHALL still be present; `NOTICE` gains
 a line for this project; every upstream file changed in this spec carries the
@@ -113,6 +123,10 @@ modification note of D5; new code is licensed Apache 2.0.
 - [ ] `git diff af96088 -- LICENSE` empty; `NOTICE` first line unchanged.
 - [ ] Every `.go`/`.sh` file in `git diff --name-only --diff-filter=M af96088`
   contains the D5 note.
+
+_Test: manual — license files and headers; the `pre-commit` hook checks the
+header of each new file._
+
 
 ## Counter-examples
 

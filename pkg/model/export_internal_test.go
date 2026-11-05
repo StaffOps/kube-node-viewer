@@ -58,6 +58,7 @@ func TestExportBaseName(t *testing.T) {
 	}
 }
 
+// views-and-export R3: e writes every kept node to CSV and JSON.
 func TestExportWritesTheFilteredNodes(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

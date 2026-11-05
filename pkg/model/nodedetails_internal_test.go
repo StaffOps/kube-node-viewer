@@ -64,6 +64,7 @@ func detailsUI(t *testing.T) *UIModel {
 	return u
 }
 
+// node-details R1: enter on a node opens its details.
 func TestEnterOnANodeOpensItsDetails(t *testing.T) {
 	u := detailsUI(t)
 	if line := selectedLine(t, u); !strings.Contains(line, "aaa-gpu-node") {
@@ -142,6 +143,7 @@ func TestDetailsOfANodeThatGoesAway(t *testing.T) {
 	}
 }
 
+// node-details R1: enter on a group heading still folds it.
 func TestEnterOnAGroupStillFolds(t *testing.T) {
 	u := detailsUI(t)
 	v := u.view

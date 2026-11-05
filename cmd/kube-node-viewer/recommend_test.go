@@ -19,6 +19,8 @@ import (
 	"time"
 )
 
+// recommendations R12: recommend-headroom and recommend-node-age from the
+// config file.
 func TestRecommendOptions(t *testing.T) {
 	opts, err := recommendOptions(configFile{})
 	if err != nil || opts.Headroom != 0.8 || opts.OldAge != 30*24*time.Hour {

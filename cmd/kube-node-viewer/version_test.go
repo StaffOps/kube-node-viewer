@@ -19,6 +19,8 @@ import (
 	"testing"
 )
 
+// rebrand R2: -version falls back to the module version from the build
+// info when built without ldflags.
 func TestResolveVersion(t *testing.T) {
 	info := &debug.BuildInfo{
 		Main:     debug.Module{Version: "v0.1.0"},

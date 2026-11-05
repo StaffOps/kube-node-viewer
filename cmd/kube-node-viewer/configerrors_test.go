@@ -43,7 +43,7 @@ func checkErrors(t *testing.T, tests []errCase) {
 	}
 }
 
-// R1, R2: label keys and resource names are qualified names; padded values
+// fix-config-errors R1, R2: label keys and resource names are qualified names; padded values
 // and patterns are refused.
 func TestConfigViewNamesAreKubernetesNames(t *testing.T) {
 	checkErrors(t, []errCase{
@@ -66,7 +66,7 @@ func TestConfigViewNamesAreKubernetesNames(t *testing.T) {
 	})
 }
 
-// R3, R4, R5: hints and values shown as written.
+// fix-config-errors R3, R4, R5: hints and values shown as written.
 func TestConfigViewErrorHints(t *testing.T) {
 	checkErrors(t, []errCase{
 		{"space after label:", oneView("columns:\n  - label: zone"), "views[0].columns[0]: write label:zone with no space after the colon"},

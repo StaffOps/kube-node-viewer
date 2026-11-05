@@ -132,6 +132,7 @@ func TestHeaderShowsRecentIssueOnly(t *testing.T) {
 	}
 }
 
+// interactive-tui R8: totals leave reserved nodes out and say how many.
 func TestSummaryCoversOnlyShownNodes(t *testing.T) {
 	u := demoUI(t)
 	u.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
@@ -184,6 +185,8 @@ func TestHeaderKeepsTheClusterCost(t *testing.T) {
 	}
 }
 
+// recommendations R4: the IDLE/H column, the idle sort and idle cost on
+// group headings.
 func TestIdleCost(t *testing.T) {
 	u := demoUI(t)
 	u.Update(tea.WindowSizeMsg{Width: 240, Height: 60})

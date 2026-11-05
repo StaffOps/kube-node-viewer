@@ -33,25 +33,12 @@ what they cannot. Listed by impact.
 Keep specs and code telling the same story, checked by CI rather than by
 memory. Listed by impact.
 
-- [ ] **Spec review as a CI gate**: a spec may be **active** only with a
-      `Reviewed:` header naming `spec-refuter` and a date; a PR may not add
-      code under a spec that is still **draft**.
-      _Why:_ `AGENTS.md` makes the independent review mandatory, but 4 of
-      9 specs skipped it (`aks-pricing`, `node-details`: owner only;
-      `monthly-price-columns`, `sort-invert`: code-review agent). A rule
-      nothing checks erodes the first time someone is in a hurry.
-- [ ] **Requirement → test traceability in CI**: every `**R<n>**` of an
-      active or shipped spec must be named by a test (`// <spec> R<n>`);
-      a requirement without one fails the PR.
-      _Why:_ only 9 test files cite requirements today, so nothing shows
-      which requirements are untested. This is what keeps a spec from
-      describing behaviour the code no longer has.
-- [ ] **Drift detector**: when key bindings (`helpKeys`), flags
-      (`flag.go`) or the column list change without a change to a spec
-      or to `README.md`, CI flags the PR.
-      _Why:_ behaviour changes made "while there" are the usual way
-      specs and docs go stale; the spec-task gate only fires when a spec
-      is touched.
+- [ ] **Retroactive spec-refuter reviews**: `aks-pricing`, `config-views`,
+      `monthly-price-columns`, `node-details` and `sort-invert` shipped
+      reviewed by the owner or the code-review agent only; they pass the
+      review gate through `UNREVIEWED` in `scripts/spec-lint.sh`. Review
+      each, record findings as dated notes, drop it from the list.
+      _Why:_ the list is the gate's only exception; it should end empty.
 - [ ] **ADRs for the cross-cutting decisions**: automerge for writers,
       release from CHANGELOG headings, guardrail layers (git hooks + agent
       hooks + CI), history rewrite policy.

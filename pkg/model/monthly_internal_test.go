@@ -49,6 +49,7 @@ type monthlyNode struct {
 var monthlyNodes = []monthlyNode{
 	{"node-real", map[string]string{"karpenter.sh/capacity-type": "on-demand"},
 		0.154, false, "$0.1540", "$112.42", "$112.42"},
+	// interactive-tui R8: a reserved node's price is the list price marked ~
 	{"node-resv", map[string]string{"karpenter.sh/capacity-type": "reserved"},
 		0.1008, true, "~$0.1008", "~$73.58", "-"},
 	{"node-unkn", map[string]string{"karpenter.sh/capacity-type": "on-demand"},
@@ -173,7 +174,7 @@ func monthlyNames() []string {
 	return names
 }
 
-// R1, R2 and the counter-example on PRICE/H: the cells of each column.
+// monthly-price-columns R1, R2 and the counter-example on PRICE/H: the cells of each column.
 func TestMonthlyCells(t *testing.T) {
 	u := monthlyUI(t)
 	now := time.Now()
@@ -404,7 +405,7 @@ func TestColumnsPanelMovesMonthlyColumns(t *testing.T) {
 	}
 }
 
-// R5: with pricing disabled none of the four price columns is drawn, and no
+// monthly-price-columns R5: with pricing disabled none of the four price columns is drawn, and no
 // node row shows a price.
 func TestDisablePricingLeavesOutAllPriceColumns(t *testing.T) {
 	u := monthlyUI(t)
@@ -435,7 +436,7 @@ func TestDisablePricingLeavesOutAllPriceColumns(t *testing.T) {
 	}
 }
 
-// R6: at 120 columns, cpu only, PRICE/M, CAPACITY and STATUS stay, and any
+// monthly-price-columns R6: at 120 columns, cpu only, PRICE/M, CAPACITY and STATUS stay, and any
 // dropped column is less important than every kept one.
 func TestNarrowWindowKeepsTheMostImportantColumns(t *testing.T) {
 	order := []string{"STATUS", "PRICE/M", "CAPACITY", "PRICE/H", "IDLE/M", "INSTANCE", "IDLE/H", "NODEGROUP", "ZONE", "IP", "AGE", "REGION"}
@@ -473,7 +474,7 @@ func TestNarrowWindowKeepsTheMostImportantColumns(t *testing.T) {
 	}
 }
 
-// R4: the Sort panel keeps price and idle and has no monthly sort.
+// monthly-price-columns R4: the Sort panel keeps price and idle and has no monthly sort.
 func TestSortPanelHasNoMonthlyFields(t *testing.T) {
 	u := monthlyUI(t)
 	press(u, "s")

@@ -393,7 +393,7 @@ func TestDaemonSetsViewResetsOnReopen(t *testing.T) {
 	}
 }
 
-// --- R10: the DaemonSets line of the node list ---
+// --- node-pods R10: the DaemonSets line of the node list ---
 
 // footerNode adds a node with tenCPU10Gi in the zone, priced $0.40/h.
 func footerNode(u *UIModel, name, zone string) {

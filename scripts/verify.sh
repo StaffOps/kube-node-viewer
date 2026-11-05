@@ -30,5 +30,10 @@ echo "==> changelog"
 python3 scripts/changelog-check.py
 echo "==> spec tasks"
 python3 scripts/spec-tasks-check.py
+echo "==> spec trace"
+python3 scripts/spec-trace.py
+echo "==> drift"
+python3 scripts/drift-check.py
+
 
 echo "verify: ok"
