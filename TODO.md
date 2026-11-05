@@ -21,15 +21,14 @@ what they cannot. Listed by impact.
       the workflow, release once, then remove the key.
       _Why:_ the deploy key is a long-lived credential that can push to
       `main`; it has to be rotated by hand, and a leak lasts until then.
-- [ ] **Owner: require the `kind` check, and decide what it replaces**:
-      the `kind` job (`scripts/kind-it.sh`) gates automerge but is not in
-      the `main` ruleset's required checks (a repository setting), so a
-      person could merge with it red; add it next to the other seven.
-      Then decide whether it counts as the "run on a cluster" of a verify
-      task for changes that are not cloud-specific (AGENTS.md, "Tested
-      before it ships"), leaving real clusters for prices and node pools.
-      _Why:_ without the ruleset entry the gate holds only for automerged
-      PRs; without the decision every change still waits for a cluster.
+- [ ] **Owner: does the `kind` run count as the cluster run?** The
+      `kind` job (`scripts/kind-it.sh`) runs on every PR, informational
+      (not in automerge's needs, not a required check). Decide whether it
+      counts as the "run on a cluster" of a verify task for changes that
+      are not cloud-specific (AGENTS.md, "Tested before it ships"), leaving
+      real clusters for prices and node pools; if so, make it gate
+      automerge and a required check.
+      _Why:_ until then every change still waits for a real cluster.
 - [ ] **Confirm the Kiro hooks in a real session**: the Kiro config
       follows the Kiro docs but has not run in Kiro yet; a `git commit`
       with a non-conventional subject should be refused by both the git
@@ -89,6 +88,13 @@ Beyond the Guardrails section above.
       Monday release, after the tag is pushed.
 
 ## Follow-ups
+
+- [ ] Regenerate the README images (`scripts/screenshots.sh`): the demo
+      nodes' internal IPs moved to 192.0.2.0/24 for the golden screens,
+      and `.static/` still shows the old ones. The node names stay
+      `ip-10-0-…` (the allowed example names in `scripts/checks/content.sh`),
+      so a node's name no longer matches its IP; rename them only together
+      with that allowlist.
 
 ## Ideas
 

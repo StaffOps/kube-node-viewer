@@ -48,7 +48,7 @@ files you change carry the line
 scripts/build.sh          # local binary in bin/ (-i install, -a all platforms)
 scripts/verify.sh         # gofmt check, go vet, go test, spec lint — run before every commit
 scripts/screenshots.sh    # regenerate README images in .static/ from a made-up cluster (Python 3, Chrome, ffmpeg)
-scripts/kind-it.sh        # integration test on a throwaway kind cluster (Docker, kind, kubectl); own kubeconfig, deleted after
+scripts/kind-it.sh        # integration test on a throwaway kind cluster (Docker, kind); own kubeconfig, deleted after
 go test ./pkg/model -run TestGoldenScreens -update   # rewrite the golden screens after a layout change made on purpose
 make lint                 # golangci-lint at the version pinned in the Makefile (same as CI)
 make vuln licenses        # govulncheck and go-licenses, pinned in the Makefile (CI deps job)
@@ -116,10 +116,10 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
   recorded as a dated note of what was checked, never the cluster's name (this repo is public)). `scripts/spec-tasks-check.py` fails CI
   otherwise; open the PR as a draft until then.
 - **CI** (`test.yaml`): `verify`, `lint`, `build`, `secrets`,
-  `guardrails`, `deps`, `workflows` and `kind` run in parallel (and weekly on `main`, so a new
+  `guardrails`, `deps`, `workflows` and `kind` (informational) run in parallel (and weekly on `main`, so a new
   advisory for a shipped dependency shows up). On a PR from a branch of this repo whose
   author has write access, not a draft and without the `hold` label, the
-  `automerge` job approves and merges it once all of them pass. Dependabot
+  `automerge` job approves and merges it once all of them but `kind` pass. Dependabot
   PRs that only raise patch versions merge the same way, judged from the
   go.mod diff, not from what Dependabot lists; any other Dependabot PR,
   GitHub Actions updates included, waits for a person. Forks and other authors wait for a person.
@@ -214,7 +214,7 @@ the git hooks; the session-context hook does it on the first agent session.
 | PR | the workflows: actionlint, and zizmor (actions pinned by commit SHA and not impostor commits, no workflow left on the default token permissions, no credential left in a checkout that does not push, no cache in the release build, injection) | — | — | `workflows` job (`.github/zizmor.yml` lists the reviewed exceptions) | pin with `@<sha> # vX.Y.Z`; add `permissions:` to the job |
 | Weekly | CI tools pinned by version that Dependabot does not see (zizmor, actionlint, gitleaks, golangci-lint, govulncheck, go-licenses, cosign, syft, goreleaser, kind): a release at least 14 days old | — | — | `tools` job (`scripts/checks/tool-versions.py`) | raise the pin (both golangci-lint pins together; gitleaks with its `GITLEAKS_SHA256`, kind with its `KIND_SHA256`) |
 | PR | the screens: each main screen of the made-up cluster against its golden text file in `pkg/model/testdata/screens/` (`TestGoldenScreens`); a layout change shows as a diff of those files in the PR | — | — | `verify` job | if on purpose, `go test ./pkg/model -run TestGoldenScreens -update` and commit the files |
-| PR | the binary's sessions against a real API server: nodes, pods per node, node group and zone on the screen match what a kind cluster lists (`scripts/kind-it.sh`, `TestKindCluster`) | — | — | `kind` job | fix the regression, or the fixture in `cmd/kube-node-viewer/testdata/kind/` |
+| PR | the binary's sessions against a real API server: nodes, pods per node and their requests, node group and zone, and each node's Pods tab match what a kind cluster lists (`scripts/kind-it.sh`, `TestKindCluster`) | — | — | `kind` job (informational: does not gate automerge, not a required check) | fix the regression, or the fixture in `cmd/kube-node-viewer/testdata/kind/` |
 | PR | the guardrails themselves: shellcheck and `scripts/checks/test-checks.sh` (each case blocked or passed in a throwaway repo) | — | — | `guardrails` job | fix the hook or the case |
 | `gh pr create` / `ready` / `merge` | released CHANGELOG sections; open tasks in a touched spec (the verify task includes a cluster run) | — | `pr-guard` (`--draft` passes) | `changelog-check.py`, `spec-tasks-check.py` | finish the tasks; draft until then |
 | PR green | trusted author, or a Dependabot PR that only raises patch versions (`scripts/checks/dependabot-patch.sh` on its go.mod) → approve, merge | — | — | `automerge` job (`hold` label stops it) | — |

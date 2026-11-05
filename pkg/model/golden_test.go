@@ -17,6 +17,7 @@ package model
 import (
 	"flag"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/mattn/go-runewidth"
 	"github.com/muesli/termenv"
 )
 
@@ -77,8 +79,45 @@ var goldenScenes = []struct {
 func TestGoldenScreens(t *testing.T) {
 	dir := filepath.Join("testdata", "screens")
 	if *updateGolden {
+		if os.Getenv("CI") != "" {
+			t.Fatal("-update rewrites the expected screens; run it locally and commit the diff")
+		}
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
+		}
+	}
+	// RUNEWIDTH_EASTASIAN=1 (or a CJK locale) widens the box-drawing
+	// characters; the golden files are drawn with narrow ones. The ansi
+	// package reads the variable once at start, so run again without it.
+	if wide, err := strconv.ParseBool(os.Getenv("RUNEWIDTH_EASTASIAN")); err == nil && wide {
+		args := []string{"-test.run=^TestGoldenScreens$"}
+		if *updateGolden {
+			args = append(args, "-update")
+		}
+		cmd := exec.Command(os.Args[0], args...) // #nosec G204 -- this test binary
+		cmd.Env = append(os.Environ(), "RUNEWIDTH_EASTASIAN=0")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("with RUNEWIDTH_EASTASIAN=0: %v\n%s", err, out)
+		}
+		return
+	}
+	if c := runewidth.DefaultCondition; c.EastAsianWidth {
+		c.EastAsianWidth = false
+		c.CreateLUT()
+		t.Cleanup(func() { c.EastAsianWidth = true; c.CreateLUT() })
+	}
+	// a golden file whose scene is gone would never be checked again
+	files, err := filepath.Glob(filepath.Join(dir, "*.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenes := map[string]bool{}
+	for _, s := range goldenScenes {
+		scenes[s.name+".txt"] = true
+	}
+	for _, f := range files {
+		if !scenes[filepath.Base(f)] {
+			t.Errorf("%s has no scene in goldenScenes; delete it or add the scene", f)
 		}
 	}
 	for _, s := range goldenScenes {
