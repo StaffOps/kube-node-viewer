@@ -65,7 +65,7 @@ outside that region mix two regions' prices; this is a known limitation.
 region THEN an AWS node SHALL get the static list price of its region
 (R1's rule), with no AWS call.
 
-_Test: withdrawn — by the 2026-11-04 correction below._
+_Test: withdrawn (R6) — by the 2026-11-04 correction below._
 
 > **Corrected 2026-11-04 (implementation and diff review).** R6 is
 > withdrawn: the built-in price tables hold only `us-east-1`,

@@ -40,6 +40,7 @@ func searchNodes() []*model.Node {
 	return nodes
 }
 
+// search-regex R1, R2: which nodes a regex or a literal search keeps.
 func TestSearchRegex(t *testing.T) {
 	cases := []struct {
 		text string

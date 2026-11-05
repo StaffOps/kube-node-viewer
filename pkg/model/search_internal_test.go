@@ -23,6 +23,7 @@ import (
 // Tests for specs/search-regex: the matcher (R1-R3) and the footer, header
 // and help wording (R3, R4). Node selection is in search_test.go.
 
+// search-regex R1, R2, R3: regex, literal text, and an invalid regex read as text.
 func TestSearchMatcher(t *testing.T) {
 	cases := []struct {
 		text, value string
@@ -117,20 +118,42 @@ func TestSearchFooterHeaderAndHelp(t *testing.T) {
 	}
 }
 
-// search-regex R4: the README's key table says the search takes a regular
-// expression.
+// search-regex R4: the README says the search takes a regular expression:
+// the key table with an a|b example, the Search section with RE2 and the
+// escaped dot, and the Export section on how the search is recorded.
 func TestSearchREADMESaysRegex(t *testing.T) {
 	b, err := os.ReadFile("../../README.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, line := range strings.Split(string(b), "\n") {
+	readme := string(b)
+	section := func(title string) string {
+		i := strings.Index(readme, "\n"+title+"\n")
+		if i < 0 {
+			t.Fatalf("README has no %q section", title)
+		}
+		rest := readme[i+len(title)+2:]
+		if j := strings.Index(rest, "\n#"); j >= 0 {
+			rest = rest[:j]
+		}
+		return rest
+	}
+	row := ""
+	for _, line := range strings.Split(readme, "\n") {
 		if strings.HasPrefix(line, "| `/` |") {
-			if !strings.Contains(line, "regular expression") {
-				t.Errorf("README key row for / does not say regular expression: %s", line)
-			}
-			return
+			row = line
 		}
 	}
-	t.Error("README has no key row for /")
+	if !strings.Contains(row, "regular expression") || !strings.Contains(row, `search\|batch`) {
+		t.Errorf("README key row for / lacks the regex wording or its a|b example: %q", row)
+	}
+	search := section("### Search (`/`)")
+	for _, want := range []string{"regular expression", "RE2", `\.`, "invalid regex: as text"} {
+		if !strings.Contains(search, want) {
+			t.Errorf("README Search section lacks %q", want)
+		}
+	}
+	if !strings.Contains(section("### Export (`e`)"), "regular expression") {
+		t.Error("README Export section does not say the search may be a regular expression")
+	}
 }

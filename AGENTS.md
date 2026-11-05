@@ -111,8 +111,9 @@ Why: [ADR-002](specs/decisions/ADR-002-merge-green-prs-from-writers.md)
 (automerge), [ADR-003](specs/decisions/ADR-003-release-from-changelog-headings.md)
 (release from the CHANGELOG).
 
-- **Tested before it ships**: a change to `cmd/` or `pkg/` that touches a
-  spec merges only when every task of that spec is `[x]`, its verify task
+- **Tested before it ships**: a change to code (`cmd/`, `pkg/`, `hack/`,
+  `scripts/`, `.github/`, `.githooks/`) that touches a spec merges only
+  when that spec is past draft and every task of it is `[x]`, its verify task
   included (`scripts/verify.sh`, `make lint`, a run on any cluster,
   recorded as a dated note of what was checked, never the cluster's name (this repo is public)). `scripts/spec-tasks-check.py` fails CI
   otherwise; open the PR as a draft until then.

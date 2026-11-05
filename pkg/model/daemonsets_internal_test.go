@@ -54,7 +54,7 @@ func totalLine(t *testing.T, u *UIModel) string {
 	return ""
 }
 
-// R6: every pod is its own row, DaemonSet pods marked ds, none grouped.
+// node-pods R6: every pod is its own row, DaemonSet pods marked ds, none grouped.
 func TestAllPodsViewListsEveryPodAsARow(t *testing.T) {
 	u, _ := podsUI(t, 160, tenCPU10Gi,
 		podSpec{name: "web", cpu: "3"},
@@ -81,7 +81,7 @@ func TestAllPodsViewListsEveryPodAsARow(t *testing.T) {
 	}
 }
 
-// R6: the ds mark follows the pod's own sort keys, name included.
+// node-pods R6: the ds mark follows the pod's own sort keys, name included.
 func TestAllPodsViewDaemonSetPodsShareTheSort(t *testing.T) {
 	u, _ := podsUI(t, 160, tenCPU10Gi,
 		podSpec{ns: "b", name: "app", cpu: "1"},
@@ -98,7 +98,7 @@ func TestAllPodsViewDaemonSetPodsShareTheSort(t *testing.T) {
 	}
 }
 
-// R6 with R2: on a narrow window a long DaemonSet pod name is cut with …,
+// node-pods R6 with R2: on a narrow window a long DaemonSet pod name is cut with …,
 // and the row is still marked ds.
 func TestAllPodsViewDsMarkOnANarrowWindow(t *testing.T) {
 	long := "fluent-bit-a-very-long-daemonset-pod-name-x7k2q"
@@ -116,7 +116,7 @@ func TestAllPodsViewDsMarkOnANarrowWindow(t *testing.T) {
 	}
 }
 
-// R8: enter and space in the Pods tab neither close the popup nor change the
+// node-pods R8: enter and space in the Pods tab neither close the popup nor change the
 // view, the sort or the cursor, in both views.
 func TestPodsTabEnterAndSpaceDoNothing(t *testing.T) {
 	u, _ := podsUI(t, 160, tenCPU10Gi,
@@ -140,7 +140,7 @@ func TestPodsTabEnterAndSpaceDoNothing(t *testing.T) {
 	}
 }
 
-// R8: d does nothing in the Details tab; the Pods tab still opens on all pods.
+// node-pods R8: d does nothing in the Details tab; the Pods tab still opens on all pods.
 func TestDInDetailsDoesNothing(t *testing.T) {
 	u := newTestUI(t)
 	podsNode(u, tenCPU10Gi, nil)
@@ -159,7 +159,7 @@ func TestDInDetailsDoesNothing(t *testing.T) {
 	}
 }
 
-// R8: d puts the cursor on the first row of the view it switches to, each
+// node-pods R8: d puts the cursor on the first row of the view it switches to, each
 // time, wherever the cursor was.
 func TestDPutsTheCursorOnTheFirstRow(t *testing.T) {
 	u, _ := podsUI(t, 160, tenCPU10Gi, append(manyPods(5),
@@ -176,7 +176,7 @@ func TestDPutsTheCursorOnTheFirstRow(t *testing.T) {
 	}
 }
 
-// R9 with R3: the Total share comes from the summed requests. A DaemonSet
+// node-pods R9 with R3: the Total share comes from the summed requests. A DaemonSet
 // with 10% CPU and none of the memory and one with 20% of the memory and no
 // CPU take 20% of the node together, not 30%.
 func TestDaemonSetsTotalFromSummedRequests(t *testing.T) {
@@ -213,7 +213,7 @@ func TestDaemonSetsTotalFromSummedRequests(t *testing.T) {
 	}
 }
 
-// R9: <m> counts distinct namespace/name pairs; <unnamed> pods count in the
+// node-pods R9: <m> counts distinct namespace/name pairs; <unnamed> pods count in the
 // pods of the Total but not in its sets.
 func TestDaemonSetsSetCountAndUnnamed(t *testing.T) {
 	tests := []struct {
@@ -273,7 +273,7 @@ func TestDaemonSetsSetCountAndUnnamed(t *testing.T) {
 	}
 }
 
-// R5 with R9: DaemonSets whose summed requests have neither CPU nor memory
+// node-pods R5 with R9: DaemonSets whose summed requests have neither CPU nor memory
 // show no requests, on their row and on the Total, and such a row sorts last.
 func TestDaemonSetsNoRequests(t *testing.T) {
 	t.Run("all without requests", func(t *testing.T) {
@@ -310,7 +310,7 @@ func TestDaemonSetsNoRequests(t *testing.T) {
 	})
 }
 
-// R9: the cursor key is the DaemonSet namespace/name and survives updates that
+// node-pods R9: the cursor key is the DaemonSet namespace/name and survives updates that
 // reorder the rows; header and Total stay fixed while the rows scroll.
 func TestDaemonSetsCursorKeptAcrossUpdates(t *testing.T) {
 	u, _ := podsUI(t, 160, tenCPU10Gi,
@@ -361,7 +361,7 @@ func TestDaemonSetsFixedLinesWhileScrolling(t *testing.T) {
 	}
 }
 
-// R9: with no DaemonSet pods the cursor keys do nothing.
+// node-pods R9: with no DaemonSet pods the cursor keys do nothing.
 func TestDaemonSetsEmptyViewKeys(t *testing.T) {
 	u, _ := podsUI(t, 160, tenCPU10Gi, manyPods(3)...)
 	press(u, "d")
@@ -375,7 +375,7 @@ func TestDaemonSetsEmptyViewKeys(t *testing.T) {
 	}
 }
 
-// R8: the view resets to all pods with its cursor on the first row, even when
+// node-pods R8: the view resets to all pods with its cursor on the first row, even when
 // the popup closed in the DaemonSets view on a later row.
 func TestDaemonSetsViewResetsOnReopen(t *testing.T) {
 	u, _ := podsUI(t, 160, tenCPU10Gi,
@@ -470,7 +470,7 @@ func TestDaemonSetLineOfTheCursorNode(t *testing.T) {
 	}
 }
 
-// R10: the line follows the live node.
+// node-pods R10: the line follows the live node.
 func TestDaemonSetLineFollowsTheLiveNode(t *testing.T) {
 	u := footerUI(t, 160, 40)
 	addPods(u, dsPod("kube-system", "more-x", "more", "2", "").onNode("node-a"))
@@ -511,7 +511,7 @@ func TestDaemonSetLineDirect(t *testing.T) {
 	}
 }
 
-// R10: a cursor key whose node is gone gives a blank line, not a stale one.
+// node-pods R10: a cursor key whose node is gone gives a blank line, not a stale one.
 func TestDaemonSetFooterNodeGone(t *testing.T) {
 	u := footerUI(t, 160, 40)
 	u.View()
@@ -525,7 +525,7 @@ func TestDaemonSetFooterNodeGone(t *testing.T) {
 	}
 }
 
-// R10: absent on a group heading, while a panel, the search or the command
+// node-pods R10: absent on a group heading, while a panel, the search or the command
 // line is open, and on Recommendations.
 func TestDaemonSetLineAbsent(t *testing.T) {
 	want := "node-a · DaemonSets: 20% of the node (cpu 1000m 10% · mem 2.0Gi 20%)"
@@ -608,7 +608,7 @@ func TestDaemonSetLineAbsent(t *testing.T) {
 	})
 }
 
-// R10: on a narrow window the line is cut with …; no line runs past the window.
+// node-pods R10: on a narrow window the line is cut with …; no line runs past the window.
 func TestDaemonSetLineNarrowWindow(t *testing.T) {
 	for _, width := range []int{20, 30, 45} {
 		t.Run(fmt.Sprint(width), func(t *testing.T) {
@@ -633,7 +633,7 @@ func TestDaemonSetLineNarrowWindow(t *testing.T) {
 	}
 }
 
-// R10: the frame never grows past the window, and the node list gives up at
+// node-pods R10: the frame never grows past the window, and the node list gives up at
 // most one row to the DaemonSets line: with one-line nodes and more nodes
 // than fit, the frame fills the window exactly, so only the reserved line
 // is taken from the list.
@@ -682,7 +682,7 @@ func TestDaemonSetLineFrameHeights(t *testing.T) {
 	}
 }
 
-// R10: pages do not change as the cursor moves between headings and nodes.
+// node-pods R10: pages do not change as the cursor moves between headings and nodes.
 func TestDaemonSetLinePagesStable(t *testing.T) {
 	u := footerUI(t, 120, 14)
 	for i := range 20 {

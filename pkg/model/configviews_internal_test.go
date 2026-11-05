@@ -216,7 +216,7 @@ func TestSaveUnderAConfigViewNameRefused(t *testing.T) {
 	}
 }
 
-// TestConfigViewWithHiddenLabelsStaysListed checks R7: a config view that
+// TestConfigViewWithHiddenLabelsStaysListed checks config-views R7: a config view that
 // uses labels the label lists hide is applied, and the panels list them.
 func TestConfigViewWithHiddenLabelsStaysListed(t *testing.T) {
 	v := DefaultViewState()

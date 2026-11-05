@@ -31,6 +31,7 @@ import (
 // Tests for label-visibility R7-R9, written against
 // specs/label-visibility/requirements.md.
 
+// label-visibility R9: the config file path, XDG_CONFIG_HOME or ~/.config.
 func TestSettingsPath(t *testing.T) {
 	home := t.TempDir()
 	abs := t.TempDir()
@@ -146,6 +147,7 @@ func TestLoadSettingsMissingFileOrDir(t *testing.T) {
 	}
 }
 
+// label-visibility R8: an invalid file stops the start with a message naming it.
 func TestLoadSettingsInvalidFiles(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -188,6 +190,7 @@ func TestLoadSettingsInvalidFiles(t *testing.T) {
 	}
 }
 
+// label-visibility R8: an unreadable file stops the start.
 func TestLoadSettingsUnreadableFile(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a mode 000 file")
@@ -292,7 +295,7 @@ func TestLabelFlagsWithoutAConfigFile(t *testing.T) {
 	}
 }
 
-// TestLabelFlagsAreNotViewState checks R7: the flags do not reach the view
+// TestLabelFlagsAreNotViewState checks label-visibility R7: the flags do not reach the view
 // state that is saved per cluster.
 func TestLabelFlagsAreNotViewState(t *testing.T) {
 	explicit := map[string]string{"labels-allow": "team", "labels-deny": "env"}

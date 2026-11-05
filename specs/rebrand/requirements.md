@@ -46,8 +46,7 @@ kube-node-viewer: reading legacy config ~/.eks-node-viewer; move it to ~/.kube-n
   `grep -rn 'github.com/awslabs/eks-node-viewer' --include='*.go' --include=go.mod --include='*.yaml' .` is empty.
 - [ ] After the first push and tag: `go install github.com/staffops/kube-node-viewer/cmd/kube-node-viewer@<tag>` produces `kube-node-viewer`.
 
-_Test: manual — the module path is `go.mod`'s; every build and import of CI
-uses it._
+
 
 **R2** WHEN the binary runs THEN it SHALL identify itself as
 `kube-node-viewer` (`-version`, `-h` usage text, flag descriptions), and WHEN
@@ -71,6 +70,8 @@ before the TUI starts, naming the new path.
 - [ ] Unit test (home dir injected) for: new only, legacy only (warning),
   both (new wins, no warning), neither (no warning).
 
+_Test: withdrawn — the 2026-11-02 correction above (marker added 2026-11-05)._
+
 **R4a** WHEN a node carries the `kube-node-viewer/instance-price` or
 `eks-node-viewer/instance-price` label THEN the system SHALL use its value as
 the node price; WHEN both are present THEN the new key SHALL win; WHEN the
@@ -78,6 +79,8 @@ winning value does not parse as a number THEN the system SHALL try the other
 key, then the pricing provider (today's fallback behaviour).
 
 - [ ] Tests in `pkg/client` for old key, new key, both, new unparsable.
+
+_Test: withdrawn — the 2026-11-02 correction above (marker added 2026-11-05)._
 
 **R4b** WHEN a user passes a computed label name (`<prefix>/node-age`,
 `<prefix>/node-<resource>-usage`) to `--extra-labels`, `--node-sort`,
@@ -87,13 +90,15 @@ results.
 
 - [ ] Tests in `pkg/model` against `ComputeLabel` for both prefixes.
 
+_Test: withdrawn — the 2026-11-02 correction above (marker added 2026-11-05)._
+
 **R5** WHEN someone reads the repository THEN `README.md` SHALL describe
 `kube-node-viewer`, state it is based on `awslabs/eks-node-viewer` (Apache
 2.0), credit contributors of imported fork changes, keep the upstream history
 (origin at AWS, talks) as credit only, point badges at this repository, and
 use no AWS/Amazon branding implying endorsement.
 
-_Test: manual — README content, reviewed with the rebrand._
+_Test: manual — README content, reviewed with the rebrand (marker added 2026-11-05)._
 
 **R6** WHEN the repository is inspected THEN AWS governance files SHALL be
 gone or replaced: `CODEOWNERS` reads `* @karlipegomes @sule26`,
@@ -101,7 +106,7 @@ gone or replaced: `CODEOWNERS` reads `* @karlipegomes @sule26`,
 point to `AGENTS.md`; Homebrew `aws/tap` instructions and `hack/homebrew.go`
 removed.
 
-_Test: manual — repository files, reviewed with the rebrand._
+_Test: manual — repository files, reviewed with the rebrand (marker added 2026-11-05)._
 
 **R7** WHEN a tag is pushed THEN the release workflow SHALL build with
 goreleaser from the committed tree (no network refresh of generated files)
@@ -112,8 +117,9 @@ run `scripts/verify.sh` and `scripts/build.sh`.
   `dist/kube-node-viewer_*`.
 - [ ] Neither workflow runs `make generate`.
 
-_Test: manual — CI and release workflows; `release.yaml`'s
-`scripts/release-check.sh --strict` checks the published artifacts._
+_Test: ci — the `build` and `release-snapshot` jobs of `test.yaml`, and
+`scripts/release-check.sh --strict` in `release.yaml` on the published
+artifacts (marker added 2026-11-05)._
 
 **R8** WHEN the code is distributed THEN `LICENSE`, the original `NOTICE`
 line and every existing Apache license header SHALL still be present; `NOTICE` gains
@@ -124,8 +130,9 @@ modification note of D5; new code is licensed Apache 2.0.
 - [ ] Every `.go`/`.sh` file in `git diff --name-only --diff-filter=M af96088`
   contains the D5 note.
 
-_Test: manual — license files and headers; the `pre-commit` hook checks the
-header of each new file._
+_Test: manual — license files and headers, reviewed with the rebrand; the
+`pre-commit` hook checks the header of each new file only. A check over
+every file would fail today (TODO.md) (marker added 2026-11-05)._
 
 > **Corrected 2026-11-04.** After a history rewrite, `af96088` is no
 > longer reachable from any branch or tag, although GitHub still serves it

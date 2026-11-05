@@ -38,6 +38,7 @@ func flagsOnly(explicit map[string]string) func(t *testing.T) model.ViewState {
 
 // One test per row of the flag table (interactive-tui design D8, R15).
 
+// interactive-tui R15: --node-selector stays the only server-side scope.
 func TestFlagTableNodeSelectorIsNotViewState(t *testing.T) {
 	got := flagsOnly(map[string]string{"node-selector": "team=a"})(t)
 	if !reflect.DeepEqual(got, model.DefaultViewState()) {
@@ -45,6 +46,7 @@ func TestFlagTableNodeSelectorIsNotViewState(t *testing.T) {
 	}
 }
 
+// interactive-tui R15: --group-by maps to the view (flag table D8).
 func TestFlagTableGroupByKey(t *testing.T) {
 	got := flagsOnly(map[string]string{"group-by": pool})(t)
 	if !reflect.DeepEqual(got.GroupBy, []model.Field{model.LabelField(pool)}) || len(got.Filters) != 0 {
@@ -52,6 +54,7 @@ func TestFlagTableGroupByKey(t *testing.T) {
 	}
 }
 
+// interactive-tui R15: --group-by with values adds a filter.
 func TestFlagTableGroupByKeyWithValues(t *testing.T) {
 	got := flagsOnly(map[string]string{"group-by": pool + "=default, gpu"})(t)
 	want := []model.Filter{{Field: model.LabelField(pool), Values: []string{"default", "gpu"}, Enabled: true}}
@@ -60,6 +63,7 @@ func TestFlagTableGroupByKeyWithValues(t *testing.T) {
 	}
 }
 
+// interactive-tui R13, R15: --groups-only, never with both hidden.
 func TestFlagTableGroupsOnly(t *testing.T) {
 	got := flagsOnly(map[string]string{"group-by": pool, "groups-only": "true"})(t)
 	if got.ShowNodes {
@@ -72,6 +76,7 @@ func TestFlagTableGroupsOnly(t *testing.T) {
 	}
 }
 
+// interactive-tui R15: --node-sort maps to the sort.
 func TestFlagTableNodeSort(t *testing.T) {
 	cases := map[string]model.SortSpec{
 		"creation":                            {Field: model.FieldCreation},
@@ -88,6 +93,7 @@ func TestFlagTableNodeSort(t *testing.T) {
 	}
 }
 
+// interactive-tui R15: --extra-labels adds columns.
 func TestFlagTableExtraLabels(t *testing.T) {
 	got := flagsOnly(map[string]string{"extra-labels": "team, kube-node-viewer/node-age"})(t)
 	want := append(append([]model.Field(nil), model.DefaultColumns...),
@@ -117,6 +123,7 @@ func TestFlagTableExtraLabelsOnMonthlyDefaults(t *testing.T) {
 	}
 }
 
+// interactive-tui R15: --resources maps to the resources.
 func TestFlagTableResources(t *testing.T) {
 	got := flagsOnly(map[string]string{"resources": "cpu,memory,nvidia.com/gpu"})(t)
 	if !reflect.DeepEqual(got.Resources, []string{"cpu", "memory", "nvidia.com/gpu"}) {
@@ -127,6 +134,7 @@ func TestFlagTableResources(t *testing.T) {
 	}
 }
 
+// interactive-tui R15: cluster and run options are not view state.
 func TestFlagTableClusterAndRunOptionsAreNotViewState(t *testing.T) {
 	got := flagsOnly(map[string]string{
 		"context": "a", "kubeconfig": "/k", "style": "#000,#111,#222", "disable-pricing": "true",
@@ -146,6 +154,7 @@ func savedView() *model.ViewState {
 	return &v
 }
 
+// interactive-tui R1: saved state wins over the config file.
 func TestConfigDoesNotOverrideSavedState(t *testing.T) {
 	cfg := configFile{"node-sort": "creation=asc", "group-by": pool, "resources": "cpu"}
 	got := resolve(t, cfg, savedView(), nil)
@@ -154,6 +163,7 @@ func TestConfigDoesNotOverrideSavedState(t *testing.T) {
 	}
 }
 
+// interactive-tui R1: with nothing saved, the config file values apply.
 func TestConfigAppliesWithoutSavedState(t *testing.T) {
 	got := resolve(t, configFile{"group-by": pool}, nil, nil)
 	if !reflect.DeepEqual(got.GroupBy, []model.Field{model.LabelField(pool)}) {
@@ -161,6 +171,7 @@ func TestConfigAppliesWithoutSavedState(t *testing.T) {
 	}
 }
 
+// interactive-tui R2: explicit flags apply to the run, over saved state.
 func TestExplicitFlagOverridesSavedState(t *testing.T) {
 	saved := savedView()
 	got := resolve(t, nil, saved, map[string]string{"node-sort": "creation"})

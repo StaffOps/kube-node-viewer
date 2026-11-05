@@ -30,15 +30,15 @@ for dir in specs/*/; do
 
   grep -q "($name/)" "$index" || err "$name: not linked from $index"
 
-  reqs=$(grep -oE '^\*\*R[0-9]+\*\*' "$reqfile" | tr -d '*' | sort -u)
+  reqs=$(grep -oE '^\*\*R[0-9]+[a-z]?\*\*' "$reqfile" | tr -d '*' | sort -u)
   [ -n "$reqs" ] || err "$name: no '**R<n>** WHEN … SHALL' requirement in $(basename "$reqfile")"
   while IFS= read -r line; do
     printf '%s\n' "$line" | grep -q 'WHEN.*THEN.*SHALL' ||
       err "$name: requirement not in WHEN/THEN/SHALL form: ${line:0:80}"
-  done < <(awk '/^\*\*R[0-9]+\*\*/{p=$0; f=1; next} f&&NF&&!/^ *-/{p=p " " $0; next} f{print p; f=0} END{if(f) print p}' "$reqfile")
+  done < <(awk '/^\*\*R[0-9]+[a-z]?\*\*/{p=$0; f=1; next} f&&NF&&!/^ *-/{p=p " " $0; next} f{print p; f=0} END{if(f) print p}' "$reqfile")
 
   for r in $reqs; do
-    grep -qE "(^|[^0-9A-Za-z])$r([^0-9]|$)" "$dir/tasks.md" || err "$name: $r not covered by any task in tasks.md"
+    grep -qE "(^|[^0-9A-Za-z])$r([^0-9a-z]|$)" "$dir/tasks.md" || err "$name: $r not covered by any task in tasks.md"
   done
 
   grep -qE '^- \[( |-|x)\] T[0-9]+[a-z]?\. ' "$dir/tasks.md" || err "$name: tasks.md has no '- [ ] T<n>. <task>' items"
@@ -49,18 +49,23 @@ for dir in specs/*/; do
     err "$name: status active/shipped but [TO CONFIRM] remains"
   fi
 
-  # an active or shipped spec names its independent review: the Reviewed:
-  # part of the status line has spec-refuter and a date (AGENTS.md step 2)
-  if grep -qE '^> Status: (active|shipped)' "$reqfile"; then
-    reviewed=$(grep -m1 -E '^> Status:' "$reqfile" | sed -n 's/.*Reviewed:[[:space:]]*//p' | sed 's/ · .*//')
-    if printf '%s' "$reviewed" | grep -q 'spec-refuter' &&
-      ! printf '%s' "$reviewed" | grep -q 'spec-refuter not run' &&
-      printf '%s' "$reviewed" | grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
+  status=$(sed -n 's/^> Status: \([a-z]*\).*/\1/p' "$reqfile" | head -1)
+  case "$status" in
+    draft | active | shipped | superseded) ;;
+    *) err "$name: status '${status:-none}' on '> Status:' is not draft, active, shipped or superseded" ;;
+  esac
+
+  # an active or shipped spec names its independent review on the status
+  # line: 'Reviewed: <date> (spec-refuter…' or 'Reviewed: spec-refuter
+  # <date>' (AGENTS.md step 2)
+  if [ "$status" = active ] || [ "$status" = shipped ]; then
+    if grep -m1 -E '^> Status:' "$reqfile" |
+      grep -qE 'Reviewed: ([0-9]{4}-[0-9]{2}-[0-9]{2} \(spec-refuter|spec-refuter [0-9]{4}-[0-9]{2}-[0-9]{2})'; then
       case " $UNREVIEWED " in *" $name "*) err "$name: reviewed by spec-refuter now; remove it from UNREVIEWED in scripts/spec-lint.sh" ;; esac
     else
       case " $UNREVIEWED " in
         *" $name "*) ;;
-        *) err "$name: status active/shipped needs 'Reviewed: <date> (spec-refuter…)' on its status line; run the spec-refuter review first (draft until then)" ;;
+        *) err "$name: status active/shipped needs 'Reviewed: <date> (spec-refuter…)' or 'Reviewed: spec-refuter <date>' on its status line; run the spec-refuter review first (draft until then)" ;;
       esac
     fi
   fi

@@ -95,6 +95,10 @@ func TestIdleIsInfoOutOfTheTotal(t *testing.T) {
 	if idle == 0 {
 		t.Fatalf("the fixture has no idle row: %v", r.Recs)
 	}
+	// the usage example's total, which holds no idle cost
+	if r.Total != 242.94 {
+		t.Errorf("total %.2f, want 242.94", r.Total)
+	}
 }
 
 // recommendations R3 and R11: Spot rows come last.

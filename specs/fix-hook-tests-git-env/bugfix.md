@@ -37,7 +37,7 @@ THEN the system SHALL ignore them, read no global or system git config, and
 leave the calling repository's local config, refs, tags and HEAD
 unchanged.
 
-_Test: manual — the `guardrails` CI job of R2 is the check: it runs the
+_Test: ci — the `guardrails` job of R2 is the check: it runs the
 hook tests with these variables set and compares the checkout._
 
 **R2** WHEN CI runs the hook tests THEN it SHALL run them once plainly and
@@ -46,8 +46,8 @@ set, as the pre-push hook of a worktree under `git -c` does, and fail if
 the checkout's `git config --local --list`, `git for-each-ref` or HEAD
 differ afterwards.
 
-_Test: manual — CI behaviour (`guardrails` job in
-`.github/workflows/test.yaml`), seen failing and passing on its PR._
+_Test: ci — the `guardrails` job in
+`.github/workflows/test.yaml`, seen failing and passing on its PR._
 
 ## Unchanged behavior
 
