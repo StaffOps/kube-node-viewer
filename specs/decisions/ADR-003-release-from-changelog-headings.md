@@ -89,8 +89,10 @@ The workflow then:
 - Bugfix specs have to be marked shipped by hand (`TODO.md`).
 - A deploy key bypasses both rulesets to push the release commit and
   tag. It is a long-lived credential; `TODO.md` proposes a GitHub App
-  token instead. Admins can also create, move or delete `v*` tags: the tag
-  ruleset gives the admin role bypass mode `always`.
+  token instead.
+- Admins can also create, move or delete `v*` tags; the tag ruleset gives
+  the admin role bypass mode `always`. This is intended: the owner can fix
+  a release or a tag by hand when the workflow cannot.
 - A release run edits files (`CHANGELOG.md`, spec statuses), so a PR left
   open across a release has to merge `main` again.
 
@@ -112,7 +114,8 @@ versions means replacing `scripts/release-prepare.py`.
 
 - **Manual tags.** This was the practice before automation
   (v0.8.0–v0.8.2): a person computes the version and tags it. The `v*`
-  tag ruleset now refuses that, except for admins and the deploy key.
+  tag ruleset now refuses that, except for the deploy key and, on purpose,
+  admins.
 - **A release on every merge** (PR #18, `5a973d5`). It meant one version
   per PR, three in about 75 minutes, and batches replaced it in PR #27.
 - **Versions from Conventional Commit types** (semantic-release,

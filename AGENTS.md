@@ -141,12 +141,12 @@ Why: [ADR-002](specs/decisions/ADR-002-merge-green-prs-from-writers.md)
   skill `release`.
 - **Rulesets** (repository settings): `main` takes changes only through a
   PR whose `verify`, `lint`, `build`, `secrets`, `guardrails`, `deps` and
-  `workflows` checks passed (no force-push, no deletion; admins can bypass
-  only through a PR); `v*` tags cannot be created, moved or deleted
-  except by admins, whom the tag ruleset lets bypass it.
-  Deploy keys bypass both: `release.yaml` pushes its commit and tag with
-  `RELEASE_DEPLOY_KEY`, since GitHub does not let `GITHUB_TOKEN` bypass a
-  ruleset.
+  `workflows` checks passed (no force-push, no deletion); `v*` tags
+  cannot be created, moved or deleted. Admins and the release deploy key
+  bypass both, on purpose: admins so the owner can fix a release or a tag
+  by hand (on `main` only through a PR), the deploy key because
+  `release.yaml` pushes its commit and tag with `RELEASE_DEPLOY_KEY`, and
+  GitHub does not let `GITHUB_TOKEN` bypass a ruleset.
 - Agents never push to `main` or push tags; they open PRs.
 - **Reviewing a PR** (skill `pr-review`): check it against the current
   `main`, not its base. A branch that predates a release merges its

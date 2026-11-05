@@ -1,7 +1,6 @@
 # ADR-005: Never rewrite published history; fix forward, and rotate what leaked
 
-> Status: Proposed, until the owner confirms the account of the rewrite
-> below. · Date: 2026-11-04 · Recorded after the fact: the rules were
+> Status: Accepted · Date: 2026-11-04 · Recorded after the fact: the rules were
 > written into `AGENTS.md`, the hooks and the rulesets between 2026-10-30
 > (`4f4be0e`) and 2026-11-03 (`aa56b4a`). · Reviewed: 2026-11-04
 > (spec-refuter; 3 HIGH, 7 MEDIUM, 7 LOW, applied)
@@ -25,7 +24,7 @@
   2026-10-31T10:53:02-03:00, among them `4f4be0e`, which added the
   `guard-destructive` hook. So the rewrite happened after the guard
   existed, by a command the guard either asked about or did not cover.
-  **[TO CONFIRM by the owner: when, why, and with what command.]**
+  How and why it was done is not recorded, and the owner does not recall.
 - The repository is public. A pushed commit can be cloned, forked or
   cached before a rewrite, and as the old SHAs show, GitHub keeps serving
   it afterwards. A rewrite does not take back what was published.
@@ -42,8 +41,10 @@
    deleting `v*` tags. Both let two actors bypass them:
    - the deploy key, bypass mode `always`; the release workflow uses it
      and only adds commits and tags;
-   - the admin role: bypass mode `always` on tags, so an admin can still
-     move or delete a `v*` tag, and `pull_request` on `main`.
+   - the admin role: bypass mode `always` on tags and `pull_request` on
+     `main`. This is deliberate: the owner can fix a release or a tag by
+     hand when the workflow cannot. An admin moving or deleting a `v*`
+     tag is that exception, used knowingly, not a path for routine work.
 2. **Branches are fixed forward.** Bring `main` in by merging, not
    rebasing, and never force-push someone else's branch (skill
    `pr-review`). Force-push your own branch only with the owner's
@@ -95,9 +96,9 @@
 
   Local rewrites stay unguarded until they are pushed, and the push
   itself is guarded.
-- An admin can still move or delete a `v*` tag or merge past the checks.
-  The policy relies on admins following it, and the rulesets do not
-  enforce it for them.
+- By design, an admin can still move or delete a `v*` tag or merge past
+  the checks. For admins this policy is a rule they follow, and the
+  rulesets do not enforce it.
 - ADR-001 and the `rebrand` spec keep the old SHAs, with dated
   corrections giving the current ones.
 
@@ -133,6 +134,6 @@ by SHA.
 - **Linear history through rebase and force-push on branches.** The log
   is cleaner, but it discards others' bases and needs force-pushes the
   agent guard would have to allow routinely.
-- **Rely on the rulesets alone.** They protect only `main` and tags, not
-  for admins. Work branches and local state are covered only by the agent
+- **Rely on the rulesets alone.** They protect only `main` and tags, and
+  let admins through on purpose. Work branches and local state are covered only by the agent
   hook and the `AGENTS.md` rules.

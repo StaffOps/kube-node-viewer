@@ -90,7 +90,7 @@ corrections) → **superseded** (link to the replacement).
 | [002](decisions/ADR-002-merge-green-prs-from-writers.md) | Merge green PRs from writers, and patch-only Dependabot PRs, without a human approval | Accepted |
 | [003](decisions/ADR-003-release-from-changelog-headings.md) | Release in batches, with the version decided by the CHANGELOG headings | Accepted |
 | [004](decisions/ADR-004-three-guardrail-layers.md) | Check the same rules in three layers: git hooks, agent hooks and CI | Accepted |
-| [005](decisions/ADR-005-never-rewrite-published-history.md) | Never rewrite published history; fix forward, and rotate what leaked | Proposed |
+| [005](decisions/ADR-005-never-rewrite-published-history.md) | Never rewrite published history; fix forward, and rotate what leaked | Accepted |
 
 ## Format
 
