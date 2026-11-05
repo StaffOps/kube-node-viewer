@@ -1,0 +1,25 @@
+# Pods with known requests for the integration test; TestKindCluster
+# applies them (scripts/kind-it.sh).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: knv-it
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: it-app
+  namespace: knv-it
+spec:
+  replicas: 6
+  selector:
+    matchLabels: {app: it-app}
+  template:
+    metadata:
+      labels: {app: it-app}
+    spec:
+      containers:
+      - name: pause
+        image: registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a
+        resources:
+          requests: {cpu: 100m, memory: 64Mi}

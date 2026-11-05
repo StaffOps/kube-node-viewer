@@ -1,0 +1,38 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer · Overview                                                                                                                                          │
+│ Context:  demo-prod                                                                                                                       f filters     g group by   │
+│ Cluster:  https://0A1B2C3D4E5F.gr7.us-east-1.eks.amazonaws.com                                                                            s sort        o columns    │
+│ Region:   us-east-1                                                                                                                       / search      r resources  │
+│ Nodes:    10 of 10 shown · 220 pods · $728.102/month (+1 reserved, not priced) (global cluster)                                           c context     v views      │
+│ View:     Filters: none │ Group: none │ Sort: creation ↓ │ cpu+memory                                                                     ? help       ^e compact    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  25533m/35230m    72.5% cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.997/hour | $728.102/month (+1 reserved, not priced)
+  72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+
+  NAME                                         ╭─ Columns (shown first, in screen order) ────────────────────────────────╮APACITY  NODEGROUP  ZONE        STATUS
+  ip-10-0-13-12.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] INSTANCE                                                            │pot      spot-arm   us-east-1c  Ready
+                             memory ███████████│ [x] PRICE/H                                                             │
+  ip-10-0-12-61.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] PRICE/M                                                             │pot      spot-arm   us-east-1b  Ready
+                             memory ███████████│ [x] IDLE/M                                                              │
+  ip-10-0-11-93.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] CAPACITY                                                            │pot      spot-arm   us-east-1a  Ready
+                             memory ███████████│ [x] NODEGROUP                                                           │
+  ip-10-0-13-40.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [x] ZONE                                                                │pot      default    us-east-1c  Ready
+                             memory ███████████│ [x] STATUS                                                              │
+  ip-10-0-12-15.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] IDLE/H                                                              │nDemand  default    us-east-1b  Ready
+                             memory ███████████│ [ ] REGION                                                              │
+  ip-10-0-11-87.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] AGE                                                                 │nDemand  default    us-east-1a  Ready
+                             memory ███████████│ [ ] IP                                                                  │
+  ip-10-0-11-24.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] kube-node-viewer/node-age                                           │nDemand  default    us-east-1a  Ready
+                             memory ███████████│ [ ] kube-node-viewer/node-cpu-usage                                     │
+  ip-10-0-12-33.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] kube-node-viewer/node-memory-usage                                  │eserved  gpu        us-east-1b  Ready
+                             memory ███████████│ [ ] eks.amazonaws.com/capacityType                                      │
+  ip-10-0-12-98.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] eks.amazonaws.com/nodegroup                                         │nDemand  system-ng  us-east-1b  Ready/Cordoned
+                             memory ███████████│ [ ] karpenter.sh/capacity-type                                          │
+  ip-10-0-11-70.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇│ [ ] karpenter.sh/nodepool                                               │nDemand  system-ng  us-east-1a  Ready
+                             memory ███████████│ [ ] node.kubernetes.io/instance-type                                    │
+                                               │ [ ] topology.kubernetes.io/region                                       │
+                                               ├─────────────────────────────────────────────────────────────────────────┤
+                                               │ ↑/↓: move • space: show/hide • K/J: move column left/right • esc: close │
+                                               ╰──────────────────────────────────────────────────────────── 1-21 of 22 ─╯
+
+

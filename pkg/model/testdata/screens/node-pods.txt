@@ -1,0 +1,35 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer · Overview                                                                                                                                          │
+│ Context:  demo-prod                                                                                                                       f filters     g group by   │
+│ Cluster:  https://0A1B2C3D4E5F.gr7.us-east-1.eks.amazonaws.com                                                                            s sort        o columns    │
+│ Region:   us-east-1                                                                                                                       / search      r resources  │
+│ Nodes:    10 of 10 shown · 220 pods · $728.102/month (+1 reserved, not priced) (global cluster)                                           c context     v views      │
+│ View:     Filters: none │ Group: none │ Sort: creation ↓ │ cpu+memory                                                                     ? help       ^e compact    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  25533m/35230m    72.5% cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.997/hour | $728.102/month (+1 reserved, not priced)
+  72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+
+  NAME                                                                   PODS   INSTANCE     PRICE/H   PRICE/M   IDLE/M  CAPACITY  NODEGROUP  ZONE        STATUS
+  ip-10-0-13-12.ec2.internal cpu    ▇▇▇▇▇╭─ ip-10-0-11-93.ec2.internal ─────────────────────────────────────────────────────────╮  spot-arm   us-east-1c  Ready
+                             memory █████│ Details  [Pods]   view: all pods                                        sort: cost ↓ │
+  ip-10-0-12-61.ec2.internal cpu    ▇▇▇▇▇│ c7g.large $0.0310/h · 14 pods · cpu 1.69/1.93 88% · mem 2.1/3.0Gi 69%                │  spot-arm   us-east-1b  Ready
+                             memory █████│   POD                                       CPU  CPU%  MEMORY  MEM%  SHARE    COST/H │
+  ip-10-0-11-93.ec2.internal cpu    ▇▇▇▇▇│   apps/ip-10-0-11-93.ec2.internal-pod-0    0.12    6%   151Mi    5%     6%   $0.0019 │  spot-arm   us-east-1a  Ready
+                             memory █████│   apps/ip-10-0-11-93.ec2.internal-pod-1    0.12    6%   151Mi    5%     6%   $0.0019 │
+  ip-10-0-13-40.ec2.internal cpu    ▇▇▇▇▇│   apps/ip-10-0-11-93.ec2.internal-pod-10   0.12    6%   151Mi    5%     6%   $0.0019 │  default    us-east-1c  Ready
+                             memory █████│   apps/ip-10-0-11-93.ec2.internal-pod-11   0.12    6%   151Mi    5%     6%   $0.0019 │
+  ip-10-0-12-15.ec2.internal cpu    ▇▇▇▇▇│   apps/ip-10-0-11-93.ec2.internal-pod-12   0.12    6%   151Mi    5%     6%   $0.0019 │  default    us-east-1b  Ready
+                             memory █████│   apps/ip-10-0-11-93.ec2.internal-pod-13   0.12    6%   151Mi    5%     6%   $0.0019 │
+  ip-10-0-11-87.ec2.internal cpu    ▇▇▇▇▇│   apps/ip-10-0-11-93.ec2.internal-pod-2    0.12    6%   151Mi    5%     6%   $0.0019 │  default    us-east-1a  Ready
+                             memory █████│   apps/ip-10-0-11-93.ec2.internal-pod-3    0.12    6%   151Mi    5%     6%   $0.0019 │
+  ip-10-0-11-24.ec2.internal cpu    ▇▇▇▇▇│   apps/ip-10-0-11-93.ec2.internal-pod-4    0.12    6%   151Mi    5%     6%   $0.0019 │  default    us-east-1a  Ready
+                             memory █████│   apps/ip-10-0-11-93.ec2.internal-pod-5    0.12    6%   151Mi    5%     6%   $0.0019 │
+  ip-10-0-12-33.ec2.internal cpu    ▇▇▇▇▇│   apps/ip-10-0-11-93.ec2.internal-pod-6    0.12    6%   151Mi    5%     6%   $0.0019 │  gpu        us-east-1b  Ready
+                             memory █████│   apps/ip-10-0-11-93.ec2.internal-pod-7    0.12    6%   151Mi    5%     6%   $0.0019 │
+  ip-10-0-12-98.ec2.internal cpu    ▇▇▇▇▇│   apps/ip-10-0-11-93.ec2.internal-pod-8    0.12    6%   151Mi    5%     6%   $0.0019 │  system-ng  us-east-1b  Ready/Cordoned
+                             memory █████│   apps/ip-10-0-11-93.ec2.internal-pod-9    0.12    6%   151Mi    5%     6%   $0.0019 │
+  ip-10-0-11-70.ec2.internal cpu    ▇▇▇▇▇├──────────────────────────────────────────────────────────────────────────────────────┤  system-ng  us-east-1a  Ready
+                             memory █████│ ↑/↓: move • d: daemonsets • s/S: sort • tab: details • esc: close                    │
+                                         ╰──────────────────────────────────────────────────────────────────────────────────────╯
+
+

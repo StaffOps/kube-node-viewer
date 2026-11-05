@@ -1,0 +1,49 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer · Overview                                                                                                                                          │
+│ Context:  demo-prod                                                                                                                       f filters     g group by   │
+│ Cluster:  https://0A1B2C3D4E5F.gr7.us-east-1.eks.amazonaws.com                                                                            s sort        o columns    │
+│ Region:   us-east-1                                                                                                                       / search      r resources  │
+│ Nodes:    10 of 10 shown · 220 pods · $728.102/month (+1 reserved, not priced) (global cluster)                                           c context     v views      │
+│ View:     Filters: none │ Group: none │ Sort: creation ↓ │ cpu+memory                                                                     ? help       ^e compact    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  25533m/35230m    72.5% cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.997/hour | $728.102/month (+1 reserved, not priced)
+  72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+
+  NAME                                                                   PODS   INSTANCE     PRICE/H   PRICE/M   IDLE/M  CAPACITY  NODEGROUP  ZONE        STATUS
+  ip-10-0-13-12.ec2.internal cpu   ╭─ Keys ───────────────────────────────────────────────────────────────────────────────────────────╮-arm   us-east-1c  Ready
+                             memory│ f           filters: open a field, tick values; space turns a filter on/off; x keeps or excludes │
+  ip-10-0-12-61.ec2.internal cpu   │ g           group by: tick up to 3 fields, K/J to reorder levels                                 │-arm   us-east-1b  Ready
+                             memory│ s           sort: any column, usage or label; flip ↑/↓                                           │
+  ip-10-0-11-93.ec2.internal cpu   │ I           flip the sort ↑/↓ without opening the Sort panel                                     │-arm   us-east-1a  Ready
+                             memory│ o           columns: show, hide, reorder                                                         │
+  ip-10-0-13-40.ec2.internal cpu   │ /           search name, IP, type, labels (regex, any case; !x: not x; key=value); esc clears    │ult    us-east-1c  Ready
+                             memory│ r           resources: cpu → memory → cpu+memory                                                 │
+  ip-10-0-12-15.ec2.internal cpu   │ c           switch to another kubeconfig context                                                 │ult    us-east-1b  Ready
+                             memory│ :           command: overview (ov), recommendations (rec); tab completes                         │
+  ip-10-0-11-87.ec2.internal cpu   │ tab         switch Overview ⇄ Recommendations                                                    │ult    us-east-1a  Ready
+                             memory│ v           named views: apply, save the current view, delete                                    │
+  ip-10-0-11-24.ec2.internal cpu   │ e           export the nodes on screen to CSV and JSON in the current directory                  │ult    us-east-1a  Ready
+                             memory│ d           folded: list the next group level as one-line rows                                   │
+  ip-10-0-12-33.ec2.internal cpu   │ ↑/↓ k/j     select a group or node (marked in the left margin)                                   │       us-east-1b  Ready
+                             memory│ enter       on a group: show only its nodes (esc: back); on a node: its details                  │
+  ip-10-0-12-98.ec2.internal cpu   │ space       on a group: fold or unfold it on its own                                             │em-ng  us-east-1b  Ready/Cordoned
+                             memory│ tab         in node details: switch Details ⇄ Pods                                               │
+  ip-10-0-11-70.ec2.internal cpu   │ d           in the Pods tab: switch all pods ⇄ DaemonSets (one row each, with their total)       │em-ng  us-east-1a  Ready
+                             memory│ s / S       in the Pods tab: sort by cost → cpu → memory → name / flip ↑/↓                       │
+                                   │ pgup/pgdown  in node details: move by a page (ten rows in Pods)                                  │
+                                   │ n           fold one level per press: nodes, then each sub-group level; then unfold all          │
+                                   │ ←/→ h/l     previous / next page                                                                 │
+                                   │ home        first page                                                                           │
+                                   │ ctrl+e      compact or expand the header                                                         │
+                                   │ a           in f, g, s, o: show the labels the config file hides, until the panel closes         │
+                                   │ ?           this help                                                                            │
+                                   │ q, ctrl+c   quit                                                                                 │
+                                   │ esc         close a panel or go back a step: clear the search, then leave the focused group      │
+                                   │                                                                                                  │
+                                   │ Colours                                                                                          │
+                                   │ NODEGROUP   name is an EKS managed node group or AKS agent pool; plain is a Karpenter NodePool   │
+                                   ├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+                                   │ esc: close                                                                                       │
+                                   ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+
