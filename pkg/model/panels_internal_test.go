@@ -596,7 +596,8 @@ func TestCursorMovesAndFoldsAGroup(t *testing.T) {
 	if line := selectedLine(t, u); !strings.Contains(line, "node-00") {
 		t.Errorf("after down: %q", line)
 	}
-	press(u, "up", "enter")
+	// space folds a group on its own (group-focus R5, corrected R17)
+	press(u, "up", " ")
 	out := u.View()
 	if !strings.Contains(out, "▸ OnDemand") || strings.Contains(out, "node-00") || !strings.Contains(out, "node-01") {
 		t.Errorf("OnDemand not folded on its own:\n%s", out)
@@ -604,7 +605,7 @@ func TestCursorMovesAndFoldsAGroup(t *testing.T) {
 	if len(saved) != 1 || !saved[0].IsCollapsed([]string{"OnDemand"}) {
 		t.Errorf("fold not saved: %+v", saved)
 	}
-	press(u, "enter")
+	press(u, " ")
 	if out := u.View(); strings.Contains(out, "▸ OnDemand") || !strings.Contains(out, "node-00") {
 		t.Errorf("OnDemand not unfolded:\n%s", out)
 	}

@@ -88,6 +88,11 @@ memory. Listed by impact.
       ([ADR-003](specs/decisions/ADR-003-release-from-changelog-headings.md)).
       _Why:_ the specs index keeps showing released fixes as **active**,
       as if still in progress.
+- [ ] Regenerate `.static/demo.gif` with `scripts/screenshots.sh`: its
+      captions now fold with `space` and show `enter` focusing a group
+      ([group-focus](specs/group-focus/tasks.md) T4). _Why:_ the GIF still
+      shows `enter` folding; the script needs ffmpeg, missing on the
+      machine that made the change.
 
 ## Ideas
 

@@ -107,9 +107,15 @@ type UIModel struct {
 	// cursor: the selected row (a group heading or a node) by key, the path
 	// when it is a group, a pending move, and the selected lines of the last
 	// frame (content line numbers, -1 when none)
-	cursorKey      string
-	cursorPath     []string
-	cursorDelta    int
+	cursorKey   string
+	cursorPath  []string
+	cursorDelta int
+	// cursorFind makes the next layout show the page the cursor's row is
+	// on, once (group-focus R3)
+	cursorFind bool
+	// focus narrows Overview to one group's nodes, one step per enter on a
+	// heading; UI state only, never saved (group-focus D2)
+	focus          []focusStep
 	selFrom, selTo int
 	// details popup: the node's name, the first row shown, the row count
 	detailsNode string
@@ -275,6 +281,8 @@ func (u *UIModel) SetView(v ViewState) {
 		u.view.ShowNodes = true
 	}
 	u.page = 0
+	// a new cluster or a named view shows every group again (group-focus R6)
+	u.focus = nil
 	u.dirty = true
 }
 
@@ -306,7 +314,8 @@ func (u *UIModel) setView(v ViewState) {
 // shows everything again. Without a group-by there is nothing to fold to
 // (R13).
 func (u *UIModel) toggleNodes() {
-	if len(u.view.GroupBy) == 0 {
+	// a focus always lists its nodes (group-focus R7)
+	if len(u.view.GroupBy) == 0 || u.focused() {
 		return
 	}
 	v := u.view
@@ -340,7 +349,9 @@ func (u *UIModel) toggleGroupAtCursor() {
 		u.dirty = true
 		u.View()
 	}
-	if u.cursorPath == nil {
+	// the focused group and those above it are always drawn unfolded: a
+	// fold there would be saved and not seen (group-focus R5)
+	if u.cursorPath == nil || u.inFocus(u.cursorPath) {
 		return
 	}
 	v := u.view
@@ -359,7 +370,7 @@ func (u *UIModel) canShowDetails() bool {
 }
 
 func (u *UIModel) toggleDetails() {
-	if !u.canShowDetails() {
+	if !u.canShowDetails() || u.focused() {
 		return
 	}
 	v := u.view
@@ -621,8 +632,14 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 	case "e":
 		return u.export()
 	case "esc":
-		// esc in the main view clears a kept search
-		u.view.Search = ""
+		// esc in the main view clears a kept search first, then on
+		// Overview leaves one step of the focus (group-focus R3, R8)
+		switch {
+		case u.view.Search != "":
+			u.view.Search = ""
+		case !u.onRecommendations():
+			u.leaveFocus()
+		}
 	case "n":
 		u.toggleNodes()
 	case "d":
@@ -631,10 +648,17 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 		u.cursorDelta--
 	case "down", "j":
 		u.cursorDelta++
-	case "enter", " ":
-		if key == "enter" && u.cursorOnNode() && u.openNodeDetails() {
+	case "enter":
+		// on a node: its details; on a group heading: only that group's
+		// nodes (group-focus R1, R4)
+		if u.cursorOnNode() {
+			u.openNodeDetails()
 			return nil
 		}
+		if u.cursorPath != nil {
+			u.enterFocus(u.cursorPath)
+		}
+	case " ":
 		u.toggleGroupAtCursor()
 	case "right", "l", "pgdown":
 		u.page++
