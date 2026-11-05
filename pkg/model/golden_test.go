@@ -69,6 +69,7 @@ var goldenScenes = []struct {
 		pressAll(u, "tab")
 	}},
 	{"help", 168, 60, func(u *UIModel) { press(u, "?") }},
+	{"header-compact", 168, 30, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
 }
 
 // TestGoldenScreens compares each screen with testdata/screens/<name>.txt, so

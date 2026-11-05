@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Changed
+
+- The compact header (`ctrl+e`, or a window 14 to 27 rows high) no longer
+  shows the API server URL: its first line is the context, the region and
+  the counts with the cost. The full panel keeps the `Cluster:` row.
+
 ### Fixed
 
 - Azure prices after a failed request: a 429 or 503 answer's retry header
