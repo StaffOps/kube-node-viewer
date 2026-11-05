@@ -51,6 +51,6 @@ python3 scripts/spec-trace.py
 echo "==> drift"
 python3 scripts/drift-check.py
 echo "==> license headers"
-sh scripts/checks/headers.sh
+python3 scripts/checks/headers.py
 
 echo "verify: ok"

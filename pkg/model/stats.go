@@ -13,6 +13,7 @@ limitations under the License.
 */
 
 // Modified by the kube-node-viewer authors, 2026.
+
 package model
 
 import v1 "k8s.io/api/core/v1"

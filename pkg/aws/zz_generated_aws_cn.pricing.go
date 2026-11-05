@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Modified by the kube-node-viewer authors, 2026.
+
 package aws
 
 // generated at 2024-11-06T01:00:11Z for cn-north-1
