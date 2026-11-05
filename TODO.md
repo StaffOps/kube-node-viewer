@@ -48,9 +48,6 @@ memory. Listed by impact.
       `scripts/checks/content.sh`) while their internal IPs are in
       192.0.2.0/24. _Why:_ cosmetic in the README images; rename the nodes
       only together with that allowlist.
-- [ ] `pkg/model/node.go` imports `aws-sdk-go-v2/service/ec2/types`, which
-      crosses the "AWS SDK only in `pkg/aws`" rule (upstream code, there at
-      the import). _Why:_ the model should not depend on a cloud SDK.
 - [ ] spec-lint counts the "When this would be wrong" and "Reversal action"
       markers over the whole design, not per decision: two decisions with
       both markers under one pass ([fix-spec-tooling](specs/fix-spec-tooling/bugfix.md)).

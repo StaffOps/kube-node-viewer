@@ -97,7 +97,7 @@ func (f Field) Value(n *Node) string {
 	case FieldRegion:
 		v = n.Region()
 	case FieldInstanceType:
-		v = string(n.InstanceType())
+		v = n.InstanceType()
 	case FieldStatus:
 		v = strings.Join(n.StatusFlags(), "/")
 	case FieldName:
@@ -357,7 +357,7 @@ func (n *Node) contains(m searchMatcher) bool {
 }
 
 func (n *Node) searchHit(m searchMatcher) bool {
-	if m.match(n.Name()) || m.match(n.InternalIP()) || m.match(string(n.InstanceType())) {
+	if m.match(n.Name()) || m.match(n.InternalIP()) || m.match(n.InstanceType()) {
 		return true
 	}
 	n.mu.RLock()

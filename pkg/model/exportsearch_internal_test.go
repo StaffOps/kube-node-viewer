@@ -67,7 +67,7 @@ func TestExportWithANegatedSearchKeepsTheOtherNodes(t *testing.T) {
 	u := demoUI(t)
 	want := 0
 	for _, n := range u.stats.Nodes {
-		if !strings.HasPrefix(string(n.InstanceType()), "c7g") {
+		if !strings.HasPrefix(n.InstanceType(), "c7g") {
 			want++
 		}
 	}

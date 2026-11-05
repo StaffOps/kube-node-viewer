@@ -663,7 +663,7 @@ func DaemonSetLine(n *Node) string {
 // nodePodsLine is the node line above the pods: instance type, price, pod
 // count and requested / allocatable CPU and memory (R2).
 func (u *UIModel) nodePodsLine(n *Node) string {
-	head := orDash(string(n.InstanceType()))
+	head := orDash(n.InstanceType())
 	if !u.DisablePricing {
 		price := "-"
 		if p := nodePodPrice(n, false); p.known {
