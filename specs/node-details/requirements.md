@@ -40,6 +40,11 @@ Pods are left out: the list already counts them, and `kubectl` lists them.
 system SHALL open a popup with that node's details; `enter` on a group
 heading still folds it.
 
+> **Corrected 2026-11-04 (group-focus).** `enter` on a group heading shows
+> only that group's nodes, and `space` folds it
+> ([group-focus](../group-focus/requirements.md) R1, R5); `enter` on a node
+> is unchanged.
+
 - [x] Sections: instance (type, capacity, price), node group, zone and
   region, status (flags, age, creation time), system (kubelet, OS image,
   kernel, architecture, runtime), provider ID and internal IP, resources

@@ -87,7 +87,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     [requirements](release-provenance/requirements.md) ·
     [design](release-provenance/design.md) ·
     [tasks](release-provenance/tasks.md)
-18. [`decisions/`](decisions/) — decision records (index below).
+18. [`group-focus/`](group-focus/) — **active**. `enter` on a group heading
+    shows only that group's nodes; `esc` goes back; folding moves to
+    `space`. [requirements](group-focus/requirements.md) ·
+    [design](group-focus/design.md) · [tasks](group-focus/tasks.md)
+19. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
