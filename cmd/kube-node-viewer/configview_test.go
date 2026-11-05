@@ -239,8 +239,15 @@ func TestConfigViewFieldNamesPerKey(t *testing.T) {
 	line := map[string]func(string) string{
 		"columns":  func(n string) string { return "columns:\n  - " + n },
 		"group-by": func(n string) string { return "group-by:\n  - " + n },
-		"filters":  func(n string) string { return "filters:\n  - field: " + n + "\n    values:\n      - x" },
-		"sort":     func(n string) string { return "sort: " + n },
+		"filters": func(n string) string {
+			// capacity and status take only their own values (fix-config-filter-values)
+			value := map[string]string{"capacity": "Spot", "status": "Ready"}[n]
+			if value == "" {
+				value = "x"
+			}
+			return "filters:\n  - field: " + n + "\n    values:\n      - " + value
+		},
+		"sort": func(n string) string { return "sort: " + n },
 	}
 	read := map[string]keyOf{"columns": column, "group-by": group, "filters": filter, "sort": sorted}
 	tests := []struct {
@@ -944,6 +951,8 @@ func TestReadmeConfigViewsDocumentsTheContract(t *testing.T) {
 		"leading or trailing whitespace", "sort: price",
 		// fix-config-case R1, R2
 		"another case", "label:INSTANCE", "kube-node-viewer/node-age", "written twice",
+		// fix-config-filter-values R1
+		"is not a capacity value", "one value per item", "Reserved", "Launching",
 	} {
 		if !strings.Contains(section, s) {
 			t.Errorf("docs/views.md does not mention %q", s)

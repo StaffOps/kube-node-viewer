@@ -15,10 +15,12 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -296,7 +298,7 @@ func nonEmptyList(path string, value any) ([]any, error) {
 }
 
 // stringList reads a non-empty list of strings without repeats.
-func stringList(path string, value any) ([]string, error) {
+func stringList(path string, value any, checks ...func(itemPath, s string) error) ([]string, error) {
 	items, err := nonEmptyList(path, value)
 	if err != nil {
 		return nil, err
@@ -313,6 +315,11 @@ func stringList(path string, value any) ([]string, error) {
 		}
 		if slices.Contains(out, s) {
 			return nil, fmt.Errorf("%s: %s is repeated", itemPath, s)
+		}
+		for _, check := range checks {
+			if err := check(itemPath, s); err != nil {
+				return nil, err
+			}
 		}
 		out = append(out, s)
 	}
@@ -478,15 +485,19 @@ func readFilters(path string, value any) ([]model.Filter, error) {
 		rawValues, hasValues := item["values"]
 		rawExclude, hasExclude := item["exclude"]
 		filter := model.Filter{Field: field, Enabled: true}
+		var checks []func(string, string) error
+		if values := model.ClosedValues(field); values != nil {
+			checks = append(checks, func(p, v string) error { return closedValue(p, string(field), values, v) })
+		}
 		switch {
 		case hasValues && hasExclude:
 			return nil, fmt.Errorf("%s: values and exclude together; use one", itemPath)
 		case hasValues:
-			if filter.Values, err = stringList(itemPath+".values", rawValues); err != nil {
+			if filter.Values, err = stringList(itemPath+".values", rawValues, checks...); err != nil {
 				return nil, err
 			}
 		case hasExclude:
-			if filter.Excluded, err = stringList(itemPath+".exclude", rawExclude); err != nil {
+			if filter.Excluded, err = stringList(itemPath+".exclude", rawExclude, checks...); err != nil {
 				return nil, err
 			}
 		default:
@@ -495,6 +506,79 @@ func readFilters(path string, value any) ([]model.Filter, error) {
 		out = append(out, filter)
 	}
 	return out, nil
+}
+
+// valueSpellings maps label spellings of capacity and status values, compared
+// as fold does, to the value to write (fix-config-filter-values R1).
+var valueSpellings = map[string]string{
+	"capacityblock":      string(model.CapacityReserved),
+	"regular":            string(model.CapacityOnDemand),
+	"schedulingdisabled": model.StatusCordoned,
+}
+
+// fold lower-cases s and drops "-", "_" and spaces, so on-demand, ON_DEMAND
+// and OnDemand compare equal.
+func fold(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '-' || r == '_' || r == ' ' {
+			return -1
+		}
+		return unicode.ToLower(r)
+	}, s)
+}
+
+// spelledAs is the value of values that s means, ignoring case, "-", "_" and
+// spaces, or through a known label spelling; "" when none.
+func spelledAs(values []string, s string) string {
+	f := fold(s)
+	for _, v := range values {
+		if fold(v) == f {
+			return v
+		}
+	}
+	if v, ok := valueSpellings[f]; ok && slices.Contains(values, v) {
+		return v
+	}
+	return ""
+}
+
+// autoHint points an Auto value, from the CAPACITY column, at the label.
+const autoHint = "Auto is not a capacity: filter on label:eks.amazonaws.com/compute-type"
+
+// closedValue checks a filter value of a field with a fixed list of values
+// (capacity, status): an exact match passes; otherwise the error says what to
+// write (fix-config-filter-values R1).
+func closedValue(path, field string, values []string, s string) error {
+	if slices.Contains(values, s) {
+		return nil
+	}
+	head := fmt.Sprintf("%s: %q is not a %s value; ", path, s, field)
+	if want := spelledAs(values, s); want != "" {
+		return errors.New(head + "write " + want)
+	}
+	if strings.Contains(s, "/") {
+		var wants []string
+		auto := false
+		for _, part := range strings.Split(s, "/") {
+			if field == string(model.FieldCapacity) && fold(part) == "auto" {
+				auto = true
+				continue
+			}
+			if want := spelledAs(values, part); want != "" {
+				wants = append(wants, want)
+			}
+		}
+		switch {
+		case auto && len(wants) == 1:
+			return errors.New(head + "write " + wants[0] + "; " + autoHint)
+		case !auto && len(wants) > 1:
+			return errors.New(head + "write one value per item: " + strings.Join(wants, ", "))
+		}
+	}
+	if field == string(model.FieldCapacity) && fold(s) == "auto" {
+		return errors.New(head + autoHint)
+	}
+	return errors.New(head + "use one of " + strings.Join(values, ", "))
 }
 
 // combinedViews lists the config views first, in file order, then the named

@@ -16,6 +16,7 @@ package model
 
 import (
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
@@ -494,20 +495,26 @@ type ValueCount struct {
 	Count int
 }
 
+// ClosedValues is the fixed list of values of capacity and status, nil for
+// fields whose values come from the cluster (fix-config-filter-values R3).
+func ClosedValues(field Field) []string {
+	switch field {
+	case FieldCapacity:
+		return CapacityValues
+	case FieldStatus:
+		return StatusValues
+	}
+	return nil
+}
+
 // ValueCounts lists the values the nodes have for the field with the number of
 // nodes for each, for the filter value picker (R3). Capacity and status list
 // every possible value, with zero counts, so the choices don't move around.
 func ValueCounts(nodes []*Node, field Field) []ValueCount {
 	counts := map[string]int{}
-	switch field {
-	case FieldCapacity:
-		for _, c := range []CapacityType{CapacityOnDemand, CapacitySpot, CapacityReserved, CapacityFargate, CapacityUnknown} {
-			counts[string(c)] = 0
-		}
-	case FieldStatus:
-		for _, s := range []string{StatusReady, StatusNotReady, StatusCordoned, StatusDeleting, StatusLaunching} {
-			counts[s] = 0
-		}
+	fixed := ClosedValues(field)
+	for _, v := range fixed {
+		counts[v] = 0
 	}
 	for _, n := range nodes {
 		for _, v := range field.Values(n) {
@@ -518,15 +525,8 @@ func ValueCounts(nodes []*Node, field Field) []ValueCount {
 	for v, c := range counts {
 		out = append(out, ValueCount{Value: v, Count: c})
 	}
-	if field == FieldCapacity || field == FieldStatus {
-		fixed := map[string]int{}
-		for i, v := range []string{
-			string(CapacityOnDemand), string(CapacitySpot), string(CapacityReserved), string(CapacityFargate), string(CapacityUnknown),
-			StatusReady, StatusNotReady, StatusCordoned, StatusDeleting, StatusLaunching,
-		} {
-			fixed[v] = i
-		}
-		sort.Slice(out, func(a, b int) bool { return fixed[out[a].Value] < fixed[out[b].Value] })
+	if fixed != nil {
+		sort.Slice(out, func(a, b int) bool { return slices.Index(fixed, out[a].Value) < slices.Index(fixed, out[b].Value) })
 		return out
 	}
 	sortGroups(out, func(v ValueCount) string { return v.Value })
