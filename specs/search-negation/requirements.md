@@ -91,8 +91,12 @@ system SHALL say how to negate and how to search a label pair.
   differences: kubectl's `!key` is close to `!key=` here and `key!=value`
   to `!key=value` (substrings); exact: `!^key=` and `!^key=value$`, with
   `.` written `\.`.
-- [ ] README export paragraph: the JSON `search` is the text as typed,
-  `!` and `=` included.
+- [ ] ~~README export paragraph: the JSON `search` is the text as typed,
+  `!` and `=` included.~~
+
+> **Corrected 2026-11-04.** The JSON export writes no `view.search` at all
+> (`ViewState.Search` is `json:"-"`), found in the T3 run; an existing bug,
+> listed in `TODO.md`, so the export paragraph is left as it is.
 
 ## Counter-examples
 

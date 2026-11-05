@@ -96,13 +96,16 @@ Beyond the Guardrails section above.
 
 ## Follow-ups
 
+- [ ] The JSON export has no `view.search`: `exportDoc.View` is a
+      `ViewState`, whose `Search` is `json:"-"` (so the state file never
+      saves it), and `export.go` sets `doc.View.Search` anyway; README
+      ("Export") says the JSON holds the search text. Found in the
+      [search-negation](specs/search-negation/tasks.md) cluster run.
+      _Why:_ an export of a searched view does not say which search made
+      it.
+
 ## Ideas
 
-- [ ] **Search: negation and label keys** (`/`): `!text` to keep the nodes
-      that do not match, and matching label keys (`key=value`) as well as
-      values. Out of scope of [`search-regex`](specs/search-regex/).
-      _Why:_ "everything but the system nodes" and "nodes that have label
-      X" are the next two questions after `a|b`.
 - [ ] Recommendations for AKS: Azure VM catalog and family tables, so the
       Recommendations screen works on Azure nodes
       ([aks-pricing deferred](specs/aks-pricing/tasks.md#deferred),

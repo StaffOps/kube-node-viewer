@@ -44,7 +44,7 @@ today. `match(s)` is unchanged (one value). `Node.contains(m)` computes
 | `pkg/model/search_internal_test.go` | matcher table rows for `!`, `=`; footer/header for `!a(b`; the help-line assertion (R5) |
 | `pkg/model/labelpanels_internal_test.go` | hidden labels matched by `key=` |
 | `pkg/model/search_test.go` | `Select` cases R1–R4; benchmark row for a pair search |
-| `README.md`, `CHANGELOG.md` | keys table, Search section, export paragraph, `Added` |
+| `README.md`, `CHANGELOG.md` | keys table, Search section, `Added` (export paragraph: see the dated note in requirements R5) |
 | `specs/search-regex/requirements.md` | dated note: label keys are searched with `=` now |
 
 ## Decisions

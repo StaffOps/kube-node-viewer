@@ -181,7 +181,7 @@ With `ctrl+e` the header shrinks to two lines:
 | `s` | Sort panel |
 | `I` | Flip the sort between ascending and descending, without opening the Sort panel |
 | `o` | Columns panel |
-| `/` | Search name, IP, instance type and label values as you type, any case; a regular expression such as `search\|batch` (see [Search](#search-)); `enter` keeps it, `esc` clears it |
+| `/` | Search name, IP, instance type and label values as you type, any case; a regular expression such as `search\|batch`, `!text` for the nodes that do not match, `key=value` for a label (see [Search](#search-)); `enter` keeps it, `esc` clears it |
 | `r` | Resources: cpu → memory → cpu+memory (→ the `--resources` list, if different) |
 | `↑`/`↓`, `k`/`j` | Select a group heading or a node; the selected row is marked in the left margin |
 | `enter`, `space` | Fold or unfold the selected group on its own (`▸` marks a folded group) |
@@ -221,10 +221,28 @@ value contains the text, ignoring case. Text with any of
 | `search\|batch` | either word (no spaces around `\|`: they would count) |
 | `^node-1$` | the value `node-1`, not `node-12` |
 | `m7g\.(large\|xl)` | `m7g.large` and `m7g.xlarge`; inside a regex `.` is any character, so write `\.` |
+| `!system` | the nodes where nothing contains `system` |
+| `!^system\|^infra` | neither: `!` negates the whole search, regex included |
+| `workload=batch` | a label pair containing `workload=batch` (also `other-workload=batch-2`) |
+| `^workload=batch$` | exactly the label `workload=batch` |
+| `karpenter.sh/nodepool=` | the nodes that have that label key, whatever its value |
+| `!karpenter.sh/nodepool=` | the nodes that do not |
 
 A pattern that does not compile yet (`a(b` while typing) is matched as plain
 text; the footer says `invalid regex: as text` and the header shows
 `(as text)` after it. `(?-i)` at the start makes it case-sensitive.
+
+A `!` at the start keeps the nodes the rest does not match; only one `!`
+negates (`!!x` negates the text `!x`), `!` alone keeps every node, and `\!`
+searches a literal leading `!`. Label keys are searched only when the text
+has `=`: then each label is also matched as `key=value`, by substring, so
+`gpu=` also finds a key `example.com/no-gpu`; write `^example\.com/gpu=` for
+that key exactly. The search sees every label, including those the config
+file hides from the panels. kubectl's selectors read differently: its
+`!key` (key absent) is close to `!key=` here and `key!=value` to
+`!key=value`; for an exact match write `!^key=` and `!^key=value$`
+(with `.` as `\.`). Without `=`, `!key` negates a search of values, and
+`key!=value` is plain text that matches nothing.
 
 ## Panels
 

@@ -30,20 +30,40 @@ const regexChars = `|()[]{}^$*+?\`
 // regex character but does not compile is matched literally and marked
 // invalid (D2). A pattern that is only words joined by `|` (`a|b|c`) is
 // matched as those words, the regex's meaning at substring speed (D3).
+//
+// A leading `!` negates the rest (search-negation R1, D2), and text with `=`
+// also matches each label as `key=value` (R2, D1); Node.contains applies
+// both.
 type searchMatcher struct {
 	re       *regexp.Regexp // nil: words
 	words    []string       // lowercased; any of them, as substrings
 	invalid  bool           // had regex characters but did not compile
 	hasRegex bool           // the text has a regex character (footer)
+	negate   bool           // a leading `!`: keep the nodes it does not match
+	pairs    bool           // the text has `=`: also match labels as key=value
 }
 
 // newSearchMatcher builds the matcher for the search text; surrounding
-// spaces are ignored.
+// spaces are ignored, and so are spaces after a leading `!`. `!` alone is
+// an empty search (search-negation R4).
 func newSearchMatcher(text string) searchMatcher {
 	text = strings.TrimSpace(text)
+	negate := false
+	if rest, ok := strings.CutPrefix(text, "!"); ok {
+		text, negate = strings.TrimSpace(rest), true
+	}
 	if text == "" {
 		return searchMatcher{}
 	}
+	m := newTextMatcher(text)
+	m.negate = negate
+	m.pairs = strings.Contains(text, "=")
+	return m
+}
+
+// newTextMatcher builds the matcher for trimmed, non-empty text, without
+// negation (search-regex D1-D3).
+func newTextMatcher(text string) searchMatcher {
 	if !strings.ContainsAny(text, regexChars) {
 		return searchMatcher{words: []string{strings.ToLower(text)}}
 	}
@@ -100,6 +120,37 @@ func (m searchMatcher) match(s string) bool {
 	for _, w := range m.words {
 		if strings.Contains(s, w) {
 			return true
+		}
+	}
+	return false
+}
+
+// matchPair reports whether the matcher matches the label written as
+// key=value (search-negation R2). Literal words are checked on the key and
+// value without building the pair (design, Performance): label keys and
+// values cannot hold `=`, so a word's only `=` must fall on the separator,
+// the part before it ending the key and the part after it starting the
+// value; a word without `=` matches when the key or the value holds it.
+func (m searchMatcher) matchPair(key, value string) bool {
+	if m.re != nil {
+		return m.re.MatchString(key + "=" + value)
+	}
+	lkey, lvalue := strings.ToLower(key), strings.ToLower(value)
+	for _, w := range m.words {
+		i := strings.IndexByte(w, '=')
+		switch {
+		case i < 0:
+			if strings.Contains(lkey, w) || strings.Contains(lvalue, w) {
+				return true
+			}
+		case strings.IndexByte(w[i+1:], '=') < 0 && !strings.Contains(key, "=") && !strings.Contains(value, "="):
+			if strings.HasSuffix(lkey, w[:i]) && strings.HasPrefix(lvalue, w[i+1:]) {
+				return true
+			}
+		default: // a second `=`, or one in the label: the pair as text
+			if strings.Contains(lkey+"="+lvalue, w) {
+				return true
+			}
 		}
 	}
 	return false

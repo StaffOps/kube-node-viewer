@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- The `/` search negates with a leading `!` (`!system` keeps the nodes
+  where nothing contains `system`), and text with `=` also matches labels
+  as `key=value`: `workload=batch` for a label pair, `karpenter.sh/nodepool=`
+  for the nodes that have that key, `!karpenter.sh/nodepool=` for those
+  that do not. Searches without `!` or `=` keep the same nodes as before.
+
 ### Fixed
 
 - `config.yaml` views no longer load names that can never match: a label
