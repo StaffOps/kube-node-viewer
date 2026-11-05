@@ -774,6 +774,22 @@ func TestSearchPairsMatchHiddenLabels(t *testing.T) {
 	if strings.Contains(out, "node-2") || !strings.Contains(out, "node-0") {
 		t.Errorf("!env=stage on a hidden label did not drop node-2:\n%s", out)
 	}
+	u = policyUI(t, []string{"team"}, []string{"env"})
+	press(u, "/", "e", "n", "v", "=", "enter")
+	out = u.View()
+	for _, n := range []string{"node-0", "node-1", "node-2"} {
+		if !strings.Contains(out, n) {
+			t.Errorf("env= on a hidden label dropped %s:\n%s", n, out)
+		}
+	}
+	u = policyUI(t, []string{"team"}, []string{"env"})
+	press(u, "/", "!", "e", "n", "v", "=", "enter")
+	out = u.View()
+	for _, n := range []string{"node-0", "node-1", "node-2"} {
+		if strings.Contains(out, n) {
+			t.Errorf("!env= on a hidden label kept %s:\n%s", n, out)
+		}
+	}
 }
 
 // --- T8 follow-ups: short and narrow popups, lists that follow the nodes ---

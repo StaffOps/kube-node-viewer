@@ -41,6 +41,10 @@ type searchMatcher struct {
 	hasRegex bool           // the text has a regex character (footer)
 	negate   bool           // a leading `!`: keep the nodes it does not match
 	pairs    bool           // the text has `=`: also match labels as key=value
+	// buf holds key=value for the regex while matching pairs, reused for
+	// every label of every node of one Select (design, Performance); a
+	// matcher is built per call, so it is never shared between goroutines
+	buf *[]byte
 }
 
 // newSearchMatcher builds the matcher for the search text; surrounding
@@ -58,6 +62,9 @@ func newSearchMatcher(text string) searchMatcher {
 	m := newTextMatcher(text)
 	m.negate = negate
 	m.pairs = strings.Contains(text, "=")
+	if m.pairs && m.re != nil {
+		m.buf = new([]byte)
+	}
 	return m
 }
 
@@ -133,7 +140,12 @@ func (m searchMatcher) match(s string) bool {
 // value; a word without `=` matches when the key or the value holds it.
 func (m searchMatcher) matchPair(key, value string) bool {
 	if m.re != nil {
-		return m.re.MatchString(key + "=" + value)
+		if m.buf == nil {
+			return m.re.MatchString(key + "=" + value)
+		}
+		b := append(append(append((*m.buf)[:0], key...), '='), value...)
+		*m.buf = b
+		return m.re.Match(b)
 	}
 	lkey, lvalue := strings.ToLower(key), strings.ToLower(value)
 	for _, w := range m.words {

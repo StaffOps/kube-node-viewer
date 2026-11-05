@@ -73,6 +73,7 @@ without it is matched as today.
 | `gpu=` also matches a key `example.com/no-gpu` (substring) | anchor with a regex: `(^|/)gpu=`; README example `^key=` |
 | A pair is matched unanchored: `workload=batch` keeps `other-workload=batch-2` | the same as every other search; `^…$` for exact |
 | One string per label per node built while searching with `=` | measured in the benchmark (bound below) |
+| With `=` anywhere, every `\|` alternative also matches keys: `team=a\|zone` keeps every node with a `topology.kubernetes.io/zone` label | one rule, said in README; a per-alternative rule would need parsing the pattern |
 | `=` written as an escape (`workload\x3dbatch`) does not turn pairs on | the gate is the character `=`; nobody types `\x3d` |
 
 **When this would be wrong**: users expect `/gpu` to find a label key. Then
@@ -165,6 +166,19 @@ of the plain substring row, since each label adds one string build and
 lowercase [ASSUMPTION: the review's scratch copy measured about 2.8×; T1
 measures it in the real benchmark]. Over it: match key and value separately for literal words
 (split the word at `=`) instead of building `k=v`.
+
+> **Corrected 2026-11-04 (T1, diff review).** The [ASSUMPTION] is closed
+> and the fallback above was taken. Target state as built: `matchPair(key,
+> value)` replaces building `k + "=" + v`; literal words check the key's
+> suffix and the value's prefix around the word's `=`, and the regex path
+> appends key, `=`, value into one buffer per matcher (`searchMatcher.buf`,
+> one per `Select`), so no row allocates per label. `BenchmarkSelectSearch`,
+> `-count 6`, benchstat medians, Apple M1 Pro: `nomatch` 9.3 ms,
+> `nomatch=x` 16.3 ms (1.75×; the diff reviewer measured 2.0–2.3×), within
+> the 3× bound. A regex with `=` matches each label twice (value and pair):
+> `nomatch\.(a|b)=` 114 ms against 40 ms for `nomatch\.(a|b)` (2.8×).
+> Bound for the regex rows: within 3× of the same pattern without `=`;
+> both pair rows allocate no more than their row without `=`.
 
 ## Test plan
 

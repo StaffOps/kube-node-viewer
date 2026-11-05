@@ -81,7 +81,7 @@ func BenchmarkSelectSearch(b *testing.B) {
 	}
 	// nomatch=x: a label-pair search (search-negation, Performance: within 3x
 	// of nomatch)
-	for _, text := range []string{"nomatch", "nomatch|other", "^nomatch$", "nomatch\\.(a|b)", "nomatch=x", "!nomatch"} {
+	for _, text := range []string{"nomatch", "nomatch|other", "^nomatch$", "nomatch\\.(a|b)", "nomatch=x", "!nomatch", "nomatch\\.(a|b)=", "^nomatch=x$"} {
 		b.Run(text, func(b *testing.B) {
 			s := model.ViewState{Sort: byName(), Search: text}
 			for b.Loop() {
@@ -91,7 +91,8 @@ func BenchmarkSelectSearch(b *testing.B) {
 	}
 }
 
-// Tests for specs/search-negation R1-R4: negation and label pairs.
+// Tests for specs/search-negation R1, R2, R3, R4: negation and label pairs.
+// search-negation R1 search-negation R2 search-negation R3 search-negation R4
 
 func negationNodes() []*model.Node {
 	specs := []struct {
@@ -101,7 +102,7 @@ func negationNodes() []*model.Node {
 		{"node-a", map[string]string{"workload": "search", "topology.kubernetes.io/zone": "az-1", "team": "a"}},
 		{"node-b", map[string]string{"workload": "batch", "topology.kubernetes.io/zone": "az-1", "example.com/gpu": ""}},
 		{"node-c", map[string]string{"workload": "batch-2", "topology.kubernetes.io/zone": "az-2", "example.com/gpu": "t4"}},
-		{"node-d", map[string]string{"workload": "web", "sub.example.com/gpu": "x"}},
+		{"node-d", map[string]string{"workload": "web", "sub.example.com/gpu": "x", "note": "a(b"}},
 		{"node-e", nil},
 	}
 	var nodes []*model.Node
@@ -125,14 +126,14 @@ func TestSearchNegationAndPairs(t *testing.T) {
 		{"! search", []string{"node-b", "node-c", "node-d", "node-e"}},    // R1: space after !
 		{"  !search  ", []string{"node-b", "node-c", "node-d", "node-e"}}, // R1: trimmed
 		{"!^batch$", []string{"node-a", "node-c", "node-d", "node-e"}},    // R1: compiled regex
-		{"!a(b", all}, // R1: invalid, as text, negated
-		{"workload=batch", []string{"node-b", "node-c"}},                 // R2: substring of the pair
-		{"^workload=batch$", []string{"node-b"}},                         // R2: exact pair
-		{"example.com/gpu=", []string{"node-b", "node-c", "node-d"}},     // R2: has the key; sub.example.com/gpu too
-		{"^example\\.com/gpu=", []string{"node-b", "node-c"}},            // R2: exact key
-		{"!example.com/gpu=", []string{"node-a", "node-e"}},              // R2: without the key; no labels kept
-		{"!^example\\.com/gpu=", []string{"node-a", "node-d", "node-e"}}, // R2
-		{"team=a|batch", []string{"node-a", "node-b", "node-c"}},         // R2: pair or value
+		{"!a(b", []string{"node-a", "node-b", "node-c", "node-e"}},        // R1: invalid, as text, negated
+		{"workload=batch", []string{"node-b", "node-c"}},                  // R2: substring of the pair
+		{"^workload=batch$", []string{"node-b"}},                          // R2: exact pair
+		{"example.com/gpu=", []string{"node-b", "node-c", "node-d"}},      // R2: has the key; sub.example.com/gpu too
+		{"^example\\.com/gpu=", []string{"node-b", "node-c"}},             // R2: exact key
+		{"!example.com/gpu=", []string{"node-a", "node-e"}},               // R2: without the key; no labels kept
+		{"!^example\\.com/gpu=", []string{"node-a", "node-d", "node-e"}},  // R2
+		{"team=a|batch", []string{"node-a", "node-b", "node-c"}},          // R2: pair or value
 		{"zone", nil},             // R3: keys not searched without =
 		{"!", all},                // R4
 		{"!   ", all},             // R4
@@ -149,6 +150,12 @@ func TestSearchNegationAndPairs(t *testing.T) {
 		if got := names(s.Select(negationNodes())); fmt.Sprint(got) != fmt.Sprint(c.want) {
 			t.Errorf("search %q: got %v, want %v", c.text, got, c.want)
 		}
+	}
+	// search-negation R1: filters still apply, the search only removes nodes
+	f := model.Filter{Field: model.LabelField("workload"), Values: []string{"batch", "batch-2"}, Enabled: true}
+	s := model.ViewState{Sort: byName(), Filters: []model.Filter{f}, Search: "!^batch$"}
+	if got := names(s.Select(negationNodes())); fmt.Sprint(got) != "[node-c]" {
+		t.Errorf("filter workload in {batch, batch-2} with !^batch$: got %v, want [node-c]", got)
 	}
 	if got := (model.ViewState{Search: "!x"}).Select(nil); len(got) != 0 {
 		t.Errorf("empty node list: got %v", got)

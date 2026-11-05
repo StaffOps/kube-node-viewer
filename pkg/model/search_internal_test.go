@@ -138,7 +138,7 @@ func TestSearchFooterHeaderAndHelp(t *testing.T) {
 		t.Errorf("header after a negated invalid search lacks the mark:\n%s", out)
 	}
 
-	// search-negation R5
+	// search-negation R5: the help line
 	found := false
 	for _, k := range helpKeys {
 		if k[0] == "/" {
@@ -151,7 +151,7 @@ func TestSearchFooterHeaderAndHelp(t *testing.T) {
 }
 
 // matchPair must give what matching the built "key=value" text gives
-// (search-negation design, Performance).
+// (search-negation R2; design, Performance).
 func TestMatchPairSameAsPairText(t *testing.T) {
 	texts := []string{"workload=batch", "load=bat", "=", "==", "a=b=c", "gpu=", "=t4", "Team=A", "team=a|batch", "zone", "x", "^team=a$", "e=b|q"}
 	labels := [][2]string{{"workload", "batch"}, {"team", "a"}, {"Team", "Alpha"}, {"example.com/gpu", ""}, {"example.com/gpu", "t4"}, {"", ""}, {"a", "b=c"}, {"k=x", "v"}, {"topology.kubernetes.io/zone", "az-1"}}

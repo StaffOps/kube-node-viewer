@@ -237,7 +237,10 @@ negates (`!!x` negates the text `!x`), `!` alone keeps every node, and `\!`
 searches a literal leading `!`. Label keys are searched only when the text
 has `=`: then each label is also matched as `key=value`, by substring, so
 `gpu=` also finds a key `example.com/no-gpu`; write `^example\.com/gpu=` for
-that key exactly. The search sees every label, including those the config
+that key exactly. With `=` anywhere in the text, every `|` alternative is
+matched against the `key=value` text, so label keys too: `team=a|zone`
+also keeps every node with a `topology.kubernetes.io/zone` label. The
+search sees every label, including those the config
 file hides from the panels. kubectl's selectors read differently: its
 `!key` (key absent) is close to `!key=` here and `key!=value` to
 `!key=value`; for an exact match write `!^key=` and `!^key=value$`
@@ -453,8 +456,8 @@ directory is not writable; the footer says where. The CSV has one row per
 node: name, group path, instance type, capacity, node group, zone, region,
 IP, status, age, pods, requested / allocatable / percent per resource, price
 per hour, price kind (`actual`, `equivalent`, `unknown`, `disabled`) and the
-label columns you picked. The JSON adds the view (its `search` is the text
-as typed, a regular expression when it has regex characters), the totals of
+label columns you picked. The JSON adds the view (without the search
+text for now), the totals of
 the exported nodes and of the cluster, the context and the time.
 
 ### Context (`c`)
