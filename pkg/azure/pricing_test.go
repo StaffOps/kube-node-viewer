@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/staffops/kube-node-viewer/pkg/model"
+	"github.com/staffops/kube-node-viewer/pkg/pricing"
 )
 
 func item(sku, meter, product string, price float64, start string) retailItem {
@@ -53,11 +54,13 @@ type fakeAPI struct {
 	mu      sync.Mutex
 	filters []string
 	fail    bool
+	hits    int // every request, failed ones included
 }
 
 func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.hits++
 	if f.fail {
 		http.Error(w, "busy", http.StatusTooManyRequests)
 		return
@@ -209,5 +212,74 @@ func TestNoNodeNoRequest(t *testing.T) {
 	defer api.mu.Unlock()
 	if len(api.filters) != 0 {
 		t.Errorf("requests without an Azure node: %v", api.filters)
+	}
+}
+
+// The provider's own limits: a failed request waits at least a minute and
+// each request gives up after 20 s.
+// aks-pricing R2
+func TestProviderRetryAndTimeoutDefaults(t *testing.T) {
+	p := NewProvider(context.Background(), Endpoint)
+	if p.retry < time.Minute {
+		t.Errorf("retry after %v, want at least 1m", p.retry)
+	}
+	if p.client.Timeout != 20*time.Second {
+		t.Errorf("request timeout %v, want 20s", p.client.Timeout)
+	}
+}
+
+// After a failure nothing is asked before the retry delay, even when new
+// nodes ask for prices.
+// aks-pricing R2
+func TestNoRequestBeforeTheRetryDelay(t *testing.T) {
+	api := &fakeAPI{fail: true}
+	p, _ := newTestProvider(t, api)
+	p.retry = time.Hour
+	p.NodePrice(aksNode("Standard_D2s_v5", nil))
+	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+		api.mu.Lock()
+		hits := api.hits
+		api.mu.Unlock()
+		if hits > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("no first request")
+		}
+	}
+	p.NodePrice(aksNode("Standard_D2pds_v6", nil))
+	time.Sleep(200 * time.Millisecond)
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	if api.hits != 1 {
+		t.Errorf("%d requests before the retry delay, want 1", api.hits)
+	}
+}
+
+type awsStub struct{}
+
+func (awsStub) NodePrice(*model.Node) (float64, bool) { return 1, true }
+func (awsStub) OnUpdate(func())                       {}
+
+// An EKS node goes to the AWS provider and never reaches Azure, even with
+// region and size labels.
+// aks-pricing R2
+func TestAWSNodeMakesNoAzureRequest(t *testing.T) {
+	api := &fakeAPI{}
+	p, _ := newTestProvider(t, api)
+	b := pricing.ByCloud{Clouds: map[string]pricing.Provider{"aws": awsStub{}, "azure": p}, Fallback: awsStub{}}
+	eks := model.NewNode(&v1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: "eks-node", Labels: map[string]string{
+			v1.LabelTopologyRegion: "us-east-1", v1.LabelInstanceTypeStable: "m5.large"}},
+		Spec: v1.NodeSpec{ProviderID: "aws:///us-east-1a/example"},
+	})
+	if got, ok := b.NodePrice(eks); !ok || got != 1 {
+		t.Errorf("EKS node priced %v %v, want the AWS provider's 1", got, ok)
+	}
+	time.Sleep(100 * time.Millisecond)
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	if api.hits != 0 {
+		t.Errorf("%d Azure requests for an EKS node", api.hits)
 	}
 }

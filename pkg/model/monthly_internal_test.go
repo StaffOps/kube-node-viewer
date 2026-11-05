@@ -249,8 +249,12 @@ func TestIdleMonthlyIsIdleHourlyTimes730(t *testing.T) {
 	}
 }
 
-// The month factor is 730 hours, as everywhere else.
+// The month factor is 730 hours, as everywhere else: the columns and the
+// Recommendations screen use one constant.
+// monthly-price-columns R1, R2
 func TestMonthFactor(t *testing.T) {
+	// avgHoursPerMonth is recommend.HoursPerMonth (uimodel.go), so one
+	// value serves both
 	if avgHoursPerMonth != 730 {
 		t.Errorf("avgHoursPerMonth %v, want 730", avgHoursPerMonth)
 	}

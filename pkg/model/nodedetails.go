@@ -154,20 +154,12 @@ func (u *UIModel) nodeDetailsRows(n *Node, now time.Time) []string {
 	for _, r := range ordered {
 		alloc, capacity := obj.Status.Allocatable[r], obj.Status.Capacity[r]
 		req, hasReq := used[r]
-		if r == v1.ResourcePods {
-			req, hasReq = *resource.NewQuantity(int64(n.NumPods()), resource.DecimalSI), true
-		}
 		reqText := "-"
 		if hasReq {
 			reqText = detailQuantity(r, req)
 			if a := alloc.AsApproximateFloat64(); a > 0 {
 				pct := 100 * req.AsApproximateFloat64() / a
-				text := fmt.Sprintf("%.0f%%", pct)
-				// usage colours tell waste on requests; a pod count isn't one
-				if r != v1.ResourcePods {
-					text = u.colorizeUsage(pct, text)
-				}
-				reqText += " (" + text + ")"
+				reqText += " (" + u.colorizeUsage(pct, fmt.Sprintf("%.0f%%", pct)) + ")"
 			}
 		}
 		values := reqText + " / " + detailQuantity(r, alloc)
@@ -237,10 +229,11 @@ func (u *UIModel) nodeDetailsRows(n *Node, now time.Time) []string {
 	return rows
 }
 
-// resourceOrder puts cpu, memory, pods and ephemeral storage first, then the
-// rest (extended resources such as nvidia.com/gpu, hugepages) by name.
+// resourceOrder puts cpu, memory and ephemeral storage first, then the rest
+// (extended resources such as nvidia.com/gpu, hugepages) by name. Pods have
+// their own section.
 func resourceOrder(names map[v1.ResourceName]bool) []v1.ResourceName {
-	first := []v1.ResourceName{v1.ResourceCPU, v1.ResourceMemory, v1.ResourcePods, v1.ResourceEphemeralStorage}
+	first := []v1.ResourceName{v1.ResourceCPU, v1.ResourceMemory, v1.ResourceEphemeralStorage}
 	var out, rest []v1.ResourceName
 	for _, r := range first {
 		if names[r] {
