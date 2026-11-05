@@ -8,6 +8,11 @@ All notable changes to this project are documented here. Format:
 
 ### Fixed
 
+- Azure prices after a failed request: a 429 or 503 answer's retry header
+  is honoured (at least 1 minute, at most 10), only the failed region
+  waits, and the header's red error clears once that region's prices
+  arrive. The header also drops the date and time the standard logger
+  adds to a line.
 - A `config.yaml` filter on `capacity` or `status` with a value no node can
   have is an error that names the value to write: `spot` → `Spot`,
   `on-demand` → `OnDemand`, `ready` → `Ready`, `Ready/Cordoned` → one value

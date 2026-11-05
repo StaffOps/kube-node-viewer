@@ -49,6 +49,11 @@ var (
 // issueWindow is how long a logged error stays in the header.
 const issueWindow = 2 * time.Minute
 
+// ResolvedPrefix starts a log line that resolves an earlier error: the rest
+// of the line is the text the error line starts with, and the header stops
+// showing that error if it is still the last one (fix-azure-retry R3).
+const ResolvedPrefix = "resolved: "
+
 // recentIssue is the last logged error if it is recent, else empty.
 func (u *UIModel) recentIssue() string {
 	if u.issues == nil {

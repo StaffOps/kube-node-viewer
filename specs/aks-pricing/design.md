@@ -39,6 +39,11 @@ cluster has a handful of sizes, so a filtered query is one page.
 > whose answer is longer than 20 pages. **Reversal action**: keep the
 > failure time per region, and raise or drop the page cap.
 
+> **Corrected 2026-11-05.** The shared failure time is gone: each region
+> keeps its own retry time, a 429 or 503 retry header is honoured, and a
+> resolved failure leaves the header
+> ([fix-azure-retry](../fix-azure-retry/bugfix.md)).
+
 ## D3. Matching
 
 Items are kept when `type == Consumption`, `unitOfMeasure == 1 Hour`,
