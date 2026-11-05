@@ -43,6 +43,11 @@ memory. Listed by impact.
 
 ## Follow-ups
 
+- [ ] Azure prices: on HTTP 429 the provider waits its fixed 1-minute
+      retry and ignores `Retry-After`, and the header keeps the resolved
+      error red for 2 minutes after the retry succeeded (`issueWindow`,
+      `pkg/model/header.go`). _Why:_ a transient rate limit looks like a
+      live failure.
 - [ ] **License headers everywhere** (rebrand R8): about ten shell scripts
       (`.githooks/*`, `scripts/agent-hooks/*.sh`, `scripts/build.sh`,
       `hack/gen_licenses.sh`) have no Apache header, and five upstream Go

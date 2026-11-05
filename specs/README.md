@@ -99,7 +99,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 20. [`fix-export-search/`](fix-export-search/) — **active**. The JSON
     export writes the search as `view.search`.
     [bugfix](fix-export-search/bugfix.md) · [tasks](fix-export-search/tasks.md)
-21. [`decisions/`](decisions/) — decision records (index below).
+21. [`fix-azure-price-product/`](fix-azure-price-product/) — **active**. AKS
+    Linux nodes of some series took the Cloud Services (Windows) price.
+    [bugfix](fix-azure-price-product/bugfix.md) ·
+    [tasks](fix-azure-price-product/tasks.md)
+22. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>
