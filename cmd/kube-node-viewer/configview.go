@@ -122,7 +122,14 @@ func (k fieldKind) field(path string, value any) (model.Field, error) {
 	if hint, ok := k.sibling(name); ok {
 		return "", fmt.Errorf("%s: %s is not a %s field; %s", path, name, k.key, hint)
 	}
-	if isBuiltin(name) {
+	if want, ok := k.caseOf(name); ok {
+		hint := "write " + want
+		if len(validation.IsQualifiedName(name)) == 0 {
+			hint += ", or label:" + name + " for a node label"
+		}
+		return "", fmt.Errorf("%s: %s is not a %s field; %s", path, name, k.key, hint)
+	}
+	if isBuiltin(name) || isBuiltin(strings.ToLower(name)) {
 		return "", fmt.Errorf("%s: %s is not a %s field; write label:%s for a node label", path, name, k.key, name)
 	}
 	if err := qualifiedName(path, name, name, "label key"); err != nil {
@@ -174,6 +181,30 @@ func (k fieldKind) sibling(name string) (string, bool) {
 	// the titles as written on screen too (PRICE/M)
 	hint, ok := siblings[k.key][strings.ToLower(name)]
 	return hint, ok
+}
+
+// screenTitles are column titles that are not a field name or alias once
+// lower-cased (pkg/model columnTitle).
+var screenTitles = map[string]model.Field{
+	"instance": model.FieldInstanceType,
+}
+
+// caseOf tells whether name is a built-in name, alias or screen title of the
+// key in another case (INSTANCE, Zone, PRICE/M), and the name to write
+// instead: read as a label it would show a column that looks like the
+// built-in one and is empty (fix-config-case R1).
+func (k fieldKind) caseOf(name string) (string, bool) {
+	lower := strings.ToLower(name)
+	if lower == name {
+		return "", false
+	}
+	if _, ok := k.aliases[lower]; ok || slices.Contains(k.builtins, model.Field(lower)) {
+		return lower, true
+	}
+	if f, ok := screenTitles[lower]; ok && slices.Contains(k.builtins, f) {
+		return string(f), true
+	}
+	return "", false
 }
 
 // qualifiedName checks a label key or resource name, part of the item

@@ -66,6 +66,34 @@ type settings struct {
 // unmarshalPrefix is what sigs.k8s.io/yaml puts before every decoding error.
 const unmarshalPrefix = "error unmarshaling JSON: while decoding JSON: json: "
 
+// yamlPrefix is what sigs.k8s.io/yaml puts before a YAML error, and
+// yamlListPrefix what go-yaml puts before its list of decoding errors, one
+// per line (a key written twice).
+const (
+	yamlPrefix     = "error converting YAML to JSON: yaml: "
+	yamlListPrefix = "unmarshal errors:\n"
+)
+
+// yamlError is the decoding error on one line, without the library's
+// prefixes: line 3: key "name" already set in map (fix-config-case R2).
+func yamlError(err error) string {
+	msg := strings.TrimPrefix(err.Error(), unmarshalPrefix)
+	rest, ok := strings.CutPrefix(msg, yamlPrefix)
+	if !ok {
+		return msg
+	}
+	if list, ok := strings.CutPrefix(rest, yamlListPrefix); ok {
+		var lines []string
+		for _, l := range strings.Split(list, "\n") {
+			if l = strings.TrimSpace(l); l != "" {
+				lines = append(lines, l)
+			}
+		}
+		return strings.Join(lines, "; ")
+	}
+	return rest
+}
+
 // loadSettings reads config.yaml at path: the label lists, replaced by
 // --labels-allow or --labels-deny when given on the command line
 // (label-visibility R7), and the config views (config-views). A missing file
@@ -118,7 +146,7 @@ func readSettingsFile(path string) (settingsFile, error) {
 	var doc any
 	// strict: a key written twice is an error
 	if err := yaml.UnmarshalStrict(data, &doc); err != nil {
-		return settingsFile{}, errors.New(strings.TrimPrefix(err.Error(), unmarshalPrefix))
+		return settingsFile{}, errors.New(yamlError(err))
 	}
 	top, err := mapping("", doc, "labels", "views", "default-view", "start-with")
 	if err != nil {

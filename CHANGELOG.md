@@ -8,6 +8,13 @@ All notable changes to this project are documented here. Format:
 
 ### Fixed
 
+- `config.yaml` views no longer read a built-in name or column title in
+  another case as a label: `columns: [INSTANCE]` or `group-by: [Zone]`
+  showed an empty column or group that looked like the real one; they are
+  now errors that say to write `instance-type` or `zone` (or
+  `label:INSTANCE` for such a label), and `columns: [PRICE/M]` says to
+  write `price/m`. A key written twice is reported on one line with its
+  line number, without the YAML library's prefix.
 - `config.yaml` views no longer load names that can never match: a label
   key or resource name with leading or trailing whitespace, a comma or an
   upper-case title with a `/` (`"zone "`, `zone,region`, `PRICE/M`), a resource
