@@ -9,8 +9,10 @@
 - [x] T3. Mark the six bugfix specs shipped in v0.14.0 by hand with a dated note each, and their index entries; dated note in ADR-003; remove both `TODO.md` items; add the per-decision marker item
   - _Covers: R1 · Depends on: T1 · Verified by: `spec-lint`, `spec-trace`; after the marking, `--write` on a scratch copy prints no `shipped spec:` line for the six_
   - [x] the six specs and their index entries say shipped in v0.14.0
+- [x] T5. spec-lint checks each index entry's status against the spec's; `release-prepare.py` warns when it cannot mark an entry (code review)
+  - _Covers: R3 · Depends on: T1 · Verified by: the `spec lint: index` cases; `spec-lint: ok` on today's index_
 - [x] T4. Verify
-  - _Covers: R1, R2 · Depends on: T1, T2, T3 · Verified by: `scripts/verify.sh`, `scripts/checks/test-checks.sh`, dated note here_
+  - _Covers: R1, R2, R3 · Depends on: T1, T2, T3, T5 · Verified by: `scripts/verify.sh`, `scripts/checks/test-checks.sh`, dated note here_
 
 > **Verified 2026-11-05.** `scripts/checks/test-checks.sh`: 153 passed,
 > including the five `spec lint: decision` cases and the seven
@@ -25,3 +27,13 @@
 > entry printed exactly the six `shipped spec:` lines before the hand
 > marking and none after it. `spec-lint: ok` on every existing design
 > with the new heading rule. shellcheck clean.
+
+> **Verified 2026-11-05 (after the code review).** The index lists this
+> spec as **active**; spec-lint now fails when an index entry's status
+> differs from the spec's (R3, T5), and `release-prepare.py` warns when it
+> cannot mark an entry. The status is read only from the header, before
+> the first `## `. `test-checks.sh`: 155 passed. Mutation runs: with
+> `origin/main`'s `release-prepare.py` three `release prepare:` cases fail
+> (the done bugfix spec, the draft quoting the status, the shipped spec's
+> note); with the old `### D` regex the `## D1.` case fails; without the
+> index check the `spec lint: index` case fails.

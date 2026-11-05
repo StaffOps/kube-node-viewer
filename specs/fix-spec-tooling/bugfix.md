@@ -1,6 +1,6 @@
 # Bugfix: spec-tooling
 
-> Status: active · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 5 LOW, applied)
+> Status: active · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 5 LOW, applied), 2026-11-05 (spec-refuter, code; 1 HIGH, 2 MEDIUM, 2 LOW, applied)
 
 Two items of `TODO.md` (Follow-ups): "Bugfix specs are never marked shipped"
 (found while writing [ADR-003](../decisions/ADR-003-release-from-changelog-headings.md))
@@ -38,7 +38,8 @@ a feature spec through `requirements.md`, a bugfix spec (`specs/fix-*/`)
 through `bugfix.md` — has the header line `> Status: active …` and every
 task in its `tasks.md` is `[x]` THEN the system SHALL replace that header
 line's status with `shipped (v<version>, <date>)`, reading the status only
-from the file's first line that starts with `> Status:` and changing only
+from the file's first line that starts with `> Status:`, before its first
+`## ` heading, and changing only
 that line (in that file, and in its `design.md` and `tasks.md` when theirs
 says active), and mark its `specs/README.md` entry **shipped** in
 v<version>.
@@ -59,7 +60,15 @@ and SHALL fail when the design has fewer "When this would be wrong" or
 - [x] `### D1:` without the markers still fails
 - [x] both forms with the markers pass
 
-The regression tests are the `release prepare:` and `spec lint: decision`
+**R3** WHEN a spec's `specs/README.md` entry names a status
+(`— **active**`) that differs from the status on the spec's own
+`> Status:` line THEN `spec-lint.sh` SHALL fail, and `release-prepare.py`
+SHALL warn on stderr when it ships a spec whose entry it could not mark.
+
+- [x] an index entry saying draft for an active spec fails
+- [x] a matching entry passes
+
+The regression tests are the `release prepare:` `spec lint: decision` and `spec lint: index`
 cases of `scripts/checks/test-checks.sh`, run by the `guardrails` job.
 
 ## Unchanged behavior

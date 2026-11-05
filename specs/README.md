@@ -103,7 +103,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     Linux nodes of some series took the Cloud Services (Windows) price.
     [bugfix](fix-azure-price-product/bugfix.md) ·
     [tasks](fix-azure-price-product/tasks.md)
-22. [`fix-spec-tooling/`](fix-spec-tooling/) — **draft**. Release tooling
+22. [`fix-spec-tooling/`](fix-spec-tooling/) — **active**. Release tooling
     ships bugfix specs; spec-lint reads `## D<n>` decisions.
     [bugfix](fix-spec-tooling/bugfix.md) · [tasks](fix-spec-tooling/tasks.md)
 23. [`decisions/`](decisions/) — decision records (index below).

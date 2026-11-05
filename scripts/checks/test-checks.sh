@@ -329,12 +329,17 @@ if command -v python3 >/dev/null 2>&1; then
   spec "spec lint: unknown status"                  blocked "sed -i.b 's/Status: draft/Status: wip/' specs/rough/requirements.md && rm specs/rough/*.b && bash scripts/spec-lint.sh"
   spec "spec lint: reviewed but still UNREVIEWED"   blocked "sed -i.b 's/^UNREVIEWED=.*/UNREVIEWED=\"demo\"/' scripts/spec-lint.sh && rm scripts/*.b && bash scripts/spec-lint.sh"
   # fix-spec-tooling R2: '## D1.', '### D1:' and a bare '### D1' are decisions
-  spec "spec lint: decision ## D1. without markers" blocked "printf '\\n## D1. A choice\\n\\nText.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
-  spec "spec lint: decision ### D1: without markers" blocked "printf '\\n### D1: A choice\\n\\nText.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
-  spec "spec lint: decision ### D1 bare, no markers" blocked "printf '\\n### D1\\n\\nText.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
+  # the failure must be the marker count, not some other lint error
+  norule="bash scripts/spec-lint.sh 2>&1 | grep -q \"1 decisions but 0 'When this would be wrong'\""
+  spec "spec lint: decision ## D1. without markers" passes "printf '\\n## D1. A choice\\n\\nText.\\n' >> specs/demo/design.md && $norule"
+  spec "spec lint: decision ### D1: without markers" passes "printf '\\n### D1: A choice\\n\\nText.\\n' >> specs/demo/design.md && $norule"
+  spec "spec lint: decision ### D1 bare, no markers" passes "printf '\\n### D1\\n\\nText.\\n' >> specs/demo/design.md && $norule"
   # fix-spec-tooling R2: both forms with the markers pass; '## Decisions' is not one
   spec "spec lint: decision, both forms with markers" passes "printf '\\n## D1. A\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n\\n### D2: B\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
   spec "spec lint: decision, ## Decisions not counted" passes "printf '\\n## Decisions\\n\\nNone yet.\\n' >> specs/demo/design.md && bash scripts/spec-lint.sh"
+  # fix-spec-tooling R3: the index entry's status matches the spec's
+  spec "spec lint: index says draft, spec active"   blocked "sed -i.b 's|(demo/)\$|(demo/) — **draft**.|' specs/README.md && rm specs/*.b && grep -q 'demo/) — \*\*draft' specs/README.md && bash scripts/spec-lint.sh"
+  spec "spec lint: index matches the spec"          passes  "sed -i.b 's|(demo/)\$|(demo/) — **active**.|' specs/README.md && rm specs/*.b && grep -q 'demo/) — \*\*active' specs/README.md && bash scripts/spec-lint.sh"
   spec "spec tasks: code under a draft spec"        blocked "printf 'x\n' >> specs/rough/design.md && printf '\n' >> pkg/model/view.go && python3 scripts/spec-tasks-check.py \$B"
   spec "spec tasks: a script under a draft spec"    blocked "printf 'x\n' >> specs/rough/design.md && printf '\n' >> scripts/spec-lint.sh && python3 scripts/spec-tasks-check.py \$B"
   spec "spec tasks: code under an active spec"      passes  "printf 'x\n' >> specs/demo/design.md && printf '\n' >> pkg/model/view.go && python3 scripts/spec-tasks-check.py \$B"
@@ -377,7 +382,7 @@ if command -v python3 >/dev/null 2>&1; then
     printf '# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n- A fix.\n\n## [0.1.0] - 2026-01-01\n\n### Added\n\n- First.\n\n[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.1.0...HEAD\n[0.1.0]: https://github.com/StaffOps/kube-node-viewer/releases/tag/v0.1.0\n' > "$rp/CHANGELOG.md"
     [ "${RP_EMPTY:-}" ] && printf '# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-01-01\n\n- First.\n' > "$rp/CHANGELOG.md"
     (cd "$rp" && find specs -type f -exec cksum {} + | sort > "$tmp/rp.before")
-    out=$(cd "$rp" && python3 -B "$src/scripts/release-prepare.py" --write --date 2026-02-02 --root . 2>&1 && sh -c "$2" 2>&1)
+    out=$(cd "$rp" && python3 -B "$src/scripts/release-prepare.py" --write --date 2026-02-02 --root . > "$tmp/rp.out" 2>&1 && RP_OUT=$tmp/rp.out sh -c "$2" 2>&1)
     verdict "$1" passes $? "$out"
   }
   # fix-spec-tooling R1: a bugfix spec with every task done ships, files and index
@@ -385,7 +390,7 @@ if command -v python3 >/dev/null 2>&1; then
   # fix-spec-tooling R1: an open task keeps a bugfix spec active
   rp "release prepare: an open bugfix spec stays" "grep -q '^> Status: active' specs/fix-open/bugfix.md && grep -q 'fix-open/) — \*\*active\*\*' specs/README.md"
   # fix-spec-tooling R1: prose quoting the status does not ship a draft
-  rp "release prepare: a draft quoting it stays" "grep -q '^> Status: draft' specs/rough/requirements.md && grep -q '^> Status: active is quoted here' specs/rough/requirements.md"
+  rp "release prepare: a draft quoting it stays" "grep -q '^> Status: draft' specs/rough/requirements.md && grep -q 'Was it \"Status: active\"? No.' specs/rough/requirements.md && grep -q '^> Status: active is quoted here' specs/rough/requirements.md && ! grep -q 'shipped spec: rough' \$RP_OUT"
   # fix-spec-tooling R1: a shipped spec's note quoting the status is unchanged
   rp "release prepare: a shipped spec is unchanged" "grep -q 'It said Status: active by mistake' specs/old/requirements.md && grep -q '^> Status: shipped (v0.1.0' specs/old/requirements.md"
   # unchanged: a feature spec still ships, files and index

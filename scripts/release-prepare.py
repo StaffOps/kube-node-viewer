@@ -24,8 +24,9 @@ Next version, from the newest released one and the [Unreleased] headings:
 
 With --write, also: renames [Unreleased] to [x.y.z] - DATE under a new
 empty [Unreleased], updates the compare links, and marks specs shipped
-whose tasks are all done: the first "> Status:" line, when it says active,
-of requirements.md (bugfix.md for a fix-* spec), design.md and tasks.md.
+whose tasks are all done: the first "> Status:" line of the header, when
+it says active, of requirements.md (bugfix.md only, for a fix-* spec),
+design.md and tasks.md, and the spec's specs/README.md entry.
 
   scripts/release-prepare.py [--write] [--date YYYY-MM-DD] [--root DIR]
 """
@@ -67,8 +68,12 @@ STATUS = re.compile(r"^> Status: (\w+)", re.M)
 
 
 def ship(text, version, date):
-    """text with its status line shipped, or None when that line is not active."""
-    m = STATUS.search(text)
+    """text with its status line shipped, or None when that line is not active.
+
+    Only the header, before the first "## " heading, is read.
+    """
+    head = text.split("\n## ", 1)[0]
+    m = STATUS.search(head)
     if not m or m.group(1) != "active":
         return None
     return text[:m.start(1)] + f"shipped (v{version}, {date})" + text[m.end(1):]
@@ -95,7 +100,11 @@ def ship_specs(root, version, date):
                 if t is not None:
                     open(p, "w").write(t)
         if readme is not None:
-            readme = readme.replace(f"[`{name}/`]({name}/) — **active**.", f"[`{name}/`]({name}/) — **shipped** in v{version}.", 1)
+            entry = f"[`{name}/`]({name}/) — **active**."
+            if entry in readme:
+                readme = readme.replace(entry, f"[`{name}/`]({name}/) — **shipped** in v{version}.", 1)
+            else:
+                print(f"warning: {name}: no '— **active**.' entry in specs/README.md to mark shipped", file=sys.stderr)
         print(f"shipped spec: {name}", file=sys.stderr)
     if readme is not None:
         open(readme_path, "w").write(readme)
