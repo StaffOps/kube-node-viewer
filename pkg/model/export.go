@@ -75,17 +75,32 @@ type exportTotals struct {
 	UnknownPrice int `json:"unknownPrice"`
 }
 
+// exportFocus is one level of the focus: a field and the value kept.
+type exportFocus struct {
+	Field string `json:"field"`
+	Value string `json:"value"`
+}
+
+// exportView is the view as the JSON export writes it: the saved view plus
+// the search text, which the state file never saves (fix-export-search).
+type exportView struct {
+	ViewState
+	Search string `json:"search,omitempty"`
+}
+
 // exportDoc is the JSON export; its nodes are also the CSV rows.
 type exportDoc struct {
 	Context   string       `json:"context"`
 	Server    string       `json:"server"`
 	Generated time.Time    `json:"generated"`
-	View      ViewState    `json:"view"`
+	View      exportView   `json:"view"`
 	Shown     exportTotals `json:"shown"`
 	Cluster   exportTotals `json:"cluster"`
-	Labels    []string     `json:"labelColumns,omitempty"`
-	Resources []string     `json:"resources"`
-	Nodes     []exportNode `json:"nodes"`
+	// Focus is the group focused on Overview (group-focus R8)
+	Focus     []exportFocus `json:"focus,omitempty"`
+	Labels    []string      `json:"labelColumns,omitempty"`
+	Resources []string      `json:"resources"`
+	Nodes     []exportNode  `json:"nodes"`
 }
 
 type exportDoneMsg struct {
@@ -112,6 +127,13 @@ func (u *UIModel) export() tea.Cmd {
 
 func (u *UIModel) exportDoc(now time.Time) exportDoc {
 	nodes := u.view.Select(u.stats.Nodes)
+	var focus []exportFocus
+	if !u.onRecommendations() {
+		nodes = u.focusNodes(nodes)
+		for _, l := range u.focusLevels() {
+			focus = append(focus, exportFocus{Field: fieldName(l.Field), Value: l.Value})
+		}
+	}
 	var labels []string
 	for _, c := range u.view.Columns {
 		if key := c.Label(); key != "" {
@@ -120,9 +142,9 @@ func (u *UIModel) exportDoc(now time.Time) exportDoc {
 	}
 	doc := exportDoc{
 		Context: u.info.Context, Server: u.info.Server, Generated: now,
-		View: u.view.forSaving(), Labels: labels,
+		View:   exportView{ViewState: u.view.forSaving(), Search: u.view.Search},
+		Labels: labels, Focus: focus,
 	}
-	doc.View.Search = u.view.Search
 	for _, r := range u.cluster.resources {
 		doc.Resources = append(doc.Resources, string(r))
 	}

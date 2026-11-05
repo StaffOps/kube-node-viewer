@@ -21,6 +21,14 @@ what they cannot. Listed by impact.
       the workflow, release once, then remove the key.
       _Why:_ the deploy key is a long-lived credential that can push to
       `main`; it has to be rotated by hand, and a leak lasts until then.
+- [ ] **Owner: does the `kind` run count as the cluster run?** The
+      `kind` job (`scripts/kind-it.sh`) runs on every PR, informational
+      (not in automerge's needs, not a required check). Decide whether it
+      counts as the "run on a cluster" of a verify task for changes that
+      are not cloud-specific (AGENTS.md, "Tested before it ships"), leaving
+      real clusters for prices and node pools; if so, make it gate
+      automerge and a required check.
+      _Why:_ until then every change still waits for a real cluster.
 - [ ] **Confirm the Kiro hooks in a real session**: the Kiro config
       follows the Kiro docs but has not run in Kiro yet; a `git commit`
       with a non-conventional subject should be refused by both the git
@@ -53,41 +61,6 @@ memory. Listed by impact.
       specs and docs go stale; the spec-task gate only fires when a spec
       is touched.
 
-## Security
-
-Beyond the Guardrails section above.
-
-- [ ] **Build provenance (SLSA)**: `actions/attest-build-provenance` on
-      the archives in `release.yaml` (`attestations: write`), checked with
-      `gh attestation verify`; `scripts/release-check.sh --strict` would
-      then require it.
-      _Why:_ the checksum signature proves the files came from
-      `release.yaml`; provenance also records the inputs of the build, and
-      OpenSSF Scorecard gives Signed-Releases its top score only with it.
-      In the same change, move signing to its own job: today
-      `id-token: write` covers the whole release job, including
-      `make vuln licenses`, which runs downloaded tools.
-- [ ] **A goreleaser snapshot in CI**: `goreleaser release --snapshot
-      --skip=sign,publish` with syft on PRs that touch `.goreleaser.yaml`
-      or `release.yaml`.
-      _Why:_ a broken SBOM or archive setting shows today only on the
-      Monday release, after the tag is pushed.
-
-## Evolution
-
-- [ ] **Integration tests on a `kind` cluster in CI**: start kind, apply
-      fixture nodes and pods, run the TUI headless, assert on the screen.
-      _Why:_ the "ran on a cluster" rule depends on someone having one;
-      on 2026-11-03 none was available. A kind run makes the basic
-      cluster check automatic, leaving real clusters for cloud-specific
-      behaviour (prices, node pools).
-- [ ] **Golden-file screen snapshots in PRs**: render the main screens
-      from the made-up cluster used for screenshots and show the text
-      diff in the PR.
-      _Why:_ UI changes are reviewed today by reading code or running the
-      binary; a diff of the screen makes layout regressions visible in
-      review.
-
 ## Follow-ups
 
 - [ ] Azure prices: on HTTP 429 the provider waits its fixed 1-minute
@@ -95,6 +68,13 @@ Beyond the Guardrails section above.
       error red for 2 minutes after the retry succeeded (`issueWindow`,
       `pkg/model/header.go`). _Why:_ a transient rate limit looks like a
       live failure.
+- [ ] **Check the first attested release** (0.14.0): the release run's
+      `check` job, then `gh attestation verify` (README "Verifying a
+      release") on a downloaded archive and on an SBOM; record it under
+      R1 of [release-provenance](specs/release-provenance/requirements.md),
+      and under R5 the next PR's `release-snapshot` "no release files
+      changed" pass.
+      _Why:_ attestation can only be proven on a published release.
 - [ ] `config.yaml` filter values in another case match nothing: `values:
       [Spot]` for `capacity` keeps no node, since capacity values are
       lower case (`spot`), with no error
@@ -106,14 +86,20 @@ Beyond the Guardrails section above.
       ([ADR-003](specs/decisions/ADR-003-release-from-changelog-headings.md)).
       _Why:_ the specs index keeps showing released fixes as **active**,
       as if still in progress.
+- [ ] Regenerate `.static/demo.gif` with `scripts/screenshots.sh`: its
+      captions now fold with `space` and show `enter` focusing a group
+      ([group-focus](specs/group-focus/tasks.md) T4). _Why:_ the GIF still
+      shows `enter` folding; the script needs ffmpeg, missing on the
+      machine that made the change.
+- [ ] Regenerate the README images (`scripts/screenshots.sh`): the demo
+      nodes' internal IPs moved to 192.0.2.0/24 for the golden screens,
+      and `.static/` still shows the old ones. The node names stay
+      `ip-10-0-…` (the allowed example names in `scripts/checks/content.sh`),
+      so a node's name no longer matches its IP; rename them only together
+      with that allowlist.
 
 ## Ideas
 
-- [ ] **Search: negation and label keys** (`/`): `!text` to keep the nodes
-      that do not match, and matching label keys (`key=value`) as well as
-      values. Out of scope of [`search-regex`](specs/search-regex/).
-      _Why:_ "everything but the system nodes" and "nodes that have label
-      X" are the next two questions after `a|b`.
 - [ ] Recommendations for AKS: Azure VM catalog and family tables, so the
       Recommendations screen works on Azure nodes
       ([aks-pricing deferred](specs/aks-pricing/tasks.md#deferred),

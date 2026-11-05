@@ -1,6 +1,7 @@
-# verify, lint, build, secrets, guardrails and deps in parallel on every PR
-# and push to main; on a PR from a trusted author, approves and merges it
-# once all of them pass. A PR labelled `release` also starts the release
+# verify, lint, build, secrets, guardrails, deps, workflows,
+# release-snapshot and kind in parallel on every PR and push to main; on a
+# PR from a trusted author, approves and merges it once all of them but
+# kind (informational) pass. A PR labelled `release` also starts the release
 # workflow right away; other merges wait for the weekly release
 # (release.yaml). Weekly on main too, so a vulnerability published for a
 # dependency we already ship fails the `deps` job without any change here.
@@ -215,10 +216,46 @@ jobs:
         GH_TOKEN: ${{ github.token }} # online audits: impostor commits, known-vulnerable actions
       run: pipx run zizmor==1.31.1 --format=github . # `.`: annotations carry repo-relative paths
 
+  kind:
+    # integration test on a throwaway kind cluster: the binary's sessions
+    # (client, informers, store, view) against a real API server, checked
+    # against what the API lists (scripts/kind-it.sh, TestKindCluster).
+    # Informational for now: not in automerge's needs nor a required check.
+    name: kind
+    runs-on: ubuntu-latest # amd64: the kind download below is kind-linux-amd64
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Set up Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: go.mod
+    - name: Install kind
+      env:
+        # the sha256 is pinned here, not read from the release; the
+        # linux-amd64 binary, the runner's platform
+        KIND_VERSION: v0.33.0
+        KIND_SHA256: aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+      # appends a fixed directory under RUNNER_TEMP to PATH; nothing from the event
+      run: | # zizmor: ignore[github-env]
+        set -euo pipefail
+        dir="$RUNNER_TEMP/kind"
+        mkdir -p "$dir" && cd "$dir"
+        curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+        echo "$KIND_SHA256  kind" | sha256sum -c -
+        chmod +x kind
+        echo "$dir" >> "$GITHUB_PATH"
+    - name: Integration test
+      run: scripts/kind-it.sh
+
   tools:
     # CI tools pinned by version, which Dependabot does not update (zizmor,
     # actionlint, gitleaks, golangci-lint, govulncheck, go-licenses, cosign,
-    # syft): fails the weekly run when one has a release at least 14 days
+    # syft, goreleaser, kind): fails the weekly run when one has a release at least 14 days
     # old, which mails the owner. Not on PRs: a new upstream release must
     # not block an unrelated merge.
     name: tools
@@ -234,9 +271,75 @@ jobs:
     - name: Pinned tool versions
       run: python3 scripts/checks/tool-versions.py
 
+  release-snapshot:
+    # the release build without publishing (release-provenance R4, R5):
+    # cosign, syft and goreleaser at release.yaml's pins, no signature, no
+    # secret. About 10 minutes when it builds.
+    # Always reports, so automerge can wait on it; on a PR it builds only
+    # when .goreleaser.yaml or release.yaml changed, on main and weekly
+    # always.
+    name: release-snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        fetch-depth: 0 # the merge base, and tags for the snapshot version
+    - name: Release files changed?
+      id: changed
+      env:
+        EVENT: ${{ github.event_name }}
+        PR_BASE: ${{ github.event.pull_request.base.sha }}
+        PR_HEAD: ${{ github.event.pull_request.head.sha }}
+      run: |
+        if [ "$EVENT" != pull_request ]; then
+          echo "build=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        files=$(git diff --name-only "$(git merge-base "$PR_BASE" "$PR_HEAD")" "$PR_HEAD")
+        if printf '%s\n' "$files" | grep -qxE '\.goreleaser\.yaml|\.github/workflows/release\.yaml'; then
+          echo "build=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "no release files changed: nothing to build"
+        fi
+    - name: Set up Go
+      if: steps.changed.outputs.build == 'true'
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: go.mod
+        cache: false # same build as the release, which restores no cache
+    - name: Install cosign
+      # as in release.yaml: goreleaser's sign step is skipped here, but a
+      # bad cosign pin shows on the PR, not after the release tag
+      if: steps.changed.outputs.build == 'true'
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      with:
+        # keep in step with release.yaml (scripts/checks/tool-versions.py)
+        cosign-release: v3.1.4
+    - name: Install syft
+      if: steps.changed.outputs.build == 'true'
+      uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+      with:
+        # keep in step with release.yaml (scripts/checks/tool-versions.py)
+        syft-version: v1.55.0
+    - name: GoReleaser snapshot
+      if: steps.changed.outputs.build == 'true'
+      uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+      with:
+        distribution: goreleaser
+        # keep in step with release.yaml (scripts/checks/tool-versions.py)
+        version: v2.19.0
+        args: release --snapshot --clean --skip=sign,publish
+    - name: Check the snapshot
+      if: steps.changed.outputs.build == 'true'
+      run: scripts/checks/release-snapshot.sh dist
+
   automerge:
     name: automerge
-    needs: [ test, lint, build, secrets, guardrails, deps, workflows ]
+    needs: [ test, lint, build, secrets, guardrails, deps, workflows, release-snapshot ]
     if: >-
       github.event_name == 'pull_request' &&
       !github.event.pull_request.draft &&

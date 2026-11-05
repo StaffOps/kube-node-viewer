@@ -1,0 +1,36 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer · Overview                                                                                                                                          │
+│ Context:  demo-prod                                                                                                                       f filters     g group by   │
+│ Cluster:  https://0A1B2C3D4E5F.gr7.us-east-1.eks.amazonaws.com                                                                            s sort        o columns    │
+│ Region:   us-east-1                                                                                                                       / search      r resources  │
+│ Nodes:    4 of 10 shown · 89 pods · $728.102/month (+1 reserved, not priced) (global cluster)                                             c context     v views      │
+│ View:     Filters: capacity=Spot │ Group: none │ Sort: creation ↓ │ cpu+memory                                                            ? help       ^e compact    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  12076m/15690m   77.0% cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.255/hour | $186.150/month  (filtered: 4 of 10 nodes)
+  26296Mi/43008Mi 61.1% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+
+  NAME                                                                             PODS   INSTANCE     PRICE/H  PRICE/M  IDLE/M  CAPACITY  NODEGROUP  ZONE        STATUS
+  ip-10-0-13-12.ec2.internal c╭─ Filters ──────────────────────────────────────────────────────────────────────────────────────────────────╮pot-arm   us-east-1c  Ready
+                             m│ [x] ▾ capacity  Spot                                                                                       │
+  ip-10-0-12-61.ec2.internal c│     [ ] OnDemand  5                                                                                        │pot-arm   us-east-1b  Ready
+                             m│     [x] Spot  4                                                                                            │
+  ip-10-0-11-93.ec2.internal c│     [ ] Reserved  1                                                                                        │pot-arm   us-east-1a  Ready
+                             m│     [ ] Fargate  0                                                                                         │
+  ip-10-0-13-40.ec2.internal c│     [ ] Unknown  0                                                                                         │efault    us-east-1c  Ready
+                             m│ [ ] ▸ nodegroup                                                                                            │
+                              │ [ ] ▸ zone                                                                                                 │
+                              │ [ ] ▸ region                                                                                               │
+                              │ [ ] ▸ instance-type                                                                                        │
+                              │ [ ] ▸ status                                                                                               │
+                              │ [ ] ▸ eks.amazonaws.com/capacityType                                                                       │
+                              │ [ ] ▸ eks.amazonaws.com/nodegroup                                                                          │
+                              │ [ ] ▸ karpenter.sh/capacity-type                                                                           │
+                              │ [ ] ▸ karpenter.sh/nodepool                                                                                │
+                              │ [ ] ▸ node.kubernetes.io/instance-type                                                                     │
+                              │ [ ] ▸ topology.kubernetes.io/region                                                                        │
+                              │ [ ] ▸ topology.kubernetes.io/zone                                                                          │
+                              ├────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+                              │ ↑/↓: move • space/enter: tick value • x: keep/exclude • ←: close field • d: clear field • esc: close field │
+                              ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+

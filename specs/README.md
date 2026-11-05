@@ -81,11 +81,29 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     `Zone`, `PRICE/M`) instead of reading it as an empty label; YAML errors
     on one line. [bugfix](fix-config-case/bugfix.md) ·
     [tasks](fix-config-case/tasks.md)
-17. [`fix-azure-price-product/`](fix-azure-price-product/) — **active**. AKS
+17. [`release-provenance/`](release-provenance/) — **active**. SLSA build
+    provenance for every release file, signing in its own job, and a
+    goreleaser snapshot on PRs that change the release.
+    [requirements](release-provenance/requirements.md) ·
+    [design](release-provenance/design.md) ·
+    [tasks](release-provenance/tasks.md)
+18. [`group-focus/`](group-focus/) — **active**. `enter` on a group heading
+    shows only that group's nodes; `esc` goes back; folding moves to
+    `space`. [requirements](group-focus/requirements.md) ·
+    [design](group-focus/design.md) · [tasks](group-focus/tasks.md)
+19. [`search-negation/`](search-negation/) — **active**. `/!text` keeps the
+    nodes the text does not match; text with `=` also matches labels as
+    `key=value` (`/key=` for "has the label").
+    [requirements](search-negation/requirements.md) ·
+    [design](search-negation/design.md) · [tasks](search-negation/tasks.md)
+20. [`fix-export-search/`](fix-export-search/) — **active**. The JSON
+    export writes the search as `view.search`.
+    [bugfix](fix-export-search/bugfix.md) · [tasks](fix-export-search/tasks.md)
+21. [`fix-azure-price-product/`](fix-azure-price-product/) — **active**. AKS
     Linux nodes of some series took the Cloud Services (Windows) price.
     [bugfix](fix-azure-price-product/bugfix.md) ·
     [tasks](fix-azure-price-product/tasks.md)
-18. [`decisions/`](decisions/) — decision records (index below).
+22. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated

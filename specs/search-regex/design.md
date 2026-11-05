@@ -17,6 +17,11 @@ While typing, `helpText` shows `type to search • enter: keep • esc: clear`
 `view.go:235`); the export writes it as `view.search` (`export.go:125`);
 the recommendations cache keys on it (`recommendations.go:56`).
 
+> **Corrected 2026-11-05.** The export set `view.search` but the encoder
+> dropped it (`json:"-"`), so no export ever held it; the line reference
+> `export.go:125` is stale. Fixed by
+> [`fix-export-search`](../fix-export-search/bugfix.md) (`exportView`).
+
 ## Target state
 
 A `searchMatcher` (new, `pkg/model/search.go`) built from the trimmed text:

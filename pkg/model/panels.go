@@ -74,7 +74,7 @@ var helpKeys = [][2]string{
 	{"s", "sort: any column, usage or label; flip ↑/↓"},
 	{"I", "flip the sort ↑/↓ without opening the Sort panel"},
 	{"o", "columns: show, hide, reorder"},
-	{"/", "search name, IP, instance type, labels (regex, any case); esc clears"},
+	{"/", "search name, IP, type, labels (regex, any case; !x: not x; key=value); esc clears"},
 	{"r", "resources: cpu → memory → cpu+memory"},
 	{"c", "switch to another kubeconfig context"},
 	{":", "command: overview (ov), recommendations (rec); tab completes"},
@@ -83,7 +83,8 @@ var helpKeys = [][2]string{
 	{"e", "export the nodes on screen to CSV and JSON in the current directory"},
 	{"d", "folded: list the next group level as one-line rows"},
 	{"↑/↓ k/j", "select a group or node (marked in the left margin)"},
-	{"enter", "on a group: fold or unfold it on its own; on a node: its details"},
+	{"enter", "on a group: show only its nodes (esc: back); on a node: its details"},
+	{"space", "on a group: fold or unfold it on its own"},
 	{"tab", "in node details: switch Details ⇄ Pods"},
 	{"d", "in the Pods tab: switch all pods ⇄ DaemonSets (one row each, with their total)"},
 	{"s / S", "in the Pods tab: sort by cost → cpu → memory → name / flip ↑/↓"},
@@ -95,7 +96,7 @@ var helpKeys = [][2]string{
 	{"a", "in f, g, s, o: show the labels the config file hides, until the panel closes"},
 	{"?", "this help"},
 	{"q, ctrl+c", "quit"},
-	{"esc", "close a panel or go back a step"},
+	{"esc", "close a panel or go back a step: clear the search, then leave the focused group"},
 }
 
 func (u *UIModel) helpPanel() panelView {

@@ -4,7 +4,8 @@
 # - every Monday 12:00 UTC (schedule), when [Unreleased] has entries;
 # - on demand: `gh workflow run release.yaml`, or the automerge job in
 #   test.yaml for a PR labelled `release`;
-# - pushing a tag by hand releases that tag.
+# - pushing a v* tag by hand releases that tag; other tags start nothing
+#   (the v* ruleset covers only v* tags, release-provenance R6).
 # Each run: scripts/release-prepare.py
 #   picks the next version from them (Fixed only -> patch, Added/Changed/
 #   Removed -> minor), turns the section into [x.y.z], marks finished specs
@@ -12,11 +13,31 @@
 #   An empty [Unreleased] releases the newest version only if its tag is
 #   missing (a hand-made release PR still works); otherwise nothing happens.
 #
+# Four jobs, so the Sigstore identity (id-token) never shares a job with
+# the deploy key, and the tools `make vuln licenses` downloads run with
+# neither (release-provenance D1):
+# - deps: make vuln licenses on the commit to release, read only;
+# - prepare: version, release commit and tag of that commit (deploy key);
+# - publish: goreleaser (binaries, SBOMs, signed checksum file, cask) and a
+#   SLSA build provenance attestation of every file in the checksum file;
+# - check: what a user downloads (scripts/release-check.sh --strict).
+#
 # main and v* tags are protected by repository rulesets that GITHUB_TOKEN
 # cannot bypass, so the release commit and tag are pushed with a deploy key
 # (secret RELEASE_DEPLOY_KEY, write access to this repository only). A push
 # made with it starts workflows: the tag push starts this workflow again,
-# and that run stops when the GitHub release already exists.
+# and that run stops when the GitHub release already exists, or releases
+# the tag when an earlier run failed before publishing it.
+#
+# After a failure (skill `release`):
+# - publish failed at the attestation: `gh run rerun <id> --failed` reruns
+#   publish, which checks the published files against the signed checksum
+#   file and attests them (D5), then check;
+# - publish failed inside goreleaser after the release appeared (cask push,
+#   an upload): a rerun attests what is there, but never publishes the
+#   cask or a missing file; fix the cause and release a patch;
+# - check failed: the published files are wrong; fix in a PR and release a
+#   patch (a rerun of check only fails again).
 
 name: Binary release
 
@@ -25,7 +46,7 @@ on:
     - cron: '0 12 * * 1' # Mondays 12:00 UTC (09:00 in Brasília)
   push:
     tags:
-      - '*'
+      - 'v*' # the tags the ruleset protects (release-provenance R6)
   workflow_dispatch: {}
 
 permissions: {}
@@ -35,22 +56,58 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    name: Build
+  deps:
+    # known vulnerabilities and licenses before anything is tagged: an
+    # advisory published since the last merge (the weekly test.yaml run
+    # reports it, but does not gate this workflow) stops the release. Runs
+    # in every run, also those that find nothing to release.
+    name: Dependency checks
     runs-on: ubuntu-latest
     permissions:
-      contents: write # release commit, tag, GitHub release
-      id-token: write # keyless Sigstore signature of the checksum file
+      contents: read
+    outputs:
+      sha: ${{ steps.head.outputs.sha }}
     steps:
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # credentials kept: this job pushes the release commit and tag; it uploads no artifact
       with:
-        ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }} # the rulesets let deploy keys push to main and v* tags
-        fetch-depth: 0 # tags and history for the release notes
+        persist-credentials: false
         # runs queue up: always start from the newest main, not the commit
         # that triggered this run
         ref: ${{ startsWith(github.ref, 'refs/tags/') && github.ref || 'main' }}
+
+    - name: Commit checked
+      id: head
+      run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: go.mod
+        cache: false # a release build never restores a cache another run could have written
+
+    - name: Vulnerabilities and licenses
+      run: make vuln licenses
+
+  prepare:
+    name: Prepare
+    needs: deps
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # release commit and tag
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+    - name: Checkout the checked commit
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # credentials kept: this job pushes the release commit and tag; it uploads no artifact
+      with: # zizmor: ignore[artipacked]
+        ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }} # the rulesets let deploy keys push to main and v* tags
+        fetch-depth: 0 # tags, to tell whether the version is tagged already
+        # the commit deps checked; if main moved since, the push of the
+        # release commit is refused and the run fails (nothing tagged)
+        ref: ${{ needs.deps.outputs.sha }}
 
     - name: Version to release
       id: version
@@ -89,39 +146,6 @@ jobs:
           echo "tag=true"
         } >> "$GITHUB_OUTPUT"
 
-    - name: Set up Go
-      if: steps.version.outputs.release == 'true'
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-      with:
-        go-version-file: go.mod
-        cache: false # a release build never restores a cache another run could have written
-
-    - name: Dependency checks (before anything is tagged)
-      # an advisory published since the last merge (the weekly test.yaml
-      # run reports it, but does not gate this workflow) stops the release
-      if: steps.version.outputs.release == 'true'
-      run: make vuln licenses
-
-    # signing and SBOM tools before the tag is pushed: once it is, a failed
-    # release leaves a tag without a release, which the next runs skip
-    - name: Install cosign
-      if: steps.version.outputs.release == 'true'
-      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-      with:
-        cosign-release: v3.1.4
-
-    - name: Install syft
-      if: steps.version.outputs.release == 'true'
-      uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
-      with:
-        syft-version: v1.55.0
-
-    - name: Signing and SBOM tools run
-      if: steps.version.outputs.release == 'true'
-      run: |
-        cosign version
-        syft version
-
     - name: Commit and tag the release
       if: steps.version.outputs.tag == 'true'
       env:
@@ -138,8 +162,68 @@ jobs:
         # which finds the release published by this run and stops
         git push origin "$VERSION"
 
+  publish:
+    name: Publish
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # GitHub release and its assets
+      id-token: write # keyless Sigstore signature of the checksum file, and the provenance
+      attestations: write # store the provenance attestation
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+    - name: Checkout the tag
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false # goreleaser publishes with GITHUB_TOKEN, not git
+        fetch-depth: 0 # tags and history for the release notes
+        ref: refs/tags/${{ needs.prepare.outputs.version }}
+
+    - name: Install cosign
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      with:
+        cosign-release: v3.1.4
+
+    - name: Published already? (a rerun after a failed attestation)
+      # attest only files that match the checksum file goreleaser signed
+      # in the first run (release-provenance D5)
+      id: published
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        if ! gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          exit 0
+        fi
+        echo "$VERSION is published: checking and attesting its files"
+        gh release download "$VERSION" --repo "$GITHUB_REPOSITORY" --dir dist
+        cd dist
+        sums="kube-node-viewer_${VERSION#v}_sha256_checksums.txt"
+        # the identity scripts/release-check.sh accepts
+        cosign verify-blob --bundle "$sums.sigstore.json" \
+          --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+          --certificate-identity-regexp "^https://github\.com/$GITHUB_REPOSITORY/\.github/workflows/release\.yaml@refs/(heads/main|tags/v[0-9][^/]*)\$" \
+          "$sums"
+        # every listed file present and matching: no --ignore-missing
+        sha256sum --check --strict "$sums"
+        echo "done=true" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Go
+      if: steps.published.outputs.done != 'true'
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: go.mod
+        cache: false # a release build never restores a cache another run could have written
+
+    - name: Install syft
+      if: steps.published.outputs.done != 'true'
+      uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+      with:
+        syft-version: v1.55.0
+
     - name: Run GoReleaser
-      if: steps.version.outputs.release == 'true'
+      if: steps.published.outputs.done != 'true'
       uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
       with:
         distribution: goreleaser
@@ -151,14 +235,45 @@ jobs:
         # write access to StaffOps/homebrew-tap; without it the cask is skipped
         HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
+    - name: Checksum file
+      id: sums
+      run: |
+        f="dist/kube-node-viewer_${VERSION#v}_sha256_checksums.txt"
+        test -s "$f" || { echo "::error::$f is missing"; exit 1; }
+        echo "file=$f" >> "$GITHUB_OUTPUT"
+
+    - name: Build provenance of every file in the checksum file
+      # archives and SBOMs; verify with gh attestation verify (README
+      # "Verifying a release")
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+      with:
+        subject-checksums: ${{ steps.sums.outputs.file }}
+
+  check:
+    name: Check
+    needs: [ prepare, publish ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # release assets
+      attestations: read # gh attestation verify
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Install cosign
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      with:
+        cosign-release: v3.1.4
+
     - name: Check the published release
-      # what a user downloads: checksums, signature, SBOMs, the linux binary's
-      # version and the cask; a failure here means the release is public
-      # but broken: fix it and release again
-      if: steps.version.outputs.release == 'true'
+      # what a user downloads: checksums, signature, SBOMs, provenance, the
+      # linux binary's version and the cask; a failure here means the
+      # release is public but broken: fix it and release a patch
       env:
         GH_TOKEN: ${{ github.token }}
-        VERSION: ${{ steps.version.outputs.version }}
+        VERSION: ${{ needs.prepare.outputs.version }}
         CASK: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN != '' }} # the cask is published only with the tap token
       run: |
         set --
