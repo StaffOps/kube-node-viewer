@@ -109,10 +109,13 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 23. [`fix-spec-tooling/`](fix-spec-tooling/) — **active**. Release tooling
     ships bugfix specs; spec-lint reads `## D<n>` decisions.
     [bugfix](fix-spec-tooling/bugfix.md) · [tasks](fix-spec-tooling/tasks.md)
-24. [`fix-spec-lint-markers/`](fix-spec-lint-markers/) — **active**. spec-lint checks
+24. [`fix-azure-retry/`](fix-azure-retry/) — **active**. Azure prices honour
+    `Retry-After`, retry per region, and clear a resolved error from the header.
+    [bugfix](fix-azure-retry/bugfix.md) · [design](fix-azure-retry/design.md) · [tasks](fix-azure-retry/tasks.md)
+25. [`fix-spec-lint-markers/`](fix-spec-lint-markers/) — **active**. spec-lint checks
     each decision's own markers.
     [bugfix](fix-spec-lint-markers/bugfix.md) · [tasks](fix-spec-lint-markers/tasks.md)
-25. [`decisions/`](decisions/) — decision records (index below).
+26. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>

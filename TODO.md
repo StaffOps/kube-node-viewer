@@ -43,20 +43,11 @@ memory. Listed by impact.
 
 ## Follow-ups
 
-- [ ] Azure prices: on HTTP 429 the provider waits its fixed 1-minute
-      retry and ignores `Retry-After`, and the header keeps the resolved
-      error red for 2 minutes after the retry succeeded (`issueWindow`,
-      `pkg/model/header.go`). _Why:_ a transient rate limit looks like a
-      live failure.
 - [ ] Demo node names no longer match their IPs: the screenshot and golden
       fixtures name nodes `ip-10-0-…` (the example names allowed by
       `scripts/checks/content.sh`) while their internal IPs are in
       192.0.2.0/24. _Why:_ cosmetic in the README images; rename the nodes
       only together with that allowlist.
-- [ ] Azure prices: one failure time is shared by every region, so a
-      failure in one region delays new sizes in all of them by a minute
-      ([aks-pricing](specs/aks-pricing/design.md) D2). _Why:_ clusters
-      across regions wait for a failure that is not theirs.
 
 ## Ideas
 
