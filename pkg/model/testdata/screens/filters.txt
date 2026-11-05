@@ -10,13 +10,13 @@
   26296Mi/43008Mi 61.1% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
 
   NAME                                                                             PODS   INSTANCE     PRICE/H  PRICE/M  IDLE/M  CAPACITY  NODEGROUP  ZONE        STATUS
-  ip-10-0-13-12.ec2.internal c╭─ Filters ──────────────────────────────────────────────────────────────────────────────────────────────────╮pot-arm   us-east-1c  Ready
+  ip-192-0-2-52.ec2.internal c╭─ Filters ──────────────────────────────────────────────────────────────────────────────────────────────────╮pot-arm   us-east-1c  Ready
                              m│ [x] ▾ capacity  Spot                                                                                       │
-  ip-10-0-12-61.ec2.internal c│     [ ] OnDemand  5                                                                                        │pot-arm   us-east-1b  Ready
+  ip-192-0-2-45.ec2.internal c│     [ ] OnDemand  5                                                                                        │pot-arm   us-east-1b  Ready
                              m│     [x] Spot  4                                                                                            │
-  ip-10-0-11-93.ec2.internal c│     [ ] Reserved  1                                                                                        │pot-arm   us-east-1a  Ready
+  ip-192-0-2-38.ec2.internal c│     [ ] Reserved  1                                                                                        │pot-arm   us-east-1a  Ready
                              m│     [ ] Fargate  0                                                                                         │
-  ip-10-0-13-40.ec2.internal c│     [ ] Unknown  0                                                                                         │efault    us-east-1c  Ready
+  ip-192-0-2-31.ec2.internal c│     [ ] Unknown  0                                                                                         │efault    us-east-1c  Ready
                              m│ [ ] ▸ nodegroup                                                                                            │
                               │ [ ] ▸ zone                                                                                                 │
                               │ [ ] ▸ region                                                                                               │

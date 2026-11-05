@@ -10,25 +10,25 @@
   72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
 
   NAME                                                                   PODS   INSTANCE     PRICE/H   PRICE/M   IDLE/M  CAPACITY  NODEGROUP  ZONE        STATUS
-  ip-10-0-13-12.ec2.internal cpu   ╭─ Keys ───────────────────────────────────────────────────────────────────────────────────────────╮-arm   us-east-1c  Ready
+  ip-192-0-2-52.ec2.internal cpu   ╭─ Keys ───────────────────────────────────────────────────────────────────────────────────────────╮-arm   us-east-1c  Ready
                              memory│ f           filters: open a field, tick values; space turns a filter on/off; x keeps or excludes │
-  ip-10-0-12-61.ec2.internal cpu   │ g           group by: tick up to 3 fields, K/J to reorder levels                                 │-arm   us-east-1b  Ready
+  ip-192-0-2-45.ec2.internal cpu   │ g           group by: tick up to 3 fields, K/J to reorder levels                                 │-arm   us-east-1b  Ready
                              memory│ s           sort: any column, usage or label; flip ↑/↓                                           │
-  ip-10-0-11-93.ec2.internal cpu   │ I           flip the sort ↑/↓ without opening the Sort panel                                     │-arm   us-east-1a  Ready
+  ip-192-0-2-38.ec2.internal cpu   │ I           flip the sort ↑/↓ without opening the Sort panel                                     │-arm   us-east-1a  Ready
                              memory│ o           columns: show, hide, reorder                                                         │
-  ip-10-0-13-40.ec2.internal cpu   │ /           search name, IP, type, labels (regex, any case; !x: not x; key=value); esc clears    │ult    us-east-1c  Ready
+  ip-192-0-2-31.ec2.internal cpu   │ /           search name, IP, type, labels (regex, any case; !x: not x; key=value); esc clears    │ult    us-east-1c  Ready
                              memory│ r           resources: cpu → memory → cpu+memory                                                 │
-  ip-10-0-12-15.ec2.internal cpu   │ c           switch to another kubeconfig context                                                 │ult    us-east-1b  Ready
+  ip-192-0-2-24.ec2.internal cpu   │ c           switch to another kubeconfig context                                                 │ult    us-east-1b  Ready
                              memory│ :           command: overview (ov), recommendations (rec); tab completes                         │
-  ip-10-0-11-87.ec2.internal cpu   │ tab         switch Overview ⇄ Recommendations                                                    │ult    us-east-1a  Ready
+  ip-192-0-2-17.ec2.internal cpu   │ tab         switch Overview ⇄ Recommendations                                                    │ult    us-east-1a  Ready
                              memory│ v           named views: apply, save the current view, delete                                    │
-  ip-10-0-11-24.ec2.internal cpu   │ e           export the nodes on screen to CSV and JSON in the current directory                  │ult    us-east-1a  Ready
+  ip-192-0-2-10.ec2.internal cpu   │ e           export the nodes on screen to CSV and JSON in the current directory                  │ult    us-east-1a  Ready
                              memory│ d           folded: list the next group level as one-line rows                                   │
-  ip-10-0-12-33.ec2.internal cpu   │ ↑/↓ k/j     select a group or node (marked in the left margin)                                   │       us-east-1b  Ready
+  ip-192-0-2-59.ec2.internal cpu   │ ↑/↓ k/j     select a group or node (marked in the left margin)                                   │       us-east-1b  Ready
                              memory│ enter       on a group: show only its nodes (esc: back); on a node: its details                  │
-  ip-10-0-12-98.ec2.internal cpu   │ space       on a group: fold or unfold it on its own                                             │em-ng  us-east-1b  Ready/Cordoned
+  ip-192-0-2-73.ec2.internal cpu   │ space       on a group: fold or unfold it on its own                                             │em-ng  us-east-1b  Ready/Cordoned
                              memory│ tab         in node details: switch Details ⇄ Pods                                               │
-  ip-10-0-11-70.ec2.internal cpu   │ d           in the Pods tab: switch all pods ⇄ DaemonSets (one row each, with their total)       │em-ng  us-east-1a  Ready
+  ip-192-0-2-66.ec2.internal cpu   │ d           in the Pods tab: switch all pods ⇄ DaemonSets (one row each, with their total)       │em-ng  us-east-1a  Ready
                              memory│ s / S       in the Pods tab: sort by cost → cpu → memory → name / flip ↑/↓                       │
                                    │ pgup/pgdown  in node details: move by a page (ten rows in Pods)                                  │
                                    │ n           fold one level per press: nodes, then each sub-group level; then unfold all          │

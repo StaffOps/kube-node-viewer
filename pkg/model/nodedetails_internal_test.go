@@ -108,9 +108,9 @@ func TestEnterOnANodeOpensItsDetails(t *testing.T) {
 func TestDetailsShowRequestsAndScroll(t *testing.T) {
 	u := detailsUI(t)
 	u.View()
-	press(u, "down", "enter") // ip-10-0-11-24: 38 pods, cpu and memory requested
+	press(u, "down", "enter") // ip-192-0-2-10: 38 pods, cpu and memory requested
 	out := u.View()
-	if !strings.Contains(out, "╭─ ip-10-0-11-24.ec2.internal") || !strings.Contains(out, "38 (66%) / 58") {
+	if !strings.Contains(out, "╭─ ip-192-0-2-10.ec2.internal") || !strings.Contains(out, "38 (66%) / 58") {
 		t.Fatalf("details of the second node:\n%s", out)
 	}
 	if !strings.Contains(out, "cpu     3534m (90%) / 3920m / 4000m") || !strings.Contains(out, "memory  10.9Gi (78%) / 14.0Gi / 15.8Gi") {
@@ -118,7 +118,7 @@ func TestDetailsShowRequestsAndScroll(t *testing.T) {
 	}
 	// a short screen scrolls; down moves the first row
 	u.Update(tea.WindowSizeMsg{Width: 160, Height: 20})
-	if !strings.Contains(u.View(), "╭─ ip-10-0-11-24") {
+	if !strings.Contains(u.View(), "╭─ ip-192-0-2-10") {
 		t.Fatal("no popup")
 	}
 	before := u.View()

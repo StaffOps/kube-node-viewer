@@ -10,25 +10,25 @@
   72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
 
   NAME                                                                   PODS   INSTANCE     PRICE/H   PRICE/M   IDLE/M  CAPACITY  NODEGROUP  ZONE        STATUS
-  ip-10-0-13-12.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇╭─ ip-10-0-11-93.ec2.internal ───────────────────────────╮2.18   Spot      spot-arm   us-east-1c  Ready
+  ip-192-0-2-52.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇╭─ ip-192-0-2-38.ec2.internal ───────────────────────────╮2.18   Spot      spot-arm   us-east-1c  Ready
                              memory ████████████████████│ [Details]  Pods                                        │
-  ip-10-0-12-61.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│ Instance     c7g.large · Spot · $0.0310/h · $22.63/mo  │11.30  Spot      spot-arm   us-east-1b  Ready
+  ip-192-0-2-45.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│ Instance     c7g.large · Spot · $0.0310/h · $22.63/mo  │11.30  Spot      spot-arm   us-east-1b  Ready
                              memory ████████████████████│ Node group   spot-arm                                  │
-  ip-10-0-11-93.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│ Zone         us-east-1a (us-east-1)                    │2.77   Spot      spot-arm   us-east-1a  Ready
+  ip-192-0-2-38.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│ Zone         us-east-1a (us-east-1)                    │2.77   Spot      spot-arm   us-east-1a  Ready
                              memory ████████████████████│ Status       Ready · age 3h · created YYYY-MM-DD hh:mm │
-  ip-10-0-13-40.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│ Internal IP  192.0.2.38                                │27.13  Spot      default    us-east-1c  Ready
+  ip-192-0-2-31.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│ Internal IP  192.0.2.38                                │27.13  Spot      default    us-east-1c  Ready
                              memory ████████████████████│ Provider ID  aws:///us-east-1a/i-0demo04               │
-  ip-10-0-12-15.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│                                                        │40.65  OnDemand  default    us-east-1b  Ready
+  ip-192-0-2-24.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│                                                        │40.65  OnDemand  default    us-east-1b  Ready
                              memory ████████████████████│ Resources  requested / allocatable / capacity          │
-  ip-10-0-11-87.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│   cpu     1694m (88%) / 1930m / 2000m                  │22.67  OnDemand  default    us-east-1a  Ready
+  ip-192-0-2-17.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│   cpu     1694m (88%) / 1930m / 2000m                  │22.67  OnDemand  default    us-east-1a  Ready
                              memory ████████████████████│   memory  2.1Gi (69%) / 3.0Gi / 3.4Gi                  │
-  ip-10-0-11-24.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│                                                        │13.80  OnDemand  default    us-east-1a  Ready
+  ip-192-0-2-10.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│                                                        │13.80  OnDemand  default    us-east-1a  Ready
                              memory ████████████████████│ Pods  on the node / max                                │
-  ip-10-0-12-33.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│   14 (24%) / 58                                        │       Reserved  gpu        us-east-1b  Ready
+  ip-192-0-2-59.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│   14 (24%) / 58                                        │       Reserved  gpu        us-east-1b  Ready
                              memory ████████████████████│                                                        │
-  ip-10-0-12-98.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│ DaemonSets  none on this node                          │34.01  OnDemand  system-ng  us-east-1b  Ready/Cordoned
+  ip-192-0-2-73.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│ DaemonSets  none on this node                          │34.01  OnDemand  system-ng  us-east-1b  Ready/Cordoned
                              memory ████████████████████│                                                        │
-  ip-10-0-11-70.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│ Conditions                                             │19.54  OnDemand  system-ng  us-east-1a  Ready
+  ip-192-0-2-66.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇│ Conditions                                             │19.54  OnDemand  system-ng  us-east-1a  Ready
                              memory ████████████████████│   Ready  True                                          │
                                                         │                                                        │
                                                         │ Taints       none                                      │
