@@ -79,7 +79,7 @@ takes the built-in default.
 | `sort` | one field |
 | `order` | `ascending` or `descending`. Without it, the direction the Sort panel starts with: descending for `creation`, `price`, `idle`, `pods` and usage, ascending for the rest. Without `sort`, it sets the direction of the `creation` sort |
 | `resources` | list of resource names, in full: `cpu`, `memory`, `nvidia.com/gpu` |
-| `filters` | list of filters, each with `field` and either `values` (keep nodes with any of them) or `exclude` (drop nodes with any of them); one filter per field; they start turned on |
+| `filters` | list of filters, each with `field` and either `values` (keep nodes with any of them) or `exclude` (drop nodes with any of them); one filter per field; they start turned on. Values match exactly, as the Filters panel lists them; `capacity` takes only `OnDemand`, `Spot`, `Reserved`, `Fargate`, `Unknown` and `status` only `Ready`, `NotReady`, `Cordoned`, `Deleting`, `Launching` |
 | `groups-only` | `true` starts folded to the groups, as `--groups-only`; needs `group-by` |
 
 The top-level keys:
@@ -276,6 +276,15 @@ or in another case (`node-age`, `NODE-AGE`: write
 `label:zone`, `usage:cpu`). Other upper-case names (`MyLabel`) are valid
 label keys, so they are read as labels. A key written twice in the same
 map is an error with its line.
+A `capacity` or `status` filter value that is not one of its values is
+an error that names the value to write: `spot` is not a capacity value
+(write `Spot`), `on-demand` and `CAPACITY_BLOCK` neither (write
+`OnDemand`, `Reserved`). A value copied from the STATUS column,
+`Ready/Cordoned`, says to write one value per item; `Spot/Auto`, from the
+CAPACITY column, says to write `Spot` and to filter on
+`label:eks.amazonaws.com/compute-type` for Auto Mode nodes. Any other
+value lists the accepted ones. Values of the other fields come from the
+cluster and are not checked.
 `- label: zone`, with a space after the colon, is a YAML map: write
 `label:zone`. A price or idle column in `sort` (`price/m`) says to write
 `sort: price`, and `sort: age` says `sort: creation`:

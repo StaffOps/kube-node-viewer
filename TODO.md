@@ -48,13 +48,6 @@ memory. Listed by impact.
       error red for 2 minutes after the retry succeeded (`issueWindow`,
       `pkg/model/header.go`). _Why:_ a transient rate limit looks like a
       live failure.
-- [ ] **License headers everywhere** (rebrand R8): about ten shell scripts
-      (`.githooks/*`, `scripts/agent-hooks/*.sh`, `scripts/build.sh`,
-      `hack/gen_licenses.sh`) have no Apache header, and five upstream Go
-      files changed since the import (`pkg/model/stats.go`, `style.go`,
-      `pkg/text/colortabwriter.go`, the two `zz_generated` price tables) lack
-      the D5 note. Add them, then a check over every file cited for R8.
-      _Why:_ `pre-commit` checks only new files, so R8 is manual today.
 - [ ] **Check the first attested release** (0.14.0): the release run's
       `check` job, then `gh attestation verify` (README "Verifying a
       release") on a downloaded archive and on an SBOM; record it under
@@ -62,11 +55,6 @@ memory. Listed by impact.
       and under R5 the next PR's `release-snapshot` "no release files
       changed" pass.
       _Why:_ attestation can only be proven on a published release.
-- [ ] `config.yaml` filter values in another case match nothing: `values:
-      [Spot]` for `capacity` keeps no node, since capacity values are
-      lower case (`spot`), with no error
-      ([fix-config-case](specs/fix-config-case/bugfix.md)). _Why:_ the
-      same silent empty result the case check fixed for field names.
 - [ ] Regenerate `.static/demo.gif` with `scripts/screenshots.sh`: its
       captions now fold with `space` and show `enter` focusing a group
       ([group-focus](specs/group-focus/tasks.md) T4). _Why:_ the GIF still

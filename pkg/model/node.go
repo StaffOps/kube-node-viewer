@@ -224,6 +224,15 @@ const (
 	StatusLaunching = "Launching"
 )
 
+// CapacityValues and StatusValues are every value the capacity and status
+// fields can have, in the order the Filters panel lists them; config.yaml
+// filters on these fields are checked against them
+// (fix-config-filter-values R3).
+var (
+	CapacityValues = []string{string(CapacityOnDemand), string(CapacitySpot), string(CapacityReserved), string(CapacityFargate), string(CapacityUnknown)}
+	StatusValues   = []string{StatusReady, StatusNotReady, StatusCordoned, StatusDeleting, StatusLaunching}
+)
+
 // StatusFlags lists the node's status: Ready or NotReady, then Cordoned,
 // Deleting and Launching (a NodeClaim whose node hasn't registered) as they
 // apply.

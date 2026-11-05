@@ -1,3 +1,4 @@
+# Modified by the kube-node-viewer authors, 2026.
 # golangci-lint v2, pinned in the Makefile (make lint) and .github/workflows/test.yaml
 version: "2"
 run:

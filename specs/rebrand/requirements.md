@@ -128,9 +128,24 @@ modification note of D5; new code is licensed Apache 2.0.
 - [ ] Every `.go`/`.sh` file in `git diff --name-only --diff-filter=M af96088`
   contains the D5 note.
 
-_Test: manual — license files and headers, reviewed with the rebrand; the
-`pre-commit` hook checks the header of each new file only. A check over
-every file would fail today (TODO.md) (marker added 2026-11-05)._
+_Test: ci (R8) — `scripts/checks/headers.py` in `verify.sh` (the `verify`
+job): every `.go`/`.sh`/`.py` file and git hook has the full Apache header;
+every upstream file changed since the import, renamed ones included, carries
+the D5 note right after its license block (files without a comment syntax
+or managed by tools are listed in the script with the reason); `LICENSE` is
+the imported one and `NOTICE` keeps its first line. Its cases are in
+`scripts/checks/test-checks.sh` (marker changed 2026-11-05)._
+
+> **Corrected 2026-11-05.** The criteria above name `af96088`, which is no
+> longer reachable (ADR-005); the check compares against the import commit
+> `f3aceaa`, which has the same tree, following renames
+> (`cmd/eks-node-viewer/` → `cmd/kube-node-viewer/`). Fourteen scripts got
+> the full header (the git hooks, the agent hooks, `scripts/build.sh`,
+> `verify.sh`, `spec-lint.sh`, `screenshots.sh`,
+> `screenshots/ansi2html.py`, `hack/gen_licenses.sh`); `pkg/model/stats.go`,
+> `style.go`, `pkg/text/colortabwriter.go`, the price tables and the changed
+> upstream non-Go files got the note (design D5 correction of the same
+> date).
 
 > **Corrected 2026-11-04.** After a history rewrite, `af96088` is no
 > longer reachable from any branch or tag, although GitHub still serves it

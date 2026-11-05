@@ -15,10 +15,12 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -296,7 +298,7 @@ func nonEmptyList(path string, value any) ([]any, error) {
 }
 
 // stringList reads a non-empty list of strings without repeats.
-func stringList(path string, value any) ([]string, error) {
+func stringList(path string, value any, checks ...func(itemPath, s string, earlier []string) error) ([]string, error) {
 	items, err := nonEmptyList(path, value)
 	if err != nil {
 		return nil, err
@@ -313,6 +315,11 @@ func stringList(path string, value any) ([]string, error) {
 		}
 		if slices.Contains(out, s) {
 			return nil, fmt.Errorf("%s: %s is repeated", itemPath, s)
+		}
+		for _, check := range checks {
+			if err := check(itemPath, s, out); err != nil {
+				return nil, err
+			}
 		}
 		out = append(out, s)
 	}
@@ -478,15 +485,19 @@ func readFilters(path string, value any) ([]model.Filter, error) {
 		rawValues, hasValues := item["values"]
 		rawExclude, hasExclude := item["exclude"]
 		filter := model.Filter{Field: field, Enabled: true}
+		var checks []func(string, string, []string) error
+		if values := model.ClosedValues(field); values != nil {
+			checks = append(checks, func(p, v string, earlier []string) error { return closedValue(p, string(field), values, v, earlier) })
+		}
 		switch {
 		case hasValues && hasExclude:
 			return nil, fmt.Errorf("%s: values and exclude together; use one", itemPath)
 		case hasValues:
-			if filter.Values, err = stringList(itemPath+".values", rawValues); err != nil {
+			if filter.Values, err = stringList(itemPath+".values", rawValues, checks...); err != nil {
 				return nil, err
 			}
 		case hasExclude:
-			if filter.Excluded, err = stringList(itemPath+".exclude", rawExclude); err != nil {
+			if filter.Excluded, err = stringList(itemPath+".exclude", rawExclude, checks...); err != nil {
 				return nil, err
 			}
 		default:
@@ -495,6 +506,108 @@ func readFilters(path string, value any) ([]model.Filter, error) {
 		out = append(out, filter)
 	}
 	return out, nil
+}
+
+// valueSpellings maps label spellings of capacity and status values, compared
+// as fold does, to the value to write (fix-config-filter-values R1).
+var valueSpellings = map[string]string{
+	"capacityblock":      string(model.CapacityReserved),
+	"regular":            string(model.CapacityOnDemand),
+	"schedulingdisabled": model.StatusCordoned,
+	// GKE preemptible VMs and AKS low-priority VMs are spot-like
+	"preemptible": string(model.CapacitySpot),
+	"low":         string(model.CapacitySpot),
+	"lowpriority": string(model.CapacitySpot),
+}
+
+// fold lower-cases s and drops "-", "_" and spaces, so on-demand, ON_DEMAND
+// and OnDemand compare equal.
+func fold(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '-' || r == '_' || r == ' ' {
+			return -1
+		}
+		return unicode.ToLower(r)
+	}, s)
+}
+
+// spelledAs is the value of values that s means, ignoring case, "-", "_" and
+// spaces, or through a known label spelling; "" when none.
+func spelledAs(values []string, s string) string {
+	f := fold(s)
+	for _, v := range values {
+		if fold(v) == f {
+			return v
+		}
+	}
+	if v, ok := valueSpellings[f]; ok && slices.Contains(values, v) {
+		return v
+	}
+	return ""
+}
+
+// autoHint points an Auto value, from the CAPACITY column, at the label.
+const autoHint = "Auto is not a capacity: filter on label:eks.amazonaws.com/compute-type"
+
+// closedValue checks a filter value of a field with a fixed list of values
+// (capacity, status): an exact match passes; otherwise the error says what to
+// write. earlier are the items read before it (fix-config-filter-values R1).
+func closedValue(path, field string, values []string, s string, earlier []string) error {
+	if slices.Contains(values, s) {
+		return nil
+	}
+	head := fmt.Sprintf("%s: %q is not a %s value; ", path, s, field)
+	capacity := field == string(model.FieldCapacity)
+	if want := spelledAs(values, s); want != "" {
+		if slices.Contains(earlier, want) {
+			return errors.New(head + want + " is already listed")
+		}
+		return errors.New(head + "write " + want)
+	}
+	if capacity && fold(s) == "auto" {
+		return errors.New(head + autoHint)
+	}
+	if strings.Contains(s, "/") {
+		if hint, ok := slashHint(values, s, capacity); ok {
+			return errors.New(head + hint)
+		}
+	}
+	return errors.New(head + "use one of " + strings.Join(values, ", "))
+}
+
+// slashHint reads a value copied from a column that joins values with "/"
+// (Ready/Cordoned, Spot/Auto): every part must be a value (or, for capacity,
+// Auto); ok is false when one is not.
+func slashHint(values []string, s string, capacity bool) (string, bool) {
+	var wants []string
+	auto := false
+	for _, part := range strings.Split(s, "/") {
+		if capacity && fold(part) == "auto" {
+			auto = true
+			continue
+		}
+		want := spelledAs(values, part)
+		if want == "" {
+			return "", false
+		}
+		if !slices.Contains(wants, want) {
+			wants = append(wants, want)
+		}
+	}
+	var hint string
+	switch {
+	case len(wants) == 1:
+		hint = "write " + wants[0]
+	case len(wants) > 1:
+		hint = "write one value per item: " + strings.Join(wants, ", ")
+	}
+	if auto {
+		if hint != "" {
+			hint += "; "
+		}
+		hint += autoHint
+	}
+	return hint, hint != ""
 }
 
 // combinedViews lists the config views first, in file order, then the named

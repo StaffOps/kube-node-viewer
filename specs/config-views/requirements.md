@@ -194,6 +194,12 @@ SHALL exit before the TUI starts with the file and the path of the problem
   without `default-view`.
 - [x] Example: `config file …/config.yaml: views[1].filters[0]: needs values or exclude`.
 
+> **Corrected 2026-11-05 ([fix-config-filter-values](../fix-config-filter-values/bugfix.md)).**
+> Also errors: a `values` or `exclude` item of a filter on `capacity` or
+> `status` that is not one of that field's values (`spot`, `Spot/Auto`,
+> `ready`), which used to load and match no node; the message names the
+> value to write or lists them.
+
 > **Corrected 2026-11-04 ([fix-config-case](../fix-config-case/bugfix.md)).**
 > Also errors: a built-in name, alias or column title of the key in
 > another case (`INSTANCE`, `Zone`, `PRICE/M`), which R2 read as a label

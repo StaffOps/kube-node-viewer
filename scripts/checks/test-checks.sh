@@ -401,6 +401,51 @@ if command -v python3 >/dev/null 2>&1; then
   RP_EMPTY=1 rp "release prepare: nothing to release" "find specs -type f -exec cksum {} + | sort | cmp - $tmp/rp.before"
 else skipped "release prepare" python3; fi
 
+echo "== license headers"
+# shellcheck disable=SC2059 # $hdr is a printf format on purpose (its \n)
+if command -v python3 >/dev/null 2>&1; then
+  hd=$tmp/headers-repo
+  git init -q -b main "$hd"
+  mkdir -p "$hd/scripts/checks" "$hd/old" "$hd/.githooks"
+  cp "$src/scripts/checks/headers.py" "$hd/scripts/checks/"
+  hdr='/*\nLicensed under the Apache License, Version 2.0 (the "License");\n    http://www.apache.org/licenses/LICENSE-2.0\nlimitations under the License.\n*/\n'
+  printf 'Apache License\n' > "$hd/LICENSE"
+  printf 'upstream notice\n' > "$hd/NOTICE"
+  printf "$hdr\npackage x\n" > "$hd/up.go"
+  printf "${hdr}\npackage y\n\nfunc a() {}\nfunc b() {}\nfunc c() {}\n" > "$hd/old/moved.go"
+  printf 'all:\n\techo\n' > "$hd/Makefile"
+  printf 'data\n' > "$hd/data.json"
+  printf '# Readme\n' > "$hd/README.md"
+  (cd "$hd" && git add -A && git -c user.name=x -c user.email=x@example.com commit -q --no-verify -m import)
+  himp=$(git -C "$hd" rev-parse HEAD)
+  n='// Modified by the kube-node-viewer authors, 2026.'
+  headers() {
+    name=$1 want=$2 cmd=$3
+    git -C "$hd" reset -q --hard "$himp"; git -C "$hd" clean -qfdx
+    out=$(cd "$hd" && sh -c "$cmd" 2>&1 && git add -A && KNV_IMPORT_COMMIT=$himp python3 -B scripts/checks/headers.py 2>&1)
+    verdict "$name" "$want" $? "$out"
+  }
+  headers "headers: untouched import"                  passes  "true"
+  headers "headers: upstream file changed, no note"    blocked:"upstream file changed without the modification note" "printf '// x\n' >> up.go"
+  headers "headers: note after the license block"      passes  "printf \"$hdr\n$n\n\npackage x\n// x\n\" > up.go"
+  headers "headers: note far from the license block"   blocked:"modification note not right after the license block" "printf \"$hdr\npackage x\n\n$n\n\" > up.go"
+  headers "headers: note is the package doc"           blocked:"no blank line after the modification note (it would become the package doc)" "printf \"$hdr\n$n\npackage x\n// x\n\" > up.go"
+  headers "headers: upstream file moved, no note"      blocked:"upstream file changed without the modification note" "mkdir -p new && git mv old/moved.go new/moved.go && printf '// x\n' >> new/moved.go"
+  headers "headers: upstream file moved, with note"    passes  "mkdir -p new && git mv old/moved.go new/moved.go && printf \"$hdr\n$n\n\npackage y\n\nfunc a() {}\nfunc b() {}\nfunc c() {}\n\" > new/moved.go"
+  headers "headers: Makefile changed, no note"         blocked:"upstream file changed without the modification note in its first 5 lines" "printf 'x:\n' >> Makefile"
+  headers "headers: Makefile changed, note on top"     passes  "printf '# Modified by the kube-node-viewer authors, 2026.\nall:\n\techo\nx:\n' > Makefile"
+  headers "headers: file type without a rule"          blocked:"upstream file changed, no rule for its type: add a note or an EXEMPT entry" "printf 'other\n' > data.json"
+  headers "headers: README is exempt"                  passes  "printf 'more\n' >> README.md"
+  headers "headers: new script without a header"       blocked:"no Apache license header" "printf '#!/bin/sh\necho\n' > new.sh"
+  headers "headers: git hook without a header"         blocked:"no Apache license header" "mkdir -p .githooks && printf '#!/bin/sh\necho\n' > .githooks/pre-commit"
+  headers "headers: python file without a header"      blocked:"no Apache license header" "printf 'print(1)\n' > new.py"
+  headers "headers: short header is not enough"        blocked:"no Apache license header" "printf '#!/bin/sh\n# Licensed under the Apache License, Version 2.0; see LICENSE.\n' > new.sh"
+  headers "headers: LICENSE changed"                   blocked:"LICENSE differs from the imported one" "printf 'x\n' >> LICENSE"
+  headers "headers: NOTICE first line changed"         blocked:"NOTICE first line changed" "printf 'other\n' > NOTICE"
+  out=$(cd "$hd" && KNV_IMPORT_COMMIT=0000000000000000000000000000000000000000 python3 -B scripts/checks/headers.py 2>&1); rc=$?
+  if [ "$rc" -eq 2 ] && printf '%s' "$out" | grep -q 'is not in this clone'; then ok "headers: import commit missing (exit 2)"; else bad "headers: import commit missing (exit 2)" "rc=$rc $out"; fi
+else skipped "license headers" python3; fi
+
 echo "== push (pre-push)"
 
 reset

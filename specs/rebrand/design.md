@@ -108,6 +108,19 @@ move the notes to a `MODIFICATIONS.md` referenced from `NOTICE`.
 
 **Reversal action**: remove the line with one `sed`.
 
+> **Corrected 2026-11-05.** The note now covers every changed upstream file
+> with a comment syntax, not only `.go`/`.sh` (Apache 2.0 §4(b) applies to
+> any modified file): `#` files (`Makefile`, `.goreleaser.yaml`, the
+> workflows, `.github/dependabot.yaml`, `.gitignore`, `.golangci.yaml`,
+> `CODEOWNERS`) carry it in their first lines, `hack/attribution.tmpl` as a
+> trimmed template comment (`{{/* … */ -}}`, the rendered output is
+> unchanged), and the price tables get it from `make prices`, which inserts
+> it after Karpenter's license block. In Go a blank line follows the note so
+> it is not the package doc. Prose and tool-managed files (README,
+> CONTRIBUTING, the generated ATTRIBUTION files, `go.mod`, `go.sum`,
+> `NOTICE`) carry none; `scripts/checks/headers.py` lists them with the
+> reason and checks the rest, upstream files moved by the rebrand included.
+
 ### D6: CI and release stop refreshing generated files
 
 **Choice**: `test.yaml` runs `scripts/verify.sh` and `scripts/build.sh`.

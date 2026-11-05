@@ -1,3 +1,4 @@
+# Modified by the kube-node-viewer authors, 2026.
 .PHONY: help clean hooks check verify lint vuln prices catalog boilerplate licenses download coverage generate test
 
 NO_COLOR=\033[0m
@@ -100,6 +101,10 @@ prices: ## Refresh the static on-demand price tables (from Karpenter; no credent
 	done
 	sed -i'.bkup' 's/package pricing/package aws/' pkg/aws/zz_generated_*.pricing.go
 	rm -f pkg/aws/*.bkup
+	# rebrand D5: the package line above changes Karpenter's file
+	for f in pkg/aws/zz_generated_*.pricing.go; do \
+	  awk '{print} /^\*\/$$/ && !d {getline; print; print "// Modified by the kube-node-viewer authors, 2026."; print ""; d=1}' "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f" || exit 1; \
+	done
 
 catalog: ## Refresh the instance catalog from the AWS Price List (needs pricing:GetProducts)
 	go run ./hack/catalog
