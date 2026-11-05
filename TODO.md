@@ -53,11 +53,11 @@ memory. Listed by impact.
 
 ## Follow-ups
 
-- [ ] Demo node names no longer match their IPs: the screenshot and golden
-      fixtures name nodes `ip-10-0-…` (the example names allowed by
-      `scripts/checks/content.sh`) while their internal IPs are in
-      192.0.2.0/24. _Why:_ cosmetic in the README images; rename the nodes
-      only together with that allowlist.
+- [ ] Pin the screenshot fixture's clock: `pkg/model/screenshots_test.go`
+      sets each node's creation time from `time.Now()`, so `.static/node-details.png`
+      records the local generation time and changes on every
+      `scripts/screenshots.sh` run. _Why:_ a regeneration shows image diffs
+      that are only the clock.
 - [ ] EKS contexts named by ARN (`arn:aws:eks:<region>:<account>:cluster/<name>`,
       the default of `aws eks update-kubeconfig`) show the account id in both
       headers, and take most of the compact line

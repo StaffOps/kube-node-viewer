@@ -208,7 +208,7 @@ func TestIdleCost(t *testing.T) {
 	}
 	// m6i.xlarge at 84% cpu / 66% mem: 0.192 × 0.16
 	for _, n := range nodes {
-		if n.Name() == "ip-10-0-11-87.ec2.internal" {
+		if n.Name() == "ip-192-0-2-17.ec2.internal" {
 			if idle, _ := n.IdleHourly(); idle < 0.029 || idle > 0.032 {
 				t.Errorf("idle %v", idle)
 			}

@@ -17,8 +17,8 @@
   idle      NodePool spot-arm (3 nodes)                   $16.25/mo requested by nothing                           info
   graviton  NodePool default (m6i.xlarge ×3)              allow m7g.xlarge in the NodePool (arm64 images!)       $63.07
   graviton  node group system-ng (t3.large ×2)            → t4g.large (arm64 images!)                            $23.36
-  old node  ip-10-0-12-98.ec2.internal (40 days)          recycle for a fresh AMI and patches                         —
-  old node  ip-10-0-11-70.ec2.internal (40 days)          recycle for a fresh AMI and patches                         —
+  old node  ip-192-0-2-73.ec2.internal (40 days)          recycle for a fresh AMI and patches                         —
+  old node  ip-192-0-2-66.ec2.internal (40 days)          recycle for a fresh AMI and patches                         —
   spot      NodePool default (On-Demand m6i.xlarge ×3)    allow spot in the NodePool (interruptions!)                 —
   spot      node group system-ng (On-Demand t3.large ×2)  add a Spot node group alongside it (interruptions!)         —
 
