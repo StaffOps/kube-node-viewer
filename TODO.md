@@ -60,35 +60,27 @@ memory. Listed by impact.
       _Why:_ behaviour changes made "while there" are the usual way
       specs and docs go stale; the spec-task gate only fires when a spec
       is touched.
-- [ ] **ADRs for the cross-cutting decisions**: automerge for writers,
-      release from CHANGELOG headings, guardrail layers (git hooks + agent
-      hooks + CI), history rewrite policy.
-      _Why:_ only ADR-001 exists; these decisions change how everyone
-      works, and without a record of the alternatives they will be
-      reargued or undone by accident.
-
-## Security
-
-Beyond the Guardrails section above.
-
-- [ ] **Build provenance (SLSA)**: `actions/attest-build-provenance` on
-      the archives in `release.yaml` (`attestations: write`), checked with
-      `gh attestation verify`; `scripts/release-check.sh --strict` would
-      then require it.
-      _Why:_ the checksum signature proves the files came from
-      `release.yaml`; provenance also records the inputs of the build, and
-      OpenSSF Scorecard gives Signed-Releases its top score only with it.
-      In the same change, move signing to its own job: today
-      `id-token: write` covers the whole release job, including
-      `make vuln licenses`, which runs downloaded tools.
-- [ ] **A goreleaser snapshot in CI**: `goreleaser release --snapshot
-      --skip=sign,publish` with syft on PRs that touch `.goreleaser.yaml`
-      or `release.yaml`.
-      _Why:_ a broken SBOM or archive setting shows today only on the
-      Monday release, after the tag is pushed.
 
 ## Follow-ups
 
+- [ ] **Check the first attested release** (0.14.0): the release run's
+      `check` job, then `gh attestation verify` (README "Verifying a
+      release") on a downloaded archive and on an SBOM; record it under
+      R1 of [release-provenance](specs/release-provenance/requirements.md),
+      and under R5 the next PR's `release-snapshot` "no release files
+      changed" pass.
+      _Why:_ attestation can only be proven on a published release.
+- [ ] `config.yaml` filter values in another case match nothing: `values:
+      [Spot]` for `capacity` keeps no node, since capacity values are
+      lower case (`spot`), with no error
+      ([fix-config-case](specs/fix-config-case/bugfix.md)). _Why:_ the
+      same silent empty result the case check fixed for field names.
+- [ ] Bugfix specs are never marked shipped: `ship_specs` in
+      `scripts/release-prepare.py` reads only `requirements.md`, so a
+      `fix-*/bugfix.md` stays **active** after its release
+      ([ADR-003](specs/decisions/ADR-003-release-from-changelog-headings.md)).
+      _Why:_ the specs index keeps showing released fixes as **active**,
+      as if still in progress.
 - [ ] Regenerate the README images (`scripts/screenshots.sh`): the demo
       nodes' internal IPs moved to 192.0.2.0/24 for the golden screens,
       and `.static/` still shows the old ones. The node names stay
