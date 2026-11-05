@@ -359,6 +359,14 @@ if command -v python3 >/dev/null 2>&1; then
   spec "spec lint: #### heading stays inside its decision" passes "printf '\\n### D1: A\\n\\n#### Detail\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && $lint"
   # fix-spec-lint-markers R1
   spec "spec lint: ### decisions end at the next ## heading" blocked "printf '\\n## Decisions\\n\\n### D1: A\\n\\nText.\\n\\n## Invariants\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && $lint"
+  # fix-spec-lint-markers R1
+  spec "spec lint: a ## decision ends at the next ## heading" passes "printf '\\n## D1. A\\n\\nText.\\n\\n## Invariants\\n\\n**When this would be wrong**: x. **Reversal action**: y.\\n' >> specs/demo/design.md && ! $lint 2>/dev/null && $lint 2>&1 | grep -q 'demo: D1 (design.md:[0-9]*) has no'"
+  # fix-spec-lint-markers R1: a shorter fence does not close a longer one
+  spec "spec lint: a shorter fence does not close"   blocked "printf '\\n## D1. A\\n\\n\\140\\140\\140\\140\\n\\140\\140\\140\\n**When this would be wrong**: x. **Reversal action**: y.\\n\\140\\140\\140\\140\\n' >> specs/demo/design.md && $lint"
+  # fix-spec-lint-markers R1: an indented heading (up to three spaces) is a decision
+  spec "spec lint: an indented decision heading counts" passes "printf '\\n   ## D1. A\\n\\nText.\\n' >> specs/demo/design.md && ! $lint 2>/dev/null && $lint 2>&1 | grep -q 'demo: D1 (design.md:[0-9]*) has no'"
+  # fix-spec-lint-markers R1: a failing awk fails the lint
+  spec "spec lint: a failing awk fails the lint"     passes  "mkdir -p fakebin && printf '#!/bin/sh\\nexit 2\\n' > fakebin/awk && chmod +x fakebin/awk && ! PATH=\$PWD/fakebin:\$PATH bash scripts/spec-lint.sh 2>/dev/null && PATH=\$PWD/fakebin:\$PATH bash scripts/spec-lint.sh 2>&1 | grep -q 'marker check failed (awk)'"
   # fix-spec-tooling R3: the index entry's status matches the spec's
   spec "spec lint: index says draft, spec active"   blocked "sed -i.b 's|(demo/)\$|(demo/) — **draft**.|' specs/README.md && rm specs/*.b && grep -q 'demo/) — \*\*draft' specs/README.md && bash scripts/spec-lint.sh"
   spec "spec lint: index matches the spec"          passes  "sed -i.b 's|(demo/)\$|(demo/) — **active**.|' specs/README.md && rm specs/*.b && grep -q 'demo/) — \*\*active' specs/README.md && bash scripts/spec-lint.sh"

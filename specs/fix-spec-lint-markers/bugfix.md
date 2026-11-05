@@ -1,6 +1,6 @@
 # Bugfix: spec-lint-markers
 
-> Status: active · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 5 LOW, applied)
+> Status: active · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 5 LOW, applied), 2026-11-05 (spec-refuter, code; 2 MEDIUM, 5 LOW, applied)
 
 `TODO.md` (Follow-ups): "spec-lint counts the 'When this would be wrong'
 and 'Reversal action' markers over the whole design, not per decision",
@@ -24,8 +24,9 @@ git checkout specs/node-details/design.md
 ```
 
 Every existing design already has both markers inside each of its own
-decision sections: checked 2026-11-05 over the 16 designs (63 decisions)
-on `main` with the section rule of R1, so no design needs a correction.
+decision sections: checked 2026-11-05 over the 16 designs on `main`
+(68 decision headings, counted with R1's heading and fence rules) with the
+section rule of R1, so no design needs a correction.
 
 ## Expected behavior
 
@@ -42,27 +43,43 @@ of any level, or the next other heading of the same or a higher level
 (fewer `#`), or the end of the file; deeper headings (`####`) stay inside
 it. A marker counts only inside its own decision's section, including in a
 dated note (`> **Corrected …**`) there; a note placed under another
-decision covers that one, so a misplaced note has to move. Fenced code
-blocks are skipped: a fence opens on a line starting, after at most three
-spaces, with three backticks or three tildes, and closes only on a fence
-line of the same character; markers and headings inside a fence neither
-count nor start or end a section. A fence inside a quote (`> ```…`) or a
-list item indented by four or more spaces is not treated as a fence.
-Setext headings (underlined) are not seen, as today.
+decision covers that one, so a misplaced note has to move. Up to three
+leading spaces before a heading or a fence are ignored. Fenced code blocks
+are skipped: a fence opens on a line starting with a run of at least three
+backticks or three tildes, and closes only on a line holding a run of the
+same character at least as long as the opener's and nothing else but
+spaces or tabs; markers and headings inside a fence neither count nor
+start or end a section. A fence inside a quote (`> ```…`) or a list item
+indented by four or more spaces is not treated as a fence. Setext
+headings (underlined) are not seen, and a closing `#` sequence is not
+stripped, as today. If `awk` itself fails, spec-lint SHALL fail with
+`<spec>: design.md marker check failed (awk)` (and the requirement-form
+check likewise with `… requirement check failed (awk)`), never pass.
 
 Regression tests, `scripts/checks/test-checks.sh`, each with
 `# fix-spec-lint-markers R1` above it:
 
-- `spec lint: markers under one decision only` (blocked, naming `D2`)
+- `spec lint: markers under one decision only`: fails, naming `D2` (a
+  passes case asserting the message)
 - `spec lint: markers in each decision` (passes)
-- `spec lint: a ## decision ends at a ### decision` (blocked, naming `D1`)
+- `spec lint: a ## decision ends at a ### decision`: fails, naming `D1`
+  (a passes case asserting the message)
+- `spec lint: a ## decision ends at the next ## heading`: fails, naming
+  `D1` (a passes case asserting the message)
 - `spec lint: markers in a correction note` (passes)
-- `spec lint: only the reversal is missing` (blocked, `D1 … has no 'Reversal action'`)
+- `spec lint: only the reversal is missing`: fails with `D1 … has no
+  'Reversal action'` and nothing about the other marker (a passes case
+  asserting the messages)
 - `spec lint: marker in a code block does not count` (blocked)
 - `spec lint: marker in a ~~~ block does not count` (blocked)
+- `spec lint: a shorter fence does not close` (blocked)
 - `spec lint: heading inside a fence ends nothing` (passes)
 - `spec lint: #### heading stays inside its decision` (passes)
 - `spec lint: ### decisions end at the next ## heading` (blocked)
+- `spec lint: an indented decision heading counts`: fails, naming `D1`
+  (a passes case asserting the message)
+- `spec lint: a failing awk fails the lint`: fails with the `(awk)`
+  message (a passes case asserting it)
 
 ## Unchanged behavior
 
@@ -86,4 +103,5 @@ decisions and for each marker, compared as totals.
 ## Not done
 
 - The markers' content is not checked (an empty `**Reversal action**:`
-  still counts).
+  still counts), and a marker counts anywhere in the section's text,
+  including inside inline code or an HTML comment.

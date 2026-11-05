@@ -2,7 +2,7 @@
 
 > Implements [bugfix](bugfix.md). Status: `[ ]` todo · `[-]` in progress · `[x]` done
 
-- [x] T1. `spec-lint.sh` checks the two markers inside each decision's own section; the ten `spec lint:` cases in `test-checks.sh`; the three fix-spec-tooling R2 cases look for the new message
+- [x] T1. `spec-lint.sh` checks the two markers inside each decision's own section; the fourteen `spec lint:` cases in `test-checks.sh`; the three fix-spec-tooling R2 cases look for the new message
   - _Covers: R1 · Depends on: — · Verified by: the new cases; `spec-lint: ok` on every design on `main`_
 - [x] T2. Docs: the marker strings and the per-decision rule in the `specs/README.md` format rules; a dated correction under fix-spec-tooling R2 and its verify note; remove the `TODO.md` item
   - _Covers: R1 · Depends on: T1 · Verified by: review_
@@ -18,3 +18,12 @@
 > `mawk 1.3.4` as `awk` (the regexes use no `{n,m}`). The reproduction in
 > Current behavior now reports `node-details: D3 (design.md:28)`.
 > shellcheck clean on `spec-lint.sh` and `test-checks.sh`.
+
+> **Verified 2026-11-05 (code review applied).** `scripts/verify.sh`
+> green. `test-checks.sh`: 187 passed, with four more cases: the same-level
+> boundary (the `level <= lvl` → `level < lvl` mutant now fails it), a
+> shorter fence that does not close a longer one, an indented decision
+> heading, and a failing `awk` that fails the lint. Both awk loops capture
+> awk's output first, so an awk failure is reported instead of `ok`.
+> `spec-lint: ok` on every design with macOS `awk`, `mawk 1.3.4`, `gawk`
+> and `busybox awk`.
