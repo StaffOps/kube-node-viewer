@@ -164,6 +164,14 @@ func TestShortContextName(t *testing.T) {
 		{"x arn:aws:eks:us-east-1:111122223333:cluster/demo", "x arn:aws:eks:us-east-1:111122223333:cluster/demo"},
 		{demoARN + " ", demoARN + " "},
 		{"arn:azure:eks:us-east-1:111122223333:cluster/demo", "arn:azure:eks:us-east-1:111122223333:cluster/demo"},
+		{"arn:aws:ecs:us-east-1:111122223333:cluster/demo", "arn:aws:ecs:us-east-1:111122223333:cluster/demo"},
+		{"arn:aws:eks:us-east-1:111122223333:addon/demo", "arn:aws:eks:us-east-1:111122223333:addon/demo"},
+		{"ARN:AWS:EKS:US-EAST-1:111122223333:cluster/demo", "ARN:AWS:EKS:US-EAST-1:111122223333:cluster/demo"},
+		{"arn:aws:eks:US-EAST-1:111122223333:cluster/demo", "arn:aws:eks:US-EAST-1:111122223333:cluster/demo"},
+		{"arn:aws:eks:useast-1:111122223333:cluster/demo", "arn:aws:eks:useast-1:111122223333:cluster/demo"},
+		{"arn:aws:eks:us-east-1:111122223333:cluster/_demo", "arn:aws:eks:us-east-1:111122223333:cluster/_demo"},
+		{demoARN + "\n", demoARN + "\n"},
+		{"arn:aws:eks:us-east-1:111122223333:cluster/d\u0435mo", "arn:aws:eks:us-east-1:111122223333:cluster/d\u0435mo"},
 	} {
 		if got := shortContext(tc.in); got != tc.want {
 			t.Errorf("shortContext(%q) = %q, want %q", tc.in, got, tc.want)

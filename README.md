@@ -126,8 +126,8 @@ left it, unless `config.yaml` sets a `default-view`
 **Header box.** The context (an EKS context named by its ARN,
 `arn:aws:eks:<region>:<account>:cluster/<name>`, shows as its cluster name;
 `c`, the export and `--context` keep the full name), API server URL and
-pricing region; how many nodes
-the filters and search keep out of all watched nodes, with their pod count
+pricing region; how many nodes the filters and search keep out of all
+watched nodes, with their pod count
 (and pending pods, when there are any); the cost of the whole cluster, which
 stays put whatever the filters; the active view (filters, group-by,
 sort, resources); the main keys. `ctrl+e` switches between this full panel
@@ -187,8 +187,7 @@ says how many are hidden. Lines never run past the window edge.
 With `ctrl+e` (or on a window 14 to 27 rows high) the header shrinks to two
 lines, plus a third when there is a warning: the context (the cluster name
 for an EKS ARN context), the region and the counts with the cost, then the
-view. The API server URL is only in the full
-panel:
+view. The API server URL is only in the full panel:
 
 ![Compact header](.static/header-compact.png)
 

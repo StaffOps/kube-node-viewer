@@ -11,9 +11,13 @@
   - _Covers: R1, R2, R3 · Depends on: T1, T2 · Verified by: command output and the cluster run, recorded here as a dated note_
 
   > **Verified 2026-11-05.** `go test ./pkg/model/ ./pkg/client/` green and
-  > the golden screens unchanged; with `header.go:158` reading
-  > `u.info.Context` again, `TestHeadersShowTheShortContextName` fails in
-  > all three headers. `scripts/verify.sh` green apart from these open
+  > the golden screens unchanged; with the `context :=` line
+  > (`header.go:160`) reading `u.info.Context` again,
+  > `TestHeadersShowTheShortContextName` fails in all three headers. Regex
+  > mutants, each one alone: any service instead of `eks`, any resource
+  > instead of `cluster/`, case-insensitive, region letter groups optional,
+  > a name starting with `_`, multi-line `$`, Unicode letters in the name —
+  > `TestShortContextName` fails for all seven. `scripts/verify.sh` green apart from these open
   > tasks before ticking, `make lint` 0 issues. On a local one-node kind
   > cluster (own kubeconfig and state, deleted afterwards) whose context was
   > renamed to `arn:aws:eks:us-east-1:111122223333:cluster/demo-prod`,

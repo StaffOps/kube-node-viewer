@@ -18,7 +18,7 @@ builds its file name from it (`export.go:243-248`). The saved-state key is
 
 A pure function `shortContext(name string) string` in `pkg/model/header.go`
 returns `<name>` for a context that matches the EKS ARN pattern of R1 and the
-input unchanged otherwise. `header.go:158` becomes
+input unchanged otherwise. The `context :=` line becomes
 `context := shortContext(u.info.Context)`. The popup, the export, the state
 key and the flags keep reading `u.info.Context` and the kubeconfig names, so
 they are untouched.
@@ -47,7 +47,7 @@ cluster name of an EKS ARN context; every other place keeps the full name.
 1. The headers are what screenshots capture and what the compact box has to
    fit; the popup, the export, logs and the state file are read by the user
    or by the tool itself, where the full name is the identifier.
-2. One variable feeds all three headers (`header.go:158`), so the change is
+2. One variable feeds all three headers (the `context :=` line), so the change is
    one call and the three stay consistent.
 3. The state key, the `--context` flag and the export keep working on the
    kubeconfig name, so nothing saved or scripted changes.
@@ -66,7 +66,7 @@ account they are in (several accounts with same-named clusters, or
 switching profiles), and the region and endpoint are not enough.
 
 **Reversal action**: replace `shortContext(u.info.Context)` with
-`u.info.Context` at `header.go:158` and drop the function and its tests; a
+`u.info.Context` on the `context :=` line and drop the function and its tests; a
 few minutes.
 
 **Alternatives discarded**: shortening everywhere `u.info.Context` is shown
