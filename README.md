@@ -155,8 +155,8 @@ The Columns panel (`o`) also offers `IDLE/H` (the idle cost per hour), `IP`,
 columns are separate: show either or both. Sorting by `price` or `idle`
 orders both. With `--disable-pricing` no price or idle column is drawn. All
 the default columns need a wide terminal (how wide depends on the length of
-the node names); on a narrower window `ZONE`, `NODEGROUP` and `INSTANCE` go
-first.
+the node and node-group names); on a narrower window `ZONE`, `NODEGROUP` and
+`INSTANCE` go first.
 
 **Groups.** With a group-by, nodes nest under up to three levels. Top-level
 groups are in bold blue with a blank line between them; sub-groups hang off

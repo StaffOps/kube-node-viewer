@@ -73,8 +73,11 @@ func TestSessionPricingPerServer(t *testing.T) {
 			if _, regional := awsP.(*aws.ByRegion); regional != tt.regional {
 				t.Errorf("AWS provider %T, per-region %v, want %v", awsP, regional, tt.regional)
 			}
-			if _, byCloud := p.(pricing.ByCloud); tt.disable && byCloud {
-				t.Errorf("pricing off, but %T can reach the Azure prices API", p)
+			if tt.disable {
+				switch p.(type) {
+				case pricing.ByCloud, *pricing.ByCloud:
+					t.Errorf("pricing off, but %T can reach the Azure prices API", p)
+				}
 			}
 			if newAdvisor(p) == nil {
 				t.Error("no Recommendations advisor for this provider")

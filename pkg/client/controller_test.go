@@ -63,11 +63,20 @@ func TestUpdatePriceOverrideOnAKSNode(t *testing.T) {
 		}},
 		Spec: v1.NodeSpec{ProviderID: "azure:///subscriptions/s/resourceGroups/rg/providers/Microsoft.Compute/virtualMachineScaleSets/x/virtualMachines/0"},
 	})
-	(&Controller{pricing: fixedPricing(9)}).updatePrice(node)
+	calls := &countingPricing{}
+	(&Controller{pricing: calls}).updatePrice(node)
 	if node.Price() != 0.5 {
 		t.Errorf("price = %v, want the label's 0.5", node.Price())
 	}
+	if calls.n != 0 {
+		t.Errorf("the provider was asked %d times despite the override", calls.n)
+	}
 }
+
+type countingPricing struct{ n int }
+
+func (p *countingPricing) NodePrice(*model.Node) (float64, bool) { p.n++; return 9, true }
+func (p *countingPricing) OnUpdate(func())                       {}
 
 func TestUpdatePriceReservedIsEquivalent(t *testing.T) {
 	reserved := model.NewNode(&v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "r",

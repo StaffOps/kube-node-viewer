@@ -1,6 +1,6 @@
 # Requirements: monthly-price-columns
 
-> Status: shipped (v0.11.0, 2026-11-03) · Owner: Carlos Gomes · Reviewed: 2026-11-05 (spec-refuter, retroactive; 2 MEDIUM, 4 LOW; applied), earlier 2026-11-02 (code-review agent)
+> Status: shipped (v0.11.0, 2026-11-03) · Owner: Carlos Gomes · Reviewed: 2026-11-04 (spec-refuter, retroactive; 2 MEDIUM, 4 LOW; applied), earlier 2026-11-02 (code-review agent)
 
 > **Corrected 2026-11-05.** A retroactive spec-refuter review found the
 > code matching R1–R6 and the tests covering them; its findings were about

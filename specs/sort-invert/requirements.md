@@ -1,6 +1,6 @@
 # Requirements: sort-invert
 
-> Status: shipped (v0.9.1, 2026-11-03) · Owner: Carlos Gomes · Reviewed: 2026-11-05 (spec-refuter, retroactive; 1 MEDIUM, 1 LOW; applied), earlier 2026-11-02 (code-review agent)
+> Status: shipped (v0.9.1, 2026-11-03) · Owner: Carlos Gomes · Reviewed: 2026-11-04 (spec-refuter, retroactive; 1 MEDIUM, 1 LOW; applied), earlier 2026-11-02 (code-review agent)
 
 > **Corrected 2026-11-05.** A retroactive spec-refuter review found every
 > requirement matched by the code and covered by `sortinvert_internal_test.go`.

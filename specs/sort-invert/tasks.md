@@ -8,5 +8,5 @@
   - _Covers: R4 · Depends on: T1 · Verified by: review_
 
 > **Corrected 2026-11-05.** No verify task was recorded. The retroactive
-> review on 2026-11-05 ran `go test ./pkg/...` (passing); whether the
+> review on 2026-11-04 ran `go test ./pkg/...` (passing); whether the
 > binary was run on a cluster is not recorded.

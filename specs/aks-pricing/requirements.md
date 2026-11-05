@@ -1,11 +1,11 @@
 # Requirements: aks-pricing
 
-> Status: shipped (v0.9.0, 2026-11-02) · Owner: Carlos Gomes · Reviewed: 2026-11-05 (spec-refuter, retroactive; 1 HIGH, 3 MEDIUM, 5 LOW; applied), earlier 2026-11-02 (owner)
+> Status: shipped (v0.9.0, 2026-11-02) · Owner: Carlos Gomes · Reviewed: 2026-11-04 (spec-refuter, retroactive; 1 HIGH, 3 MEDIUM, 5 LOW; applied), earlier 2026-11-02 (owner)
 
 > **Corrected 2026-11-05.** The 2026-11-02 review was by the owner, who
 > is also the author, so it was not independent; the spec and the code
 > landed in one commit, and T2's AKS run left no note of what it checked.
-> A retroactive spec-refuter review on 2026-11-05 found one HIGH: Azure
+> A retroactive spec-refuter review on 2026-11-04 found one HIGH: Azure
 > Cloud Services items at the Windows rate counted as Linux prices, so
 > Linux nodes of the Easv5/Eadsv5/Dasv5/Dadsv5 and B-v2 series showed the
 > Windows price, against R1 and the counter-example
@@ -74,6 +74,8 @@ up in the background and re-price the nodes when the answer arrives.
 > (`TestSessionPricingPerServer`), an `aws://` node through `ByCloud`
 > makes no Azure request (`TestAWSNodeMakesNoAzureRequest`), and the
 > override label on an Azure node (`TestUpdatePriceOverrideOnAKSNode`).
+> "A failed request is logged (it shows in the header)" is still checked
+> only by reading the code.
 
 **R3** WHEN only Azure nodes are shown THEN the Recommendations screen SHALL
 keep saying it covers EKS nodes only (no Azure catalog yet).

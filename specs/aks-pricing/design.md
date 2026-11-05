@@ -41,14 +41,6 @@ cluster has a handful of sizes, so a filtered query is one page.
 
 ## D3. Matching
 
-> **Corrected 2026-11-05.** Trade-offs (retroactive review): the rules are
-> read from product and meter names, which Azure does not document as
-> stable. **When this would be wrong**: a product family that names its
-> variant differently, which happened (see the correction below and
-> [fix-azure-price-product](../fix-azure-price-product/bugfix.md)).
-> **Reversal action**: match on the API's `skuName`/`productId` fields
-> instead of names.
-
 Items are kept when `type == Consumption`, `unitOfMeasure == 1 Hour`,
 `currencyCode == USD` and the meter has no `Low Priority`. Spot is a meter
 name ending in ` Spot`; Windows is a product name containing `Windows`. The
@@ -61,3 +53,11 @@ latest `effectiveStartDate` not in the future wins.
 > showed the Windows price. Cloud Services items are now ignored, `Win` as
 > a word means Windows, and on equal dates the lower price wins —
 > [fix-azure-price-product](../fix-azure-price-product/bugfix.md).
+
+> **Corrected 2026-11-05.** Trade-offs (retroactive review): the rules are
+> read from product and meter names, which Azure does not document as
+> stable. **When this would be wrong**: a product family that names its
+> variant differently, which happened (see the correction above and
+> [fix-azure-price-product](../fix-azure-price-product/bugfix.md)).
+> **Reversal action**: match on the API's `skuName`/`productId` fields
+> instead of names.

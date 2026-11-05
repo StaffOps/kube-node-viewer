@@ -143,7 +143,8 @@ the columns after `price`.
 > recorded as measured. With the `realisticUI` test fixture all default
 > columns show only from about 192 columns wide (cpu) or 195 (cpu and
 > memory), measured by the retroactive review; the real figure depends on
-> the length of the node names. The README now says so instead of a number.
+> the length of the node and node-group names. The README now says so
+> instead of a number.
 
 **When this would be wrong**: the owner prefers the hourly price on narrow
 windows, or `INSTANCE` is missed.
