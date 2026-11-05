@@ -180,6 +180,13 @@ SHALL exit before the TUI starts with the file and the path of the problem
   without `default-view`.
 - [x] Example: `config file …/config.yaml: views[1].filters[0]: needs values or exclude`.
 
+> **Corrected 2026-11-04 ([fix-config-case](../fix-config-case/bugfix.md)).**
+> Also errors: a built-in name, alias or column title of the key in
+> another case (`INSTANCE`, `Zone`, `PRICE/M`), which R2 read as a label
+> key and showed as an empty column that looked like the built-in one; the
+> message names what to write. A key written twice in one map is an error
+> on one line with its line number.
+
 > **Corrected 2026-11-03 (T2).** A view name with leading or trailing spaces
 > is an error: the Views panel trims names when saving, so a padded name
 > could never be protected from a save under the same name.
