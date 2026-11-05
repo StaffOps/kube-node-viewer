@@ -59,26 +59,6 @@ memory. Listed by impact.
       works, and without a record of the alternatives they will be
       reargued or undone by accident.
 
-## Security
-
-Beyond the Guardrails section above.
-
-- [ ] **Build provenance (SLSA)**: `actions/attest-build-provenance` on
-      the archives in `release.yaml` (`attestations: write`), checked with
-      `gh attestation verify`; `scripts/release-check.sh --strict` would
-      then require it.
-      _Why:_ the checksum signature proves the files came from
-      `release.yaml`; provenance also records the inputs of the build, and
-      OpenSSF Scorecard gives Signed-Releases its top score only with it.
-      In the same change, move signing to its own job: today
-      `id-token: write` covers the whole release job, including
-      `make vuln licenses`, which runs downloaded tools.
-- [ ] **A goreleaser snapshot in CI**: `goreleaser release --snapshot
-      --skip=sign,publish` with syft on PRs that touch `.goreleaser.yaml`
-      or `release.yaml`.
-      _Why:_ a broken SBOM or archive setting shows today only on the
-      Monday release, after the tag is pushed.
-
 ## Evolution
 
 - [ ] **Integration tests on a `kind` cluster in CI**: start kind, apply

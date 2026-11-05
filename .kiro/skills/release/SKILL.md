@@ -58,7 +58,8 @@ brew update && brew upgrade --cask staffops/tap/kube-node-viewer && kube-node-vi
 | "already tagged and [Unreleased] is empty" | nothing new | expected |
 | Release commit pushed, tag created, GoReleaser failed | build or token error | fix in a PR; the owner re-runs the workflow on the tag |
 | A `v*` tag with no GitHub release; later runs say "already tagged" | the run failed after pushing the tag (GoReleaser, signing or SBOM) | owner re-runs the workflow on the tag: `gh workflow run release.yaml --ref vX.Y.Z` |
-| "Check the published release" failed | the published files are wrong (signature, SBOM, checksum, binary version or cask); its message names which | fix in a PR and release again (a patch); never replace assets of a published release by hand |
+| `Publish` failed after the GitHub release appeared (attestation step) | attestation API error | `gh run rerun <id> --failed`: `publish` finds the release, skips goreleaser and attests the published files |
+| "Check the published release" failed | the published files are wrong (signature, SBOM, provenance, checksum, binary version or cask); its message names which | fix in a PR and release again (a patch); never replace assets of a published release by hand |
 | Release ok, cask not updated | `HOMEBREW_TAP_GITHUB_TOKEN` missing or expired | owner renews the secret; re-run |
 | Push of the release commit or tag refused (rule violation / "protected") | `RELEASE_DEPLOY_KEY` missing, or its deploy key removed or read-only; GITHUB_TOKEN cannot bypass the rulesets | owner adds a new deploy key with write access and sets the secret; re-run |
 

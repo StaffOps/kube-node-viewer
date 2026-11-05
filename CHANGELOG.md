@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- Every release archive and SBOM has a SLSA build provenance attestation
+  from the release workflow, checked with `gh attestation verify` (README
+  "Verifying a release"); `scripts/release-check.sh --strict` requires it
+  from 0.14.0. Signing runs in its own job, away from the dependency
+  checks and the key that pushes the release tag. Pull requests that
+  change the release configuration build a snapshot of the release first.
+
 ### Fixed
 
 - `config.yaml` views no longer load names that can never match: a label

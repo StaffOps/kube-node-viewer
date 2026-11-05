@@ -76,7 +76,13 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     [bugfix](fix-aws-pricing-region/bugfix.md) ·
     [design](fix-aws-pricing-region/design.md) ·
     [tasks](fix-aws-pricing-region/tasks.md)
-16. [`decisions/`](decisions/) — decision records (index below).
+16. [`release-provenance/`](release-provenance/) — **draft**. SLSA build
+    provenance for every release file, signing in its own job, and a
+    goreleaser snapshot on PRs that change the release.
+    [requirements](release-provenance/requirements.md) ·
+    [design](release-provenance/design.md) ·
+    [tasks](release-provenance/tasks.md)
+17. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
