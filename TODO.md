@@ -48,24 +48,11 @@ memory. Listed by impact.
       error red for 2 minutes after the retry succeeded (`issueWindow`,
       `pkg/model/header.go`). _Why:_ a transient rate limit looks like a
       live failure.
-- [ ] **Check the first attested release** (0.14.0): the release run's
-      `check` job, then `gh attestation verify` (README "Verifying a
-      release") on a downloaded archive and on an SBOM; record it under
-      R1 of [release-provenance](specs/release-provenance/requirements.md),
-      and under R5 the next PR's `release-snapshot` "no release files
-      changed" pass.
-      _Why:_ attestation can only be proven on a published release.
-- [ ] Regenerate `.static/demo.gif` with `scripts/screenshots.sh`: its
-      captions now fold with `space` and show `enter` focusing a group
-      ([group-focus](specs/group-focus/tasks.md) T4). _Why:_ the GIF still
-      shows `enter` folding; the script needs ffmpeg, missing on the
-      machine that made the change.
-- [ ] Regenerate the README images (`scripts/screenshots.sh`): the demo
-      nodes' internal IPs moved to 192.0.2.0/24 for the golden screens,
-      and `.static/` still shows the old ones. The node names stay
-      `ip-10-0-…` (the allowed example names in `scripts/checks/content.sh`),
-      so a node's name no longer matches its IP; rename them only together
-      with that allowlist.
+- [ ] Demo node names no longer match their IPs: the screenshot and golden
+      fixtures name nodes `ip-10-0-…` (the example names allowed by
+      `scripts/checks/content.sh`) while their internal IPs are in
+      192.0.2.0/24. _Why:_ cosmetic in the README images; rename the nodes
+      only together with that allowlist.
 - [ ] `pkg/model/node.go` imports `aws-sdk-go-v2/service/ec2/types`, which
       crosses the "AWS SDK only in `pkg/aws`" rule (upstream code, there at
       the import). _Why:_ the model should not depend on a cloud SDK.

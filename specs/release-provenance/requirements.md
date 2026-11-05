@@ -69,8 +69,18 @@ accepts for one of those two refs.
 
 _Test: manual — after the first release with this change, `gh attestation verify` on a downloaded archive and SBOM, and the release's `check` job (`scripts/release-check.sh --strict`)._
 
-- [ ] after the first release with this change, the command above
+- [x] after the first release with this change, the command above
       succeeds for an archive and for an SBOM downloaded from it
+
+  > **Verified 2026-11-05.** v0.14.0 (released 2026-11-05 by a manual
+  > dispatch of `release.yaml` from `main`): its `check` job passed, and
+  > `gh attestation verify` with `--cert-identity
+  > …/release.yaml@refs/heads/main --deny-self-hosted-runners` succeeded
+  > for `kube-node-viewer_Darwin_all.tar.gz` and
+  > `kube-node-viewer_Linux_x86_64.tar.gz.sbom.json` (predicate
+  > `https://slsa.dev/provenance/v1`, workflow `.github/workflows/release.yaml`
+  > at `refs/heads/main`); the same command with `@refs/heads/nope` failed;
+  > both files match the checksum file.
 
 **R2** WHEN `scripts/release-check.sh` checks a release THEN it SHALL
 verify the provenance of the archive for this machine; a release at
@@ -122,8 +132,12 @@ job can wait on it for every PR.
 
 _Test: manual — the `release-snapshot` check on a PR that changes neither file._
 
-- [ ] a PR without release changes shows `release-snapshot` passing with
+- [x] a PR without release changes shows `release-snapshot` passing with
       the "no release files changed" message
+
+  > **Verified 2026-11-05.** PR #53 (no release file changed), CI run
+  > 42080271326: `release-snapshot` passed in 6 s and printed
+  > "no release files changed: nothing to build".
 
 **R6** WHEN a tag that does not start with `v` is pushed THEN the release
 workflow SHALL NOT start; a `v*` tag pushed by hand still releases that
