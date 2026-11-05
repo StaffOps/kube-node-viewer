@@ -67,6 +67,15 @@ const contentMargin = 2
 func (u *UIModel) render() string {
 	stats := u.stats
 	nodes := u.view.Select(stats.Nodes)
+	selected := len(nodes)
+	if u.focused() && !u.onRecommendations() {
+		// the focused group's nodes, drawn from a copy of the view that
+		// lists them; u.view is back before any key is handled (D5)
+		nodes = u.focusNodes(nodes)
+		saved := u.view
+		u.view = u.displayView()
+		defer func() { u.view = saved }()
+	}
 	header := u.fit(u.header(stats, nodes))
 
 	// below the box, lay out for the width left after the margin
@@ -74,8 +83,10 @@ func (u *UIModel) render() string {
 	if full > 0 {
 		u.width = max(full-contentMargin, 1)
 	}
-	content := u.renderContent(stats, nodes, strings.Count(header, "\n"))
+	content := u.renderContent(stats, nodes, selected, strings.Count(header, "\n"))
 	u.width = full
+	// cursorFind is for this layout only, also when no list was laid out
+	u.cursorFind = false
 
 	margin := strings.Repeat(" ", contentMargin)
 	lines := strings.Split(content, "\n")
@@ -91,7 +102,8 @@ func (u *UIModel) render() string {
 }
 
 // renderContent is everything below the header, headerLines tall.
-func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) string {
+// selected is how many nodes the filters and search left, before the focus.
+func (u *UIModel) renderContent(stats Stats, nodes []*Node, selected, headerLines int) string {
 	var b strings.Builder
 	b.WriteString(u.fit(u.clusterSummary(stats, nodes)))
 	b.WriteString("\n")
@@ -129,6 +141,8 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, headerLines int) str
 		u.selFrom, u.selTo = from, to
 	case stats.NumNodes == 0:
 		body = []string{"Waiting for update or no nodes found..."}
+	case len(nodes) == 0 && selected > 0:
+		body = []string{"No nodes in the focused group."}
 	case len(nodes) == 0:
 		body = []string{"No nodes match the filters or search."}
 	default:
@@ -263,10 +277,18 @@ func (u *UIModel) helpText() string {
 		return "↑/↓: select • enter: why • tab/:ov: Overview • f: filter • /: search • c: context • v: views • e: export • ?: help • q: quit"
 	}
 	keys := "f: filter • g: group • s: sort • I: flip ↑/↓ • o: columns • /: search • r: resources • c: context • v: views • e: export • tab: recommendations"
-	if len(u.view.GroupBy) > 0 {
-		keys += " • enter: fold group • n: fold"
+	switch {
+	case u.focused():
+		// the way out first: a long key line is cut at the window's edge
+		back := "esc: back • "
+		if len(u.view.GroupBy) > 0 {
+			back += "enter: focus • space: fold • "
+		}
+		keys = back + keys
+	case len(u.view.GroupBy) > 0:
+		keys += " • enter: focus • space: fold • n: fold"
 	}
-	if u.canShowDetails() {
+	if u.canShowDetails() && !u.focused() {
 		keys += " • d: details"
 	}
 	return keys + " • ?: help • q: quit"
@@ -424,7 +446,12 @@ func (u *UIModel) resolveCursor(pages [][]block) {
 			pos = i
 		}
 	}
+	find := u.cursorFind
+	u.cursorFind = false
 	switch {
+	case find && pos >= 0:
+		// back on the heading a focus was left from, on its page
+		u.page = rows[pos].page
 	case u.cursorDelta != 0 && pos >= 0:
 		pos = min(max(pos+u.cursorDelta, 0), len(rows)-1)
 		u.page = rows[pos].page

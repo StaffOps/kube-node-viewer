@@ -268,7 +268,12 @@ margin and followed across pages; WHEN they press `enter` on a group heading
 THEN that group alone SHALL fold (`▸`, contents hidden) or unfold, and the
 folded groups SHALL be saved with the view.
 
-- [x] Test: down/up select rows; enter folds and unfolds one group and saves it.
+> **Corrected 2026-11-04 (group-focus).** `space` folds a group on its own;
+> `enter` on a group heading now shows only that group's nodes until `esc`
+> ([group-focus](../group-focus/requirements.md) R1, R5). The fold is
+> unchanged otherwise and still saved with the view.
+
+- [x] Test: down/up select rows; enter folds and unfolds one group and saves it (space since 2026-11-04, `TestCursorMovesAndFoldsAGroup`).
 - [x] Test: the page follows the cursor; a page change puts it on that page.
 
 > **Added 2026-11-02.** The owner asked to fold a single group, which needs a

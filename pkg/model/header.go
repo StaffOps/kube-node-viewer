@@ -296,7 +296,11 @@ func (u *UIModel) viewSummary() string {
 	}
 
 	sep := viewSep(" │ ")
-	return viewOption("Filters:") + " " + viewValue(filterText) + sep +
+	focus := ""
+	if u.focused() {
+		focus = viewOption("Focus:") + " " + viewValue(u.focusSummary()) + sep
+	}
+	return viewOption("Filters:") + " " + viewValue(filterText) + sep + focus +
 		viewOption("Group:") + " " + viewValue(groupText) + sep +
 		viewOption("Sort:") + " " + viewValue(fieldName(sortField)+" "+arrow) + sep +
 		viewValue(strings.Join(u.view.Resources, "+"))
