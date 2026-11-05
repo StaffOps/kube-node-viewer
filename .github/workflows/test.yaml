@@ -276,9 +276,8 @@ jobs:
         go-version-file: go.mod
         cache: false # same build as the release, which restores no cache
     - name: Install cosign
-      # before syft: download-syft verifies syft's signature with cosign
-      # when it is on PATH; and a bad cosign pin shows here, not after the
-      # release tag
+      # as in release.yaml: goreleaser's sign step is skipped here, but a
+      # bad cosign pin shows on the PR, not after the release tag
       if: steps.changed.outputs.build == 'true'
       uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       with:

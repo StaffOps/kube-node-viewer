@@ -33,13 +33,25 @@
   > printed `DIFFER` for that tool and exited 1.
 - [x] T5. README "Verifying a release", AGENTS.md (layout, guardrails table), `.github/zizmor.yml` comment, CHANGELOG `Added`, `TODO.md`: remove both items
   - _Covers: R1, R2 · Depends on: T1, T2, T3, T4 · Verified by: review_
-- [ ] T6. Verify: `scripts/verify.sh`, `make check`, the PR's `release-snapshot` and `workflows` runs. No cluster run: nothing under `cmd/` or `pkg/` changes. R1 can only be checked after the first release: deferred below
+- [x] T6. Verify: `scripts/verify.sh`, `make check`, the PR's `release-snapshot` and `workflows` runs. No cluster run: nothing under `cmd/` or `pkg/` changes. R1 can only be checked after the first release: deferred below
   - _Covers: R1, R2, R3, R4, R5, R6 · Depends on: T1, T2, T3, T4, T5 · Verified by: dated note here_
+
+  > **Verified 2026-11-04.** `scripts/verify.sh` (with `tool-versions.py
+  > --pins-only`) and `make check` (pre-push) green; shellcheck 0.9.0
+  > clean on every script; actionlint and zizmor clean (`artipacked` now
+  > reported for release.yaml when the inline exception is removed).
+  > PR CI run 41955553006 on f779e43: every job passed;
+  > `release-snapshot` (8m47s) verified cosign 3.1.4, built the four
+  > archives and their SBOMs and printed the linux binary's version.
+  > Not checked here, deferred below: R1 on a published release
+  > (`gh attestation verify` on an archive and an SBOM, the `check`
+  > job), and R5 on a PR that changes no release file.
 
 ## Deferred
 
 | Task | Promotion trigger |
 |------|-------------------|
+| R5: `release-snapshot` passes at once ("no release files changed") on a PR that changes neither file | the next such PR after the merge |
 | After the first release (0.14.0): its `check` job green, and `gh attestation verify` (README command) on a downloaded archive and on an SBOM; dated note under R1, tick its box | the first release after the merge (`TODO.md` Follow-ups) |
 | `release-snapshot` as a required check in the `main` ruleset | the owner changes the ruleset |
 | SLSA level 3 builder | a consumer asks for level 3 |

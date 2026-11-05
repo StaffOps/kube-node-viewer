@@ -140,9 +140,11 @@ and goreleaser at `release.yaml`'s pins.
    on.
 2. On `main` and weekly it always builds, so a toolchain change in
    `go.mod` that breaks a cross-build shows within a week.
-3. cosign before syft: `download-syft` verifies syft's signature only
-   when cosign is on `PATH`, and a broken cosign pin shows on the PR
-   instead of after the release tag.
+3. cosign is installed at `release.yaml`'s pin so a broken cosign pin
+   shows on the PR instead of after the release tag. (`download-syft`
+   does not verify syft's signature even with cosign on `PATH`: this
+   PR's run downloads only `syft_<v>_checksums.txt` from the same
+   release; release.yaml has the same limit.)
 
 **Trade-offs accepted**:
 
@@ -150,6 +152,7 @@ and goreleaser at `release.yaml`'s pins.
 |------|----------------|
 | a build takes about 11 minutes (goreleaser 10m14s, job 10m54s on this PR's first run, job 126999940137); `timeout-minutes: 20`, about twice that | only PRs that change release files, `main`, and weekly |
 | a runner start for every other PR (≈ 15 s, unmeasured) | the other jobs run in parallel and take minutes |
+| syft is downloaded without a signature check, in the snapshot and in the release | pinned version from syft's own GitHub release, checked against its checksum file; syft runs only to write SBOMs, before the signature and attestation cover them |
 | a change to `go.mod` alone does not build the snapshot on its PR | `build` job compiles; the weekly snapshot catches cross-builds |
 
 **When this would be wrong**: if the snapshot becomes a required check
