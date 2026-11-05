@@ -107,6 +107,9 @@ the record for their feature; `TODO.md` links them.
 ## Releases and pull requests
 
 Flow: branch → PR → CI → automatic approval and merge → weekly (or on-demand) release.
+Why: [ADR-002](specs/decisions/ADR-002-merge-green-prs-from-writers.md)
+(automerge), [ADR-003](specs/decisions/ADR-003-release-from-changelog-headings.md)
+(release from the CHANGELOG).
 
 - **Tested before it ships**: a change to `cmd/` or `pkg/` that touches a
   spec merges only when every task of that spec is `[x]`, its verify task
@@ -138,11 +141,12 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
   skill `release`.
 - **Rulesets** (repository settings): `main` takes changes only through a
   PR whose `verify`, `lint`, `build`, `secrets`, `guardrails`, `deps` and
-  `workflows` checks passed (no force-push, no deletion; admins can bypass
-  only through a PR); `v*` tags cannot be created, moved or deleted.
-  Deploy keys bypass both: `release.yaml` pushes its commit and tag with
-  `RELEASE_DEPLOY_KEY`, since GitHub does not let `GITHUB_TOKEN` bypass a
-  ruleset.
+  `workflows` checks passed (no force-push, no deletion); `v*` tags
+  cannot be created, moved or deleted. Admins and the release deploy key
+  bypass both, on purpose: admins so the owner can fix a release or a tag
+  by hand (on `main` only through a PR), the deploy key because
+  `release.yaml` pushes its commit and tag with `RELEASE_DEPLOY_KEY`, and
+  GitHub does not let `GITHUB_TOKEN` bypass a ruleset.
 - Agents never push to `main` or push tags; they open PRs.
 - **Reviewing a PR** (skill `pr-review`): check it against the current
   `main`, not its base. A branch that predates a release merges its
@@ -177,7 +181,9 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
 - Commits: Conventional Commits (`feat:`, `fix:`, `docs:`, `build:`,
   `chore:`, optional scope e.g. `feat(model):`). No AI co-author or
   "generated with" trailers.
-- Push only when the owner asks. Never force-push without explicit approval.
+- Push only when the owner asks. Never force-push without explicit approval;
+  published history is never rewritten
+  ([ADR-005](specs/decisions/ADR-005-never-rewrite-published-history.md)).
 
 ## Remotes
 
@@ -189,7 +195,8 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
 
 ## Guardrails
 
-Three layers check the same rules. Git hooks run for everyone (people,
+Three layers check the same rules
+([ADR-004](specs/decisions/ADR-004-three-guardrail-layers.md)). Git hooks run for everyone (people,
 Kiro, Claude Code); agent hooks warn the agent before it acts and say why;
 CI is the gate nothing merges or releases without. `make hooks` installs
 the git hooks; the session-context hook does it on the first agent session.
