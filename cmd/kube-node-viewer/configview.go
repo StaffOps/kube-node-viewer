@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -123,11 +124,13 @@ func (k fieldKind) field(path string, value any) (model.Field, error) {
 		return "", fmt.Errorf("%s: %s is not a %s field; %s", path, name, k.key, hint)
 	}
 	if want, ok := k.caseOf(name); ok {
-		hint := "write " + want
-		if len(validation.IsQualifiedName(name)) == 0 {
-			hint += ", or label:" + name + " for a node label"
-		}
-		return "", fmt.Errorf("%s: %s is not a %s field; %s", path, name, k.key, hint)
+		return "", fmt.Errorf("%s: %s is not a %s field; %s", path, name, k.key, orLabel("write "+want, name))
+	}
+	if want, ok := k.prefixCase(name); ok {
+		return "", fmt.Errorf("%s: write %s", path, want)
+	}
+	if want, ok := computedOf(name); ok {
+		return "", fmt.Errorf("%s: %s is not a %s field; %s", path, name, k.key, orLabel("write "+want+" for the computed label", name))
 	}
 	if isBuiltin(name) || isBuiltin(strings.ToLower(name)) {
 		return "", fmt.Errorf("%s: %s is not a %s field; write label:%s for a node label", path, name, k.key, name)
@@ -195,16 +198,56 @@ var screenTitles = map[string]model.Field{
 // built-in one and is empty (fix-config-case R1).
 func (k fieldKind) caseOf(name string) (string, bool) {
 	lower := strings.ToLower(name)
+	// a title is no field name in any case: instance shows as INSTANCE too
+	if f, ok := screenTitles[lower]; ok && slices.Contains(k.builtins, f) {
+		return string(f), true
+	}
 	if lower == name {
 		return "", false
 	}
 	if _, ok := k.aliases[lower]; ok || slices.Contains(k.builtins, model.Field(lower)) {
 		return lower, true
 	}
-	if f, ok := screenTitles[lower]; ok && slices.Contains(k.builtins, f) {
-		return string(f), true
+	return "", false
+}
+
+// prefixCase tells whether name starts with label: (or usage: in sort) in
+// another case, and how to write it (Label:zone → label:zone).
+func (k fieldKind) prefixCase(name string) (string, bool) {
+	for _, prefix := range []string{labelPrefix, usagePrefix} {
+		if prefix == usagePrefix && !k.usage {
+			continue
+		}
+		if len(name) > len(prefix) && strings.EqualFold(name[:len(prefix)], prefix) && name[:len(prefix)] != prefix {
+			return prefix + name[len(prefix):], true
+		}
 	}
 	return "", false
+}
+
+// computedUsage matches the computed usage labels, lower-cased.
+var computedUsage = regexp.MustCompile(`^node-.+-usage$`)
+
+// computedOf tells whether name is a computed label (pkg/model
+// ComputeLabel) written without its kube-node-viewer/ prefix or in another
+// case, which would show a column titled like the computed one and empty,
+// and the key to write (fix-config-case R1).
+func computedOf(name string) (string, bool) {
+	key := strings.ToLower(name)
+	key = strings.TrimPrefix(key, model.LabelPrefix)
+	if key != "node-age" && !computedUsage.MatchString(key) {
+		return "", false
+	}
+	want := model.LabelPrefix + key
+	return want, want != name
+}
+
+// orLabel adds the label: way to the hint when name is a valid label key.
+func orLabel(hint, name string) string {
+	if len(validation.IsQualifiedName(name)) == 0 {
+		hint += ", or label:" + name + " for a node label"
+	}
+	return hint
 }
 
 // qualifiedName checks a label key or resource name, part of the item

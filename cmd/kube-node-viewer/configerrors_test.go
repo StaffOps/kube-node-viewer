@@ -176,6 +176,17 @@ func TestConfigViewBuiltinNamesInAnotherCase(t *testing.T) {
 		{"IDLE/H column", oneView("columns: [IDLE/H]"), "views[0].columns[0]: IDLE/H is not a column field; write idle/h"},
 		// fix-config-case R1: a built-in of another key in another case
 		{"PRICE in group-by", oneView("group-by: [PRICE]"), "views[0].group-by[0]: PRICE is not a group-by field; write label:PRICE for a node label"},
+		// fix-config-case R1: the screen title in lower case, as INSTANCE shows
+		{"screen title instance", oneView("columns: [instance]"), "views[0].columns[0]: instance is not a column field; write instance-type, or label:instance for a node label"},
+		// fix-config-case R1: computed labels without their prefix or in another case
+		{"bare node-age", oneView("columns: [node-age]"), "views[0].columns[0]: node-age is not a column field; write kube-node-viewer/node-age for the computed label, or label:node-age for a node label"},
+		{"NODE-AGE", oneView("columns: [NODE-AGE]"), "views[0].columns[0]: NODE-AGE is not a column field; write kube-node-viewer/node-age for the computed label, or label:NODE-AGE for a node label"},
+		{"bare usage label", oneView("sort: node-cpu-usage"), "views[0].sort: node-cpu-usage is not a sort field; write kube-node-viewer/node-cpu-usage for the computed label, or label:node-cpu-usage for a node label"},
+		{"prefixed in another case", oneView("columns: [kube-node-viewer/NODE-AGE]"), "views[0].columns[0]: kube-node-viewer/NODE-AGE is not a column field; write kube-node-viewer/node-age for the computed label, or label:kube-node-viewer/NODE-AGE for a node label"},
+		// fix-config-case R1: the label: and usage: prefixes in another case
+		{"Label:zone", oneView("columns: [Label:zone]"), "views[0].columns[0]: write label:zone"},
+		{"LABEL:zone group", oneView("group-by: [LABEL:zone]"), "views[0].group-by[0]: write label:zone"},
+		{"USAGE:cpu sort", oneView("sort: USAGE:cpu"), "views[0].sort: write usage:cpu"},
 		// unchanged: the sort hint still wins for the price titles
 		{"upper-case sort title", oneView("sort: PRICE/M"), "views[0].sort: PRICE/M is not a sort field; write sort: price, which orders PRICE/H and PRICE/M alike"},
 	})
@@ -188,13 +199,15 @@ func TestConfigYAMLErrorsAreOneLine(t *testing.T) {
 		{"key written twice", "views:\n  - name: a\n    name: b\n    columns: [zone]\n", `line 3: key "name" already set in map`},
 		{"two keys written twice", "views:\n  - name: a\n    name: b\n    sort: name\n    sort: ip\n", `line 3: key "name" already set in map; line 5: key "sort" already set in map`},
 		{"syntax", "views: [a\n", "line 1: did not find expected ',' or ']'"},
+		// fix-config-case R2: an error the library gives no line for
+		{"unknown anchor", "views: *a\n", "YAML: unknown anchor 'a' referenced"},
 	})
 }
 
 // fix-config-case R3: label keys that are not built-in names in any case
 // still load as labels.
 func TestConfigViewOtherUpperCaseLabelsStillLoad(t *testing.T) {
-	path := writeSettings(t, oneView("group-by: [MyLabel, Team]", "columns: [instance-type, label:INSTANCE, Owner]"))
+	path := writeSettings(t, oneView("group-by: [MyLabel, Team]", "columns: [instance-type, label:INSTANCE, Owner, kube-node-viewer/node-age, label:node-age]"))
 	s, err := loadSettings(path, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -203,7 +216,7 @@ func TestConfigViewOtherUpperCaseLabelsStillLoad(t *testing.T) {
 	if want := []model.Field{model.LabelField("MyLabel"), model.LabelField("Team")}; !reflect.DeepEqual(v.GroupBy, want) {
 		t.Errorf("group-by %v, want %v", v.GroupBy, want)
 	}
-	if want := []model.Field{model.FieldInstanceType, model.LabelField("INSTANCE"), model.LabelField("Owner")}; !reflect.DeepEqual(v.Columns, want) {
+	if want := []model.Field{model.FieldInstanceType, model.LabelField("INSTANCE"), model.LabelField("Owner"), model.LabelField("kube-node-viewer/node-age"), model.LabelField("node-age")}; !reflect.DeepEqual(v.Columns, want) {
 		t.Errorf("columns %v, want %v", v.Columns, want)
 	}
 }

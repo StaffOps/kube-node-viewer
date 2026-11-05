@@ -89,7 +89,12 @@ func yamlError(err error) string {
 				lines = append(lines, l)
 			}
 		}
-		return strings.Join(lines, "; ")
+		rest = strings.Join(lines, "; ")
+	}
+	// an error with no line, unknown anchor 'a' referenced, still says what
+	// kind of problem it is
+	if !strings.HasPrefix(rest, "line ") {
+		rest = "YAML: " + rest
 	}
 	return rest
 }

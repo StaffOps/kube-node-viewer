@@ -91,7 +91,7 @@ The top-level keys:
 
 ## Field names
 
-Each key accepts the built-in names of the panel that sets it; any other name is a node label key, such as `karpenter.sh/nodepool`.
+Each key accepts the built-in names of the panel that sets it; any other name is a node label key, such as `karpenter.sh/nodepool`, except a built-in name or column title in another case and a computed label without its prefix (see the errors below).
 `label:<key>` always names a label, for a label whose key is also a
 built-in name (`label:zone`).
 
@@ -267,11 +267,15 @@ after `label:`) or a resource name (`resources`, `usage:`) with leading or
 trailing whitespace, a comma or any other character a label key cannot
 have is an error, and so are filter values and `labels.allow`/`labels.deny`
 patterns with leading or trailing whitespace. A built-in name or column
-title in another case (`INSTANCE`, `Zone`, `PRICE/M`) is an error that
-names what to write (`instance-type`, `zone`, `price/m`), with
-`label:INSTANCE` for a node label that really has that key; other
-upper-case names (`MyLabel`) are valid label keys, so they are read as
-labels. A key written twice in the same map is an error with its line.
+title in another case (`INSTANCE`, `Zone`, `PRICE/M`, and `instance`,
+the title of `instance-type`) is an error that names what to write
+(`instance-type`, `zone`, `price/m`), with `label:INSTANCE` for a node
+label that really has that key; so is a computed label without its prefix
+or in another case (`node-age`, `NODE-AGE`: write
+`kube-node-viewer/node-age`), and `Label:zone` or `USAGE:cpu` (write
+`label:zone`, `usage:cpu`). Other upper-case names (`MyLabel`) are valid
+label keys, so they are read as labels. A key written twice in the same
+map is an error with its line.
 `- label: zone`, with a space after the colon, is a YAML map: write
 `label:zone`. A price or idle column in `sort` (`price/m`) says to write
 `sort: price`, and `sort: age` says `sort: creation`:
