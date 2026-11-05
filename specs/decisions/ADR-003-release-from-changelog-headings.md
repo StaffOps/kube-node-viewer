@@ -66,6 +66,13 @@ The workflow then:
 - signs the checksum file and attaches the SBOMs;
 - checks the published release with `scripts/release-check.sh --strict`.
 
+> **Corrected 2026-11-04.** With PR #43
+> ([release-provenance](../release-provenance/design.md)) the trigger is
+> `on: push: tags: ['v*']`, so a non-`v*` tag starts nothing; and the
+> steps above run in four jobs: `deps` (`make vuln licenses`, read
+> only), `prepare` (release commit and tag), `publish` (GoReleaser,
+> signature, SBOMs, SLSA build provenance) and `check`.
+
 ## Rationale
 
 1. **One source for the version and the notes.** The headings a
