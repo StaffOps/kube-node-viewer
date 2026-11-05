@@ -52,12 +52,6 @@ memory. Listed by impact.
       _Why:_ behaviour changes made "while there" are the usual way
       specs and docs go stale; the spec-task gate only fires when a spec
       is touched.
-- [ ] **ADRs for the cross-cutting decisions**: automerge for writers,
-      release from CHANGELOG headings, guardrail layers (git hooks + agent
-      hooks + CI), history rewrite policy.
-      _Why:_ only ADR-001 exists; these decisions change how everyone
-      works, and without a record of the alternatives they will be
-      reargued or undone by accident.
 
 ## Security
 

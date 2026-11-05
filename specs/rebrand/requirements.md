@@ -114,6 +114,10 @@ modification note of D5; new code is licensed Apache 2.0.
 - [ ] Every `.go`/`.sh` file in `git diff --name-only --diff-filter=M af96088`
   contains the D5 note.
 
+> Correction 2026-11-04: `af96088` no longer exists after a history
+> rewrite; the import commit is `f3aceaa`
+> ([ADR-005](../decisions/ADR-005-never-rewrite-published-history.md)).
+
 ## Counter-examples
 
 - SHALL NOT remove or rewrite the `NOTICE` copyright line or existing Apache headers.

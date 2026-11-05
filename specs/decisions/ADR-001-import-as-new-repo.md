@@ -2,6 +2,10 @@
 
 > Status: Accepted · Date: 2026-10-30 · Recorded after the fact (no
 > independent review at decision time).
+>
+> Correction 2026-11-04: the history was rewritten after this record; the
+> import commit is now `f3aceaa`, on top of `11dc2e0`. `af96088` and
+> `6b6779a` no longer exist ([ADR-005](ADR-005-never-rewrite-published-history.md)).
 
 ## Context
 
