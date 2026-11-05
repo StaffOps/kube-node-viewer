@@ -2,6 +2,7 @@
 version: "2"
 run:
   tests: true
+  build-tags: [ integration ] # cmd/kube-node-viewer/kind_integration_test.go
 linters:
   enable:
     - asciicheck

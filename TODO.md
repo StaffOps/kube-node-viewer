@@ -21,6 +21,14 @@ what they cannot. Listed by impact.
       the workflow, release once, then remove the key.
       _Why:_ the deploy key is a long-lived credential that can push to
       `main`; it has to be rotated by hand, and a leak lasts until then.
+- [ ] **Owner: does the `kind` run count as the cluster run?** The
+      `kind` job (`scripts/kind-it.sh`) runs on every PR, informational
+      (not in automerge's needs, not a required check). Decide whether it
+      counts as the "run on a cluster" of a verify task for changes that
+      are not cloud-specific (AGENTS.md, "Tested before it ships"), leaving
+      real clusters for prices and node pools; if so, make it gate
+      automerge and a required check.
+      _Why:_ until then every change still waits for a real cluster.
 - [ ] **Confirm the Kiro hooks in a real session**: the Kiro config
       follows the Kiro docs but has not run in Kiro yet; a `git commit`
       with a non-conventional subject should be refused by both the git
@@ -52,21 +60,6 @@ memory. Listed by impact.
       _Why:_ behaviour changes made "while there" are the usual way
       specs and docs go stale; the spec-task gate only fires when a spec
       is touched.
-
-## Evolution
-
-- [ ] **Integration tests on a `kind` cluster in CI**: start kind, apply
-      fixture nodes and pods, run the TUI headless, assert on the screen.
-      _Why:_ the "ran on a cluster" rule depends on someone having one;
-      on 2026-11-03 none was available. A kind run makes the basic
-      cluster check automatic, leaving real clusters for cloud-specific
-      behaviour (prices, node pools).
-- [ ] **Golden-file screen snapshots in PRs**: render the main screens
-      from the made-up cluster used for screenshots and show the text
-      diff in the PR.
-      _Why:_ UI changes are reviewed today by reading code or running the
-      binary; a diff of the screen makes layout regressions visible in
-      review.
 
 ## Follow-ups
 
@@ -100,6 +93,12 @@ memory. Listed by impact.
       [search-negation](specs/search-negation/tasks.md) cluster run.
       _Why:_ an export of a searched view does not say which search made
       it.
+- [ ] Regenerate the README images (`scripts/screenshots.sh`): the demo
+      nodes' internal IPs moved to 192.0.2.0/24 for the golden screens,
+      and `.static/` still shows the old ones. The node names stay
+      `ip-10-0-…` (the allowed example names in `scripts/checks/content.sh`),
+      so a node's name no longer matches its IP; rename them only together
+      with that allowlist.
 
 ## Ideas
 
