@@ -37,7 +37,7 @@ files you change carry the line
 | `pkg/recommend/` | Recommendations rules (idle, consolidation, rightsizing, Graviton, Spot…); pure functions over a snapshot |
 | `pkg/text/` | color-aware tabwriter |
 | `hack/` | helper programs (boilerplate, licenses, `catalog` for the AWS instance catalog); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |
-| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh` (spec format; active and shipped specs reviewed by spec-refuter), `spec-tasks-check.py` (code under a spec: no draft, no open task), `spec-trace.py` (every requirement named by a test), `drift-check.py` (flags, keys, fields changed with no spec or docs), `release-prepare.py` (next version from CHANGELOG), `release-check.sh` (a published release: checksums, signature, SBOMs, provenance, binary version, cask), `checks/` (`staged.sh` pre-commit checks, `content.sh` real-environment data, `dependabot-patch.sh` automerge judge, `test-checks.sh` hook tests, `tool-versions.py` CI tools Dependabot does not bump, `release-snapshot.sh` the snapshot's `dist/`, `headers.py` license headers and D5 notes), `kind-it.sh` (integration test on a throwaway kind cluster), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
+| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh` (spec format; active and shipped specs reviewed by spec-refuter), `spec-tasks-check.py` (code under a spec: no draft, no open task), `spec-trace.py` (every requirement named by a test), `drift-check.py` (flags, keys, fields changed with no spec or docs), `release-prepare.py` (next version from CHANGELOG), `release-check.sh` (a published release: checksums, signature, SBOMs, provenance, binary version, cask), `checks/` (`staged.sh` pre-commit checks, `content.sh` real-environment data, `dependabot-patch.sh` automerge judge, `test-checks.sh` hook tests, `tool-versions.py` CI tools Dependabot does not bump, `release-snapshot.sh` the snapshot's `dist/`, `headers.py` license headers and D5 notes), `kind-it.sh` (integration test on a throwaway kind cluster), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder, PR guard; `kiro-selftest.sh` feeds them Kiro's hook payloads) |
 | `specs/` | planning artefacts — see [`specs/README.md`](specs/README.md) |
 | `TODO.md` | backlog: owner actions, open follow-ups, ideas, deferred work |
 | `.github/workflows/` | `test.yaml` (verify, lint, build, secrets, guardrails, deps, workflows, release-snapshot, kind (informational) in parallel, also weekly; weekly only: tools; automerge), `scorecard.yaml` (OpenSSF Scorecard, informational); `zizmor.yml` (workflow audit config); `actions/gitleaks/` (pinned gitleaks install), `release.yaml` (weekly, on-demand or a pushed `v*` tag; jobs deps: vuln and licenses, read only; prepare: version, tag; publish: release, signature, provenance; check), `refresh-data.yaml` (monthly price-data PR) |
@@ -53,6 +53,7 @@ go test ./pkg/model -run TestGoldenScreens -update   # rewrite the golden screen
 make lint                 # golangci-lint at the version pinned in the Makefile (same as CI)
 make vuln licenses        # govulncheck and go-licenses, pinned in the Makefile (CI deps job)
 make check                # before a push: main merged in, verify, branch commits, hook tests, vuln, licenses, lint, build, and the next version
+make kiro-selftest        # offline check of the Kiro hooks and agents (before docs/kiro-validation.md)
 go test ./pkg/... ./cmd/...
 ```
 
@@ -277,7 +278,7 @@ Change the source, never a copy.
 | Backlog | `TODO.md` | via this file | via this file |
 | Skills | `.kiro/skills/<name>/SKILL.md` | `.claude/skills` → `.kiro/skills` (symlink) | IDE: native; CLI agent: `skill://` resource |
 | Reviewer agent | `.claude/agents/spec-refuter.md` | native | `.kiro/agents/spec-refuter.json` (prompt via `file://`) |
-| Hook scripts | `scripts/agent-hooks/` (one script, a `claude`/`kiro` mode where output differs) | `.claude/settings.json` | CLI: `.kiro/agents/kube-node-viewer.json` (`kiro-cli chat --agent kube-node-viewer`); IDE: `.kiro/hooks/kube-node-viewer.json` |
+| Hook scripts | `scripts/agent-hooks/` (one script, a `claude`/`kiro` mode where output differs) | `.claude/settings.json` | `.kiro/hooks/kube-node-viewer.json`, loaded by the IDE 1.x and CLI V3 in any session (`kiro-cli chat --agent kube-node-viewer` included); CLI 2.x: none (the git hooks and CI still apply); offline check `scripts/agent-hooks/kiro-selftest.sh`, real-session check [`docs/kiro-validation.md`](docs/kiro-validation.md) |
 | Permissions | — | `.claude/settings.json` (`settings.local.json` is personal) | per agent in `.kiro/agents/*.json` |
 | Model | not pinned | session choice | session choice (`/model`) |
 
@@ -286,4 +287,5 @@ Skills: `spec-new`, `change-loop`, `pre-push`, `pr-review`, `release`,
 Adding a skill: `.kiro/skills/<name>/SKILL.md` with `name` and `description`
 frontmatter; both tools pick it up, and `scripts/agent-hooks/session-context.sh`
 lists it. Adding a hook: write the script once, then wire it in both
-`.claude/settings.json` and the two Kiro files.
+`.claude/settings.json` and `.kiro/hooks/kube-node-viewer.json`, and add
+its Kiro cases to `scripts/agent-hooks/kiro-selftest.sh`.

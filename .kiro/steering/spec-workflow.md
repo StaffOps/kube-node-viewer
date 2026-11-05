@@ -17,4 +17,4 @@ only pins what Kiro would otherwise do differently.
 - Findings outside the task go to `TODO.md`, not into the current diff.
 - Project skills live in `.kiro/skills/` (shared with Claude Code through a
   symlink); hook scripts live in `scripts/agent-hooks/` and are wired in
-  `.kiro/hooks/` (IDE) and `.kiro/agents/kube-node-viewer.json` (CLI).
+  `.kiro/hooks/kube-node-viewer.json` (Kiro IDE 1.x and CLI V3 both load it).

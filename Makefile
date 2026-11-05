@@ -1,5 +1,5 @@
 # Modified by the kube-node-viewer authors, 2026.
-.PHONY: help clean hooks check verify lint vuln prices catalog boilerplate licenses download coverage generate test
+.PHONY: help clean hooks kiro-selftest check verify lint vuln prices catalog boilerplate licenses download coverage generate test
 
 NO_COLOR=\033[0m
 GREEN=\033[32;01m
@@ -61,6 +61,9 @@ boilerplate: ## Add license headers
 hooks: ## Use the repo git hooks (.githooks: pre-commit, commit-msg, pre-push)
 	git config core.hooksPath .githooks
 	@echo "git hooks: .githooks (pre-commit, commit-msg, pre-push)"
+
+kiro-selftest: ## Offline check of the Kiro hooks and agents (run before docs/kiro-validation.md)
+	sh scripts/agent-hooks/kiro-selftest.sh
 
 check: ## Before a push: what CI checks (main merged in, verify, secrets, guardrails, deps, lint, build) and the next release version
 	git fetch -q origin main

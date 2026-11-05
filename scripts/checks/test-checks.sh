@@ -504,5 +504,14 @@ if command -v jq >/dev/null 2>&1; then
   else skipped "agent PR guard" python3; fi
 else skipped "agent hooks" jq; fi
 
+echo "== kiro hooks"
+# the Kiro payloads and config checks live in one place, kiro-selftest.sh,
+# which a Kiro user also runs before a real session (docs/kiro-validation.md)
+if command -v jq >/dev/null 2>&1; then
+  out=$(sh "$src/scripts/agent-hooks/kiro-selftest.sh" 2>&1); rc=$?
+  if [ "$rc" -eq 0 ]; then ok "kiro selftest: $(printf '%s\n' "$out" | tail -1)"
+  else bad "kiro selftest" "$(printf '%s\n' "$out" | grep -E '^(FAIL|      )')"; fi
+else skipped "kiro selftest" jq; fi
+
 printf '\n%d passed, %d failed, %d skipped\n' "$pass" "$fail" "$skip"
 [ "$fail" -eq 0 ]
