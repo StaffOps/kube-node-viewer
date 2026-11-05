@@ -37,10 +37,10 @@ files you change carry the line
 | `pkg/recommend/` | Recommendations rules (idle, consolidation, rightsizing, Graviton, Spot…); pure functions over a snapshot |
 | `pkg/text/` | color-aware tabwriter |
 | `hack/` | helper programs (boilerplate, licenses, `catalog` for the AWS instance catalog); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |
-| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh` (spec format; active and shipped specs reviewed by spec-refuter), `spec-tasks-check.py` (code under a spec: no draft, no open task), `spec-trace.py` (every requirement named by a test), `drift-check.py` (flags, keys, fields changed with no spec or docs), `release-prepare.py` (next version from CHANGELOG), `release-check.sh` (a published release: checksums, signature, SBOMs, provenance, binary version, cask), `checks/` (`staged.sh` pre-commit checks, `content.sh` real-environment data, `dependabot-patch.sh` automerge judge, `test-checks.sh` hook tests, `tool-versions.py` CI tools Dependabot does not bump, `release-snapshot.sh` the snapshot's `dist/`), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
+| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh` (spec format; active and shipped specs reviewed by spec-refuter), `spec-tasks-check.py` (code under a spec: no draft, no open task), `spec-trace.py` (every requirement named by a test), `drift-check.py` (flags, keys, fields changed with no spec or docs), `release-prepare.py` (next version from CHANGELOG), `release-check.sh` (a published release: checksums, signature, SBOMs, provenance, binary version, cask), `checks/` (`staged.sh` pre-commit checks, `content.sh` real-environment data, `dependabot-patch.sh` automerge judge, `test-checks.sh` hook tests, `tool-versions.py` CI tools Dependabot does not bump, `release-snapshot.sh` the snapshot's `dist/`), `kind-it.sh` (integration test on a throwaway kind cluster), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
 | `specs/` | planning artefacts — see [`specs/README.md`](specs/README.md) |
 | `TODO.md` | backlog: owner actions, open follow-ups, ideas, deferred work |
-| `.github/workflows/` | `test.yaml` (verify, lint, build, secrets, guardrails, deps, workflows, release-snapshot in parallel, also weekly; weekly only: tools; automerge), `scorecard.yaml` (OpenSSF Scorecard, informational); `zizmor.yml` (workflow audit config); `actions/gitleaks/` (pinned gitleaks install), `release.yaml` (weekly, on-demand or a pushed `v*` tag; jobs deps: vuln and licenses, read only; prepare: version, tag; publish: release, signature, provenance; check), `refresh-data.yaml` (monthly price-data PR) |
+| `.github/workflows/` | `test.yaml` (verify, lint, build, secrets, guardrails, deps, workflows, release-snapshot, kind (informational) in parallel, also weekly; weekly only: tools; automerge), `scorecard.yaml` (OpenSSF Scorecard, informational); `zizmor.yml` (workflow audit config); `actions/gitleaks/` (pinned gitleaks install), `release.yaml` (weekly, on-demand or a pushed `v*` tag; jobs deps: vuln and licenses, read only; prepare: version, tag; publish: release, signature, provenance; check), `refresh-data.yaml` (monthly price-data PR) |
 
 ## Commands
 
@@ -48,6 +48,8 @@ files you change carry the line
 scripts/build.sh          # local binary in bin/ (-i install, -a all platforms)
 scripts/verify.sh         # gofmt check, go vet, go test, spec lint — run before every commit
 scripts/screenshots.sh    # regenerate README images in .static/ from a made-up cluster (Python 3, Chrome, ffmpeg)
+scripts/kind-it.sh        # integration test on a throwaway kind cluster (Docker, kind); own kubeconfig, deleted after
+go test ./pkg/model -run TestGoldenScreens -update   # rewrite the golden screens after a layout change made on purpose
 make lint                 # golangci-lint at the version pinned in the Makefile (same as CI)
 make vuln licenses        # govulncheck and go-licenses, pinned in the Makefile (CI deps job)
 make check                # before a push: main merged in, verify, branch commits, hook tests, vuln, licenses, lint, build, and the next version
@@ -118,10 +120,10 @@ Why: [ADR-002](specs/decisions/ADR-002-merge-green-prs-from-writers.md)
   recorded as a dated note of what was checked, never the cluster's name (this repo is public)). `scripts/spec-tasks-check.py` fails CI
   otherwise; open the PR as a draft until then.
 - **CI** (`test.yaml`): `verify`, `lint`, `build`, `secrets`,
-  `guardrails`, `deps`, `workflows` and `release-snapshot` run in parallel (and weekly on `main`, so a new
+  `guardrails`, `deps`, `workflows`, `release-snapshot` and `kind` (informational) run in parallel (and weekly on `main`, so a new
   advisory for a shipped dependency shows up). On a PR from a branch of this repo whose
   author has write access, not a draft and without the `hold` label, the
-  `automerge` job approves and merges it once all of them pass. Dependabot
+  `automerge` job approves and merges it once all of them but `kind` pass. Dependabot
   PRs that only raise patch versions merge the same way, judged from the
   go.mod diff, not from what Dependabot lists; any other Dependabot PR,
   GitHub Actions updates included, waits for a person. Forks and other authors wait for a person.
@@ -218,10 +220,12 @@ the git hooks; the session-context hook does it on the first agent session.
 | `git push` | `main` merged in; verify, branch commits (messages, authors, secrets), hook tests, vulnerabilities and licenses, lint, build | `pre-push` → `make check` | — | `verify`, `secrets`, `guardrails`, `deps`, `lint`, `build` jobs | skill `pre-push` |
 | PR, weekly | known vulnerabilities reachable from our code (govulncheck); dependency licenses outside MIT / Apache-2.0 / BSD-3-Clause / ISC (go-licenses) | — | — | `deps` job | upgrade the module (`go get …@fixed`), or replace the dependency |
 | PR | the workflows: actionlint, and zizmor (actions pinned by commit SHA and not impostor commits, no workflow left on the default token permissions, no credential left in a checkout that does not push, no cache in the release build, injection) | — | — | `workflows` job (`.github/zizmor.yml` lists the reviewed exceptions) | pin with `@<sha> # vX.Y.Z`; add `permissions:` to the job |
-| Weekly | CI tools pinned by version that Dependabot does not see (zizmor, actionlint, gitleaks, golangci-lint, govulncheck, go-licenses, cosign, syft, goreleaser): a release at least 14 days old; one tool pinned at two versions (also every commit: `verify.sh` runs `--pins-only`) | — | — | `tools` job (`scripts/checks/tool-versions.py`) | raise the pin (golangci-lint in the Makefile and test.yaml together, cosign, goreleaser and syft in release.yaml and test.yaml together; gitleaks with its `GITLEAKS_SHA256`) |
+| Weekly | CI tools pinned by version that Dependabot does not see (zizmor, actionlint, gitleaks, golangci-lint, govulncheck, go-licenses, cosign, syft, goreleaser, kind): a release at least 14 days old; one tool pinned at two versions (also every commit: `verify.sh` runs `--pins-only`) | — | — | `tools` job (`scripts/checks/tool-versions.py`) | raise the pin (golangci-lint in the Makefile and test.yaml together, cosign, goreleaser and syft in release.yaml and test.yaml together; gitleaks with its `GITLEAKS_SHA256`, kind with its `KIND_SHA256`) |
 | PR, `verify.sh` | specs: the status is draft, active, shipped or superseded; an active or shipped spec names its review on the status line (`Reviewed: <date> (spec-refuter…` or `Reviewed: spec-refuter <date>`); code (`cmd/`, `pkg/`, `hack/`, `scripts/`, `.github/`, `.githooks/`) may not change under a draft spec | — | — | `spec-lint.sh`, `spec-tasks-check.py` (in `verify.sh`) | run the spec-refuter review, record it, set the spec active |
 | PR, `verify.sh` | every `**R<n>**` of an active or shipped spec is named in the comment right above the test that checks it (`// <spec> R<n>` above `func Test…` or `t.Run`), or marked in the spec `Test: manual`, `Test: ci` or `Test: withdrawn` with the reason; a citation of an unknown or draft spec, or of a requirement the spec lacks, fails | — | — | `spec-trace.py` (in `verify.sh`) | cite it on the test that checks it, or write the test |
 | PR, `verify.sh` | flags (with default and usage), config keys, help keys (`helpKeys`) or fields (`view.go`) changed with no change to a spec, `README.md` or `docs/`; a new flag, config key or help key not named in `README.md`; a key `uimodel.go` handles missing from the help | — | — | `drift-check.py` (in `verify.sh`) | update the spec or README; no doc to update: trailer `Drift-check: skip — <reason>` on the commit that changes them |
+| PR | the screens: each main screen of the made-up cluster against its golden text file in `pkg/model/testdata/screens/` (`TestGoldenScreens`); a layout change shows as a diff of those files in the PR | — | — | `verify` job | if on purpose, `go test ./pkg/model -run TestGoldenScreens -update` and commit the files |
+| PR | the binary's sessions against a real API server: nodes, pods per node and their requests, node group and zone, and each node's Pods tab match what a kind cluster lists (`scripts/kind-it.sh`, `TestKindCluster`) | — | — | `kind` job (informational: does not gate automerge, not a required check) | fix the regression, or the fixture in `cmd/kube-node-viewer/testdata/kind/` |
 | PR | the guardrails themselves: shellcheck and `scripts/checks/test-checks.sh` (each case blocked or passed in a throwaway repo) | — | — | `guardrails` job | fix the hook or the case |
 | `gh pr create` / `ready` / `merge` | released CHANGELOG sections; open tasks in a touched spec (the verify task includes a cluster run) | — | `pr-guard` (`--draft` passes) | `changelog-check.py`, `spec-tasks-check.py` | finish the tasks; draft until then |
 | PR green | trusted author, or a Dependabot PR that only raises patch versions (`scripts/checks/dependabot-patch.sh` on its go.mod) → approve, merge | — | — | `automerge` job (`hold` label stops it) | — |
@@ -236,6 +240,8 @@ What to run locally, and when:
 |--------|-----|-------|
 | While coding | `go test ./pkg/model/...` (or the package you touch) | seconds |
 | Before each commit | nothing extra: `pre-commit` runs the fast checks | < 1 s |
+| UI change | `go test ./pkg/model -run TestGoldenScreens`; on purpose: `-update`, review the diff of `pkg/model/testdata/screens/`, commit it | seconds |
+| Change to `pkg/client` or the session wiring | `scripts/kind-it.sh` (CI runs it too) | 2 min |
 | UI or behaviour change done | `scripts/build.sh`, then the binary against any cluster (agents: one the owner allows), from a scratch dir; note what you checked (not which cluster) in the spec's verify task | minutes |
 | Before a push | `git merge origin/main`, then `make check` (`pre-push` runs it too) | 1–5 min |
 | After a push | `gh pr checks <n> --watch` | CI time |

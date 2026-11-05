@@ -1,7 +1,7 @@
-# verify, lint, build, secrets, guardrails, deps, workflows and
-# release-snapshot in parallel on every PR
-# and push to main; on a PR from a trusted author, approves and merges it
-# once all of them pass. A PR labelled `release` also starts the release
+# verify, lint, build, secrets, guardrails, deps, workflows,
+# release-snapshot and kind in parallel on every PR and push to main; on a
+# PR from a trusted author, approves and merges it once all of them but
+# kind (informational) pass. A PR labelled `release` also starts the release
 # workflow right away; other merges wait for the weekly release
 # (release.yaml). Weekly on main too, so a vulnerability published for a
 # dependency we already ship fails the `deps` job without any change here.
@@ -218,10 +218,46 @@ jobs:
         GH_TOKEN: ${{ github.token }} # online audits: impostor commits, known-vulnerable actions
       run: pipx run zizmor==1.31.1 --format=github . # `.`: annotations carry repo-relative paths
 
+  kind:
+    # integration test on a throwaway kind cluster: the binary's sessions
+    # (client, informers, store, view) against a real API server, checked
+    # against what the API lists (scripts/kind-it.sh, TestKindCluster).
+    # Informational for now: not in automerge's needs nor a required check.
+    name: kind
+    runs-on: ubuntu-latest # amd64: the kind download below is kind-linux-amd64
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Set up Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: go.mod
+    - name: Install kind
+      env:
+        # the sha256 is pinned here, not read from the release; the
+        # linux-amd64 binary, the runner's platform
+        KIND_VERSION: v0.33.0
+        KIND_SHA256: aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+      # appends a fixed directory under RUNNER_TEMP to PATH; nothing from the event
+      run: | # zizmor: ignore[github-env]
+        set -euo pipefail
+        dir="$RUNNER_TEMP/kind"
+        mkdir -p "$dir" && cd "$dir"
+        curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+        echo "$KIND_SHA256  kind" | sha256sum -c -
+        chmod +x kind
+        echo "$dir" >> "$GITHUB_PATH"
+    - name: Integration test
+      run: scripts/kind-it.sh
+
   tools:
     # CI tools pinned by version, which Dependabot does not update (zizmor,
     # actionlint, gitleaks, golangci-lint, govulncheck, go-licenses, cosign,
-    # syft, goreleaser): fails the weekly run when one has a release at least 14 days
+    # syft, goreleaser, kind): fails the weekly run when one has a release at least 14 days
     # old, which mails the owner. Not on PRs: a new upstream release must
     # not block an unrelated merge.
     name: tools

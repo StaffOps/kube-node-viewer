@@ -55,6 +55,7 @@ PINS = [
     ("cosign (snapshot)", ".github/workflows/test.yaml", r"cosign-release: v?(\S+)", "go:github.com/sigstore/cosign/v3"),
     ("syft", ".github/workflows/release.yaml", r"syft-version: v?(\S+)", "go:github.com/anchore/syft"),
     ("syft (snapshot)", ".github/workflows/test.yaml", r"syft-version: v?(\S+)", "go:github.com/anchore/syft"),
+    ("kind", ".github/workflows/test.yaml", r"KIND_VERSION: v?(\S+)", "go:sigs.k8s.io/kind"),
     ("goreleaser", ".github/workflows/release.yaml", r"goreleaser-action@>^\s+version: v?(\S+)", "go:github.com/goreleaser/goreleaser/v2"),
     ("goreleaser (snapshot)", ".github/workflows/test.yaml", r"goreleaser-action@>^\s+version: v?(\S+)", "go:github.com/goreleaser/goreleaser/v2"),
 ]
