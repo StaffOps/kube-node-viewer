@@ -76,7 +76,12 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     [bugfix](fix-aws-pricing-region/bugfix.md) ·
     [design](fix-aws-pricing-region/design.md) ·
     [tasks](fix-aws-pricing-region/tasks.md)
-16. [`decisions/`](decisions/) — decision records (index below).
+16. [`search-negation/`](search-negation/) — **active**. `/!text` keeps the
+    nodes the text does not match; text with `=` also matches labels as
+    `key=value` (`/key=` for "has the label").
+    [requirements](search-negation/requirements.md) ·
+    [design](search-negation/design.md) · [tasks](search-negation/tasks.md)
+17. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented) → **shipped** (all tasks done; historical, only dated
