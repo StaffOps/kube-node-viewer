@@ -25,7 +25,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// The standard logger's date and time are dropped too (fix-azure-retry R4).
+// The standard logger's date and time are dropped too.
 // fix-azure-retry R4
 func TestLastLine(t *testing.T) {
 	cases := map[string]string{

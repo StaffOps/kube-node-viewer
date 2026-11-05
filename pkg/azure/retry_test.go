@@ -64,34 +64,35 @@ func TestRetryDelay(t *testing.T) {
 	}
 	date := func(d time.Duration) string { return t0.Add(d).Format(http.TimeFormat) }
 	cases := []struct {
-		name  string
-		code  int
-		h     http.Header
-		want  time.Duration
-		noted bool
+		name string
+		code int
+		h    http.Header
+		want time.Duration
+		note string
 	}{
-		{"seconds above the floor", 429, h("Retry-After", "120"), 2 * time.Minute, true},
-		{"seconds below the floor", 429, h("Retry-After", "10"), time.Minute, true},
-		{"a date 5 minutes ahead", 429, h("Retry-After", date(5*time.Minute)), 5 * time.Minute, true},
-		{"capped", 429, h("Retry-After", "3600"), 10 * time.Minute, true},
-		{"absurd seconds", 429, h("Retry-After", "99999999999999999999"), 10 * time.Minute, true},
-		{"503 too", 503, h("Retry-After", "180"), 3 * time.Minute, true},
-		{"the larger of both headers", 429, h("Retry-After", "60", "x-ms-ratelimit-microsoft.consumption-retry-after", "240"), 4 * time.Minute, true},
-		{"words", 429, h("Retry-After", "soon"), time.Minute, true},
-		{"negative", 429, h("Retry-After", "-5"), time.Minute, true},
-		{"plus sign", 429, h("Retry-After", "+120"), time.Minute, true},
-		{"fraction", 429, h("Retry-After", "1.5"), time.Minute, true},
-		{"a past date", 429, h("Retry-After", date(-time.Minute)), time.Minute, true},
-		{"no header", 429, h(), time.Minute, true},
-		{"other status", 500, h("Retry-After", "300"), time.Minute, false},
+		{"seconds above the floor", 429, h("Retry-After", "120"), 2 * time.Minute, "retry header 2m0s"},
+		{"seconds below the floor", 429, h("Retry-After", "10"), time.Minute, "retry header 10s, waiting 1m0s"},
+		{"a date 5 minutes ahead", 429, h("Retry-After", date(5*time.Minute)), 5 * time.Minute, "retry header 5m0s"},
+		{"capped", 429, h("Retry-After", "3600"), 10 * time.Minute, "retry header 1h0m0s, waiting 10m0s"},
+		{"absurd seconds", 429, h("Retry-After", "99999999999999999999"), 10 * time.Minute, "retry header 10m0s"},
+		{"503 too", 503, h("Retry-After", "180"), 3 * time.Minute, "retry header 3m0s"},
+		{"the larger of both headers", 429, h("Retry-After", "60", "x-ms-ratelimit-microsoft.consumption-retry-after", "240"), 4 * time.Minute, "retry header 4m0s"},
+		{"zero", 429, h("Retry-After", "0"), time.Minute, "no retry header"},
+		{"words", 429, h("Retry-After", "soon"), time.Minute, "no retry header"},
+		{"negative", 429, h("Retry-After", "-5"), time.Minute, "no retry header"},
+		{"plus sign", 429, h("Retry-After", "+120"), time.Minute, "no retry header"},
+		{"fraction", 429, h("Retry-After", "1.5"), time.Minute, "no retry header"},
+		{"a past date", 429, h("Retry-After", date(-time.Minute)), time.Minute, "no retry header"},
+		{"no header", 429, h(), time.Minute, "no retry header"},
+		{"other status", 500, h("Retry-After", "300"), time.Minute, ""},
 	}
 	for _, c := range cases {
 		got, note := retryDelay(c.code, c.h, t0, floor)
 		if got != c.want {
 			t.Errorf("%s: %v, want %v", c.name, got, c.want)
 		}
-		if (note != "") != c.noted {
-			t.Errorf("%s: note %q", c.name, note)
+		if note != c.note {
+			t.Errorf("%s: note %q, want %q", c.name, note, c.note)
 		}
 	}
 	// a floor above the cap stays (TestNoRequestBeforeTheRetryDelay)
@@ -214,6 +215,38 @@ func TestRegionsRetryIndependently(t *testing.T) {
 	}
 }
 
+// Two regions queued before the first pass: the failing one gets a retry
+// time, the other does not, and a new size of the other is asked at once.
+// fix-azure-retry R2
+func TestOneFailureInAPassDelaysOnlyItsRegion(t *testing.T) {
+	api := &fakeAPI{failIn: "westeurope", header: http.Header{"Retry-After": {"120"}}}
+	p, _ := newTestProvider(t, api)
+	c := &clock{t: t0}
+	p.now = c.now
+	west := aksNode("Standard_D2s_v5", map[string]string{v1.LabelTopologyRegion: "westeurope"})
+	east := aksNode("Standard_D2s_v5", nil)
+	// queue both before the goroutine's first pass
+	p.mu.Lock()
+	p.wanted[key{"westeurope", "Standard_D2s_v5"}] = true
+	p.wanted[key{"eastus2", "Standard_D2s_v5"}] = true
+	p.mu.Unlock()
+	p.NodePrice(west) // starts the goroutine and wakes it once
+	waitFor(t, "the pass did not run", func() bool {
+		_, ok := p.NodePrice(east)
+		return ok && !p.retryTime("westeurope").IsZero()
+	})
+	if !p.retryTime("eastus2").IsZero() {
+		t.Error("eastus2 got a retry time from westeurope's failure in the same pass")
+	}
+	before := api.requests("eastus2")
+	newEast := aksNode("Standard_D2pds_v6", nil)
+	p.NodePrice(newEast)
+	waitFor(t, "a new eastus2 size was not asked at once", func() bool { _, ok := p.NodePrice(newEast); return ok })
+	if api.requests("eastus2") != before+1 {
+		t.Errorf("eastus2 requests %d, want %d", api.requests("eastus2"), before+1)
+	}
+}
+
 // fix-azure-retry R3
 func TestSuccessAfterFailureLogsResolved(t *testing.T) {
 	var buf bytes.Buffer
@@ -228,6 +261,10 @@ func TestSuccessAfterFailureLogsResolved(t *testing.T) {
 	p.NodePrice(n)
 	settled(t, p)
 	<-updated
+	// a later success of the same region resolves nothing more
+	again := aksNode("Standard_D2pds_v6", nil)
+	p.NodePrice(again)
+	waitFor(t, "the second eastus2 size was not priced", func() bool { _, ok := p.NodePrice(again); return ok })
 	// a region that never failed: no resolution
 	west := aksNode("Standard_D2s_v5", map[string]string{"topology.kubernetes.io/region": "westeurope"})
 	p.NodePrice(west)

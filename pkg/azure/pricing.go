@@ -169,7 +169,13 @@ func (p *Provider) fetchWanted() time.Time {
 	}
 	p.mu.Unlock()
 	got := false
-	for region, sizes := range byRegion {
+	regions := make([]string, 0, len(byRegion))
+	for region := range byRegion {
+		regions = append(regions, region)
+	}
+	sort.Strings(regions) // a fixed order, so a pass is the same every time
+	for _, region := range regions {
+		sizes := byRegion[region]
 		sort.Strings(sizes)
 		found, err := p.fetch(region, sizes)
 		p.mu.Lock()

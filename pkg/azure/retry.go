@@ -43,8 +43,8 @@ type statusError struct {
 func (e *statusError) Error() string { return "retail prices API: " + e.status }
 
 // retryDelay is how long to wait before asking a region again after a failed
-// answer: the larger of floor and the answer's retry header (seconds or an
-// HTTP date, capped at maxRetryAfter) on a 429 or 503, else floor. note
+// answer: the larger of floor and the answer's retry header (positive
+// seconds or a future HTTP date, capped at maxRetryAfter) on a 429 or 503, else floor. note
 // describes the header for the log, empty when the status has none to read
 // (fix-azure-retry R1).
 func retryDelay(code int, h http.Header, now time.Time, floor time.Duration) (d time.Duration, note string) {
@@ -81,12 +81,16 @@ func retryDelay(code int, h http.Header, now time.Time, floor time.Duration) (d 
 	if !found {
 		return floor, "no retry header"
 	}
+	d = ra
+	if d > maxRetryAfter {
+		d = maxRetryAfter
+	}
+	if d < floor {
+		d = floor
+	}
 	note = fmt.Sprintf("retry header %s", ra.Round(time.Second))
-	if ra > maxRetryAfter {
-		ra = maxRetryAfter
+	if d != ra {
+		note += fmt.Sprintf(", waiting %s", d)
 	}
-	if ra < floor {
-		ra = floor
-	}
-	return ra, note
+	return d, note
 }

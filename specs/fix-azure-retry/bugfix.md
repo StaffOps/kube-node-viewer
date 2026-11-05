@@ -1,6 +1,6 @@
 # Bugfix: azure-retry
 
-> Status: active · Reported: 2026-11-05 (owner's AKS run, [fix-azure-price-product](../fix-azure-price-product/tasks.md) T4; [aks-pricing](../aks-pricing/design.md) D2 retroactive review) · Reviewed: 2026-11-05 (spec-refuter; 2 BLOCKING, 3 HIGH, 4 MEDIUM, 5 LOW, applied)
+> Status: active · Reported: 2026-11-05 (owner's AKS run, [fix-azure-price-product](../fix-azure-price-product/tasks.md) T4; [aks-pricing](../aks-pricing/design.md) D2 retroactive review) · Reviewed: 2026-11-05 (spec-refuter; 2 BLOCKING, 3 HIGH, 4 MEDIUM, 5 LOW, applied; code 2026-11-05, 2 MEDIUM, 6 LOW, applied)
 
 Decisions: [design](design.md).
 
@@ -38,10 +38,11 @@ Reproduction (fakes; no real API needed): an `httptest` server answering
 system SHALL not ask that region again before `max(retry delay,
 min(retry header, 10 minutes))`, where the retry header is the larger
 usable value of `Retry-After` and
-`x-ms-ratelimit-microsoft.consumption-retry-after` (a non-negative
-integer of seconds, or an HTTP date in the future), and SHALL put the
-parsed value, or `no retry header`, at the end of the failure log line.
-An unusable value (`soon`, `-5`, `+120`, `1.5`, a past date) counts as
+`x-ms-ratelimit-microsoft.consumption-retry-after` (a positive integer
+of seconds, or an HTTP date in the future), and SHALL put the parsed
+value, and the wait when it differs, or `no retry header`, at the end of
+the failure log line (`(retry header 1h0m0s, waiting 10m0s)`). An
+unusable value (`0`, `soon`, `-5`, `+120`, `1.5`, a past date) counts as
 none. Any other failure, or none usable, keeps the retry delay (1
 minute).
 
@@ -53,8 +54,8 @@ time), `TestRetryAfterDelaysTheRegion` and `TestRetryAfterOnALaterPage`.
 - [x] `Retry-After: 10` → 1 minute; a date 5 minutes ahead → 5 minutes;
       `3600` → 10 minutes; a 1-hour retry delay stays 1 hour
 - [x] both headers → the larger; 503 is read like 429; 500 is not
-- [x] `soon`, `-5`, `+120`, `1.5`, a past date, none → 1 minute and
-      `(no retry header)` in the log line
+- [x] `0`, `soon`, `-5`, `+120`, `1.5`, a past date, none → 1 minute and
+      `(no retry header)` in the log line; the note text is checked per case
 - [x] a 429 on page 2 of an answer is read the same way
 
 **R2** WHEN a request for a region fails THEN only that region SHALL wait
@@ -63,8 +64,12 @@ the same pass, without waiting for it, and each region SHALL keep its own
 retry time. A wake while only waiting regions have wanted sizes SHALL
 send no request.
 
-Tests: `// fix-azure-retry R2` on `TestRegionsRetryIndependently`.
+Tests: `// fix-azure-retry R2` on `TestOneFailureInAPassDelaysOnlyItsRegion`
+and `TestRegionsRetryIndependently`.
 
+- [x] westeurope and eastus2 queued before one pass: westeurope answers
+      429, eastus2 is priced in that pass, gets no retry time, and a new
+      eastus2 size is asked at once
 - [x] westeurope answers 429, a size of eastus2 is wanted afterwards:
       eastus2 is priced without waiting (one westeurope request may be in
       flight in the same pass)
@@ -89,8 +94,8 @@ Tests: `// fix-azure-retry R3` on `TestResolvedLineClearsTheMatchingIssue`,
       error stays
 - [x] failure eastus2, resolution westeurope → stays; resolution `eastus`
       → stays
-- [x] two failures then one success → one resolution line; a region that
-      never failed logs none
+- [x] two failures then one success → one resolution line, and a later
+      success of that region logs none; a region that never failed logs none
 - [x] through `captureLogs` and `log.Printf` (with its date and time)
 
 **R4** WHEN a log line starts with the standard logger's date and time
@@ -141,6 +146,9 @@ Tests: `// fix-azure-retry R4` on `TestLastLine`.
 
 ## Not done
 
+- The header keeps one line: if regions A and B both fail and B recovers
+  while B's failure is the kept line, the header goes blank though A still
+  fails, until A's next attempt logs again (at A's retry time).
 - After `c` (context switch) the old session's failure line is not
   resolved by the new session; it expires with `issueWindow` (2 minutes).
 - A retry header for the AWS pricing provider (different SDK, own

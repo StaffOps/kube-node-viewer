@@ -46,10 +46,13 @@ than 10 minutes. **Reversal action**: raise or drop `maxRetryAfter`.
 `retryAt map[region]time.Time` and `failed map[region]bool` replace
 `failedAt`. `fetchWanted` asks only regions whose time has passed and
 returns the earliest waiting one; `run` sleeps until a wake or that
-time. The failure path no longer wakes itself.
+time. The failure path no longer wakes itself. A pass asks the due
+regions in sorted order, so it is the same every time.
 
 **Justification**: one region's failure is not another's. **Trade-offs**:
-a small map per provider (one entry per failed region).
+a small map per provider (one entry per failed region); that the
+failure path does not wake itself is checked only indirectly (a wake
+during a retry time sends no request), not by counting passes.
 **When this would be wrong**: if the API limits per client rather than per region,
 asking other regions during a 429 adds refused requests; they are logged
 and wait their own time. **Reversal action**: go back to one failure
@@ -71,7 +74,9 @@ the text a resolution names.
 provider and the UI. **Alternatives**: shorten `issueWindow` (hides every
 other error sooner); an issue API keyed by source (more code for one
 producer); not logging 429 (hides real outages). **Trade-offs**: a
-string convention, checked by tests on both sides.
+string convention, checked by tests on both sides; the header keeps one
+line, so another region's resolution can blank it while a different
+region still fails, until that region's next attempt.
 **When this would be wrong**: another producer logs lines starting with `resolved: ` that
 match a kept error it did not cause. **Reversal action**: drop the prefix
 handling in `errlog.Write` and the resolution log; the date stripping in
