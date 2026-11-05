@@ -49,9 +49,10 @@
 
 ## Deferred
 
+> **Corrected 2026-11-05.** The R1 and R5 checks were done (dated notes
+> under R1 and R5 in requirements.md) and their rows removed.
+
 | Task | Promotion trigger |
 |------|-------------------|
-| R5: `release-snapshot` passes at once ("no release files changed") on a PR that changes neither file | the next such PR after the merge |
-| After the first release (0.14.0): its `check` job green, and `gh attestation verify` (README command) on a downloaded archive and on an SBOM; dated note under R1, tick its box | the first release after the merge (`TODO.md` Follow-ups) |
 | `release-snapshot` as a required check in the `main` ruleset | the owner changes the ruleset |
 | SLSA level 3 builder | a consumer asks for level 3 |

@@ -29,6 +29,10 @@
 > enter), each failing at least one test. `esc: back` moved to the front of
 > the key line (R2 correction). `.static/demo.gif` is not regenerated
 > (no ffmpeg); a TODO.md item tracks it. T5 (cluster run) is open.
+>
+> **Corrected 2026-11-05.** `.static/demo.gif` was regenerated with
+> `scripts/screenshots.sh`; its captions fold with `space` and show `enter`
+> focusing a group. The TODO.md item is removed.
 
 > **Verified 2026-11-04.** Ran the binary (`--group-by karpenter.sh/nodepool
 > --node-sort name=asc`) in a real terminal on a local kind cluster: three
