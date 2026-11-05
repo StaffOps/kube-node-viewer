@@ -11,6 +11,12 @@ All notable changes to this project are documented here. Format:
 - The compact header (`ctrl+e`, or a window 14 to 27 rows high) no longer
   shows the API server URL: its first line is the context, the region and
   the counts with the cost. The full panel keeps the `Cluster:` row.
+- An EKS context named by its ARN
+  (`arn:aws:eks:<region>:<account>:cluster/<name>`, the default of
+  `aws eks update-kubeconfig`) shows as its cluster name in the full panel,
+  the compact box and the one-line header, so a screenshot of the main
+  screen no longer shows the account id in the header. The contexts popup, the export, `--context` and the saved
+  view per cluster keep the full name.
 
 ### Fixed
 

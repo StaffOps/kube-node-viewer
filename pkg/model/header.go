@@ -16,6 +16,7 @@ package model
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -155,7 +156,8 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	if pending := stats.Unscheduled; pending > 0 {
 		counts += u.printer.Sprintf(" (%d pending)", pending)
 	}
-	context := u.info.Context
+	// an EKS ARN context shows as its cluster name (short-arn-context R1)
+	context := shortContext(u.info.Context)
 	if context == "" {
 		context = "-"
 	}
@@ -309,4 +311,19 @@ func (u *UIModel) viewSummary() string {
 		viewOption("Group:") + " " + viewValue(groupText) + sep +
 		viewOption("Sort:") + " " + viewValue(fieldName(sortField)+" "+arrow) + sep +
 		viewValue(strings.Join(u.view.Resources, "+"))
+}
+
+// eksClusterARN matches an EKS cluster ARN as aws eks update-kubeconfig names
+// its contexts: partition aws or aws-<letters>…, a region of lower-case
+// letter groups ending in -<digits>, a 12-digit account and an EKS cluster
+// name (short-arn-context D2).
+var eksClusterARN = regexp.MustCompile(`^arn:aws(-[a-z]+)*:eks:[a-z]+(-[a-z]+)+-[0-9]+:[0-9]{12}:cluster/([0-9A-Za-z][0-9A-Za-z_-]{0,99})$`)
+
+// shortContext is the context name the headers show: the cluster name of an
+// EKS cluster ARN, any other name as it is (short-arn-context R1, R2).
+func shortContext(name string) string {
+	if m := eksClusterARN.FindStringSubmatch(name); m != nil {
+		return m[len(m)-1]
+	}
+	return name
 }

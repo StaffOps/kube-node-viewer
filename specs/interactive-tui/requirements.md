@@ -269,6 +269,11 @@ back to one header line with the view only.
 > Also, the one-line header below 14 rows shows the context, the counts and
 > the view (`pkg/model/header.go:164-171`), not "the view only" as R16 says.
 
+> **Corrected 2026-11-05 (short-arn-context).** The context name is
+> superseded for ARN contexts by
+> [short-arn-context](../short-arn-context/requirements.md): an EKS context
+> named by its ARN shows as its cluster name in the three headers.
+
 **R17** WHEN the user presses `↑`/`↓` (or `k`/`j`) in the main view THEN the
 system SHALL move a cursor over group headings and nodes, marked in the left
 margin and followed across pages; WHEN they press `enter` on a group heading
