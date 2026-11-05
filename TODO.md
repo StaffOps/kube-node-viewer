@@ -53,9 +53,6 @@ memory. Listed by impact.
       `scripts/checks/content.sh`) while their internal IPs are in
       192.0.2.0/24. _Why:_ cosmetic in the README images; rename the nodes
       only together with that allowlist.
-- [ ] `pkg/model/node.go` imports `aws-sdk-go-v2/service/ec2/types`, which
-      crosses the "AWS SDK only in `pkg/aws`" rule (upstream code, there at
-      the import). _Why:_ the model should not depend on a cloud SDK.
 - [ ] Azure prices: one failure time is shared by every region, so a
       failure in one region delays new sizes in all of them by a minute
       ([aks-pricing](specs/aks-pricing/design.md) D2). _Why:_ clusters

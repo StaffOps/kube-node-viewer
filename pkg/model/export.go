@@ -189,7 +189,7 @@ func (u *UIModel) exportNode(n *Node, labels []string, now time.Time) exportNode
 	maxPods, _ := allocatable.Pods().AsInt64()
 	e := exportNode{
 		Name:         n.Name(),
-		InstanceType: string(n.InstanceType()),
+		InstanceType: n.InstanceType(),
 		Capacity:     string(n.CapacityType()),
 		NodeGroup:    n.NodeGroup(),
 		Zone:         n.Zone(),

@@ -90,7 +90,7 @@ func (p *Provider) OnUpdate(f func()) {
 // NodePrice is the node's hourly list price; on a miss the size is queued and
 // the price arrives through OnUpdate.
 func (p *Provider) NodePrice(n *model.Node) (float64, bool) {
-	region, size := n.Region(), string(n.InstanceType())
+	region, size := n.Region(), n.InstanceType()
 	if region == "" || size == "" {
 		return 0, false
 	}

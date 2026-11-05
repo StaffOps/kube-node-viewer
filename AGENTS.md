@@ -179,7 +179,8 @@ Why: [ADR-002](specs/decisions/ADR-002-merge-green-prs-from-writers.md)
   (`*_test.go` next to the code). Errors wrapped with `%w`.
 - UI: rendering stays in `pkg/model`; Kubernetes I/O stays in `pkg/client`;
   pricing behind `pricing.Provider` — AWS SDK only in `pkg/aws` and its wiring in
-  `cmd/*/` (`session.go`); Azure HTTP only in `pkg/azure`.
+  `cmd/*/session.go` (`hack/` tools such as `hack/catalog` are exempt;
+  `pkg/model/sdkboundary_test.go` checks it); Azure HTTP only in `pkg/azure`.
 - Lint: `make lint` clean (CI runs the same pinned version).
 - Commits: Conventional Commits (`feat:`, `fix:`, `docs:`, `build:`,
   `chore:`, optional scope e.g. `feat(model):`). No AI co-author or
@@ -213,6 +214,7 @@ the git hooks; the session-context hook does it on the first agent session.
 | `git commit` | real-environment data in added lines: cluster URLs and IDs (EKS endpoints and OIDC issuers; AKS hcp/privatelink hosts, OIDC issuers, `MC_` resource groups, `aks-…-vmss` nodes, subscription ids; GKE contexts; any `server:` or `:6443` API URL), private IPs and node names, EC2 instance ids, AWS account ids (ARN, ECR, `accountId`), internal domains (`.corp`, `.lan`, `.internal`, `a.b.local`…), e-mails, credentials, the private deny list; the deny list also against author and committer | `pre-commit` | `commit-guard` | `verify.sh` (every file), `secrets` job (every line each PR commit adds) — `scripts/checks/content.sh` | example values: the ones listed in `content.sh`, new IPs from 192.0.2.0/24 or 203.0.113.0/24, `111122223333`, `example.com`, `example-…`, the zero GUID; a reviewed exception says `content-check: allow` |
 | `git commit` | secrets (gitleaks: cloud keys, tokens, private keys) | `pre-commit` (when gitleaks is installed) | `commit-guard` | `secrets` job (every commit of the PR) | remove it **and rotate it**; false positive: `gitleaks:allow` or `.gitleaks.toml` |
 | `git commit` | Go files not `gofmt -s` clean | `pre-commit` | `commit-guard` | `verify.sh` | `gofmt -s -w` |
+| PR, `verify.sh` | the AWS SDK used outside `pkg/aws` and `cmd/*/session.go` (imported directly, or through `pkg/aws`) | — | — | `verify.sh` (`go test`: `pkg/model/sdkboundary_test.go`) | move the SDK code into `pkg/aws` |
 | `git commit` | new `.go`/`.sh`/`.py` without the Apache header; in CI every `.go`/`.sh`/`.py` file and git hook, the D5 modification note right after the license block on every upstream file changed since the import (renames followed; exemptions listed in the script), `LICENSE` and the `NOTICE` first line | `pre-commit` (new files) | `commit-guard` (new files) | `verify.sh` (`scripts/checks/headers.py`) | `make boilerplate` (Go) or copy the header; `Modified by the kube-node-viewer authors, 2026.` as a comment right after the license block (in Go, a blank line after it) |
 | `git commit` | Conventional Commit subject; no AI co-author / "generated with" | `commit-msg` | `commit-reminder` (checklist) | — | reword |
 | `git commit` | real-environment data in the message (same rules, e-mails excepted) | `commit-msg` | — | `secrets` job (`content.sh --commits`) | reword |
