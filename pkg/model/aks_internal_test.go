@@ -26,8 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// aksUI is an AKS cluster as the session builds it: no price source, so every
-// node's price is unknown, and no region from the server URL.
+// aksUI is an AKS cluster with no node priced yet (as before the Azure
+// prices arrive), and no region from the server URL.
 func aksUI(t *testing.T) *UIModel {
 	u := newTestUI(t)
 	u.SetClusterInfo(ClusterInfo{Context: "aks", Server: "https://example-aks.hcp.eastus2.azmk8s.io:443"})
