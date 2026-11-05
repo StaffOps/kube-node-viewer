@@ -18,6 +18,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -31,50 +32,89 @@ import (
 	"github.com/staffops/kube-node-viewer/pkg/model"
 )
 
-// fix-config-filter-values R3: every CapacityType constant and every Status…
-// constant declared in node.go is in its closed list, so a value added there
-// without the list fails here.
-func TestClosedValueListsHoldEveryConstant(t *testing.T) {
-	file, err := parser.ParseFile(token.NewFileSet(), "node.go", nil, 0)
+// packageConsts parses the non-test files of package model and returns its
+// string constants: those of type CapacityType (declared with the type, as
+// CapacityType("x"), or inheriting it in a const block) and the others.
+func packageConsts(t *testing.T) (capacities map[string]string, others map[string]string) {
+	t.Helper()
+	names, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var capacities, statuses []string
-	for _, decl := range file.Decls {
-		gen, ok := decl.(*ast.GenDecl)
-		if !ok || gen.Tok != token.CONST {
+	capacities, others = map[string]string{}, map[string]string{}
+	fset := token.NewFileSet()
+	for _, name := range names {
+		if strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		for _, spec := range gen.Specs {
-			vs := spec.(*ast.ValueSpec)
-			for i, name := range vs.Names {
-				lit, ok := vs.Values[i].(*ast.BasicLit)
-				if !ok || lit.Kind != token.STRING {
-					continue
+		file, err := parser.ParseFile(fset, name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, decl := range file.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.CONST {
+				continue
+			}
+			capacityBlock := false // implicit repetition keeps the last type
+			for _, spec := range gen.Specs {
+				vs := spec.(*ast.ValueSpec)
+				isCapacity := capacityBlock && vs.Type == nil && len(vs.Values) == 0
+				if id, ok := vs.Type.(*ast.Ident); ok {
+					isCapacity = id.Name == "CapacityType"
 				}
-				value, _ := strconv.Unquote(lit.Value)
-				typ, _ := vs.Type.(*ast.Ident)
-				switch {
-				case typ != nil && typ.Name == "CapacityType":
-					capacities = append(capacities, value)
-				case strings.HasPrefix(name.Name, "Status"):
-					statuses = append(statuses, value)
+				for i, name := range vs.Names {
+					if i >= len(vs.Values) {
+						continue // iota repetition: no literal to read
+					}
+					expr := vs.Values[i]
+					if call, ok := expr.(*ast.CallExpr); ok && len(call.Args) == 1 {
+						if id, ok := call.Fun.(*ast.Ident); ok && id.Name == "CapacityType" {
+							isCapacity, expr = true, call.Args[0]
+						}
+					}
+					lit, ok := expr.(*ast.BasicLit)
+					if !ok || lit.Kind != token.STRING {
+						continue
+					}
+					value, _ := strconv.Unquote(lit.Value)
+					if isCapacity {
+						capacities[name.Name] = value
+					} else {
+						others[name.Name] = value
+					}
+				}
+				if vs.Type != nil || len(vs.Values) > 0 {
+					capacityBlock = isCapacity
 				}
 			}
 		}
 	}
-	if len(capacities) == 0 || len(statuses) == 0 {
-		t.Fatalf("parsed no constants: capacity %v, status %v", capacities, statuses)
-	}
-	for _, c := range capacities {
-		if !slices.Contains(model.CapacityValues, c) {
-			t.Errorf("CapacityType %q is not in CapacityValues %v", c, model.CapacityValues)
+	return capacities, others
+}
+
+// fix-config-filter-values R3: every CapacityType constant and every Status…
+// string constant of package model is in its closed list, so a value added
+// without the list fails here.
+func TestClosedValueListsHoldEveryConstant(t *testing.T) {
+	capacities, others := packageConsts(t)
+	statuses := 0
+	for name, value := range capacities {
+		if !slices.Contains(model.CapacityValues, value) {
+			t.Errorf("CapacityType %s = %q is not in CapacityValues %v", name, value, model.CapacityValues)
 		}
 	}
-	for _, s := range statuses {
-		if !slices.Contains(model.StatusValues, s) {
-			t.Errorf("status %q is not in StatusValues %v", s, model.StatusValues)
+	for name, value := range others {
+		if !strings.HasPrefix(name, "Status") {
+			continue
 		}
+		statuses++
+		if !slices.Contains(model.StatusValues, value) {
+			t.Errorf("%s = %q is not in StatusValues %v", name, value, model.StatusValues)
+		}
+	}
+	if len(capacities) == 0 || statuses == 0 {
+		t.Fatalf("parsed no constants: %d capacity, %d status", len(capacities), statuses)
 	}
 }
 

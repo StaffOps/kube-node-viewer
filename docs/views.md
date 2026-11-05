@@ -279,10 +279,12 @@ map is an error with its line.
 A `capacity` or `status` filter value that is not one of its values is
 an error that names the value to write: `spot` is not a capacity value
 (write `Spot`), `on-demand` and `CAPACITY_BLOCK` neither (write
-`OnDemand`, `Reserved`), and a value copied from the column, `Spot/Auto`
-or `Ready/Cordoned`, says to write one value per item; filter on
-`label:eks.amazonaws.com/compute-type` for Auto Mode nodes. Values of the
-other fields come from the cluster and are not checked.
+`OnDemand`, `Reserved`). A value copied from the STATUS column,
+`Ready/Cordoned`, says to write one value per item; `Spot/Auto`, from the
+CAPACITY column, says to write `Spot` and to filter on
+`label:eks.amazonaws.com/compute-type` for Auto Mode nodes. Any other
+value lists the accepted ones. Values of the other fields come from the
+cluster and are not checked.
 `- label: zone`, with a space after the colon, is a YAML map: write
 `label:zone`. A price or idle column in `sort` (`price/m`) says to write
 `sort: price`, and `sort: age` says `sort: creation`:

@@ -941,6 +941,25 @@ func TestReadmeConfigViewsExamplesDecode(t *testing.T) {
 	}
 }
 
+// fix-config-filter-values R1: the filters row of docs/views.md lists every
+// capacity and status value.
+func TestViewsDocListsTheClosedValues(t *testing.T) {
+	var row string
+	for _, line := range strings.Split(viewsDoc(t), "\n") {
+		if strings.HasPrefix(line, "| `filters` |") {
+			row = line
+		}
+	}
+	if row == "" {
+		t.Fatal("docs/views.md has no filters row")
+	}
+	for _, v := range append(slices.Clone(model.CapacityValues), model.StatusValues...) {
+		if !strings.Contains(row, "`"+v+"`") {
+			t.Errorf("the filters row does not list %s", v)
+		}
+	}
+}
+
 // config-views R8: the README documents keys, names and start settings.
 func TestReadmeConfigViewsDocumentsTheContract(t *testing.T) {
 	// words joined by single spaces, so re-wrapping the doc changes nothing
@@ -952,7 +971,7 @@ func TestReadmeConfigViewsDocumentsTheContract(t *testing.T) {
 		// fix-config-case R1, R2
 		"another case", "label:INSTANCE", "kube-node-viewer/node-age", "written twice",
 		// fix-config-filter-values R1
-		"is not a capacity value", "one value per item", "Reserved", "Launching",
+		"is not a capacity value", "one value per item", "eks.amazonaws.com/compute-type",
 	} {
 		if !strings.Contains(section, s) {
 			t.Errorf("docs/views.md does not mention %q", s)

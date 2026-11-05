@@ -9,10 +9,11 @@ All notable changes to this project are documented here. Format:
 ### Fixed
 
 - A `config.yaml` filter on `capacity` or `status` with a value no node can
-  have (`spot`, `on-demand`, `Spot/Auto`, `ready`) is an error that names
-  the value to write (`Spot`, `OnDemand`, one value per item, `Ready`); it
-  used to load and keep no node, or exclude none. Such a file now stops
-  at start with the message.
+  have is an error that names the value to write: `spot` → `Spot`,
+  `on-demand` → `OnDemand`, `ready` → `Ready`, `Ready/Cordoned` → one value
+  per item, `Spot/Auto` → `Spot` and the Auto Mode label; any other value
+  lists the accepted ones. Such a filter used to load and keep no node, or
+  exclude none; a file with one now stops at start with the message.
 
 ## [0.14.0] - 2026-11-05
 

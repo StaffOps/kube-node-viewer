@@ -1,6 +1,6 @@
 # Bugfix: config-filter-values
 
-> Status: active · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 4 LOW, applied)
+> Status: active · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 4 LOW, applied), 2026-11-05 (spec-refuter, code; 2 MEDIUM, 5 LOW, applied)
 
 Found by the `spec-refuter` review of
 [`fix-config-case`](../fix-config-case/bugfix.md) (2026-11-04, LOW-4), listed
@@ -56,16 +56,26 @@ in fix-config-case are unquoted because they cannot hold spaces.
   label:eks.amazonaws.com/compute-type`.
 - [x] `status`, `values: [Ready/Cordoned]` → `write one value per item:
   Ready, Cordoned`; `ready` → `write Ready`.
-- [x] `capacity`, `values: [Preemptible]` → `use one of OnDemand, Spot,
+- [x] `capacity`, `values: [Burstable]` → `use one of OnDemand, Spot,
   Reserved, Fargate, Unknown`; `status`, `[Cordon]` → `use one of Ready,
   NotReady, Cordoned, Deleting, Launching`.
 - [x] The check runs per item, after that item's whitespace and repeat
   checks: `values: [Spot, " ready"]` reports the whitespace of item 1;
   `values: [spot, " x"]` reports item 0's hint.
 
+> **Corrected 2026-11-05 (code review).** More hints: GKE `preemptible`
+> and AKS `Low`/`LowPriority` → `write Spot`; a value whose `want` is
+> already an earlier item of the same list → `<want> is already listed`;
+> repeated parts of a `/` value count once (`Ready/Ready` → `write
+> Ready`); a `/` value with a part that is no value (`Spot/Auto/x`) gets
+> `use one of …`; `Auto` with two or more values → `write one value per
+> item: Spot, OnDemand; Auto is not a capacity: …`. `Preemptible` is no
+> longer the unknown example; `Burstable` is.
+
 Tests: `// fix-config-filter-values R1` on
 `TestConfigFilterValuesOfClosedFields` (full messages for every case
-above).
+above) and `TestViewsDocListsTheClosedValues` (the docs list every
+value).
 
 **R2** WHEN a filter is on any other field (`nodegroup`, `zone`, `region`,
 `instance-type`, a node label) THEN the system SHALL keep its values as
@@ -82,9 +92,11 @@ Tests: `// fix-config-filter-values R2` on
 that value SHALL be in `CapacityValues` or `StatusValues`, the one list
 that both the config check and the Filters panel (`ValueCounts`) use.
 
-- [x] Every constant of type `CapacityType`, and every `Status…` constant
-  of the status block, in `pkg/model/node.go` (found by parsing the file
-  with `go/ast`) is in its list.
+- [x] Every constant of type `CapacityType`, and every `Status…` string
+  constant, in the non-test files of package `model` (found by parsing
+  them with `go/ast`: a declared type, `CapacityType("x")`, or the type
+  carried down a const block; `iota` blocks are skipped without failing)
+  is in its list.
 - [x] A table of label sets covering every branch of `CapacityType()`
   (Fargate; Karpenter `on-demand`, `spot`, `reserved`; EKS `ON_DEMAND`,
   `SPOT`, `CAPACITY_BLOCK`; AKS spot and regular; none) and every flag of
