@@ -1,3 +1,4 @@
+# Modified by the kube-node-viewer authors, 2026.
 # verify, lint, build, secrets, guardrails, deps, workflows,
 # release-snapshot and kind in parallel on every PR and push to main; on a
 # PR from a trusted author, approves and merges it once all of them but

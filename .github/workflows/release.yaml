@@ -1,3 +1,4 @@
+# Modified by the kube-node-viewer authors, 2026.
 # Builds and publishes a release: binaries on GitHub and the Homebrew cask.
 #
 # Merges only add to CHANGELOG [Unreleased]; releases go out in batches:
