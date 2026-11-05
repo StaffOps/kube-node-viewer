@@ -29,6 +29,9 @@ All notable changes to this project are documented here. Format:
 
 ### Fixed
 
+- The JSON export writes the search as `view.search`, exactly as typed
+  (`!` included); it was dropped. The state file still never saves it.
+
 - A `config.yaml` error from the YAML parser, such as a key written twice,
   is one line with its line number, without the library's prefix.
 - `config.yaml` views no longer load names that can never match: a label

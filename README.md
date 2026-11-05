@@ -480,8 +480,8 @@ directory is not writable; the footer says where. The CSV has one row per
 node: name, group path, instance type, capacity, node group, zone, region,
 IP, status, age, pods, requested / allocatable / percent per resource, price
 per hour, price kind (`actual`, `equivalent`, `unknown`, `disabled`) and the
-label columns you picked. The JSON adds the view (without the search
-text for now), the focused group when there is one (`"focus": [{"field": "karpenter.sh/nodepool",
+label columns you picked. The JSON adds the view (`view.search` is the search text as typed,
+`!` included; left out when there is no search), the focused group when there is one (`"focus": [{"field": "karpenter.sh/nodepool",
 "value": "gpu"}]`; only those nodes are exported), the totals of the
 exported nodes and of the cluster, the context and the time.
 

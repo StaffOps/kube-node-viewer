@@ -81,12 +81,19 @@ type exportFocus struct {
 	Value string `json:"value"`
 }
 
+// exportView is the view as the JSON export writes it: the saved view plus
+// the search text, which the state file never saves (fix-export-search).
+type exportView struct {
+	ViewState
+	Search string `json:"search,omitempty"`
+}
+
 // exportDoc is the JSON export; its nodes are also the CSV rows.
 type exportDoc struct {
 	Context   string       `json:"context"`
 	Server    string       `json:"server"`
 	Generated time.Time    `json:"generated"`
-	View      ViewState    `json:"view"`
+	View      exportView   `json:"view"`
 	Shown     exportTotals `json:"shown"`
 	Cluster   exportTotals `json:"cluster"`
 	// Focus is the group focused on Overview (group-focus R8)
@@ -135,9 +142,9 @@ func (u *UIModel) exportDoc(now time.Time) exportDoc {
 	}
 	doc := exportDoc{
 		Context: u.info.Context, Server: u.info.Server, Generated: now,
-		View: u.view.forSaving(), Labels: labels, Focus: focus,
+		View:   exportView{ViewState: u.view.forSaving(), Search: u.view.Search},
+		Labels: labels, Focus: focus,
 	}
-	doc.View.Search = u.view.Search
 	for _, r := range u.cluster.resources {
 		doc.Resources = append(doc.Resources, string(r))
 	}

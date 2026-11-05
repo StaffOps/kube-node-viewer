@@ -97,6 +97,9 @@ system SHALL say how to negate and how to search a label pair.
 > **Corrected 2026-11-04.** The JSON export writes no `view.search` at all
 > (`ViewState.Search` is `json:"-"`), found in the T3 run; an existing bug,
 > listed in `TODO.md`, so the export paragraph is left as it is.
+>
+> **Corrected 2026-11-05.** Fixed by [`fix-export-search`](../fix-export-search/bugfix.md):
+> the export writes `view.search`, `!` included.
 
 > **Corrected 2026-11-04 (diff review).** R2: with `=` anywhere in the
 > text, every `|` alternative is matched against the `key=value` text too,
