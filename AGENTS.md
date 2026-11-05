@@ -37,10 +37,10 @@ files you change carry the line
 | `pkg/recommend/` | Recommendations rules (idle, consolidation, rightsizing, Graviton, Spot…); pure functions over a snapshot |
 | `pkg/text/` | color-aware tabwriter |
 | `hack/` | helper programs (boilerplate, licenses, `catalog` for the AWS instance catalog); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |
-| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh` (spec format; active and shipped specs reviewed by spec-refuter), `spec-tasks-check.py` (code under a spec: no draft, no open task), `spec-trace.py` (every requirement named by a test), `drift-check.py` (flags, keys, fields changed with no spec or docs), `release-prepare.py` (next version from CHANGELOG), `release-check.sh` (a published release: checksums, signature, SBOMs, binary version, cask), `checks/` (`staged.sh` pre-commit checks, `content.sh` real-environment data, `dependabot-patch.sh` automerge judge, `test-checks.sh` hook tests, `tool-versions.py` CI tools Dependabot does not bump), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
+| `scripts/` | `build.sh`, `verify.sh`, `spec-lint.sh` (spec format; active and shipped specs reviewed by spec-refuter), `spec-tasks-check.py` (code under a spec: no draft, no open task), `spec-trace.py` (every requirement named by a test), `drift-check.py` (flags, keys, fields changed with no spec or docs), `release-prepare.py` (next version from CHANGELOG), `release-check.sh` (a published release: checksums, signature, SBOMs, provenance, binary version, cask), `checks/` (`staged.sh` pre-commit checks, `content.sh` real-environment data, `dependabot-patch.sh` automerge judge, `test-checks.sh` hook tests, `tool-versions.py` CI tools Dependabot does not bump, `release-snapshot.sh` the snapshot's `dist/`), `agent-hooks/` (session context, destructive-git guard, commit guard, commit reminder) |
 | `specs/` | planning artefacts — see [`specs/README.md`](specs/README.md) |
 | `TODO.md` | backlog: owner actions, open follow-ups, ideas, deferred work |
-| `.github/workflows/` | `test.yaml` (verify, lint, build, secrets, guardrails, deps, workflows in parallel, also weekly; weekly only: tools; automerge), `scorecard.yaml` (OpenSSF Scorecard, informational); `zizmor.yml` (workflow audit config); `actions/gitleaks/` (pinned gitleaks install), `release.yaml` (weekly or on-demand: version, tag, release), `refresh-data.yaml` (monthly price-data PR) |
+| `.github/workflows/` | `test.yaml` (verify, lint, build, secrets, guardrails, deps, workflows, release-snapshot in parallel, also weekly; weekly only: tools; automerge), `scorecard.yaml` (OpenSSF Scorecard, informational); `zizmor.yml` (workflow audit config); `actions/gitleaks/` (pinned gitleaks install), `release.yaml` (weekly, on-demand or a pushed `v*` tag; jobs deps: vuln and licenses, read only; prepare: version, tag; publish: release, signature, provenance; check), `refresh-data.yaml` (monthly price-data PR) |
 
 ## Commands
 
@@ -107,6 +107,9 @@ the record for their feature; `TODO.md` links them.
 ## Releases and pull requests
 
 Flow: branch → PR → CI → automatic approval and merge → weekly (or on-demand) release.
+Why: [ADR-002](specs/decisions/ADR-002-merge-green-prs-from-writers.md)
+(automerge), [ADR-003](specs/decisions/ADR-003-release-from-changelog-headings.md)
+(release from the CHANGELOG).
 
 - **Tested before it ships**: a change to `cmd/` or `pkg/` that touches a
   spec merges only when every task of that spec is `[x]`, its verify task
@@ -114,7 +117,7 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
   recorded as a dated note of what was checked, never the cluster's name (this repo is public)). `scripts/spec-tasks-check.py` fails CI
   otherwise; open the PR as a draft until then.
 - **CI** (`test.yaml`): `verify`, `lint`, `build`, `secrets`,
-  `guardrails`, `deps` and `workflows` run in parallel (and weekly on `main`, so a new
+  `guardrails`, `deps`, `workflows` and `release-snapshot` run in parallel (and weekly on `main`, so a new
   advisory for a shipped dependency shows up). On a PR from a branch of this repo whose
   author has write access, not a draft and without the `hold` label, the
   `automerge` job approves and merges it once all of them pass. Dependabot
@@ -138,11 +141,12 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
   skill `release`.
 - **Rulesets** (repository settings): `main` takes changes only through a
   PR whose `verify`, `lint`, `build`, `secrets`, `guardrails`, `deps` and
-  `workflows` checks passed (no force-push, no deletion; admins can bypass
-  only through a PR); `v*` tags cannot be created, moved or deleted.
-  Deploy keys bypass both: `release.yaml` pushes its commit and tag with
-  `RELEASE_DEPLOY_KEY`, since GitHub does not let `GITHUB_TOKEN` bypass a
-  ruleset.
+  `workflows` checks passed (no force-push, no deletion); `v*` tags
+  cannot be created, moved or deleted. Admins and the release deploy key
+  bypass both, on purpose: admins so the owner can fix a release or a tag
+  by hand (on `main` only through a PR), the deploy key because
+  `release.yaml` pushes its commit and tag with `RELEASE_DEPLOY_KEY`, and
+  GitHub does not let `GITHUB_TOKEN` bypass a ruleset.
 - Agents never push to `main` or push tags; they open PRs.
 - **Reviewing a PR** (skill `pr-review`): check it against the current
   `main`, not its base. A branch that predates a release merges its
@@ -177,7 +181,9 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
 - Commits: Conventional Commits (`feat:`, `fix:`, `docs:`, `build:`,
   `chore:`, optional scope e.g. `feat(model):`). No AI co-author or
   "generated with" trailers.
-- Push only when the owner asks. Never force-push without explicit approval.
+- Push only when the owner asks. Never force-push without explicit approval;
+  published history is never rewritten
+  ([ADR-005](specs/decisions/ADR-005-never-rewrite-published-history.md)).
 
 ## Remotes
 
@@ -189,7 +195,8 @@ Flow: branch → PR → CI → automatic approval and merge → weekly (or on-de
 
 ## Guardrails
 
-Three layers check the same rules. Git hooks run for everyone (people,
+Three layers check the same rules
+([ADR-004](specs/decisions/ADR-004-three-guardrail-layers.md)). Git hooks run for everyone (people,
 Kiro, Claude Code); agent hooks warn the agent before it acts and say why;
 CI is the gate nothing merges or releases without. `make hooks` installs
 the git hooks; the session-context hook does it on the first agent session.
@@ -206,19 +213,20 @@ the git hooks; the session-context hook does it on the first agent session.
 | `git commit` | new `.go`/`.sh`/`.py` without the Apache header | `pre-commit` | `commit-guard` | — | `make boilerplate` (Go) or copy the header |
 | `git commit` | Conventional Commit subject; no AI co-author / "generated with" | `commit-msg` | `commit-reminder` (checklist) | — | reword |
 | `git commit` | real-environment data in the message (same rules, e-mails excepted) | `commit-msg` | — | `secrets` job (`content.sh --commits`) | reword |
-| `git push` | push to `main` or a `v*` tag | `pre-push` (owner override `KNV_PUSH_MAIN=1`) | — | GitHub refuses it (rulesets; only the release deploy key bypasses) | open a PR |
+| `git push` | push to `main` or a `v*` tag (`release.yaml` starts only on `v*` tags) | `pre-push` (owner override `KNV_PUSH_MAIN=1`) | — | GitHub refuses it (rulesets; only the release deploy key bypasses) | open a PR |
 | `git push` | `main` merged in; verify, branch commits (messages, authors, secrets), hook tests, vulnerabilities and licenses, lint, build | `pre-push` → `make check` | — | `verify`, `secrets`, `guardrails`, `deps`, `lint`, `build` jobs | skill `pre-push` |
 | PR, weekly | known vulnerabilities reachable from our code (govulncheck); dependency licenses outside MIT / Apache-2.0 / BSD-3-Clause / ISC (go-licenses) | — | — | `deps` job | upgrade the module (`go get …@fixed`), or replace the dependency |
 | PR | the workflows: actionlint, and zizmor (actions pinned by commit SHA and not impostor commits, no workflow left on the default token permissions, no credential left in a checkout that does not push, no cache in the release build, injection) | — | — | `workflows` job (`.github/zizmor.yml` lists the reviewed exceptions) | pin with `@<sha> # vX.Y.Z`; add `permissions:` to the job |
-| Weekly | CI tools pinned by version that Dependabot does not see (zizmor, actionlint, gitleaks, golangci-lint, govulncheck, go-licenses, cosign, syft, goreleaser): a release at least 14 days old | — | — | `tools` job (`scripts/checks/tool-versions.py`) | raise the pin (both golangci-lint pins together; gitleaks with its `GITLEAKS_SHA256`) |
+| Weekly | CI tools pinned by version that Dependabot does not see (zizmor, actionlint, gitleaks, golangci-lint, govulncheck, go-licenses, cosign, syft, goreleaser): a release at least 14 days old; one tool pinned at two versions (also every commit: `verify.sh` runs `--pins-only`) | — | — | `tools` job (`scripts/checks/tool-versions.py`) | raise the pin (golangci-lint in the Makefile and test.yaml together, cosign, goreleaser and syft in release.yaml and test.yaml together; gitleaks with its `GITLEAKS_SHA256`) |
 | PR, `verify.sh` | specs: an active or shipped spec names a spec-refuter review and a date on its status line; code may not change under a draft spec | — | — | `spec-lint.sh`, `spec-tasks-check.py` (in `verify.sh`) | run the spec-refuter review, record it, set the spec active |
 | PR, `verify.sh` | every `**R<n>**` of an active or shipped spec is named by a test comment (`// <spec> R<n>`) or marked `Test: manual — <reason>` in the spec | — | — | `spec-trace.py` (in `verify.sh`) | cite it in the test that checks it, or write the test |
 | PR, `verify.sh` | flags (`flag.go`), help keys (`helpKeys`) or fields (`view.go`) changed with nothing under `specs/`, `README.md` or `docs/` | — | — | `drift-check.py` (in `verify.sh`) | update the spec or README; no doc to update: commit trailer `Drift-check: skip — <reason>` |
 | PR | the guardrails themselves: shellcheck and `scripts/checks/test-checks.sh` (each case blocked or passed in a throwaway repo) | — | — | `guardrails` job | fix the hook or the case |
 | `gh pr create` / `ready` / `merge` | released CHANGELOG sections; open tasks in a touched spec (the verify task includes a cluster run) | — | `pr-guard` (`--draft` passes) | `changelog-check.py`, `spec-tasks-check.py` | finish the tasks; draft until then |
 | PR green | trusted author, or a Dependabot PR that only raises patch versions (`scripts/checks/dependabot-patch.sh` on its go.mod) → approve, merge | — | — | `automerge` job (`hold` label stops it) | — |
-| Release | known vulnerabilities and licenses again, before anything is tagged | — | — | `release.yaml` (`make vuln licenses`) | upgrade the module, then release |
-| Release published | what a user downloads: every asset in the checksum file, its Sigstore signature from `release.yaml`, an SBOM per archive, the linux binary's `-version`, the cask's version and sha256 | — | — | `release.yaml` (`scripts/release-check.sh --strict`) | fix it in a PR and release again |
+| Release | known vulnerabilities and licenses again, before anything is tagged | — | — | `release.yaml` `deps` job (`make vuln licenses`, read only) | upgrade the module, then release |
+| PR changing `.goreleaser.yaml` or `release.yaml`; `main`; weekly | the release build without publishing: cosign, syft and goreleaser at `release.yaml`'s pins, four archives in the checksum file, an SBOM each, the binary starts | — | — | `release-snapshot` job (`scripts/checks/release-snapshot.sh`; passes at once on other PRs) | fix the release config |
+| Release published | what a user downloads: every asset in the checksum file, its Sigstore signature from `release.yaml`, an SBOM per archive, build provenance from `release.yaml` (from 0.14.0), the linux binary's `-version`, the cask's version and sha256 | — | — | `release.yaml` `check` job (`scripts/release-check.sh --strict`) | fix it in a PR and release again; a failed attestation: `gh run rerun --failed` (skill `release`) |
 | Monday 12:00 UTC, `gh workflow run release.yaml`, or merge of a PR labelled `release` | `[Unreleased]` → version, tag, binaries, cask | — | — | `release.yaml` | skill `release` |
 
 What to run locally, and when:

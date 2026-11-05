@@ -30,6 +30,8 @@ echo "==> real-environment identifiers"
 sh scripts/checks/content.sh
 echo "==> changelog"
 python3 scripts/changelog-check.py
+echo "==> CI tool pins (one version per tool)"
+python3 scripts/checks/tool-versions.py --pins-only
 echo "==> spec tasks"
 python3 scripts/spec-tasks-check.py
 echo "==> spec trace"

@@ -76,7 +76,18 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     [bugfix](fix-aws-pricing-region/bugfix.md) ·
     [design](fix-aws-pricing-region/design.md) ·
     [tasks](fix-aws-pricing-region/tasks.md)
-16. [`decisions/`](decisions/) — decision records (index below).
+16. [`fix-config-case/`](fix-config-case/) — **active**. `config.yaml`
+    refuses a built-in name or column title in another case (`INSTANCE`,
+    `Zone`, `PRICE/M`) instead of reading it as an empty label; YAML errors
+    on one line. [bugfix](fix-config-case/bugfix.md) ·
+    [tasks](fix-config-case/tasks.md)
+17. [`release-provenance/`](release-provenance/) — **active**. SLSA build
+    provenance for every release file, signing in its own job, and a
+    goreleaser snapshot on PRs that change the release.
+    [requirements](release-provenance/requirements.md) ·
+    [design](release-provenance/design.md) ·
+    [tasks](release-provenance/tasks.md)
+18. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>
@@ -88,6 +99,10 @@ corrections) → **superseded** (link to the replacement).
 | ADR | Decision | Status |
 |-----|----------|--------|
 | [001](decisions/ADR-001-import-as-new-repo.md) | Import upstream into a new repository instead of a GitHub fork | Accepted |
+| [002](decisions/ADR-002-merge-green-prs-from-writers.md) | Merge green PRs from writers, and patch-only Dependabot PRs, without a human approval | Accepted |
+| [003](decisions/ADR-003-release-from-changelog-headings.md) | Release in batches, with the version decided by the CHANGELOG headings | Accepted |
+| [004](decisions/ADR-004-three-guardrail-layers.md) | Check the same rules in three layers: git hooks, agent hooks and CI | Accepted |
+| [005](decisions/ADR-005-never-rewrite-published-history.md) | Never rewrite published history; fix forward, and rotate what leaked | Accepted |
 
 ## Format
 

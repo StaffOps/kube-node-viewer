@@ -127,6 +127,11 @@ modification note of D5; new code is licensed Apache 2.0.
 _Test: manual — license files and headers; the `pre-commit` hook checks the
 header of each new file._
 
+> **Corrected 2026-11-04.** After a history rewrite, `af96088` is no
+> longer reachable from any branch or tag, although GitHub still serves it
+> by SHA. The import commit is now `f3aceaa`, which has the same tree, so
+> the two criteria above hold with `f3aceaa` in place of `af96088`
+> ([ADR-005](../decisions/ADR-005-never-rewrite-published-history.md)).
 
 ## Counter-examples
 
