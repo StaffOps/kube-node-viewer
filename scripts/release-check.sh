@@ -19,6 +19,11 @@
 #   this repository (needs cosign), and every archive has an SBOM;
 #   --strict fails when either is missing (releases since 0.13.1 have
 #   them), otherwise that is only reported;
+# - the archive for this machine has a SLSA build provenance attestation
+#   whose certificate names release.yaml of this repository run from main
+#   or from this release's tag (gh attestation verify); --strict
+#   fails without it from 0.14.0, the first release that has one; older
+#   releases only get a note;
 # - the archive for this machine matches the checksum file, and its binary
 #   reports the release version;
 # - --cask: the Homebrew cask in StaffOps/homebrew-tap is at this version
@@ -97,6 +102,42 @@ elif $strict; then
 	fail "$sums.sigstore.json is not a release asset"
 else
 	echo "note: $tag is not signed"
+fi
+
+# provenance exists from this version on (release-provenance D4)
+FIRST_ATTESTED=0.14.0
+# at_least A B: version A >= B (X.Y.Z, prerelease suffix ignored)
+at_least() {
+	printf '%s\n%s\n' "${1%%-*}" "$2" | awk -F. '
+		NR == 1 { a1 = $1; a2 = $2; a3 = $3 }
+		NR == 2 { b1 = $1; b2 = $2; b3 = $3 }
+		END {
+			if (a1 != b1) exit !(a1 > b1)
+			if (a2 != b2) exit !(a2 > b2)
+			exit !(a3 >= b3)
+		}'
+}
+# the same identities as the signature above: release.yaml run from main
+# (schedule, workflow_dispatch) or from this tag (the tag-push run); gh
+# matches --cert-identity exactly, so each is tried
+attested=false
+for ref in refs/heads/main "refs/tags/$tag"; do
+	if gh attestation verify "$archive" -R "$REPO" \
+		--cert-identity "https://github.com/$REPO/.github/workflows/release.yaml@$ref" \
+		--deny-self-hosted-runners >/dev/null 2>attest.err; then
+		attested=true
+		break
+	fi
+done
+if $attested; then
+	ok "provenance of $archive"
+elif ! at_least "$v" "$FIRST_ATTESTED"; then
+	echo "note: $tag predates build provenance ($FIRST_ATTESTED)"
+elif $strict; then
+	cat attest.err >&2
+	fail "$archive has no build provenance from release.yaml"
+else
+	echo "note: $archive has no build provenance from release.yaml ($(sed -n '/./{p;q;}' attest.err))"
 fi
 
 if command -v sha256sum >/dev/null; then

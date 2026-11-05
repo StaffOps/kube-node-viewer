@@ -80,6 +80,18 @@ cosign verify-blob --bundle "$f.sigstore.json" \
 sha256sum --check --ignore-missing "$f"   # macOS: shasum -a 256 --check --ignore-missing
 ```
 
+From 0.14.0 every archive and SBOM also has a SLSA build provenance
+attestation, which records the commit and the workflow run that built it.
+With [GitHub CLI](https://cli.github.com) 2.49 or later (the scheduled and
+on-demand releases run from `main`; a release started by pushing its tag
+names `@refs/tags/vX.Y.Z` instead):
+
+```shell
+gh attestation verify kube-node-viewer_Linux_x86_64.tar.gz \
+  -R StaffOps/kube-node-viewer \
+  --cert-identity https://github.com/StaffOps/kube-node-viewer/.github/workflows/release.yaml@refs/heads/main
+```
+
 `scripts/release-check.sh --strict vX.Y.Z` runs these checks and the
 binary's version from a checkout (needs `gh` and cosign); the release
 workflow runs it after each release.
