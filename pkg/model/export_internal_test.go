@@ -121,7 +121,7 @@ func TestExportUnknownAndDisabledPrices(t *testing.T) {
 	u := demoUI(t)
 	n := u.stats.Nodes[0]
 	n.SetPrice(math.NaN())
-	at := time.Now()
+	at := timeNow()
 	if got := u.exportNode(n, nil, at); got.PriceKind != "unknown" || got.PricePerHour != nil {
 		t.Errorf("unknown: %+v", got)
 	}

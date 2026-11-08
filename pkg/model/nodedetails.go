@@ -91,7 +91,7 @@ func (u *UIModel) nodeDetailsPanel() panelView {
 	if u.detailsTab == detailsTabPods {
 		return u.nodePodsPanel(n)
 	}
-	rows := u.nodeDetailsRows(n, time.Now())
+	rows := u.nodeDetailsRows(n, timeNow())
 	u.detailsRows = len(rows)
 	return panelView{title: n.Name(), fixed: []string{"[Details]  Pods"}, rows: rows, cursor: -1, top: u.detailsTop}
 }
