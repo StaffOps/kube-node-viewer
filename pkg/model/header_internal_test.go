@@ -180,10 +180,6 @@ func TestShortContextName(t *testing.T) {
 
 const gkeDemo = "gke_example-project_us-central1-a_demo-prod"
 
-// headerOf is the view above the node list: nodes of equal age have no fixed
-// order, so two renders can differ below it.
-func headerOf(view string) string { return strings.SplitN(view, "NAME", 2)[0] }
-
 // short-gke-context R1 R2
 func TestShortGKEContextName(t *testing.T) {
 	// boundary literals content.sh would flag are built by concatenation
@@ -197,38 +193,69 @@ func TestShortGKEContextName(t *testing.T) {
 		{at("europe-west4-b"), "demo"},
 		{at("northamerica-northeast1"), "demo"},
 		{at("us-central1-ai1a"), "demo"},
+		{at("europe-west12"), "demo"},
 		{gke("abcdef"), "demo"},                      // project of 6
 		{gke("a" + strings.Repeat("b", 29)), "demo"}, // project of 30
 		{named("a"), "a"},
 		{named("a" + strings.Repeat("b", 39)), "a" + strings.Repeat("b", 39)}, // cluster of 40
 		{"gke_example.com:example-project_us-central1-a_demo", "demo"},
+		{"gke_" + "a.example.com:example-project_us-central1-a_demo", "demo"},
 		// R2: anything else is shown as it is
 		{gke("abcde"), ""},                       // project of 5
 		{gke("a" + strings.Repeat("b", 30)), ""}, // project of 31
 		{gke("1example-project"), ""},
 		{gke("example-project-"), ""},
 		{gke("Example-Project"), ""},
+		{gke("example-Project"), ""},
+		{gke("example-projecT"), ""},
+		{gke("\u0435xample-project"), ""},
+		{gke("ex\u0430mple-project"), ""},
+		{gke("example-projec\u0442"), ""},
 		{at("uscentral1"), ""},
 		{at("-central1"), ""},
 		{at("us-central"), ""},
 		{at("u-france-east1"), ""},
 		{at("US-CENTRAL1"), ""},
+		{at("Us-central1"), ""},
+		{at("us-Central1"), ""},
+		{at("us-central1-A"), ""},
+		{at("\u0443s-central1"), ""},
+		{at("us-c\u0435ntral1"), ""},
+		{at("us-central1-\u0430"), ""},
+		{at("us-central1-a-b"), ""},
+		{at("us-central1-"), ""},
+		{at("us-1"), ""},
 		{named(""), ""},
 		{named("a" + strings.Repeat("b", 40)), ""}, // cluster of 41
 		{named("1demo"), ""},
 		{named("demo-"), ""},
 		{named("Demo"), ""},
+		{named("dEmo"), ""},
+		{named("demO"), ""},
+		{named("\u0434emo"), ""},
+		{named("dem\u043e"), ""},
 		{named("my_demo"), ""},   // an extra field
 		{named("d\u0435mo"), ""}, // Cyrillic e
 		{"gke_example-project_demo", ""},
-		{"gke_" + "aws_example-project_us-west1_demo", ""}, // GKE multicloud
+		{"gke-example-project_us-central1-a_demo", ""},
+		{"gke_example-project-us-central1-a_demo", ""},
+		{"gke_example-project_us-central1-a-demo", ""},
+		{"gke_" + "example.comexample-project_us-central1-a_demo", ""}, // no colon after the domain
+		{"gke_" + "aws_example-project_us-west1_demo", ""},             // GKE multicloud
 		{"connectgateway_" + "example-project_us-central1_demo", ""},
 		{gkeDemo + "\n", ""},
 		{gkeDemo + " ", ""},
 		{"x " + gkeDemo, ""},
+		{" " + gkeDemo, ""},
 		{"gke_" + "examplecom:example-project_us-central1-a_demo", ""},   // no dot in the domain
 		{"gke_" + "example..com:example-project_us-central1-a_demo", ""}, // an empty label
 		{"gke_" + ".com:example-project_us-central1-a_demo", ""},
+		{"gke_" + "Example.com:example-project_us-central1-a_demo", ""},
+		{"gke_" + "example.Com:example-project_us-central1-a_demo", ""},
+		{"gke_" + "exa_mple.com:example-project_us-central1-a_demo", ""},
+		{"gke_" + "example.c_om:example-project_us-central1-a_demo", ""},
+		{"gke_" + "ex\u0430mple.com:example-project_us-central1-a_demo", ""},
+		{"gke_" + "example.c\u043em:example-project_us-central1-a_demo", ""},
 		{"gke_example-project_us-central1-a_demo_extra", ""},
 	} {
 		want := tc.want
@@ -247,10 +274,11 @@ func TestHeadersShowTheShortGKEName(t *testing.T) {
 		name   string
 		height int
 		ctrlE  bool
+		size   headerSize
 	}{
-		{"full panel", 40, false},
-		{"compact box", 40, true},
-		{"one line", 10, false},
+		{"full panel", 40, false, headerFull},
+		{"compact box", 40, true, headerCompact},
+		{"one line", 10, false, headerLine},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			render := func(context string) string {
@@ -262,6 +290,9 @@ func TestHeadersShowTheShortGKEName(t *testing.T) {
 				if tc.ctrlE {
 					u.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
 				}
+				if u.headerSize() != tc.size {
+					t.Fatalf("header size %v, want %v", u.headerSize(), tc.size)
+				}
 				return u.View()
 			}
 			for _, context := range []string{gkeDemo, "gke_example.com:example-project_us-central1-a_demo-prod"} {
@@ -270,8 +301,8 @@ func TestHeadersShowTheShortGKEName(t *testing.T) {
 					strings.Contains(got, "example.com") || strings.Contains(got, "gke_") {
 					t.Errorf("%s header:\n%s", context, got)
 				}
-				if plain := render("demo-prod"); headerOf(plain) != headerOf(got) {
-					t.Errorf("plain-name header differs:\n%s\nwant\n%s", headerOf(plain), headerOf(got))
+				if plain := render("demo-prod"); plain != got {
+					t.Errorf("plain-name header differs:\n%s\nwant\n%s", plain, got)
 				}
 			}
 		})
@@ -348,8 +379,8 @@ func TestHeadersShowTheShortContextName(t *testing.T) {
 				t.Errorf("ARN context header:\n%s", arn)
 			}
 			// a plain name renders exactly as a short ARN does
-			if plain := render("demo-prod"); headerOf(plain) != headerOf(arn) {
-				t.Errorf("plain-name header differs:\n%s\nwant\n%s", headerOf(plain), headerOf(arn))
+			if plain := render("demo-prod"); plain != arn {
+				t.Errorf("plain-name header differs:\n%s\nwant\n%s", plain, arn)
 			}
 		})
 	}

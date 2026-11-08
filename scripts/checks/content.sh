@@ -77,7 +77,7 @@ aks_ok='(^|[^a-z0-9-])(example[a-z0-9-]*|cluster-abc)\.(hcp|portal|privatelink)\
 server='server["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?https?://[a-z0-9.-]+|https?://[a-z0-9.-]+:(6443|8443|16443)([^0-9]|$)'
 server_ok='https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|kind\.local|kubernetes\.default\.svc|kubernetes\.docker\.internal|([a-z0-9-]+\.)*example(\.(com|org|net))?|example[a-z0-9-]*(\.[a-z0-9-]+)*|[a-z0-9.-]+\.(eks\.amazonaws\.com|azmk8s\.io))(:[0-9]+)?([^a-z0-9.-]|$)'
 gke='(^|[^a-z0-9])(gke|connectgateway)_[a-z0-9.:-]+_[a-z0-9-]+_[a-z0-9-]+'
-gke_ok='(^|[^a-z0-9])(gke|connectgateway)_example(\.com:[a-z0-9-]+)?[a-z0-9_-]*([^a-z0-9_.:-]|[.:]([^a-z0-9-]|$)|$)'
+gke_ok='(^|[^a-z0-9])(gke|connectgateway)_example(\.com:[a-z0-9-]+)?[a-z0-9_-]*([^a-z0-9_.:-]|[.:][a-z0-9.:-]*([^a-z0-9_.:-]|$)|$)'
 o='[0-9]{1,3}'
 ip="(^|[^0-9.])(10\.$o\.$o\.$o|172\.(1[6-9]|2[0-9]|3[01])\.$o\.$o|192\.168\.$o\.$o)([^0-9.]|\.[^0-9]|\.?$)|ip-(10-$o|172-(1[6-9]|2[0-9]|3[01])|192-168)-$o-$o([^0-9-]|$)"
 ip_ok='(^|[^0-9.])10\.0\.(0\.1|1\.5|1\.9|2\.7|3\.1)([^0-9.]|\.[^0-9]|\.?$)|ip-10-0-(0-1|1-12|1-23|1-3|1-5|11-70|12-15|12-33|12-61|12-7|133-127|2-40|2-7|3-9)([^0-9-]|$)'
@@ -198,7 +198,16 @@ match() {
     rest=$line
     # shellcheck disable=SC2018,SC2019 # ASCII only on purpose: the patterns are ASCII
     [ -z "$i" ] || rest=$(printf '%s\n' "$line" | LC_ALL=C tr 'A-Z' 'a-z')
-    [ -n "${3:-}" ] && rest=$(printf '%s\n' "$rest" | sed -E "s#$3##g")
+    # allowed values go one at a time, leaving a space: a pattern may consume
+    # the delimiter the next value needs, and joining the text around a value
+    # must not hide what follows it
+    if [ -n "${3:-}" ]; then
+      prev=
+      while [ "$rest" != "$prev" ]; do
+        prev=$rest
+        rest=$(printf '%s\n' "$rest" | sed -E "s#$3# #g")
+      done
+    fi
     # shellcheck disable=SC2086
     printf '%s\n' "$rest" | grep -Eq $i -- "$2" || continue
     report "$1" "$line"

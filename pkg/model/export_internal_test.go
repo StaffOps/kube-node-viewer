@@ -105,6 +105,24 @@ func TestExportFileNameIsShort(t *testing.T) {
 	}
 }
 
+// short-gke-context R3: the fallback directory gets the short name too
+func TestExportFallbackUsesTheShortName(t *testing.T) {
+	ro := t.TempDir()
+	if err := os.Chmod(ro, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(ro, 0o700) })
+	fallback := filepath.Join(t.TempDir(), "state")
+	doc := exportDoc{Context: "arn:aws:eks:us-east-1:111122223333:cluster/prod", Generated: time.Date(2026, 11, 2, 15, 30, 12, 0, time.UTC)}
+	msg := writeExport(doc, ro, fallback)
+	if msg.err != nil || !msg.fellBack {
+		t.Fatalf("fallback: %+v", msg)
+	}
+	if got, want := filepath.Base(msg.csv), "kube-node-viewer-prod-20261102-153012.csv"; got != want || filepath.Dir(msg.csv) != fallback {
+		t.Errorf("csv %s, want %s in %s", msg.csv, want, fallback)
+	}
+}
+
 // short-gke-context R3: same-named clusters exported in the same second
 func TestSameShortNameDoesNotOverwrite(t *testing.T) {
 	dir := t.TempDir()

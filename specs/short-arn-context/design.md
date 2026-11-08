@@ -14,6 +14,9 @@ to `u.info.Context`. The export writes `u.info.Context` (`export.go:144`) and
 builds its file name from it (`export.go:243-248`). The saved-state key is
 `Context + "@" + Server` (`pkg/client/client.go:85`).
 
+> **Corrected 2026-11-08.** The export file name now uses the short name
+> ([short-gke-context](../short-gke-context/requirements.md) R3).
+
 ## Target state
 
 A pure function `shortContext(name string) string` in `pkg/model/header.go`
@@ -148,6 +151,10 @@ popup (a new format to read, and still the account id).
 - Requests, never usage; no new network call.
 - `u.info.Context`, the kubeconfig names, the state key and the export are
   unchanged; only what the three headers print differs.
+
+  > **Corrected 2026-11-08.** The export file name is no longer part of this
+  > invariant ([short-gke-context](../short-gke-context/requirements.md) R3);
+  > the JSON `context` still is.
 - For a context that is not an EKS ARN, every header renders byte-identically
   (the golden screens use `demo-prod` and stay unchanged).
 

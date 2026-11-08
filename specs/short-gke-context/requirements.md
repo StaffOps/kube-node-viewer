@@ -1,6 +1,6 @@
 # Requirements: short-gke-context
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-08 (spec-refuter; 6 MEDIUM, 5 LOW, applied)
+> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-08 (spec-refuter; 6 MEDIUM, 5 LOW, applied), 2026-11-08 (spec-refuter, code; 3 MEDIUM, 5 LOW, applied)
 
 ## Context
 
@@ -87,6 +87,10 @@ gcloud forms are not this one and also stay as they are:
 - [x] Names that are neither GKE nor EKS ARNs still render as they are.
 
 _Test: `// short-gke-context R2` on `TestShortContextName` (table), pkg/model._
+
+> **Corrected 2026-11-08.** The R1 and R2 table is `TestShortGKEContextName`,
+> not `TestShortContextName`, whose old row for a GKE name staying unchanged
+> was deleted rather than flipped.
 
 **R3** WHEN `e` writes an export for a context that is an EKS ARN
 ([short-arn-context](../short-arn-context/requirements.md) R1) or a GKE name

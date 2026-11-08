@@ -29,6 +29,12 @@
   > before `c`; `c` lists the full name; `e` writes
   > `kube-node-viewer-demo-prod-…` and `kube-node-viewer-demo-arn-…` with the
   > notice naming them; the JSON `context` is the full name.
+  >
+  > After the code review, on 2026-11-08: a systematic run of 47 mutants of
+  > the GKE pattern (each character class widened to upper case or Unicode,
+  > each `+` to `*`, each `?` dropped, quantifier bounds, anchors, `.`, `(?m)`,
+  > `(?i)`, `_` to `[_-]`, the optional colon), each alone, all fail
+  > `TestShortGKEContextName`. `scripts/verify.sh` green, `make lint` 0 issues.
 
 > A code change with open tasks here cannot merge, and so cannot release:
 > `scripts/spec-tasks-check.py` fails CI and the `pr-guard` hook blocks

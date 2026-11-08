@@ -156,7 +156,8 @@ func (u *UIModel) header(stats Stats, nodes []*Node) string {
 	if pending := stats.Unscheduled; pending > 0 {
 		counts += u.printer.Sprintf(" (%d pending)", pending)
 	}
-	// an EKS ARN context shows as its cluster name (short-arn-context R1)
+	// an EKS ARN or GKE context shows as its cluster name (short-arn-context R1,
+	// short-gke-context R1)
 	context := shortContext(u.info.Context)
 	if context == "" {
 		context = "-"

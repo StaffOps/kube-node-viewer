@@ -77,6 +77,9 @@ only the footer notice (it would name a file that does not exist).
 **Choice**: shorten only a name matching, in full,
 `^gke_((?:[a-z0-9-]+(?:\.[a-z0-9-]+)+:)?[a-z][a-z0-9-]{4,28}[a-z0-9])_[a-z]+-[a-z]+[0-9]+(?:-[a-z0-9]+)?_([a-z](?:[a-z0-9-]{0,38}[a-z0-9])?)$`.
 
+> **Corrected 2026-11-08.** The code (`pkg/model/header.go`, `gkeContext`)
+> has one capture, the cluster; the project group below is non-capturing there.
+
 **Justification, strongest first**:
 1. A context name is free text; `gke_` plus underscores is an easy shape to
    hit by accident, so a loose rule would rename contexts the user chose.
