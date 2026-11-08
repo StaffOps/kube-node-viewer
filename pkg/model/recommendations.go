@@ -77,7 +77,7 @@ func (u *UIModel) maybeAnalyze() tea.Cmd {
 func (u *UIModel) recommendInput() recommend.Input {
 	a := u.advisor
 	in := recommend.Input{
-		Now: time.Now(), Headroom: u.recOpts.Headroom, OldAge: u.recOpts.OldAge,
+		Now: timeNow(), Headroom: u.recOpts.Headroom, OldAge: u.recOpts.OldAge,
 		PendingPods: u.stats.Unscheduled,
 		Spec:        a.Spec, OnDemand: a.OnDemand, SpotIn: a.SpotIn, Types: a.Types(),
 	}

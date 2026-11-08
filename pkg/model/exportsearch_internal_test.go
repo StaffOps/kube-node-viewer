@@ -18,13 +18,12 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 )
 
 // viewJSON is the "view" object of the export document, as written.
 func viewJSON(t *testing.T, u *UIModel) string {
 	t.Helper()
-	raw, err := json.Marshal(u.exportDoc(time.Now()))
+	raw, err := json.Marshal(u.exportDoc(timeNow()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +47,7 @@ func TestExportWritesTheSearch(t *testing.T) {
 			if got := viewJSON(t, u); got != want {
 				t.Errorf("view\n got %s\nwant %s", got, want)
 			}
-			raw, _ := json.Marshal(u.exportDoc(time.Now()))
+			raw, _ := json.Marshal(u.exportDoc(timeNow()))
 			var doc exportDoc
 			if err := json.Unmarshal(raw, &doc); err != nil {
 				t.Fatal(err)
@@ -72,7 +71,7 @@ func TestExportWithANegatedSearchKeepsTheOtherNodes(t *testing.T) {
 		}
 	}
 	u.view.Search = "!c7g"
-	nodes := u.exportDoc(time.Now()).Nodes
+	nodes := u.exportDoc(timeNow()).Nodes
 	for _, n := range nodes {
 		if strings.HasPrefix(n.InstanceType, "c7g") {
 			t.Errorf("exported %s (%s) under !c7g", n.Name, n.InstanceType)

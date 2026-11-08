@@ -50,7 +50,9 @@ var demoNodes = []demoNode{
 	{"ip-192-0-2-45.ec2.internal", "c7g.large", "us-east-1b", "spot-arm", "", "spot", "1930m", "3Gi", 0.47, 0.35, 9, 0.029, 2 * time.Hour, false},
 	{"ip-192-0-2-52.ec2.internal", "c7g.xlarge", "us-east-1c", "spot-arm", "", "spot", "3920m", "7Gi", 0.95, 0.82, 22, 0.058, 90 * time.Minute, false},
 	{"ip-192-0-2-59.ec2.internal", "g5.xlarge", "us-east-1b", "gpu", "", "reserved", "3920m", "14Gi", 0.55, 0.61, 6, 1.006, 14 * 24 * time.Hour, false},
-	{"ip-192-0-2-66.ec2.internal", "t3.large", "us-east-1a", "", "system-ng", "", "1930m", "7Gi", 0.68, 0.52, 17, 0.0832, 40 * 24 * time.Hour, false},
+	// a minute older than the next node: at the same instant the two tie and
+	// the name order would swap their rows
+	{"ip-192-0-2-66.ec2.internal", "t3.large", "us-east-1a", "", "system-ng", "", "1930m", "7Gi", 0.68, 0.52, 17, 0.0832, 40*24*time.Hour + time.Minute, false},
 	{"ip-192-0-2-73.ec2.internal", "t3.large", "us-east-1b", "", "system-ng", "", "1930m", "7Gi", 0.39, 0.44, 12, 0.0832, 40 * 24 * time.Hour, true},
 }
 
@@ -63,7 +65,21 @@ func (demoSwitcher) Contexts() ([]string, string, error) {
 
 func (demoSwitcher) Switch(string) (Session, error) { return Session{}, fmt.Errorf("demo") }
 
+// demoNow is the fixed instant the made-up cluster is drawn at.
+var demoNow = time.Date(2026, time.January, 15, 12, 0, 0, 0, time.UTC)
+
+// pinDemoClock fixes the screens' clock and time zone for one test, so an
+// age and a creation time read the same on any day and machine. It changes
+// process-global state (timeNow, time.Local): a test using it must not be
+// parallel, and no goroutine may read the clock or time.Local meanwhile.
+func pinDemoClock(t *testing.T) {
+	now, local := timeNow, time.Local
+	timeNow, time.Local = func() time.Time { return demoNow }, time.UTC
+	t.Cleanup(func() { timeNow, time.Local = now, local })
+}
+
 func demoUI(t *testing.T) *UIModel {
+	pinDemoClock(t)
 	u := newTestUI(t)
 	// the bar detects colours from the terminal, and tests have none
 	u.progress = newProgress(u.style, progress.WithColorProfile(termenv.TrueColor))
@@ -84,7 +100,7 @@ func demoUI(t *testing.T) *UIModel {
 		}
 		allocCPU, allocMem := resource.MustParse(d.cpu), resource.MustParse(d.mem)
 		n := NewNode(&v1.Node{
-			ObjectMeta: metav1.ObjectMeta{Name: d.name, CreationTimestamp: metav1.NewTime(time.Now().Add(-d.age)), Labels: labels},
+			ObjectMeta: metav1.ObjectMeta{Name: d.name, CreationTimestamp: metav1.NewTime(demoNow.Add(-d.age)), Labels: labels},
 			Spec:       v1.NodeSpec{ProviderID: fmt.Sprintf("aws:///%s/i-0demo%02d", d.zone, i), Unschedulable: d.cordoned},
 			Status: v1.NodeStatus{
 				Allocatable: v1.ResourceList{v1.ResourceCPU: allocCPU, v1.ResourceMemory: allocMem, v1.ResourcePods: resource.MustParse("58")},

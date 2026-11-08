@@ -149,17 +149,12 @@ func TestGoldenScreens(t *testing.T) {
 	}
 }
 
-var (
-	ansiCode = regexp.MustCompile("\x1b\\[[0-9;]*m")
-	// the made-up nodes are created relative to now; their ages stay put
-	clockTime = regexp.MustCompile(`\d{4}-\d{2}-\d{2} \d{2}:\d{2}`)
-)
+var ansiCode = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
-// screenText drops colour codes, the wall-clock creation times and the
-// trailing spaces that only pad the terminal.
+// screenText drops colour codes and the trailing spaces that only pad the
+// terminal.
 func screenText(s string) string {
-	s = clockTime.ReplaceAllString(ansiCode.ReplaceAllString(s, ""), "YYYY-MM-DD hh:mm")
-	lines := strings.Split(s, "\n")
+	lines := strings.Split(ansiCode.ReplaceAllString(s, ""), "\n")
 	for i, l := range lines {
 		lines[i] = strings.TrimRight(l, " ")
 	}

@@ -751,7 +751,7 @@ func pad(s string, w int) string {
 }
 
 func (u *UIModel) newNodeTable(nodes []*Node, indent int) *nodeTable {
-	now := time.Now()
+	now := timeNow()
 	columns := make([]Field, 0, len(u.view.Columns))
 	for _, c := range u.view.Columns {
 		if u.DisablePricing && isPriceColumn(c) {
