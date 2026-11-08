@@ -8,6 +8,13 @@ All notable changes to this project are documented here. Format:
 
 ### Changed
 
+- A GKE context (`gke_<project>_<location>_<cluster>`, the default of
+  `gcloud container clusters get-credentials`) shows as its cluster name in
+  the three headers, as an EKS ARN context does. Export file names use the
+  same short name for both clouds
+  (`kube-node-viewer-<cluster>-<YYYYMMDD-HHMMSS>`), so the file name and the
+  footer notice after `e` hold no account or project id; the JSON's `context`
+  keeps the full name. Scripts matching the old long file names need updating.
 - The compact header (`ctrl+e`, or a window 14 to 27 rows high) no longer
   shows the API server URL: its first line is the context, the region and
   the counts with the cost. The full panel keeps the `Cluster:` row.
@@ -15,7 +22,7 @@ All notable changes to this project are documented here. Format:
   (`arn:aws:eks:<region>:<account>:cluster/<name>`, the default of
   `aws eks update-kubeconfig`) shows as its cluster name in the full panel,
   the compact box and the one-line header, so a screenshot of the main
-  screen no longer shows the account id in the header. The contexts popup, the export, `--context` and the saved
+  screen no longer shows the account id in the header. The contexts popup, the JSON export's `context`, `--context` and the saved
   view per cluster keep the full name.
 
 ### Fixed

@@ -26,15 +26,16 @@ notice follow; `doc.Context` stays the full name.
 |------|--------|
 | `pkg/model/header.go` | the GKE pattern in `shortContext` |
 | `pkg/model/export.go` | `exportBase` uses `shortContext` |
-| `pkg/model/header_internal_test.go` | GKE rows in `TestShortContextName`, `TestHeadersShowTheShortGKEName`, `TestShortGKENameOnlyInTheHeaders`, `TestGKELocationIsNotThePricingRegion` |
-| `pkg/model/export_internal_test.go` | `TestExportBaseName` as a table, `TestExportFileNameIsShort`, `TestSameShortNameDoesNotOverwrite` |
+| `scripts/checks/content.sh`, `scripts/checks/test-checks.sh` | the `gke` rule also catches the domain form and `connectgateway_` names, with cases |
+| `pkg/model/header_internal_test.go` | GKE rows in `TestShortContextName` (the row at line 151, a GKE name staying unchanged, flips to a short-gke-context R1 row), `TestHeadersShowTheShortGKEName`, `TestShortGKENameOnlyInTheHeaders`, `TestGKELocationIsNotThePricingRegion` |
+| `pkg/model/export_internal_test.go` | `TestExportBaseName` as a table (its ARN expectation at lines 55-56 flips), `TestExportFileNameIsShort`, `TestSameShortNameDoesNotOverwrite` |
 | `pkg/client/client_test.go` | GKE case in `TestClusterKeyKeepsTheFullContext` |
 | `README.md` | both header paragraphs and the export section |
 | `CHANGELOG.md` | `[Unreleased]` `Changed` |
 | `specs/short-arn-context/requirements.md` | dated notes: R2's GKE example, R3 and Out of scope (export file name, notice) |
 | `specs/views-and-export/requirements.md` | dated note on the file name rule |
 | `specs/interactive-tui/requirements.md` | dated note under R16 |
-| `TODO.md` | remove both items |
+| `TODO.md` | remove both items; add `connectgateway_` and multicloud context names, and project ids elsewhere on screen |
 
 ## Decisions
 
@@ -57,7 +58,7 @@ field and every other place stay as they are.
 |------|----------------|
 | Same-named clusters in different accounts, projects or regions give file names that differ only by time | the JSON `context` tells them apart, and `createPair`'s `O_EXCL` never overwrites |
 | The CSV has no context column, so a CSV alone only names the short cluster | the JSON written beside it has the full name; adding a column would change the CSV format |
-| Scripts that glob the old long file name stop matching | the name was never a documented interface beyond its shape; CHANGELOG `Changed` says so |
+| Scripts that glob the old long file name stop matching | README and views-and-export documented `<context>` in the name, so this is a change of a documented name: CHANGELOG `Changed` says so, and views-and-export gets a dated note |
 
 **When this would be wrong**: users sort exports of several accounts in one
 directory by file name and need the account in it, or tools parse the context
@@ -85,8 +86,10 @@ only the footer notice (it would name a file that does not exist).
    cluster names are up to 40 lower-case letters, digits and hyphens, start with
    a letter and end with a letter or a digit
    (https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters).
-3. None of the three fields can hold `_`, so the split is unambiguous.
-4. Anything outside the pattern renders as today: the worst case of too strict
+3. gcloud writes that form: `gke_{project}_{zone}_{cluster}`
+   (`googlecloudsdk/api_lib/container/util.py:505` in the installed SDK).
+4. None of the three fields can hold `_`, so the split is unambiguous.
+5. Anything outside the pattern renders as today: the worst case of too strict
    a pattern is the current behaviour.
 
 **Trade-offs accepted**:
@@ -94,8 +97,8 @@ only the footer notice (it would name a file that does not exist).
 | Cost | Why acceptable |
 |------|----------------|
 | Verified only against made-up names: no GKE cluster is available | `gcloud`'s format and Google's rules are documented; a miss shows the full name, as today |
-| A location shape the pattern rejects keeps the full name | `[a-z]+-[a-z]+[0-9]+` covers the current regions (`us-central1`, `northamerica-northeast1`), `-[a-z0-9]+` the zones (`-a`, and longer suffixes); it can be widened with a test case |
-| A legacy domain-scoped project is accepted by a simple domain shape | it is the case that leaks most (the organization's domain), and a false match needs a `gke_` name with a dotted prefix and a colon |
+| A location shape the pattern rejects keeps the full name | all 43 regions and their zones listed on https://cloud.google.com/compute/docs/regions-zones on 2026-11-08 match, the AI zones (`us-west4-ai2b`) included; S3NS's `u-france-east1` does not and stays long, accepted; widening is a test case away |
+| A legacy domain-scoped project is accepted by a simple domain shape, unverified against Google's documentation or a real context (only a 2016 thread describes it), and its length rule is assumed the same | it is the case that leaks most (the organization's domain), and a false match needs a `gke_` name with a dotted prefix and a colon |
 
 **When this would be wrong**: real `gcloud` contexts have a shape the pattern
 rejects, or a hand-named context matches it and the owner wanted the long name.
@@ -129,9 +132,14 @@ name with three underscores); dropping only the project and keeping the location
   project lengths 6 and 30, cluster lengths 1 and 40; R2's project of 5 and 31
   characters, starting with a digit, ending with `-`; missing and extra fields;
   upper case; cluster of 41 characters, starting with a digit, ending with `-`;
-  a location without digits; leading text; trailing newline; a Cyrillic letter.
+  a location without digits, `u-france-east1`; leading and trailing text;
+  trailing newline; a Cyrillic letter; malformed domains; `connectgateway_…`
+  and `gke_{kind}_…`. Rows whose literal `content.sh` would flag (not
+  `gke_example…`) are built by concatenation (`"gke_" + p + "_us-central1-a_demo"`).
 - `TestHeadersShowTheShortGKEName`: the three headers show `demo-prod`, and
-  none contains `example-project`.
+  none contains `example-project`; a domain-scoped case with a server host
+  other than the project's domain, so `example.com` in the output can only
+  come from the context.
 - `TestShortGKENameOnlyInTheHeaders`: popup rows, "connecting to" row and the
   export `context` keep the full name.
 - `TestGKELocationIsNotThePricingRegion`: no region from the server, no nodes →
@@ -140,7 +148,8 @@ name with three underscores); dropping only the project and keeping the location
   name and an empty one.
 - `TestExportFileNameIsShort`: the files written and the notice hold neither
   the account nor the project; the JSON `context` is the full name.
-- `TestSameShortNameDoesNotOverwrite`: two exports at the same time give `-2`.
+- `TestSameShortNameDoesNotOverwrite`: two different full contexts with the
+  same short name, exported at the same time, give `-2`.
 - `TestClusterKeyKeepsTheFullContext`: a GKE case.
 - The golden screens stay byte-identical.
 - Run on a local kind cluster with its context renamed to a made-up GKE name,

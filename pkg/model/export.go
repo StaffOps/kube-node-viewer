@@ -239,12 +239,13 @@ func (u *UIModel) exportNode(n *Node, labels []string, now time.Time) exportNode
 var unsafeNameChars = regexp.MustCompile(`[^A-Za-z0-9._-]`)
 
 // exportBase is kube-node-viewer-<context>-<YYYYMMDD-HHMMSS>, the context
+// shortened like the headers (no account or project id in the name) and
 // reduced to characters every filesystem takes.
 func exportBase(context string, now time.Time) string {
 	if context == "" {
 		context = "cluster"
 	}
-	return "kube-node-viewer-" + unsafeNameChars.ReplaceAllString(context, "_") + "-" + now.Format("20060102-150405")
+	return "kube-node-viewer-" + unsafeNameChars.ReplaceAllString(shortContext(context), "_") + "-" + now.Format("20060102-150405")
 }
 
 // writeExport writes the CSV and JSON files in dir, or in fallback when dir

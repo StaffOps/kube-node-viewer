@@ -58,15 +58,15 @@ memory. Listed by impact.
       records the local generation time and changes on every
       `scripts/screenshots.sh` run. _Why:_ a regeneration shows image diffs
       that are only the clock.
-- [ ] GKE context names (`gke_<project>_<location>_<cluster>`) show the
-      project id in the headers, as EKS ARNs did before
-      ([short-arn-context](specs/short-arn-context/requirements.md), out of
+- [ ] Other context forms that show a project id in the headers:
+      `connectgateway_{project}_{location}_{membership}` and the GKE
+      multicloud `gke_{kind}_{project}_{location}_{cluster}`
+      ([short-gke-context](specs/short-gke-context/requirements.md), out of
       scope). _Why:_ a screenshot shares the project id.
-- [ ] Export file names embed the full context
-      (`kube-node-viewer-<context>-…`, also in the footer notice), so an EKS
-      ARN context puts the account id in the file name. _Why:_ a shorter name
-      (the cluster name) would be easier to share; the JSON keeps the full
-      context.
+- [ ] Project or account ids elsewhere on screen: the Provider ID row of node
+      details (`gce://<project>/…` by convention, not observed here) and node
+      names when a cloud puts one in them. _Why:_ the headers and the export
+      file name no longer show the id, but a screenshot of those can.
 
 ## Ideas
 

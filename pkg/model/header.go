@@ -319,11 +319,19 @@ func (u *UIModel) viewSummary() string {
 // name (short-arn-context D2).
 var eksClusterARN = regexp.MustCompile(`^arn:aws(-[a-z]+)*:eks:[a-z]+(-[a-z]+)+-[0-9]+:[0-9]{12}:cluster/([0-9A-Za-z][0-9A-Za-z_-]{0,99})$`)
 
-// shortContext is the context name the headers show: the cluster name of an
-// EKS cluster ARN, any other name as it is (short-arn-context R1, R2).
+// gkeContext matches a context as gcloud names it: gke_<project>_<location>_<cluster>,
+// the project optionally after a legacy organization domain and a colon
+// (short-gke-context D2).
+var gkeContext = regexp.MustCompile(`^gke_(?:[a-z0-9-]+(?:\.[a-z0-9-]+)+:)?[a-z][a-z0-9-]{4,28}[a-z0-9]_[a-z]+-[a-z]+[0-9]+(?:-[a-z0-9]+)?_([a-z](?:[a-z0-9-]{0,38}[a-z0-9])?)$`)
+
+// shortContext is the context name the headers and the export file name use:
+// the cluster name of an EKS cluster ARN or a GKE context, any other name as
+// it is (short-arn-context R1, R2; short-gke-context R1, R2).
 func shortContext(name string) string {
-	if m := eksClusterARN.FindStringSubmatch(name); m != nil {
-		return m[len(m)-1]
+	for _, re := range []*regexp.Regexp{eksClusterARN, gkeContext} {
+		if m := re.FindStringSubmatch(name); m != nil {
+			return m[len(m)-1]
+		}
 	}
 	return name
 }

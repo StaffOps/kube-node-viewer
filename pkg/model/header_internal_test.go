@@ -148,7 +148,6 @@ func TestShortContextName(t *testing.T) {
 		{"demo-prod", "demo-prod"},
 		{"kind-knv", "kind-knv"},
 		{"", ""},
-		{"gke_example-project_us-central1-a_demo", "gke_example-project_us-central1-a_demo"},
 		{"arn:aws:iam::111122223333:role/demo", "arn:aws:iam::111122223333:role/demo"},
 		{"arn:aws:eks:us-east-1:111122223333:nodegroup/demo/ng/1", "arn:aws:eks:us-east-1:111122223333:nodegroup/demo/ng/1"},
 		{"arn:aws:eks:us-east-1:11112222333:cluster/demo", "arn:aws:eks:us-east-1:11112222333:cluster/demo"},
@@ -175,6 +174,146 @@ func TestShortContextName(t *testing.T) {
 	} {
 		if got := shortContext(tc.in); got != tc.want {
 			t.Errorf("shortContext(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+const gkeDemo = "gke_example-project_us-central1-a_demo-prod"
+
+// headerOf is the view above the node list: nodes of equal age have no fixed
+// order, so two renders can differ below it.
+func headerOf(view string) string { return strings.SplitN(view, "NAME", 2)[0] }
+
+// short-gke-context R1 R2
+func TestShortGKEContextName(t *testing.T) {
+	// boundary literals content.sh would flag are built by concatenation
+	gke := func(project string) string { return "gke_" + project + "_us-central1-a_demo" }
+	at := func(location string) string { return "gke_example-project_" + location + "_demo" }
+	named := func(cluster string) string { return "gke_example-project_us-central1-a_" + cluster }
+	for _, tc := range []struct{ in, want string }{
+		// R1: the cluster name
+		{gkeDemo, "demo-prod"},
+		{at("us-central1"), "demo"},
+		{at("europe-west4-b"), "demo"},
+		{at("northamerica-northeast1"), "demo"},
+		{at("us-central1-ai1a"), "demo"},
+		{gke("abcdef"), "demo"},                      // project of 6
+		{gke("a" + strings.Repeat("b", 29)), "demo"}, // project of 30
+		{named("a"), "a"},
+		{named("a" + strings.Repeat("b", 39)), "a" + strings.Repeat("b", 39)}, // cluster of 40
+		{"gke_example.com:example-project_us-central1-a_demo", "demo"},
+		// R2: anything else is shown as it is
+		{gke("abcde"), ""},                       // project of 5
+		{gke("a" + strings.Repeat("b", 30)), ""}, // project of 31
+		{gke("1example-project"), ""},
+		{gke("example-project-"), ""},
+		{gke("Example-Project"), ""},
+		{at("uscentral1"), ""},
+		{at("-central1"), ""},
+		{at("us-central"), ""},
+		{at("u-france-east1"), ""},
+		{at("US-CENTRAL1"), ""},
+		{named(""), ""},
+		{named("a" + strings.Repeat("b", 40)), ""}, // cluster of 41
+		{named("1demo"), ""},
+		{named("demo-"), ""},
+		{named("Demo"), ""},
+		{named("my_demo"), ""},   // an extra field
+		{named("d\u0435mo"), ""}, // Cyrillic e
+		{"gke_example-project_demo", ""},
+		{"gke_" + "aws_example-project_us-west1_demo", ""}, // GKE multicloud
+		{"connectgateway_" + "example-project_us-central1_demo", ""},
+		{gkeDemo + "\n", ""},
+		{gkeDemo + " ", ""},
+		{"x " + gkeDemo, ""},
+		{"gke_" + "examplecom:example-project_us-central1-a_demo", ""},   // no dot in the domain
+		{"gke_" + "example..com:example-project_us-central1-a_demo", ""}, // an empty label
+		{"gke_" + ".com:example-project_us-central1-a_demo", ""},
+		{"gke_example-project_us-central1-a_demo_extra", ""},
+	} {
+		want := tc.want
+		if want == "" {
+			want = tc.in
+		}
+		if got := shortContext(tc.in); got != want {
+			t.Errorf("shortContext(%q) = %q, want %q", tc.in, got, want)
+		}
+	}
+}
+
+// short-gke-context R1
+func TestHeadersShowTheShortGKEName(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		height int
+		ctrlE  bool
+	}{
+		{"full panel", 40, false},
+		{"compact box", 40, true},
+		{"one line", 10, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			render := func(context string) string {
+				u := capacityUI(t, 2)
+				// a host unrelated to the project's domain: example.com in
+				// the output could only come from the context
+				u.SetClusterInfo(ClusterInfo{Context: context, Server: "https://a.example", Region: "us-central1"})
+				u.Update(tea.WindowSizeMsg{Width: 200, Height: tc.height})
+				if tc.ctrlE {
+					u.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
+				}
+				return u.View()
+			}
+			for _, context := range []string{gkeDemo, "gke_example.com:example-project_us-central1-a_demo-prod"} {
+				got := render(context)
+				if !strings.Contains(got, "demo-prod") || strings.Contains(got, "example-project") ||
+					strings.Contains(got, "example.com") || strings.Contains(got, "gke_") {
+					t.Errorf("%s header:\n%s", context, got)
+				}
+				if plain := render("demo-prod"); headerOf(plain) != headerOf(got) {
+					t.Errorf("plain-name header differs:\n%s\nwant\n%s", headerOf(plain), headerOf(got))
+				}
+			}
+		})
+	}
+}
+
+// short-gke-context R4
+func TestShortGKENameOnlyInTheHeaders(t *testing.T) {
+	u := capacityUI(t, 2)
+	u.SetClusterInfo(ClusterInfo{Context: gkeDemo, Server: "https://a.example"})
+	u.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
+
+	u.panel = panelContexts
+	u.contextsLoaded(contextsMsg{names: []string{gkeDemo, "staging"}, current: gkeDemo})
+	rows := strings.Join(u.contextsPanel().rows, "\n")
+	if !strings.Contains(rows, gkeDemo) || !strings.Contains(rows, "(current)") {
+		t.Errorf("contexts popup rows:\n%s", rows)
+	}
+	u.contexts.switching = gkeDemo
+	if rows := strings.Join(u.contextsPanel().rows, "\n"); !strings.Contains(rows, "connecting to "+gkeDemo) {
+		t.Errorf("switching row:\n%s", rows)
+	}
+	if doc := u.exportDoc(time.Now()); doc.Context != gkeDemo {
+		t.Errorf("export context %q, want the full name", doc.Context)
+	}
+}
+
+// short-gke-context R1: the GKE location is not the pricing region
+func TestGKELocationIsNotThePricingRegion(t *testing.T) {
+	for _, ctrlE := range []bool{false, true} {
+		u := newTestUI(t)
+		u.SetClusterInfo(ClusterInfo{Context: gkeDemo, Server: "https://a.example"})
+		u.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
+		if ctrlE {
+			u.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
+		}
+		h := u.View()
+		if strings.Contains(h, "us-central1") {
+			t.Errorf("ctrl+e %v: header shows the GKE location:\n%s", ctrlE, h)
+		}
+		if !ctrlE && !strings.Contains(h, "Region:   -") {
+			t.Errorf("full panel Region row is not -:\n%s", h)
 		}
 	}
 }
@@ -209,8 +348,8 @@ func TestHeadersShowTheShortContextName(t *testing.T) {
 				t.Errorf("ARN context header:\n%s", arn)
 			}
 			// a plain name renders exactly as a short ARN does
-			if plain := render("demo-prod"); plain != arn {
-				t.Errorf("plain-name header differs:\n%s\nwant\n%s", plain, arn)
+			if plain := render("demo-prod"); headerOf(plain) != headerOf(arn) {
+				t.Errorf("plain-name header differs:\n%s\nwant\n%s", headerOf(plain), headerOf(arn))
 			}
 		})
 	}

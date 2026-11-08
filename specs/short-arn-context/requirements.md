@@ -76,6 +76,9 @@ space, a missing field, extra text before or after).
 _Test: `// short-arn-context R2` on `TestShortContextName` (table) and
 `TestHeadersShowTheShortContextName`, pkg/model._
 
+> **Corrected 2026-11-08.** GKE names are no longer shown unchanged: see
+> [short-gke-context](../short-gke-context/requirements.md) R1.
+
 **R3** WHEN the context is an EKS ARN THEN everything other than the three
 headers SHALL keep the full context name: the contexts popup (`c`) and its
 "connecting to …" line, the JSON export's `context` field and the export
@@ -90,6 +93,11 @@ it names the actual file, so a different name there would mislead.
 - [x] The "connecting to …" row and a switch error row name the full ARN.
 - [x] The saved-state key is unchanged, so a view saved before this change
   is restored.
+
+> **Corrected 2026-11-08.** The export file name and the footer notice that
+> names it no longer hold the full context: for an EKS ARN or GKE context they
+> use the short name ([short-gke-context](../short-gke-context/requirements.md)
+> R3). The JSON `context` keeps the full name.
 
 _Test: `// short-arn-context R3` on `TestShortNameOnlyInTheHeaders`
 (contexts popup rows, the switching row, the switch error row, export
@@ -120,6 +128,9 @@ kubeconfig name and are untouched by the diff (`pkg/model/header.go` only)._
 
 - GKE context names (`gke_<project>_<location>_<cluster>`) also carry an
   account-like id, the project; they are shown as they are (`TODO.md`).
+  > **Corrected 2026-11-08.** Done in
+  > [short-gke-context](../short-gke-context/requirements.md), which also
+  > shortened the export file name below.
 - The export file name, which embeds the context (`kube-node-viewer-<context>-…`),
   and the footer notice that names it: a local file next to the user,
   unchanged (`TODO.md`: consider a shorter export file name).

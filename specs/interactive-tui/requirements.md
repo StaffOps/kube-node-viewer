@@ -274,6 +274,9 @@ back to one header line with the view only.
 > [short-arn-context](../short-arn-context/requirements.md): an EKS context
 > named by its ARN shows as its cluster name in the three headers.
 
+> **Corrected 2026-11-08 (short-gke-context).** So does a GKE context
+> ([short-gke-context](../short-gke-context/requirements.md) R1).
+
 **R17** WHEN the user presses `↑`/`↓` (or `k`/`j`) in the main view THEN the
 system SHALL move a cursor over group headings and nodes, marked in the left
 margin and followed across pages; WHEN they press `enter` on a group heading
