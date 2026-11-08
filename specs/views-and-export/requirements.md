@@ -93,6 +93,10 @@ a CSV and a JSON file, and say where in the footer, or why it failed.
   the context reduced to `[A-Za-z0-9._-]` (others become `_`); test with an
   ARN context `arn:aws:eks:us-east-1:111122223333:cluster/prod`. A name that
   exists already gets `-2`, `-3`… (files are created exclusively).
+
+  > **Corrected 2026-11-08.** For an EKS ARN or GKE context, `<context>` is
+  > the cluster name ([short-gke-context](../short-gke-context/requirements.md)
+  > R3); the JSON `context` keeps the full name.
 - [ ] CSV (`encoding/csv`): one row per node with name, group path, instance
   type, capacity, node group, zone, region, IP, status, age, pods, for each
   resource requested / allocatable / percent, price per hour, price kind

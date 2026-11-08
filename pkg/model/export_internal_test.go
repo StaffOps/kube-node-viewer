@@ -50,11 +50,97 @@ func column(t *testing.T, rows [][]string, name string) int {
 	return -1
 }
 
+// short-gke-context R3
 func TestExportBaseName(t *testing.T) {
 	at := time.Date(2026, 11, 2, 15, 30, 12, 0, time.UTC)
-	got := exportBase("arn:aws:eks:us-east-1:111122223333:cluster/prod", at)
-	if got != "kube-node-viewer-arn_aws_eks_us-east-1_111122223333_cluster_prod-20261102-153012" {
-		t.Errorf("got %s", got)
+	for _, tc := range []struct{ context, want string }{
+		{"arn:aws:eks:us-east-1:111122223333:cluster/prod", "prod"},
+		{"gke_example-project_us-central1-a_demo-prod", "demo-prod"},
+		{"staging", "staging"},
+		{"team/a b", "team_a_b"},
+		// not exactly an ARN: reduced as before, nothing shortened
+		{"arn:aws:eks:us-east-1:11112222:cluster/prod", "arn_aws_eks_us-east-1_11112222_cluster_prod"},
+		{"", "cluster"},
+	} {
+		want := "kube-node-viewer-" + tc.want + "-20261102-153012"
+		if got := exportBase(tc.context, at); got != want {
+			t.Errorf("exportBase(%q) = %s, want %s", tc.context, got, want)
+		}
+	}
+}
+
+// short-gke-context R3: the files and the footer notice carry no account or
+// project id; the JSON keeps the full context
+func TestExportFileNameIsShort(t *testing.T) {
+	for _, tc := range []struct{ context, secret string }{
+		{"arn:aws:eks:us-east-1:111122223333:cluster/demo-prod", "111122223333"},
+		{"gke_example-project_us-central1-a_demo-prod", "example-project"},
+	} {
+		dir := t.TempDir()
+		t.Chdir(dir)
+		u := demoUI(t)
+		u.SetClusterInfo(ClusterInfo{Context: tc.context, Server: "https://a.example"})
+		doc := u.exportDoc(time.Now())
+		msg := writeExport(doc, dir, "")
+		if msg.err != nil {
+			t.Fatal(msg.err)
+		}
+		u.exported(msg)
+		for _, name := range []string{msg.csv, msg.json, u.currentNotice()} {
+			if strings.Contains(name, tc.secret) || !strings.Contains(name, "kube-node-viewer-demo-prod-") {
+				t.Errorf("%q: name or notice %q", tc.context, name)
+			}
+		}
+		var got exportDoc
+		data, err := os.ReadFile(msg.json)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(data, &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.Context != tc.context {
+			t.Errorf("JSON context %q, want the full %q", got.Context, tc.context)
+		}
+	}
+}
+
+// short-gke-context R3: the fallback directory gets the short name too
+func TestExportFallbackUsesTheShortName(t *testing.T) {
+	ro := t.TempDir()
+	if err := os.Chmod(ro, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(ro, 0o700) })
+	fallback := filepath.Join(t.TempDir(), "state")
+	doc := exportDoc{Context: "arn:aws:eks:us-east-1:111122223333:cluster/prod", Generated: time.Date(2026, 11, 2, 15, 30, 12, 0, time.UTC)}
+	msg := writeExport(doc, ro, fallback)
+	if msg.err != nil || !msg.fellBack {
+		t.Fatalf("fallback: %+v", msg)
+	}
+	if got, want := filepath.Base(msg.csv), "kube-node-viewer-prod-20261102-153012.csv"; got != want || filepath.Dir(msg.csv) != fallback {
+		t.Errorf("csv %s, want %s in %s", msg.csv, want, fallback)
+	}
+}
+
+// short-gke-context R3: same-named clusters exported in the same second
+func TestSameShortNameDoesNotOverwrite(t *testing.T) {
+	dir := t.TempDir()
+	at := time.Date(2026, 11, 2, 15, 30, 12, 0, time.UTC)
+	first := writeExport(exportDoc{Context: "arn:aws:eks:us-east-1:111122223333:cluster/prod", Generated: at}, dir, "")
+	second := writeExport(exportDoc{Context: "gke_example-project_us-central1-a_prod", Generated: at}, dir, "")
+	if first.err != nil || second.err != nil {
+		t.Fatal(first.err, second.err)
+	}
+	if first.csv == second.csv || !strings.Contains(second.csv, "kube-node-viewer-prod-20261102-153012-2") {
+		t.Errorf("csv files %s and %s", first.csv, second.csv)
+	}
+	data, err := os.ReadFile(first.json)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "111122223333") {
+		t.Error("the first export was overwritten")
 	}
 }
 

@@ -70,10 +70,11 @@ func quits(cmd tea.Cmd) bool {
 // capacityUI has nodes alternating on-demand and spot, across two pools.
 func capacityUI(t *testing.T, count int) *UIModel {
 	u := newTestUI(t)
+	created := metav1.Now() // one timestamp: the order must not depend on when each node was built
 	for i := 0; i < count; i++ {
 		n := NewNode(&v1.Node{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("node-%02d", i), CreationTimestamp: metav1.Now(),
+				Name: fmt.Sprintf("node-%02d", i), CreationTimestamp: created,
 				Labels: map[string]string{
 					"karpenter.sh/capacity-type": []string{"on-demand", "spot"}[i%2],
 					"karpenter.sh/nodepool":      []string{"default", "gpu"}[i%2],
