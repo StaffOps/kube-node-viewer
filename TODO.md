@@ -53,11 +53,6 @@ memory. Listed by impact.
 
 ## Follow-ups
 
-- [ ] Pin the screenshot fixture's clock: `pkg/model/screenshots_test.go`
-      sets each node's creation time from `time.Now()`, so `.static/node-details.png`
-      records the local generation time and changes on every
-      `scripts/screenshots.sh` run. _Why:_ a regeneration shows image diffs
-      that are only the clock.
 - [ ] GKE context names (`gke_<project>_<location>_<cluster>`) show the
       project id in the headers, as EKS ARNs did before
       ([short-arn-context](specs/short-arn-context/requirements.md), out of

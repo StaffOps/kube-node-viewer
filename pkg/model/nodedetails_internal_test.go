@@ -32,7 +32,7 @@ func detailsUI(t *testing.T) *UIModel {
 	u := demoUI(t)
 	n := NewNode(&v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "aaa-gpu-node", CreationTimestamp: metav1.NewTime(time.Now().Add(-2 * time.Hour)),
+			Name: "aaa-gpu-node", CreationTimestamp: metav1.NewTime(demoNow.Add(-2 * time.Hour)),
 			Labels: map[string]string{
 				v1.LabelInstanceTypeStable: "g5.xlarge", v1.LabelTopologyZone: "us-east-1b", v1.LabelTopologyRegion: "us-east-1",
 				"karpenter.sh/nodepool": "gpu", "karpenter.sh/capacity-type": "on-demand",
@@ -78,6 +78,7 @@ func TestEnterOnANodeOpensItsDetails(t *testing.T) {
 	for _, want := range []string{
 		"╭─ aaa-gpu-node",
 		"g5.xlarge · OnDemand · $1.0060/h · $734.38/mo",
+		"· age 120m ·",
 		"Node group   gpu",
 		"Zone         us-east-1b (us-east-1)",
 		"Kubelet      v1.35.9",

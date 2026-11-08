@@ -557,13 +557,17 @@ func (n *Node) LabelValue(label string) string {
 // understands.
 const LabelPrefix = "kube-node-viewer/"
 
+// timeNow is the clock behind what the screens show (ages, the creation time);
+// tests pin it so the made-up cluster's screens do not change with the date.
+var timeNow = time.Now
+
 var resourceLabelRe = regexp.MustCompile("^kube-node-viewer/node-(.*?)-usage$")
 
 // ComputeLabel computes dynamic labels
 func (n *Node) ComputeLabel(labelName string) string {
 	switch labelName {
 	case LabelPrefix + "node-age":
-		return duration.HumanDuration(time.Since(n.Created()))
+		return duration.HumanDuration(timeNow().Sub(n.Created()))
 	}
 	// resource based custom labels
 	if match := resourceLabelRe.FindStringSubmatch(labelName); len(match) > 0 {
