@@ -121,7 +121,10 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 27. [`short-arn-context/`](short-arn-context/) — **active**. The headers show an
     EKS ARN context as its cluster name.
     [requirements](short-arn-context/requirements.md) · [design](short-arn-context/design.md) · [tasks](short-arn-context/tasks.md)
-28. [`decisions/`](decisions/) — decision records (index below).
+28. [`short-gke-context/`](short-gke-context/) — **draft**. The headers show a
+    GKE context as its cluster name, and export file names use the short name.
+    [requirements](short-gke-context/requirements.md) · [design](short-gke-context/design.md) · [tasks](short-gke-context/tasks.md)
+29. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>
