@@ -1,6 +1,6 @@
 # Requirements: compact-header-no-url
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-05 (spec-refuter; 3 HIGH, 6 MEDIUM, 5 LOW, applied), 2026-11-05 (spec-refuter, code; 4 LOW, applied)
+> Status: shipped (v0.15.0, 2026-11-09) · Owner: Carlos Gomes · Reviewed: 2026-11-05 (spec-refuter; 3 HIGH, 6 MEDIUM, 5 LOW, applied), 2026-11-05 (spec-refuter, code; 4 LOW, applied)
 
 ## Context
 

@@ -1,6 +1,6 @@
 # Bugfix: spec-lint-markers
 
-> Status: active · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 5 LOW, applied), 2026-11-05 (spec-refuter, code; 2 MEDIUM, 5 LOW, applied)
+> Status: shipped (v0.15.0, 2026-11-09) · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 5 LOW, applied), 2026-11-05 (spec-refuter, code; 2 MEDIUM, 5 LOW, applied)
 
 `TODO.md` (Follow-ups): "spec-lint counts the 'When this would be wrong'
 and 'Reversal action' markers over the whole design, not per decision",

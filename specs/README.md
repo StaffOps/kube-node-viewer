@@ -103,25 +103,25 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     Linux nodes of some series took the Cloud Services (Windows) price.
     [bugfix](fix-azure-price-product/bugfix.md) ·
     [tasks](fix-azure-price-product/tasks.md)
-22. [`fix-config-filter-values/`](fix-config-filter-values/) — **active**. `config.yaml`
+22. [`fix-config-filter-values/`](fix-config-filter-values/) — **shipped** in v0.15.0. `config.yaml`
     filters on `capacity` or `status` refuse a value no node can have.
     [bugfix](fix-config-filter-values/bugfix.md) · [tasks](fix-config-filter-values/tasks.md)
-23. [`fix-spec-tooling/`](fix-spec-tooling/) — **active**. Release tooling
+23. [`fix-spec-tooling/`](fix-spec-tooling/) — **shipped** in v0.15.0. Release tooling
     ships bugfix specs; spec-lint reads `## D<n>` decisions.
     [bugfix](fix-spec-tooling/bugfix.md) · [tasks](fix-spec-tooling/tasks.md)
-24. [`fix-azure-retry/`](fix-azure-retry/) — **active**. Azure prices honour
+24. [`fix-azure-retry/`](fix-azure-retry/) — **shipped** in v0.15.0. Azure prices honour
     `Retry-After`, retry per region, and clear a resolved error from the header.
     [bugfix](fix-azure-retry/bugfix.md) · [design](fix-azure-retry/design.md) · [tasks](fix-azure-retry/tasks.md)
-25. [`fix-spec-lint-markers/`](fix-spec-lint-markers/) — **active**. spec-lint checks
+25. [`fix-spec-lint-markers/`](fix-spec-lint-markers/) — **shipped** in v0.15.0. spec-lint checks
     each decision's own markers.
     [bugfix](fix-spec-lint-markers/bugfix.md) · [tasks](fix-spec-lint-markers/tasks.md)
-26. [`compact-header-no-url/`](compact-header-no-url/) — **active**. The compact
+26. [`compact-header-no-url/`](compact-header-no-url/) — **shipped** in v0.15.0. The compact
     header box drops the API server URL; the full panel keeps it.
     [requirements](compact-header-no-url/requirements.md) · [design](compact-header-no-url/design.md) · [tasks](compact-header-no-url/tasks.md)
-27. [`short-arn-context/`](short-arn-context/) — **active**. The headers show an
+27. [`short-arn-context/`](short-arn-context/) — **shipped** in v0.15.0. The headers show an
     EKS ARN context as its cluster name.
     [requirements](short-arn-context/requirements.md) · [design](short-arn-context/design.md) · [tasks](short-arn-context/tasks.md)
-28. [`short-gke-context/`](short-gke-context/) — **active**. The headers show a
+28. [`short-gke-context/`](short-gke-context/) — **shipped** in v0.15.0. The headers show a
     GKE context as its cluster name, and export file names use the short name.
     [requirements](short-gke-context/requirements.md) · [design](short-gke-context/design.md) · [tasks](short-gke-context/tasks.md)
 29. [`decisions/`](decisions/) — decision records (index below).

@@ -1,6 +1,6 @@
 # Bugfix: azure-retry
 
-> Status: active · Reported: 2026-11-05 (owner's AKS run, [fix-azure-price-product](../fix-azure-price-product/tasks.md) T4; [aks-pricing](../aks-pricing/design.md) D2 retroactive review) · Reviewed: 2026-11-05 (spec-refuter; 2 BLOCKING, 3 HIGH, 4 MEDIUM, 5 LOW, applied; code 2026-11-05, 2 MEDIUM, 6 LOW, applied)
+> Status: shipped (v0.15.0, 2026-11-09) · Reported: 2026-11-05 (owner's AKS run, [fix-azure-price-product](../fix-azure-price-product/tasks.md) T4; [aks-pricing](../aks-pricing/design.md) D2 retroactive review) · Reviewed: 2026-11-05 (spec-refuter; 2 BLOCKING, 3 HIGH, 4 MEDIUM, 5 LOW, applied; code 2026-11-05, 2 MEDIUM, 6 LOW, applied)
 
 Decisions: [design](design.md).
 

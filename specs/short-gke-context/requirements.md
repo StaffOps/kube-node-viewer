@@ -1,6 +1,6 @@
 # Requirements: short-gke-context
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-08 (spec-refuter; 6 MEDIUM, 5 LOW, applied), 2026-11-08 (spec-refuter, code; 3 MEDIUM, 5 LOW, applied)
+> Status: shipped (v0.15.0, 2026-11-09) · Owner: Carlos Gomes · Reviewed: 2026-11-08 (spec-refuter; 6 MEDIUM, 5 LOW, applied), 2026-11-08 (spec-refuter, code; 3 MEDIUM, 5 LOW, applied)
 
 ## Context
 

@@ -1,6 +1,6 @@
 # Bugfix: spec-tooling
 
-> Status: active · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 5 LOW, applied), 2026-11-05 (spec-refuter, code; 1 HIGH, 2 MEDIUM, 2 LOW, applied)
+> Status: shipped (v0.15.0, 2026-11-09) · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 5 LOW, applied), 2026-11-05 (spec-refuter, code; 1 HIGH, 2 MEDIUM, 2 LOW, applied)
 
 Two items of `TODO.md` (Follow-ups): "Bugfix specs are never marked shipped"
 (found while writing [ADR-003](../decisions/ADR-003-release-from-changelog-headings.md))

@@ -1,6 +1,6 @@
 # Bugfix: config-filter-values
 
-> Status: active · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 4 LOW, applied), 2026-11-05 (spec-refuter, code; 2 MEDIUM, 5 LOW, applied)
+> Status: shipped (v0.15.0, 2026-11-09) · Reported: 2026-11-05 · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 4 LOW, applied), 2026-11-05 (spec-refuter, code; 2 MEDIUM, 5 LOW, applied)
 
 Found by the `spec-refuter` review of
 [`fix-config-case`](../fix-config-case/bugfix.md) (2026-11-04, LOW-4), listed

@@ -1,6 +1,6 @@
 # Requirements: short-arn-context
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 5 LOW, applied), 2026-11-05 (spec-refuter, code; 3 MEDIUM, 5 LOW, applied)
+> Status: shipped (v0.15.0, 2026-11-09) · Owner: Carlos Gomes · Reviewed: 2026-11-05 (spec-refuter; 1 HIGH, 4 MEDIUM, 5 LOW, applied), 2026-11-05 (spec-refuter, code; 3 MEDIUM, 5 LOW, applied)
 
 ## Context
 
