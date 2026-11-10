@@ -175,6 +175,13 @@ subscription until two minutes (chosen) before it expires. No Azure SDK.
 > quitting cancels it, `Close` waits up to 3 s, and a running `az` is killed
 > with its process group. A SIGKILL of the program itself can still leave a
 > hung `az` behind.
+>
+> **Corrected 2026-11-10 (re-review).** A read stopped by `Close` is not a
+> failure: it records no state, logs nothing and moves no generation, so a
+> switch or quit leaves no false line in the header or on the terminal.
+> `cmd.WaitDelay` is redundant on Unix once the process group is killed (the
+> group-kill test passes on it alone), and untested on Windows, where it is
+> the only bound on a child holding `az.cmd`'s output open.
 
 **Trade-offs accepted**:
 

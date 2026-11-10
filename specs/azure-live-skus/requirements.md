@@ -1,6 +1,6 @@
 # Requirements: azure-live-skus
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 3 HIGH, 12 MEDIUM, 10 LOW; applied); second pass 2026-11-10 (2 HIGH, 8 MEDIUM, 9 LOW; applied); diff 2026-11-10 (spec-refuter; 3 HIGH, 6 MEDIUM, 11 LOW; applied)
+> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 3 HIGH, 12 MEDIUM, 10 LOW; applied); second pass 2026-11-10 (2 HIGH, 8 MEDIUM, 9 LOW; applied); diff 2026-11-10 (spec-refuter; 3 HIGH, 6 MEDIUM, 11 LOW; applied); re-review 2026-11-10 (1 MEDIUM, 5 LOW; applied)
 
 ## Context
 

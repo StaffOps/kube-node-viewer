@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -443,5 +444,61 @@ func TestAdvisorAvailability(t *testing.T) {
 	off.Begin(pairs)
 	if len(off.Types()) != 0 || off.sizes != nil {
 		t.Error("pricing disabled, yet sizes are read")
+	}
+}
+
+// azure-live-skus D1: closing during a read (az or Resource Manager blocked)
+// logs nothing and records no failure: the read was stopped, not failed.
+func TestCloseDuringReadLogsNothing(t *testing.T) {
+	for _, tt := range []string{"az", "resource manager"} {
+		t.Run(tt, func(t *testing.T) {
+			var logs bytes.Buffer
+			old := log.Writer()
+			log.SetOutput(&logs)
+			defer log.SetOutput(old)
+			blocked := make(chan struct{})
+			arm := newFakeARM(t, func(w http.ResponseWriter, r *http.Request) {
+				close(blocked)
+				<-r.Context().Done()
+			})
+			az := newGoAz()
+			run := az.run
+			if tt == "az" {
+				run = func(ctx context.Context, args ...string) ([]byte, []byte, error) {
+					close(blocked)
+					<-ctx.Done()
+					return nil, nil, context.DeadlineExceeded
+				}
+			}
+			s := newSizes(context.Background(), run, arm.srv.URL, arm.srv.Client().Transport, time.Now)
+			g := s.generation()
+			s.begin(eastus)
+			<-blocked
+			s.Close()
+			if logs.Len() != 0 || s.generation() != g || len(s.begin(eastus).notes) != 1 {
+				t.Errorf("after Close: log %q, generation %d→%d, notes %v", logs.String(), g, s.generation(), s.begin(eastus).notes)
+			}
+		})
+	}
+}
+
+// azure-live-skus R5: nothing in pkg/azure prints to the terminal behind the
+// log, which carries only the fixed lines.
+func TestNoPrintsInPackage(t *testing.T) {
+	files, _ := filepath.Glob("*.go")
+	bare := regexp.MustCompile(`(^|[^.\w])(print|println)\(|fmt\.Print|os\.Stderr|os\.Stdout`)
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, line := range strings.Split(string(raw), "\n") {
+			if bare.MatchString(line) {
+				t.Errorf("%s:%d prints: %s", f, i+1, strings.TrimSpace(line))
+			}
+		}
 	}
 }

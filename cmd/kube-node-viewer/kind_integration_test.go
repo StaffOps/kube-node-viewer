@@ -408,15 +408,31 @@ func TestKindClusterAzureSizes(t *testing.T) {
 			Spec: v1.NodeSpec{ProviderID: "azure:///subscriptions/" + kindSub +
 				"/resourceGroups/MC_example-rg_example_eastus/providers/Microsoft.Compute/virtualMachineScaleSets/aks-userpool-12345678-vmss/virtualMachines/" + fmt.Sprint(i)},
 		}
+		// a reused cluster may still have them from an earlier run
+		_ = cs.CoreV1().Nodes().Delete(ctx, name, metav1.DeleteOptions{})
 		created, err := cs.CoreV1().Nodes().Create(ctx, n, metav1.CreateOptions{})
+		if apierrors.IsAlreadyExists(err) {
+			created, err = cs.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+		}
 		if err != nil {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { _ = cs.CoreV1().Nodes().Delete(context.Background(), name, metav1.DeleteOptions{}) })
-		created.Status.Capacity = v1.ResourceList{v1.ResourceCPU: resource.MustParse("8"), v1.ResourceMemory: resource.MustParse("32Gi"), v1.ResourcePods: resource.MustParse("250")}
-		created.Status.Allocatable = v1.ResourceList{v1.ResourceCPU: resource.MustParse("7820m"), v1.ResourceMemory: resource.MustParse("27Gi"), v1.ResourcePods: resource.MustParse("250")}
-		if _, err := cs.CoreV1().Nodes().UpdateStatus(ctx, created, metav1.UpdateOptions{}); err != nil {
-			t.Fatal(err)
+		// the node controller may change the object meanwhile: retry on a
+		// conflict with the latest version
+		for try := 0; ; try++ {
+			created.Status.Capacity = v1.ResourceList{v1.ResourceCPU: resource.MustParse("8"), v1.ResourceMemory: resource.MustParse("32Gi"), v1.ResourcePods: resource.MustParse("250")}
+			created.Status.Allocatable = v1.ResourceList{v1.ResourceCPU: resource.MustParse("7820m"), v1.ResourceMemory: resource.MustParse("27Gi"), v1.ResourcePods: resource.MustParse("250")}
+			_, err := cs.CoreV1().Nodes().UpdateStatus(ctx, created, metav1.UpdateOptions{})
+			if err == nil {
+				break
+			}
+			if !apierrors.IsConflict(err) || try == 10 {
+				t.Fatal(err)
+			}
+			if created, err = cs.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{}); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 

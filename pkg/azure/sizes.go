@@ -191,6 +191,10 @@ func (s *Sizes) fetch(k, subscription, region string, recheck bool) {
 	defer s.mu.Unlock()
 	st := s.pairs[k]
 	st.fetching = false
+	if s.ctx.Err() != nil {
+		// closed: the read was stopped, it did not fail; nothing is logged
+		return
+	}
 	s.gen++
 	if err == nil {
 		st.sizes, st.err = sizes, nil

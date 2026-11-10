@@ -58,6 +58,20 @@
 >   consolidation and `add a Standard_D8ps_v5 agent pool` rows after the
 >   retry, with one good answer and no subscription on screen.
 
+> **Corrected 2026-11-10 (re-review: 1 MEDIUM, 5 LOW, applied).** A read
+> stopped by `Close` no longer logs a failure (`TestCloseDuringReadLogsNothing`,
+> `az` and Resource Manager blocked); a test keeps prints out of
+> `pkg/azure`; the kind test's Azure Nodes tolerate a reused cluster.
+> `sessions.Switch` closing the previous `Sizes` has no unit test (it needs a
+> Kubernetes API); `TestSessionCloseStopsAz` covers `Close`, and the kind
+> run covers a switch's new session.
+> Verified again 2026-11-10: `scripts/verify.sh`, `make lint`, `go test -race
+> ./pkg/... ./cmd/...`, `GOOS=windows go build` and `vet` green;
+> `scripts/kind-it.sh` passed on a throwaway kind cluster (deleted after),
+> `TestKindClusterAzureSizes` again showing the permission line, then the
+> arm row after the one-minute retry. Its Nodes' status update now retries
+> on a conflict with the node controller, which the first rerun hit.
+
 > A code change with open tasks here cannot merge, and so cannot release:
 > `scripts/spec-tasks-check.py` fails CI and the `pr-guard` hook blocks
 > `gh pr create` (use `--draft` until the tasks are done).
