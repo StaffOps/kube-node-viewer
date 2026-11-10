@@ -81,11 +81,15 @@ func (p *pricingProvider) NodePrice(n *model.Node) (float64, bool) {
 		if price, ok := p.SpotPrice(ec2types.InstanceType(n.InstanceType()), n.Zone()); ok {
 			return autoManagementPrice + price, true
 		}
-	} else if n.IsFargate() && len(n.Pods()) == 1 {
-		cpu, mem, ok := n.Pods()[0].FargateCapacityProvisioned()
-		if ok {
-			if price, ok := p.FargatePrice(cpu, mem); ok {
-				return price, true
+	} else if n.IsFargate() {
+		// one read of the pods: a pod deleted between two would leave an
+		// empty list to index (fix-node-name-lock R3)
+		if pods := n.Pods(); len(pods) == 1 {
+			cpu, mem, ok := pods[0].FargateCapacityProvisioned()
+			if ok {
+				if price, ok := p.FargatePrice(cpu, mem); ok {
+					return price, true
+				}
 			}
 		}
 	}

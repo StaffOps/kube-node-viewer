@@ -74,9 +74,13 @@ memory. Listed by impact.
       Azure resource group name outside `MC_…`.
       _Why:_ hide-cloud-ids treats them as sensitive on screen; the guard
       does not stop them in a commit.
-- [ ] `Node.Name` takes the read lock and calls `InstanceID`, which takes it
-      again (`pkg/model/node.go`). _Why:_ a recursive read lock can deadlock
-      with a pending writer.
+- [ ] `Node.Ready` takes the write lock on every call for a Ready node, to clear
+      the NodeClaim creation time, and the view calls it on every render
+      (`pkg/model/node.go`). _Why:_ needless contention with the informers;
+      clear it once, in `Update`.
+- [ ] `Pod.FargateCapacityProvisioned` logs a `CapacityProvisioned` annotation
+      it cannot parse and then indexes the failed match (`pkg/model/pod.go`).
+      _Why:_ a malformed annotation panics the program.
 
 ## Ideas
 

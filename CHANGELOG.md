@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Fixed
+
+- The screen could freeze for good while a Karpenter NodeClaim had no node yet:
+  reading the node's name took its lock twice, and an update in between
+  deadlocked both. Node methods now take the lock once, and the capacity, label
+  and pod readers that took none now do, so listing a node's pods while a pod is
+  bound can no longer abort with `concurrent map iteration and map write`; the
+  AWS Fargate price reads a node's pods once, so a pod deleted meanwhile can no
+  longer panic it with an index out of range.
+
 ### Changed
 
 - The headers and the export file name shorten two more gcloud context forms to
