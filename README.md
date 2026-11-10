@@ -125,8 +125,9 @@ left it, unless `config.yaml` sets a `default-view`
 
 **Header box.** The context (an EKS context named by its ARN,
 `arn:aws:eks:<region>:<account>:cluster/<name>`, or one gcloud writes,
-`gke_<project>_<location>_<cluster>`, `gke_<kind>_<project>_<location>_<cluster>`
-or `connectgateway_<project>_<location>_<membership>`, shows as its cluster
+`gke_<project>_<location>_<cluster>`, `gke_<kind>_<project>_<location>_<cluster>`,
+`connectgateway_<project>_<location>_<membership>` or
+`edgecontainer_<project>_<location>_<cluster>` (also with `_<user id>_offline`), shows as its cluster
 name; `c`, the JSON export and `--context` keep the full name), API server URL
 (without the project, when it is a Connect gateway or GKE multi-cloud URL) and
 pricing region; how many nodes the filters and search keep out of all

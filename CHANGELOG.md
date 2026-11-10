@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Fixed
+
+- The screen could freeze for good while a Karpenter NodeClaim had no node yet:
+  reading the node's name took its lock twice, and an update in between
+  deadlocked both. Node methods now take the lock once, and the capacity, label
+  and pod readers that took none now do, so listing a node's pods while a pod is
+  bound can no longer abort with `concurrent map iteration and map write`; the
+  AWS Fargate price reads a node's pods once, so a pod deleted meanwhile can no
+  longer panic it with an index out of range.
+
 ### Changed
 
 - The headers and the export file name shorten two more gcloud context forms to
@@ -14,6 +24,10 @@ All notable changes to this project are documented here. Format:
   with or without `_ns-<namespace>`. The full panel's `Cluster:` row hides the
   project of a Connect gateway or multi-cloud API URL; the JSON export keeps the
   full context and URL.
+- A Google Distributed Cloud context (`edgecontainer_<project>_<location>_<cluster>`,
+  and its offline-credential form ending in `_<user id>_offline`) shows as its
+  cluster name in the headers and the export file name; the contexts popup and
+  the JSON export keep the full name.
 - Node details show a GCE provider ID without the project and an Azure one
   without the subscription and resource group. A node with no name yet is listed
   by that same short form on those clouds. Node labels are still shown whole.

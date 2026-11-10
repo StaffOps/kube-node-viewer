@@ -67,9 +67,18 @@ memory. Listed by impact.
       group) and node names when a cloud puts one in them
       ([hide-cloud-ids](specs/hide-cloud-ids/requirements.md), out of scope).
       _Why:_ a screenshot of node details shares them.
-- [ ] gcloud's `edgecontainer_{project_id}_{location}_{cluster_id}` context
-      form, for Distributed Cloud clusters, still shows the project.
-      _Why:_ the same leak as the other gcloud forms.
+- [ ] gcloud context names with a project number in place of the project id
+      (`gke_<number>_…`, `connectgateway_<number>_…`, `edgecontainer_<number>_…`)
+      are refused by the short-name patterns and show whole
+      ([short-edge-context](specs/short-edge-context/requirements.md), out of
+      scope). _Why:_ a project number identifies the project too; unknown
+      whether gcloud ever writes one.
+- [ ] `content.sh`'s `gke_ok` lets any name starting `example` through
+      (`example[a-z0-9_-]*`), so `gke_`, `connectgateway_` and `edgecontainer_`
+      names whose project starts with `examplecorp…` pass, and it accepts any
+      project after `example.com:` (`gke_example.com:<real project>_…`), unlike
+      `gce_ok`. _Why:_ a real project id with that prefix, or behind an example
+      domain, would reach a commit.
 - [ ] `content.sh` blocks `gce://<project>/` and `resourceGroups/<name>`
       ([content-cloud-ids](specs/content-cloud-ids/requirements.md)), not the
       other spellings: `--resource-group <name>`, `"resourceGroup": "…"`,
@@ -78,12 +87,13 @@ memory. Listed by impact.
       project ids or numbers outside a `gce://` id (`projects/<id>/zones/…`,
       the GKE PD CSI node id). _Why:_ a pasted CLI output or Terraform file
       still carries them.
-- [ ] `gke_ok` in `content.sh` accepts any project after `example.com:`
-      (`gke_example.com:<real project>_…` passes), unlike `gce_ok`. _Why:_ a
-      real project behind an example domain slips through.
-- [ ] `Node.Name` takes the read lock and calls `InstanceID`, which takes it
-      again (`pkg/model/node.go`). _Why:_ a recursive read lock can deadlock
-      with a pending writer.
+- [ ] `Node.Ready` takes the write lock on every call for a Ready node, to clear
+      the NodeClaim creation time, and the view calls it on every render
+      (`pkg/model/node.go`). _Why:_ needless contention with the informers;
+      clear it once, in `Update`.
+- [ ] `Pod.FargateCapacityProvisioned` logs a `CapacityProvisioned` annotation
+      it cannot parse and then indexes the failed match (`pkg/model/pod.go`).
+      _Why:_ a malformed annotation panics the program.
 
 ## Ideas
 
