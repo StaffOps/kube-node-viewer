@@ -112,7 +112,8 @@ prices: ## Refresh the static on-demand price tables (from Karpenter; no credent
 AUTOSCALER_AZURE=https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/azure
 
 azure-catalog: ## Refresh the Azure size table (copied verbatim from the cluster autoscaler; no credentials)
-	curl -fsSL "$(AUTOSCALER_AZURE)/azure_instance_types.go" -o pkg/azure/zz_generated_instance_types.go
+	curl -fsSL "$(AUTOSCALER_AZURE)/azure_instance_types.go" -o pkg/azure/zz_generated_instance_types.go.tmp
+	mv pkg/azure/zz_generated_instance_types.go.tmp pkg/azure/zz_generated_instance_types.go
 
 catalog: ## Refresh the instance catalog from the AWS Price List (needs pricing:GetProducts)
 	go run ./hack/catalog

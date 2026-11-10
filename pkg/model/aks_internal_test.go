@@ -81,9 +81,17 @@ func TestAKSShowsUnknownPricesNotZero(t *testing.T) {
 // fakeAzureAdvisor is an Azure catalog and prices for the model tests: one
 // size, notes and a price generation the test can set.
 type fakeAzureAdvisor struct {
-	notes []string
-	gen   *uint64
-	block chan struct{} // when set, prices wait on it
+	notes  []string
+	gen    *uint64
+	block  chan struct{} // when set, prices wait on it
+	begins *int
+	price  float64 // when set, every Azure size costs this
+}
+
+func (a fakeAzureAdvisor) Begin() {
+	if a.begins != nil {
+		*a.begins++
+	}
 }
 
 func (fakeAzureAdvisor) Spec(t string) (recommend.Spec, bool) {
@@ -96,7 +104,7 @@ func (a fakeAzureAdvisor) OnDemand(recommend.Node, string) (float64, bool) {
 	if a.block != nil {
 		<-a.block
 	}
-	return 0, false
+	return a.price, a.price > 0
 }
 func (a fakeAzureAdvisor) SpotIn(n recommend.Node, t string) (float64, bool) { return a.OnDemand(n, t) }
 func (fakeAzureAdvisor) Types() []string                                     { return []string{"Standard_D2pds_v6"} }
@@ -220,5 +228,45 @@ func TestRecommendNodeFromAKSLabels(t *testing.T) {
 	n = mk(map[string]string{"type": "virtual-kubelet"}, "")
 	if !n.Virtual {
 		t.Errorf("virtual node not marked: %+v", n)
+	}
+}
+
+// aks-recommendations R1, D2: AdvisorsByCloud sends Azure sizes and nodes to
+// the Azure advisor and the rest to AWS's; each analysis begins afresh; nodes
+// of another cloud are left out.
+func TestAdvisorsByCloudRouting(t *testing.T) {
+	begins := 0
+	b := AdvisorsByCloud{recommend.CloudAWS: fakeAdvisor{}, recommend.CloudAzure: fakeAzureAdvisor{price: 0.5, begins: &begins}}
+	if _, ok := b.Spec("Standard_D2pds_v6"); !ok {
+		t.Error("an Azure size not routed to the Azure catalog")
+	}
+	if _, ok := b.Spec("m6i.xlarge"); !ok {
+		t.Error("an AWS type not routed to the AWS catalog")
+	}
+	if p, _ := b.OnDemand(recommend.Node{Cloud: recommend.CloudAzure}, "m6i.xlarge"); p != 0.5 {
+		t.Errorf("an Azure node priced by %v, want the Azure advisor's 0.5", p)
+	}
+	if p, ok := b.OnDemand(recommend.Node{Cloud: recommend.CloudAWS}, "m6i.xlarge"); !ok || p != 0.192 {
+		t.Errorf("an AWS node priced %v %v, want the AWS advisor's 0.192", p, ok)
+	}
+
+	u := aksUI(t)
+	u.advisor = b
+	for _, n := range u.stats.Nodes {
+		n.SetPrice(0.0918)
+		if strings.Contains(n.Name(), "workers") {
+			obj := n.Object().DeepCopy()
+			obj.Spec.ProviderID = "gce://example-project/us-central1-a/" + obj.Name
+			n.Update(obj)
+		}
+	}
+	u.Refresh()
+	pressAll(u, "tab")
+	if begins == 0 {
+		t.Error("the analysis did not begin the Azure advisor")
+	}
+	out := u.View()
+	if !strings.Contains(out, "agent pool system") || strings.Contains(out, "agent pool workers") {
+		t.Errorf("a GCE node got advice, or the Azure one none:\n%s", out)
 	}
 }

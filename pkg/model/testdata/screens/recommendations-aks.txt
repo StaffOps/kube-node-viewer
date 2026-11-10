@@ -10,10 +10,8 @@
 
   Savings: $0.00/month  best non-Spot option per node; estimates from requests and list prices, by requests only
 
-  KIND  TARGET                                               ACTION                                           SAVES/MO
-▌ idle  agent pool workers (1 nodes)                         $67.01/mo requested by nothing                       info
-  idle  agent pool system (1 nodes)                          $67.01/mo requested by nothing                       info
-  spot  agent pool workers (On-Demand Standard_D2pds_v6 ×1)  add a Spot agent pool alongside it (evictions!)         —
-  spot  agent pool system (On-Demand Standard_D2pds_v6 ×1)   add a Spot agent pool alongside it (evictions!)         —
+  KIND  TARGET                        ACTION                          SAVES/MO
+▌ idle  agent pool workers (1 nodes)  $67.01/mo requested by nothing      info
+  idle  agent pool system (1 nodes)   $67.01/mo requested by nothing      info
 
   ↑/↓: select • enter: why • tab/:ov: Overview • f: filter • /: search • c: context • v: views • e: export • ?: help • q: quit

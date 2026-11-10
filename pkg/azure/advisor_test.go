@@ -56,7 +56,7 @@ func TestAdvisorPricesAndNotes(t *testing.T) {
 	if strings.Join(f.calls, " ") != "eastus/Standard_D4s_v5/windows/regular eastus/Standard_D2s_v5/windows/spot" {
 		t.Errorf("calls %v", f.calls)
 	}
-	if notes := a.Notes(); len(notes) != 1 || notes[0] != "waiting for the prices of 1 Azure sizes" {
+	if notes := a.Notes(); len(notes) != 1 || notes[0] != "waiting for the price of 1 Azure size" {
 		t.Errorf("notes %v", notes)
 	}
 	delete(f.wait, "Standard_D2s_v5")
@@ -83,5 +83,27 @@ func TestAdvisorPricingDisabled(t *testing.T) {
 	}
 	if NewAdvisor(nil, true).Generation() != 0 {
 		t.Error("generation without prices")
+	}
+}
+
+// aks-recommendations R3: each analysis counts the awaited sizes afresh, so
+// a size no row asks for any more (after a filter change) leaves the note;
+// with no price source the note says candidate prices are not available.
+func TestAdvisorPendingPerAnalysis(t *testing.T) {
+	f := &fakeLister{wait: map[string]bool{"Standard_D2s_v5": true, "Standard_D4s_v5": true}}
+	a := NewAdvisor(f, false)
+	n := recommend.Node{Region: "eastus"}
+	a.Begin()
+	a.OnDemand(n, "Standard_D2s_v5")
+	a.OnDemand(n, "Standard_D4s_v5")
+	if notes := a.Notes(); len(notes) != 1 || notes[0] != "waiting for the prices of 2 Azure sizes" {
+		t.Errorf("notes %v", notes)
+	}
+	a.Begin() // the filter now keeps nodes that ask for neither
+	if notes := a.Notes(); len(notes) != 0 {
+		t.Errorf("a size nobody asks for kept the note: %v", notes)
+	}
+	if notes := NewAdvisor(nil, false).Notes(); len(notes) != 1 || !strings.HasPrefix(notes[0], "Azure candidate prices not available yet") {
+		t.Errorf("no price source: notes %v", notes)
 	}
 }

@@ -41,8 +41,19 @@ type Advisor struct {
 	prices   PriceLister
 	disabled bool
 
+	// pending holds the sizes this analysis found awaited, by region and
+	// size: the provider caches all meters of a size together (regular,
+	// Spot, Windows), so one answer settles every variant
 	mu      sync.Mutex
 	pending map[key]bool
+}
+
+// Begin starts an analysis: the sizes awaited are counted afresh, so a size
+// no row asks for any more leaves the note (aks-recommendations R3).
+func (a *Advisor) Begin() {
+	a.mu.Lock()
+	a.pending = map[key]bool{}
+	a.mu.Unlock()
 }
 
 // NewAdvisor makes an advisor over prices; nil prices with disabled means
@@ -88,13 +99,19 @@ func (a *Advisor) price(n recommend.Node, t string, spot bool) (float64, bool) {
 // Notes say why Azure rows may be missing: pricing disabled, or prices
 // awaited (aks-recommendations R3).
 func (a *Advisor) Notes() []string {
-	if a.disabled {
+	switch {
+	case a.disabled:
 		return []string{"pricing disabled: Azure rows that need a price are not shown"}
+	case a.prices == nil:
+		return []string{"Azure candidate prices not available yet: rows that need them are not shown"}
 	}
 	a.mu.Lock()
 	n := len(a.pending)
 	a.mu.Unlock()
-	if n > 0 {
+	switch {
+	case n == 1:
+		return []string{"waiting for the price of 1 Azure size"}
+	case n > 1:
 		return []string{fmt.Sprintf("waiting for the prices of %d Azure sizes", n)}
 	}
 	return nil

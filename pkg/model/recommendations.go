@@ -97,6 +97,15 @@ func (b AdvisorsByCloud) Notes() []string {
 	return out
 }
 
+// Begin tells each advisor an analysis starts (aks-recommendations R3).
+func (b AdvisorsByCloud) Begin() {
+	for _, a := range b {
+		if a, ok := a.(beginner); ok {
+			a.Begin()
+		}
+	}
+}
+
 // Generation changes when any advisor learns new prices.
 func (b AdvisorsByCloud) Generation() uint64 {
 	var g uint64
@@ -112,6 +121,7 @@ func (b AdvisorsByCloud) Generation() uint64 {
 // prices arrive later, so a new generation means a new analysis
 // (aks-recommendations R3).
 type noter interface{ Notes() []string }
+type beginner interface{ Begin() }
 type generationer interface{ Generation() uint64 }
 
 // RecommendOptions are the config-file settings of the rules (R12).
@@ -165,10 +175,20 @@ func (u *UIModel) recommendInput() recommend.Input {
 		PendingPods: u.stats.Unscheduled,
 		Spec:        a.Spec, OnDemand: a.OnDemand, SpotIn: a.SpotIn, Types: a.Types(),
 	}
+	if b, ok := a.(beginner); ok {
+		b.Begin()
+	}
 	azure := false
 	for _, n := range u.view.Select(u.stats.Nodes) {
 		rn := recommendNode(n)
-		azure = azure || rn.Cloud == recommend.CloudAzure
+		switch rn.Cloud {
+		case recommend.CloudAWS, "":
+		case recommend.CloudAzure:
+			azure = true
+		default:
+			// nodes of other clouds get no rule's advice (aks-recommendations R1)
+			continue
+		}
 		in.Nodes = append(in.Nodes, rn)
 	}
 	// the notes are about Azure prices: only with Azure nodes shown

@@ -1,0 +1,25 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer · Recommendations                                                                                                                                   │
+│ Context:  demo-prod                                                                                                                       f filters     g group by   │
+│ Cluster:  https://0A1B2C3D4E5F.gr7.us-east-1.eks.amazonaws.com                                                                            s sort        o columns    │
+│ Region:   us-east-1                                                                                                                       / search      r resources  │
+│ Nodes:    10 of 10 shown · 220 pods · $728.102/month (+1 reserved, not priced) (global cluster)                                           c context     v views      │
+│ View:     Filters: none │ Group: none │ Sort: creation ↓ │ cpu+memory                                                                     ? help       ^e compact    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  25533m/35230m    72.5% cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.997/hour | $728.102/month (+1 reserved, not priced)
+  72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+
+  Savings: $86.43/month  best non-Spot option per node; estimates from requests and list prices, by requests only
+                                                        ╭─ Why: graviton ───────────────────────────────────────╮
+  KIND      TARGET                                      │ graviton: NodePool default (m6i.xlarge ×3)            │VES/MO
+  idle      NodePool default (4 nodes)                  │ allow m7g.xlarge in the NodePool (arm64 images!)      │  info
+  idle      node group system-ng (2 nodes)              │                                                       │  info
+  idle      NodePool spot-arm (3 nodes)                 │ m6i.xlarge list $0.1920/h → m7g.xlarge list $0.1632/h │  info
+  graviton  NodePool default (m6i.xlarge ×3)            │ saving: 3 nodes × difference × 730 h = $63.07         │$63.07
+  graviton  node group system-ng (t3.large ×2)          │                                                       │$23.36
+  old node  ip-192-0-2-73.ec2.internal (40 days)        │ Graviton (arm64): images must run on arm64            │     —
+  old node  ip-192-0-2-66.ec2.internal (40 days)        ├───────────────────────────────────────────────────────┤     —
+  spot      NodePool default (On-Demand m6i.xlarge ×3)  │ esc: close                                            │     —
+  spot      node group system-ng (On-Demand t3.large ×2)╰───────────────────────────────────────────────────────╯     —
+
+

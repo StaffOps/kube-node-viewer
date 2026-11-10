@@ -39,13 +39,18 @@ var azSpecs = map[string]Spec{
 	"Standard_D4pds_v5": {VCPU: 4, MemGiB: 16, Arch: "arm64", Family: "dpdsv5"},
 	"Standard_B2ms":     {VCPU: 2, MemGiB: 8, Arch: "x86_64", Family: "bs"},
 	"Standard_B4ms":     {VCPU: 4, MemGiB: 16, Arch: "x86_64", Family: "bs"},
+	// a constrained-vCPU size, cheaper than D4s_v5: never a candidate
+	"Standard_D4-2s_v5": {VCPU: 4, MemGiB: 16, Arch: "x86_64", Family: "dsv5", Constrained: true},
+	"Standard_D4s_v4":   {VCPU: 4, MemGiB: 16, Arch: "x86_64", Family: "dsv4"},
+	"Standard_D2s_v4":   {VCPU: 2, MemGiB: 8, Arch: "x86_64", Family: "dsv4"},
 }
 
 var azPrices = map[string]float64{
 	"Standard_D2s_v5": 0.096, "Standard_D4s_v5": 0.192, "Standard_D8s_v5": 0.384, "Standard_D64s_v5": 3.072,
 	"Standard_D2s_v3": 0.096, "Standard_D4s_v3": 0.192, "Standard_D4ds_v5": 0.226,
 	"Standard_D4ps_v5": 0.154, "Standard_D8ps_v5": 0.308, "Standard_D64ps_v5": 2.464, "Standard_D4pds_v5": 0.181,
-	"Standard_B2ms": 0.0832, "Standard_B4ms": 0.166,
+	"Standard_B2ms": 0.0832, "Standard_B4ms": 0.166, "Standard_D4-2s_v5": 0.10,
+	"Standard_D4s_v4": 0.20, "Standard_D2s_v4": 0.10,
 }
 
 var azSpot = map[string]float64{
@@ -53,7 +58,9 @@ var azSpot = map[string]float64{
 }
 
 // windows prices, for the meter tests
-var azWindows = map[string]float64{"Standard_D4s_v5": 0.376, "Standard_D2s_v5": 0.188}
+var azWindows = map[string]float64{"Standard_D4s_v5": 0.376, "Standard_D2s_v5": 0.188,
+	// a cheaper Arm counterpart, so only the Windows rule keeps the Arm row out
+	"Standard_D8s_v5": 0.752, "Standard_D8ps_v5": 0.5}
 var azWindowsSpot = map[string]float64{"Standard_D4s_v5": 0.079374}
 
 func azInput(nodes []Node) Input {
@@ -448,5 +455,149 @@ func TestAKSSystemPoolLimits(t *testing.T) {
 		if x.Kind == Rightsize && strings.HasPrefix(x.Target, "bigsys ") {
 			t.Errorf("system node with 20 pods rightsized: %+v", x)
 		}
+	}
+}
+
+// aks-recommendations R3, R11: an Azure Spot row needs every node's price;
+// a Windows node without a Windows Spot price, or prices off, give none.
+func TestAKSSpotNeedsPrices(t *testing.T) {
+	win := azFixtureNodes()[3]
+	win.Windows = true
+	delete(azWindowsSpot, "Standard_D8s_v5")
+	if s := kinds(Analyze(azInput([]Node{win})), SpotMove); len(s) != 0 {
+		t.Errorf("Windows node without a Windows Spot price got %+v", s)
+	}
+	// pricing off: no node price, no list price
+	off := azInput(nil)
+	off.OnDemand = func(Node, string) (float64, bool) { return 0, false }
+	off.SpotIn = off.OnDemand
+	for _, n := range azFixtureNodes() {
+		n.Price, n.PriceKnown = 0, false
+		off.Nodes = append(off.Nodes, n)
+	}
+	var got []Kind
+	for _, x := range Analyze(off).Recs {
+		got = append(got, x.Kind)
+	}
+	if fmt.Sprint(got) != fmt.Sprint([]Kind{OldNode}) {
+		t.Errorf("prices off: kinds %v, want [old node]", got)
+	}
+	// a pool that packs still gets its consolidation row, saving unknown
+	off.Nodes = nil
+	for i := 0; i < 3; i++ {
+		n := azNode(fmt.Sprintf("sys-%d", i), "Standard_D4s_v5", "system", true, d4Alloc, d4Cap, time.Hour, append(azDS(), app(0.2, 0.5))...)
+		n.Price, n.PriceKnown = 0, false
+		off.Nodes = append(off.Nodes, n)
+	}
+	r := Analyze(off)
+	if len(r.Recs) != 1 || r.Recs[0].Kind != Consolidate || r.Recs[0].Priced {
+		t.Errorf("prices off, packing pool: %+v", r.Recs)
+	}
+}
+
+// aks-recommendations R14: an AWS node group and an Azure agent pool of the
+// same name stay two groups.
+func TestCloudsNeverShareAGroup(t *testing.T) {
+	a := node("ip-192-0-2-10", "m6i.xlarge", "us-east-1a", "", "shared", 0.192, Resources{3.92, 14, 58}, time.Hour, app(1, 4))
+	a.Cloud = CloudAWS
+	z := azFixtureNodes()[3]
+	z.ManagedGroup = "shared"
+	in := azInput([]Node{a, z})
+	awsIn := fixtureInput(nil)
+	in.Spec = func(t string) (Spec, bool) {
+		if azureType(t) {
+			return azSpecs[t], true
+		}
+		return awsIn.Spec(t)
+	}
+	idle := kinds(Analyze(in), Idle)
+	if len(idle) != 2 {
+		t.Fatalf("idle rows %+v, want one per cloud", idle)
+	}
+	find(t, Analyze(in), Idle, "node group shared (1 nodes)")
+	find(t, Analyze(in), Idle, "agent pool shared (1 nodes)")
+}
+
+// aks-recommendations R2, R7: a constrained-vCPU size is never recommended,
+// though cheaper.
+func TestConstrainedSizesNeverRecommended(t *testing.T) {
+	r := Analyze(azInput(azFixtureNodes()))
+	for _, x := range r.Recs {
+		if strings.Contains(x.Action, "Standard_D4-2s_v5") {
+			t.Errorf("constrained size recommended: %+v", x)
+		}
+	}
+}
+
+// recommendations R7, R11; aks-recommendations R1: the AWS math is exactly
+// what it was (no Azure lines, wording or pod source on AWS rows).
+func TestAWSMathUnchanged(t *testing.T) {
+	r := Analyze(fixtureInput(fixtureNodes()))
+	rs := find(t, r, Rightsize, "ip-10-0-12-15")
+	want := []string{
+		"ip-10-0-12-15: m6i.xlarge → m6i.large",
+		"requests 1.45 vCPU / 5.40 GiB (DaemonSets 0.25 / 0.40 included)",
+		"m6i.large allocatable ≈ 1.96 vCPU / 7.00 GiB (capacity × allocatable ratio of this cluster's m6i nodes)",
+		"after the move: cpu 74%, memory 77% ≤ 80%; pod capacity not checked (no node of this type)",
+		"saving: ($0.1920 − $0.0960) × 730 h = $70.08",
+	}
+	if strings.Join(rs.Math, "\n") != strings.Join(want, "\n") {
+		t.Errorf("AWS rightsize math changed:\n%s", strings.Join(rs.Math, "\n"))
+	}
+	sp := find(t, r, SpotMove, "NodePool default")
+	if sp.Action != "allow spot in the NodePool (interruptions!)" || sp.Math[0] != "ip-10-0-12-15 in us-east-1b: $0.1920 → $0.0768/h" {
+		t.Errorf("AWS spot row changed: %q %q", sp.Action, sp.Math)
+	}
+	ng := find(t, r, SpotMove, "node group system-ng")
+	if ng.Action != "add a Spot node group alongside it (interruptions!)" || ng.Math[0] != "sys-0 in us-east-1a: no spot price for this zone" || ng.Priced {
+		t.Errorf("AWS unpriced spot row changed: %q %q", ng.Action, ng.Math)
+	}
+}
+
+// aks-recommendations R12: a virtual node is excluded even with an
+// instance-type label.
+func TestVirtualNodeWithASize(t *testing.T) {
+	v := azFixtureNodes()[3]
+	v.Virtual = true
+	for _, x := range Analyze(azInput([]Node{v})).Recs {
+		if x.Kind != Idle {
+			t.Errorf("virtual node got %s advice", x.Kind)
+		}
+	}
+}
+
+// aks-recommendations R7: the reservation takes status.capacity when it is
+// the larger (a table truncated to whole GB, as for DS1_v2), and a user pool
+// checks the node's own max-pods.
+func TestAzureReservationAndPods(t *testing.T) {
+	n := Node{Type: "Standard_DS1_v2", Allocatable: Resources{0.9, 2.0, 30}, NodeCapacity: Resources{1, 3.4, 30}}
+	nspec := Spec{VCPU: 1, MemGiB: 3} // truncated from 3.5
+	alloc, _, ok := azureAllocatable(Input{}, n, nspec, "Standard_DS2_v2", Spec{VCPU: 2, MemGiB: 7})
+	if !ok || !near(alloc.Mem, 7-1.4) || !near(alloc.CPU, 2-0.1) {
+		t.Errorf("estimate %+v, want memory 7 − (3.4 − 2.0)", alloc)
+	}
+	busy := azFixtureNodes()[6]
+	for i := 0; i < 40; i++ {
+		busy.Pods = append(busy.Pods, app(0.01, 0.01))
+	}
+	busy.Allocatable.Pods = 30 // the pool's max-pods; no D4s_v5 node to measure
+	for _, x := range Analyze(azInput([]Node{busy})).Recs {
+		if x.Kind == Rightsize {
+			t.Errorf("43 pods rightsized onto a 30-pod pool: %+v", x)
+		}
+	}
+}
+
+// aks-recommendations R8, R15: a system pool's generation row reads "add a
+// system-mode pool", and a target under the system limits gives none.
+func TestAKSSystemPoolSwaps(t *testing.T) {
+	sys := azNode("sys", "Standard_D4s_v4", "system", true, d4Alloc, d4Cap, time.Hour, app(1, 3))
+	g := find(t, Analyze(azInput([]Node{sys})), Generation, "agent pool system")
+	if g.Action != "add a system-mode pool of Standard_D4s_v5" {
+		t.Errorf("action %q", g.Action)
+	}
+	small := azNode("small", "Standard_D2s_v4", "system", true, Resources{1.9, 5.4, 250}, Resources{2, 7.7, 250}, time.Hour, app(0.5, 1))
+	if x := kinds(Analyze(azInput([]Node{small})), Generation); len(x) != 0 {
+		t.Errorf("system pool offered a 2-vCPU size: %+v", x)
 	}
 }

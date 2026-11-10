@@ -225,6 +225,12 @@ node:
 - [ ] The UI goroutine never waits on a request. Test: an analysis with a
   price source that blocks returns at once.
 
+> **Corrected 2026-11-10 (diff review M3).** Two R3 checks have no test
+> yet; they are T2's. These are "candidate sizes beyond 17 go out in two
+> requests" and "a size the API doesn't know is not asked again". Until T2,
+> spec-trace sees R3 cited by the advisor and model tests only. The same goes
+> for R16's `Test: ci` marker: it waits for T6 (`refresh-data.yaml`).
+
 **R4** WHEN an Azure node has `kubernetes.azure.com/agentpool` and no
 `karpenter.sh/nodepool` THEN the rules SHALL treat its agent pool as a
 managed node group (recommendations R13). Targets read `agent pool <name>`.

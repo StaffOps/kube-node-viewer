@@ -933,6 +933,11 @@ func spot(in Input) []Rec {
 	var out []Rec
 	for _, k := range order {
 		g := groups[k]
+		if !g.priced && g.rec.Cloud == CloudAzure {
+			// an Azure row needs every node's price, else it is absent
+			// (aks-recommendations R3, R11)
+			continue
+		}
 		g.rec.Priced = g.priced
 		if !g.priced {
 			g.rec.Monthly = 0

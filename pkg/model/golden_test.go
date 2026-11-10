@@ -29,6 +29,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mattn/go-runewidth"
 	"github.com/muesli/termenv"
+
+	"github.com/staffops/kube-node-viewer/pkg/recommend"
 )
 
 var updateGolden = flag.Bool("update", false, "rewrite the golden screens in testdata/screens")
@@ -64,7 +66,9 @@ var goldenScenes = []struct {
 		pressAll(u, "tab")
 	}},
 	{"recommendations", 168, 40, func(u *UIModel) {
-		u.advisor = fakeAdvisor{}
+		// as production builds it (aks-recommendations R1): an Azure advisor
+		// whose note must not show on an EKS-only screen
+		u.advisor = AdvisorsByCloud{"aws": fakeAdvisor{}, "azure": fakeAzureAdvisor{notes: []string{"pricing disabled: Azure rows that need a price are not shown"}}}
 		u.SetRecommendOptions(RecommendOptions{Headroom: 0.8, OldAge: 30 * 24 * time.Hour})
 		pressAll(u, "tab")
 	}},
@@ -77,6 +81,20 @@ var goldenScenes = []struct {
 		}
 		u.Refresh()
 		pressAll(u, "tab")
+	}},
+	// recommendations R9: the math of an AWS Graviton row, unchanged by the
+	// Azure rules (the made-up cluster has no rightsize row)
+	{"recommendation-why", 168, 40, func(u *UIModel) {
+		u.advisor = AdvisorsByCloud{"aws": fakeAdvisor{}, "azure": fakeAzureAdvisor{}}
+		u.SetRecommendOptions(RecommendOptions{Headroom: 0.8, OldAge: 30 * 24 * time.Hour})
+		pressAll(u, "tab")
+		for i, r := range u.recs.Recs {
+			if r.Kind == recommend.Graviton {
+				u.recCursor = i
+				break
+			}
+		}
+		pressAll(u, "enter")
 	}},
 	{"help", 168, 60, func(u *UIModel) { press(u, "?") }},
 	{"header-compact", 168, 30, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
