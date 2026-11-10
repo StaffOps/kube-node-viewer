@@ -55,6 +55,7 @@ brew update && brew upgrade --cask staffops/tap/kube-node-viewer && kube-node-vi
 | Symptom | Cause | Action |
 |---------|-------|--------|
 | No release after a PR labelled `release` merged | `gh workflow run` failed in the automerge job | run `gh workflow run release.yaml --ref main` |
+| No release on Monday evening though `[Unreleased]` has entries | GitHub delays scheduled runs, by hours at times (2026-11-09: the 12:00 UTC run started at 22:10) | run `gh workflow run release.yaml --repo StaffOps/kube-node-viewer --ref main`; the late scheduled run then finds nothing to release |
 | "already tagged and [Unreleased] is empty" | nothing new | expected |
 | Release commit pushed, tag created, GoReleaser failed before the GitHub release appeared | build or token error | fix in a PR; the owner re-runs the workflow on the tag |
 | A `v*` tag with no GitHub release; later runs say "already tagged" | the run failed after pushing the tag (GoReleaser, signing or SBOM) | owner re-runs the workflow on the tag: `gh workflow run release.yaml --ref vX.Y.Z` |
