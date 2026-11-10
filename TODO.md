@@ -46,6 +46,15 @@ what they cannot. Listed by impact.
       _Why:_ if Kiro ignores a field, its agent loses the early warnings
       without any error; the git hooks and CI still hold.
 
+- [ ] **Watch the Monday schedules.** On 2026-11-09, the first Monday they
+      existed, GitHub started all three 9 to 10 hours late (`test.yaml`
+      06:00 → 14:54 UTC, Scorecard 06:30 → 16:41, `release.yaml` 12:00 →
+      22:10), during a day of GitHub incidents. The fallback is a manual
+      `gh workflow run release.yaml` (skill `release`). If it keeps
+      happening, consider a check that warns when Monday passes with
+      `[Unreleased]` entries and no release. _Why:_ a release that starts
+      late can collide with the day's merges and fail (rerun it).
+
 ## Spec-driven sync
 
 Keep specs and code telling the same story, checked by CI rather than by
