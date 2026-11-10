@@ -94,6 +94,17 @@ memory. Listed by impact.
 - [ ] `Pod.FargateCapacityProvisioned` logs a `CapacityProvisioned` annotation
       it cannot parse and then indexes the failed match (`pkg/model/pod.go`).
       _Why:_ a malformed annotation panics the program.
+- [ ] The Azure price fetch puts every wanted size of a region in one
+      request (`pkg/azure/pricing.go:249-256`). The Retail Prices API
+      refuses a filter of more than 20 comparisons (3 fixed + 17 sizes →
+      200, 18 sizes → 400, measured 2026-11-10), and `retry.go` retries a
+      400 forever ([aks-recommendations](specs/aks-recommendations/design.md)
+      D3). _Why:_ a cluster with 18 or more node sizes in one region never
+      gets its Overview prices. It needs a bugfix spec that splits the
+      requests.
+- [ ] `NOTICE` is not in the release archives: `.goreleaser.yaml` lists no
+      `files`. _Why:_ the Apache 2.0 license asks that the NOTICE travel
+      with the binaries.
 
 ## Ideas
 
