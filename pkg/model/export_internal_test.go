@@ -147,6 +147,48 @@ func TestFleetNameInExportAndPopup(t *testing.T) {
 	}
 }
 
+// short-edge-context R4
+func TestEdgeNameInExportAndPopup(t *testing.T) {
+	for _, context := range edgeContexts() {
+		dir := t.TempDir()
+		t.Chdir(dir)
+		u := demoUI(t)
+		u.SetClusterInfo(ClusterInfo{Context: context, Server: "https://edge.example:443"})
+		msg := writeExport(u.exportDoc(time.Now()), dir, "")
+		if msg.err != nil {
+			t.Fatal(msg.err)
+		}
+		u.exported(msg)
+		for _, name := range []string{msg.csv, msg.json, u.currentNotice()} {
+			if strings.Contains(name, "example-project") || strings.Contains(name, "ops_user") ||
+				!strings.Contains(name, "kube-node-viewer-demo-prod-") {
+				t.Errorf("%q: name or notice %q", context, name)
+			}
+		}
+		var got exportDoc
+		data, err := os.ReadFile(msg.json)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(data, &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.Context != context {
+			t.Errorf("JSON context %q, want the full %q", got.Context, context)
+		}
+
+		u.panel = panelContexts
+		u.contextsLoaded(contextsMsg{names: []string{context, "staging"}, current: context})
+		if rows := strings.Join(u.contextsPanel().rows, "\n"); !strings.Contains(rows, context) {
+			t.Errorf("contexts popup rows:\n%s", rows)
+		}
+		u.contexts.switching = context
+		if rows := strings.Join(u.contextsPanel().rows, "\n"); !strings.Contains(rows, "connecting to "+context) {
+			t.Errorf("switching row:\n%s", rows)
+		}
+	}
+}
+
 // short-gke-context R3: the fallback directory gets the short name too
 func TestExportFallbackUsesTheShortName(t *testing.T) {
 	ro := t.TempDir()
