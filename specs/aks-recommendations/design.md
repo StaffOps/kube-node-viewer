@@ -160,15 +160,19 @@ session-level advisor, which drops R14.
 - An Azure advisor fixed to one region per session. It can't tell Windows
   prices from Linux ones, and it keeps the "first cloud wins" gate.
 
-### D3: Candidate prices on demand, at most 17 sizes per request, analysis again on arrival
+### D3: Candidate prices on demand, through the batch fix's split, analysis again on arrival
 
 **Choice**: `azure.Provider.ListPrice` reads the cache. On a miss it adds
-the (region, size) to `wanted`, as `NodePrice` does. The fetch loop splits
-a region's wanted sizes into requests of at most `maxSizesPerRequest = 17`.
-That is 20 comparisons minus the three fixed clauses: `serviceName`,
-`priceType`, `armRegionName`. The requests run one after another. Every
-stored answer bumps a generation counter, which `recKey` includes, so the
-next update runs the analysis again.
+the (region, size) to `wanted`, as `NodePrice` does. The fetch loop's split
+into requests of at most 17 sizes is not defined here. It comes from
+[fix-azure-price-batch](../fix-azure-price-batch/bugfix.md), which fixes
+the shipped `NodePrice` path, and this spec reuses that fix's constant
+without redefining it. Seventeen is 20 comparisons minus the three fixed
+clauses: `serviceName`, `priceType`, `armRegionName`. The requests run one
+after another. Every stored answer bumps a generation counter, which
+`recKey` includes, so the next update runs the analysis again.
+
+This spec depends on that fix: T2 starts after it merges.
 
 **Evidence** (spec-refuter, 2026-11-10):
 - Against the live API, 3 clauses + 17 sizes → 200, and 18 sizes → 400
@@ -195,12 +199,13 @@ next update runs the analysis again.
 
 **The same limit in today's code**: `NodePrice` shares `wanted`, so today
 18 or more distinct node sizes in one region make every request 400. Since
-`retry.go:51-52` retries a 400 forever, Overview prices never arrive. This
-spec's split fixes it for both callers. The shipped behaviour gets its own
-bugfix spec (TODO item), so it can ship before this feature.
+`retry.go:51-52` retries a 400 forever, Overview prices never arrive.
+[fix-azure-price-batch](../fix-azure-price-batch/bugfix.md) fixes that for
+every caller of the fetch loop, `ListPrice` included.
 
 **When this would be wrong**: the API changes its comparison limit. The
-named constant moves, and a test pins the split.
+fix's constant moves, and its test pins the split. This spec only checks
+that candidate sizes go through it.
 
 **Reversal action**: fetch a whole family by its product name in one
 request (`productName eq 'Virtual Machines Dpsv5 Series'` returned all
@@ -302,6 +307,11 @@ How a row is decided:
 | D4ps_v5 | $0.154 |
 | D4ps_v6 | $0.14 |
 
+**Decided** (owner, 2026-11-10):
+- A generation row at the same price is an `info` row, outside the total.
+- Arm targets are the v5 families only (Dpsv5, Dplsv5, Epsv5 and their `d`
+  variants). v6 Cobalt stays deferred.
+
 **Justification, strongest first**:
 1. Azure prices an older and a newer Intel generation the same. "Only when
    cheaper" would show no generation row on Azure, though the upgrade is
@@ -309,8 +319,8 @@ How a row is decided:
 2. AKS's Arm64 node-pool page (`use-arm64-vms.md`, ms.date 2025-02-25)
    names only the Dpsv5, Dplsv5 and Epsv5 series (and their `d` variants
    on the same size pages). Recommending a family AKS doesn't document
-   could fail at pool creation. v6 Cobalt is cheaper, so it is an owner
-   decision.
+   could fail at pool creation. v6 Cobalt is cheaper, but the owner kept v5
+   (Decided, above).
 3. Matching memory as well as vCPU avoids the `Standard_D64ps_v5` trap
    (208 GiB).
 
@@ -339,6 +349,9 @@ condition).
 **Choice**: `Rec.Label()` gives `graviton` for AWS rows and `arm` for Azure
 rows. The kind keeps its place in the order. Row, math title and popup use
 `Label()` (`pkg/model/recommendations.go:164,249,253`).
+
+**Decided** (owner, 2026-11-10): `arm` on Azure rows; `graviton` stays on
+AWS rows.
 
 **Justification**: Graviton is the AWS product. Azure's are Ampere Altra
 (v5) and Cobalt 100 (v6).

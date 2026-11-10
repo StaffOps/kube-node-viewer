@@ -167,8 +167,9 @@ node:
 
 - [ ] Prices not cached are asked for in the background, batched with the
   provider's other wanted sizes of that region. Each request holds at most
-  17 sizes: the API refuses a filter of more than 20 comparisons, and three
-  are the fixed clauses (design D3). The requests run one after another.
+  17 sizes, the cap of [fix-azure-price-batch](../fix-azure-price-batch/bugfix.md),
+  reused rather than redefined: the API refuses a filter of more than 20
+  comparisons, and three are the fixed clauses (design D3). The requests run one after another.
   Test: 18 wanted sizes make two requests.
 - [ ] The analysis runs again when they arrive. Until then, the rows that
   need them are absent, and a note gives the number of sizes awaited.
@@ -354,8 +355,8 @@ data-refresh workflow SHALL run it with the price tables.
 - Azure Reservations and Savings Plans.
 - Swaps between vendors of the same architecture, such as Intel `Dsv5` to
   AMD `Dasv5`, which is often cheaper (a deferred idea).
-- Arm v6 (Cobalt 100) targets, which AKS's Arm64 page doesn't name yet. The
-  owner decides (design D5).
+- Arm v6 (Cobalt 100) targets, which AKS's Arm64 page doesn't name yet.
+  Deferred by the owner, 2026-11-10 (design D5).
 - Generation or Arm targets for:
   - the GPU (`N*`), HPC (`H*`), confidential (`DC*`, `EC*`), storage
     (`L*`), M, `Av2` and `Fsv2` families (only AMD is newer than `Fsv2`);
@@ -365,11 +366,12 @@ data-refresh workflow SHALL run it with the price tables.
 - Disk, network and control-plane tier costs.
 - GKE (stage 2).
 
-## Owner decisions before the spec goes active
+## Decided
 
-- D5:
-  - generation rows at the same price as `info` rather than no row;
-  - Arm targets limited to the v5 families AKS documents, rather than the
-    cheaper v6 Cobalt families (D4ps_v6 $0.14 against D4ps_v5 $0.154 in
-    `eastus`).
-- D6: the kind label `arm` on Azure rows, keeping `graviton` on AWS rows.
+Decided by the owner, 2026-11-10:
+- **Generation at the same price** (design D5): an `info` row, outside the
+  total.
+- **Arm targets** (design D5): the v5 families AKS documents only (Dpsv5,
+  Dplsv5, Epsv5 and their `d` variants). v6 Cobalt stays deferred.
+- **Kind label** (design D6): `arm` on Azure rows; `graviton` stays on AWS
+  rows.
