@@ -45,7 +45,7 @@ tests, so spec-trace passes.
   > candidate), and the AWS fixture unchanged ($242.94). The model and
   > session advisors take the new price signatures in the same commit, so
   > every commit builds; their Azure wiring is T4 and T5.
-- [ ] T4. `pkg/model`:
+- [x] T4. `pkg/model`:
   - advisor per cloud; the gate (GCP message, empty cluster);
   - labels and `status.capacity` into `recommend.Node`;
   - `Label()` in the row, math title and popup;
@@ -54,6 +54,15 @@ tests, so spec-trace passes.
   - rewrite `aks_internal_test.go` `TestAKSRecommendationsSayEKSOnly` for R1;
   - golden: a new AKS Recommendations screen (`golden_test.go`); AWS golden files unchanged.
   - _Covers: R1, R3, R4 · Depends on: T2, T3 · Verified by: key-driven tests, golden screens_
+
+  > **Done 2026-11-10**, ahead of T2: the model takes any advisor with
+  > optional `Notes()` and `Generation()`, so T2's prices slot in.
+  > `AdvisorsByCloud` routes by size name and node cloud. Tests:
+  > `TestAKSRecommendationsAnalyseAzureNodes`,
+  > `TestRecommendationsOtherCloudAndEmpty`,
+  > `TestAzureNotesGenerationAndNoWait`, `TestRecommendNodeFromAKSLabels`,
+  > and the `recommendations-aks` golden screen. The AWS golden files are
+  > unchanged.
 - [ ] T5. `cmd/kube-node-viewer/session.go`: `awsAdvisor` signatures; `azureAdvisor` from the `ByCloud` Azure provider, and over the catalog with pricing disabled when `--disable-pricing` (`session.go:205-206`)
   - _Covers: R1, R3 · Depends on: T2, T4 · Verified by: session tests with and without `--disable-pricing`_
 - [ ] T6. `refresh-data.yaml` runs `make azure-catalog` with `make prices`

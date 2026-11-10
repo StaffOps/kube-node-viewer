@@ -143,6 +143,9 @@ Failure examples:
 - **A GKE cluster.** The screen says `Recommendations cover EKS and AKS
   nodes only for now; the nodes shown run on GCP.`
 
+  > **Corrected 2026-11-10 (T4).** The message names the cloud as the
+  > screen already does for GCE nodes, `Google Cloud`, not `GCP`.
+
 ## Requirements
 
 **R1** WHEN the nodes shown include Azure nodes (provider ID `azure://`)

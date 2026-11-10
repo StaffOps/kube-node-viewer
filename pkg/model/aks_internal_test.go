@@ -24,6 +24,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/staffops/kube-node-viewer/pkg/recommend"
 )
 
 // aksUI is an AKS cluster with no node priced yet (as before the Azure
@@ -76,25 +78,147 @@ func TestAKSShowsUnknownPricesNotZero(t *testing.T) {
 	}
 }
 
-// aks-pricing R3: with only Azure nodes, Recommendations says EKS only.
-func TestAKSRecommendationsSayEKSOnly(t *testing.T) {
+// fakeAzureAdvisor is an Azure catalog and prices for the model tests: one
+// size, notes and a price generation the test can set.
+type fakeAzureAdvisor struct {
+	notes []string
+	gen   *uint64
+	block chan struct{} // when set, prices wait on it
+}
+
+func (fakeAzureAdvisor) Spec(t string) (recommend.Spec, bool) {
+	if t == "Standard_D2pds_v6" {
+		return recommend.Spec{VCPU: 2, MemGiB: 8, Arch: "arm64", Family: "dpdsv6"}, true
+	}
+	return recommend.Spec{}, false
+}
+func (a fakeAzureAdvisor) OnDemand(recommend.Node, string) (float64, bool) {
+	if a.block != nil {
+		<-a.block
+	}
+	return 0, false
+}
+func (a fakeAzureAdvisor) SpotIn(n recommend.Node, t string) (float64, bool) { return a.OnDemand(n, t) }
+func (fakeAzureAdvisor) Types() []string                                     { return []string{"Standard_D2pds_v6"} }
+func (a fakeAzureAdvisor) Notes() []string                                   { return a.notes }
+func (a fakeAzureAdvisor) Generation() uint64 {
+	if a.gen == nil {
+		return 0
+	}
+	return *a.gen
+}
+
+// aks-recommendations R1: Azure nodes are analysed, with agent-pool rows.
+// aks-pricing R3 is withdrawn: the EKS-only message is gone.
+func TestAKSRecommendationsAnalyseAzureNodes(t *testing.T) {
 	u := aksUI(t)
-	pressAll(u, "tab")
-	out := u.View()
-	if !strings.Contains(out, "Recommendations cover EKS nodes only for now; the nodes shown run on Azure.") {
-		t.Errorf("no EKS-only note:\n%s", out)
-	}
-	if strings.Contains(out, "Savings:") {
-		t.Errorf("a savings total for nodes the rules can't read:\n%s", out)
-	}
-	// with prices known, the rules would find idle cost: they must not run,
-	// and enter must not open the math of a row that isn't shown
+	u.advisor = AdvisorsByCloud{recommend.CloudAWS: fakeAdvisor{}, recommend.CloudAzure: fakeAzureAdvisor{}}
 	for _, n := range u.stats.Nodes {
 		n.SetPrice(0.0918)
 	}
 	u.Refresh()
-	pressAll(u, "enter")
-	if u.panel != panelNone || u.recFor != "" {
-		t.Errorf("rules ran on Azure nodes: panel %v, analysed %q", u.panel, u.recFor)
+	pressAll(u, "tab")
+	out := u.View()
+	if strings.Contains(out, "EKS nodes only") || strings.Contains(out, "EKS and AKS nodes only") {
+		t.Errorf("Azure nodes not analysed:\n%s", out)
+	}
+	if !strings.Contains(out, "agent pool system (1 nodes)") || !strings.Contains(out, "Savings:") {
+		t.Errorf("no agent-pool rows:\n%s", out)
+	}
+}
+
+// aks-recommendations R1: nodes of another cloud get the EKS-and-AKS
+// message; with no node shown the screen says there is nothing to recommend.
+func TestRecommendationsOtherCloudAndEmpty(t *testing.T) {
+	u := aksUI(t)
+	u.advisor = AdvisorsByCloud{recommend.CloudAWS: fakeAdvisor{}, recommend.CloudAzure: fakeAzureAdvisor{}}
+	for _, n := range u.stats.Nodes {
+		obj := n.Object().DeepCopy()
+		obj.Spec.ProviderID = "gce://example-project/us-central1-a/" + obj.Name
+		n.Update(obj)
+	}
+	u.Refresh()
+	pressAll(u, "tab")
+	if out := u.View(); !strings.Contains(out, "Recommendations cover EKS and AKS nodes only for now; the nodes shown run on Google Cloud.") {
+		t.Errorf("no message for GCP nodes:\n%s", out)
+	}
+	e := recUI(t)
+	e.view.Search = "no-such-node"
+	e.Refresh()
+	pressAll(e, "tab")
+	if out := e.View(); !strings.Contains(out, "Nothing to recommend for the nodes shown.") {
+		t.Errorf("empty view:\n%s", out)
+	}
+}
+
+// aks-recommendations R3: the advisor's notes show with Azure nodes, a new
+// price generation runs the analysis again, and the UI never waits on a
+// price.
+func TestAzureNotesGenerationAndNoWait(t *testing.T) {
+	u := aksUI(t)
+	var gen uint64
+	u.advisor = AdvisorsByCloud{recommend.CloudAzure: fakeAzureAdvisor{notes: []string{"waiting for the prices of 5 Azure sizes"}, gen: &gen}}
+	pressAll(u, "tab")
+	if out := u.View(); !strings.Contains(out, "waiting for the prices of 5 Azure sizes") {
+		t.Errorf("no waiting note:\n%s", out)
+	}
+	before := u.recFor
+	gen++
+	if u.maybeAnalyze() == nil || u.recKey() == before {
+		t.Error("a new price generation did not start a new analysis")
+	}
+	u.recPending = false
+
+	block := make(chan struct{})
+	defer close(block)
+	u.advisor = AdvisorsByCloud{recommend.CloudAzure: fakeAzureAdvisor{block: block, gen: &gen}}
+	gen++
+	done := make(chan tea.Cmd, 1)
+	go func() { done <- u.maybeAnalyze() }()
+	select {
+	case cmd := <-done:
+		if cmd == nil {
+			t.Error("no analysis started")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the UI waited on a price")
+	}
+}
+
+// aks-recommendations R4: the AKS labels and status.capacity reach the rules:
+// the agent pool is the managed group, a NodePool label wins, no mode label
+// is a user pool, and the virtual-node, Windows and VMs-pool marks.
+func TestRecommendNodeFromAKSLabels(t *testing.T) {
+	mk := func(labels map[string]string, providerID string) recommend.Node {
+		labels[v1.LabelTopologyRegion] = "eastus"
+		return recommendNode(NewNode(&v1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: "aks-pool-12345678-vmss000000", Labels: labels},
+			Spec:       v1.NodeSpec{ProviderID: providerID},
+			Status: v1.NodeStatus{
+				Capacity:    v1.ResourceList{v1.ResourceCPU: resource.MustParse("4"), v1.ResourceMemory: resource.MustParse("16Gi")},
+				Allocatable: v1.ResourceList{v1.ResourceCPU: resource.MustParse("3860m"), v1.ResourceMemory: resource.MustParse("12Gi")},
+			},
+		}))
+	}
+	vmss := "azure:///subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Compute/virtualMachineScaleSets/aks-pool-vmss/virtualMachines/0"
+	vms := "azure:///subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Compute/virtualMachines/aks-pool-12345678-vm0"
+	n := mk(map[string]string{"kubernetes.azure.com/agentpool": "pool", "kubernetes.azure.com/mode": "system", v1.LabelOSStable: "windows"}, vmss)
+	if n.Cloud != recommend.CloudAzure || n.Region != "eastus" || n.ManagedGroup != "pool" || !n.System || !n.Windows || n.VMPool {
+		t.Errorf("system Windows VMSS node: %+v", n)
+	}
+	if n.NodeCapacity.CPU != 4 || n.NodeCapacity.Mem != 16 {
+		t.Errorf("status.capacity not passed: %+v", n.NodeCapacity)
+	}
+	n = mk(map[string]string{"kubernetes.azure.com/agentpool": "pool"}, vms)
+	if n.System || !n.VMPool {
+		t.Errorf("no mode label must be a user pool, VMs provider ID a VMs pool: %+v", n)
+	}
+	n = mk(map[string]string{"kubernetes.azure.com/agentpool": "pool", "karpenter.sh/nodepool": "default"}, vmss)
+	if n.NodePool != "default" || n.ManagedGroup != "" {
+		t.Errorf("a NodePool label must win: %+v", n)
+	}
+	n = mk(map[string]string{"type": "virtual-kubelet"}, "")
+	if !n.Virtual {
+		t.Errorf("virtual node not marked: %+v", n)
 	}
 }

@@ -68,9 +68,23 @@ var goldenScenes = []struct {
 		u.SetRecommendOptions(RecommendOptions{Headroom: 0.8, OldAge: 30 * 24 * time.Hour})
 		pressAll(u, "tab")
 	}},
+	// aks-recommendations R1: the Recommendations screen of a made-up AKS
+	// cluster, with agent-pool rows
+	{"recommendations-aks", 168, 30, func(u *UIModel) {
+		u.advisor = AdvisorsByCloud{"aws": fakeAdvisor{}, "azure": fakeAzureAdvisor{}}
+		for _, n := range u.stats.Nodes {
+			n.SetPrice(0.0918)
+		}
+		u.Refresh()
+		pressAll(u, "tab")
+	}},
 	{"help", 168, 60, func(u *UIModel) { press(u, "?") }},
 	{"header-compact", 168, 30, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
 }
+
+// goldenSetup builds the cluster of a scene that is not the README's made-up
+// EKS cluster.
+var goldenSetup = map[string]func(t *testing.T) *UIModel{"recommendations-aks": aksUI}
 
 // TestGoldenScreens compares each screen with testdata/screens/<name>.txt, so
 // a layout change shows in the pull request as a text diff. After a change
@@ -123,7 +137,11 @@ func TestGoldenScreens(t *testing.T) {
 	}
 	for _, s := range goldenScenes {
 		t.Run(s.name, func(t *testing.T) {
-			u := demoUI(t)
+			setup := goldenSetup[s.name]
+			if setup == nil {
+				setup = demoUI
+			}
+			u := setup(t)
 			// plain text: no colour codes in the bars either
 			u.progress = newProgress(u.style, progress.WithColorProfile(termenv.Ascii))
 			u.Update(tea.WindowSizeMsg{Width: s.width, Height: s.height})

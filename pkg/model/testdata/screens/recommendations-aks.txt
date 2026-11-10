@@ -1,0 +1,19 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer · Recommendations                                                                                                                                   │
+│ Context:  aks                                                                                                                             f filters     g group by   │
+│ Cluster:  https://example-aks.hcp.eastus2.azmk8s.io:443                                                                                   s sort        o columns    │
+│ Region:   eastus2                                                                                                                         / search      r resources  │
+│ Nodes:    2 of 2 shown · 0 pods · $134.028/month (global cluster)                                                                         c context     v views      │
+│ View:     Filters: none │ Group: none │ Sort: creation ↓ │ cpu                                                                            ? help       ^e compact    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  0/3800m 0.0% cpu ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.184/hour | $134.028/month
+
+  Savings: $0.00/month  best non-Spot option per node; estimates from requests and list prices, by requests only
+
+  KIND  TARGET                                               ACTION                                           SAVES/MO
+▌ idle  agent pool workers (1 nodes)                         $67.01/mo requested by nothing                       info
+  idle  agent pool system (1 nodes)                          $67.01/mo requested by nothing                       info
+  spot  agent pool workers (On-Demand Standard_D2pds_v6 ×1)  add a Spot agent pool alongside it (evictions!)         —
+  spot  agent pool system (On-Demand Standard_D2pds_v6 ×1)   add a Spot agent pool alongside it (evictions!)         —
+
+  ↑/↓: select • enter: why • tab/:ov: Overview • f: filter • /: search • c: context • v: views • e: export • ?: help • q: quit
