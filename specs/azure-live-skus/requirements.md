@@ -1,6 +1,6 @@
 # Requirements: azure-live-skus
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 3 HIGH, 12 MEDIUM, 10 LOW; applied); second pass 2026-11-10 (2 HIGH, 8 MEDIUM, 9 LOW; applied)
+> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 3 HIGH, 12 MEDIUM, 10 LOW; applied); second pass 2026-11-10 (2 HIGH, 8 MEDIUM, 9 LOW; applied); diff 2026-11-10 (spec-refuter; 3 HIGH, 6 MEDIUM, 11 LOW; applied)
 
 ## Context
 
@@ -268,6 +268,10 @@ export (hide-cloud-ids).
 - AWS math is unchanged; the AKS golden screens with an open math popup
   change by that line.
 
+> **Corrected 2026-11-10 (diff review).** The AKS golden screens list rows
+> only, so none changed; the line shows in a new golden scene,
+> `recommendation-why-aks` (the math of an Azure rightsize row).
+
 - [ ] Test: the fixture's rightsize, generation and arm math hold the line;
   no AWS math does; no rendered screen of the fixture contains its
   subscription id, nor a `/` search for it matches, nor the CSV and JSON
@@ -296,6 +300,13 @@ the region `^[a-z0-9]+$`; otherwise R5 row 13.
 - The base URL is `https://management.azure.com` and can be changed only by
   a Go option for tests (`TestKindCluster`, design D6); no flag,
   environment variable or config key sets it.
+
+> **Corrected 2026-11-10 (diff review).** A region that fails its check is
+> row 14 (`a node has no valid region label`), as R5 says, not row 13; row 13
+> is the subscription only. Every argument given to `az` is also checked to
+> be a plain word (`^[A-Za-z0-9:/._-]+$`): Go doesn't escape `az.cmd`'s
+> arguments for `cmd.exe`, so on Windows this validation is the only
+> barrier.
 
 - [ ] Test: provider IDs with `&`, `"`, spaces or a non-GUID → row 13 and no
   `az` run; region `east us` → row 13; a `nextLink` to another host or over

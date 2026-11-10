@@ -38,6 +38,9 @@ var ErrAzNotFound = errors.New("az not found")
 // azTimeout is a choice, unmeasured (azure-live-skus D1).
 var azTimeout = 30 * time.Second
 
+// beforeRun lets a test see the command RunAz is about to start.
+var beforeRun = func(*exec.Cmd) {}
+
 // tokenMargin: a token this close to expiry is fetched again (R4, a choice).
 const tokenMargin = 2 * time.Minute
 
@@ -55,6 +58,7 @@ func RunAz(ctx context.Context, args ...string) ([]byte, []byte, error) {
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	cmd.WaitDelay = 2 * time.Second
 	killTree(cmd)
+	beforeRun(cmd)
 	err = cmd.Run()
 	if ctx.Err() != nil {
 		return out.Bytes(), errb.Bytes(), context.DeadlineExceeded

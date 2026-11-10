@@ -17,8 +17,11 @@ package azure
 import (
 	"bytes"
 	"context"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,15 +40,24 @@ type goAz struct {
 	fail     error
 	stderr   string
 	tokens   int
+	// now issues expires_on (the test's clock); delay slows account list
+	now   func() time.Time
+	delay time.Duration
+	argv  [][]string
 }
 
 func newGoAz() *goAz {
-	return &goAz{accounts: enabledAccountJSON, token: "tok-1"}
+	return &goAz{accounts: enabledAccountJSON, token: "tok-1", now: time.Now}
 }
 
-const enabledAccountJSON = `[{"cloudName":"AzureCloud","id":"00000000-0000-0000-0000-000000000000","state":"Enabled","tenantId":"t","user":{"name":"u"}}]`
+const enabledAccountJSON = `[{"cloudName":"AzureCloud","id":"00000000-0000-0000-0000-000000000000","state":"Enabled","tenantId":"tenant-secret","user":{"name":"user-secret@example.com"}}]`
 
 func (g *goAz) run(_ context.Context, args ...string) ([]byte, []byte, error) {
+	g.mu.Lock()
+	g.argv = append(g.argv, args)
+	delay := g.delay
+	g.mu.Unlock()
+	time.Sleep(delay)
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if strings.Join(args[:2], " ") == "account list" {
@@ -55,7 +67,7 @@ func (g *goAz) run(_ context.Context, args ...string) ([]byte, []byte, error) {
 	if g.fail != nil {
 		return nil, []byte(g.stderr), g.fail
 	}
-	exp := time.Now().Add(time.Hour).Unix()
+	exp := g.now().Add(time.Hour).Unix()
 	return []byte(`{"accessToken":"` + g.token + `","expires_on":` + strconv.FormatInt(exp, 10) + `}`), nil, nil
 }
 
@@ -81,7 +93,7 @@ var eastus = []recommend.Pair{{Subscription: zeroSub, Region: "eastus", AgentPoo
 func TestSizesLoadOncePerPair(t *testing.T) {
 	arm := newFakeARM(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(recorded(t)) })
 	az := newGoAz()
-	s := newSizes(az.run, arm.srv.URL, arm.srv.Client().Transport, time.Now)
+	s := newSizes(context.Background(), az.run, arm.srv.URL, arm.srv.Client().Transport, time.Now)
 	g := s.generation()
 	snap := s.begin(eastus)
 	if strings.Join(snap.notes, "|") != "Azure VM sizes: loading" || len(snap.names) != 0 {
@@ -103,7 +115,7 @@ func TestSizesLoadOncePerPair(t *testing.T) {
 	if arm.requests.Load() != 2 || az.tokens != 1 {
 		t.Errorf("two regions: %d requests, %d token runs", arm.requests.Load(), az.tokens)
 	}
-	if s := newSizes(az.run, arm.srv.URL, nil, time.Now); len(s.begin(nil).notes) != 0 || arm.requests.Load() != 2 {
+	if s := newSizes(context.Background(), az.run, arm.srv.URL, nil, time.Now); len(s.begin(nil).notes) != 0 || arm.requests.Load() != 2 {
 		t.Error("no pair, yet a request or a note")
 	}
 }
@@ -142,6 +154,14 @@ func TestSizeFailureLines(t *testing.T) {
 		{"bad region", nil, nil, recommend.Pair{Subscription: zeroSub, Region: ""}, "a node has no valid region label"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			oldLog := log.Writer()
+			log.SetOutput(&logs)
+			defer log.SetOutput(oldLog)
+			oldErr := os.Stderr
+			r, w, _ := os.Pipe()
+			os.Stderr = w
+			defer func() { os.Stderr = oldErr }()
 			h := tt.arm
 			if h == nil {
 				h = func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(recorded(t)) }
@@ -151,7 +171,7 @@ func TestSizeFailureLines(t *testing.T) {
 			if tt.az != nil {
 				tt.az(az)
 			}
-			s := newSizes(az.run, arm.srv.URL, arm.srv.Client().Transport, time.Now)
+			s := newSizes(context.Background(), az.run, arm.srv.URL, arm.srv.Client().Transport, time.Now)
 			pairs := []recommend.Pair{tt.pair}
 			g := s.generation()
 			snap := s.begin(pairs)
@@ -165,60 +185,172 @@ func TestSizeFailureLines(t *testing.T) {
 			if got != "Azure VM sizes: "+tt.want {
 				t.Errorf("notes %q, want %q", got, tt.want)
 			}
-			for _, leak := range []string{zeroSub, "tok-1", "someone", "object id", "boom"} {
-				if strings.Contains(got, leak) {
-					t.Errorf("the line leaks %q", leak)
+			_ = w.Close()
+			stderr, _ := io.ReadAll(r)
+			for _, out := range []string{got, logs.String(), string(stderr)} {
+				for _, leak := range []string{zeroSub, "tok-1", "tenant-secret", "user-secret", "someone", "object id", "boom"} {
+					if strings.Contains(out, leak) {
+						t.Errorf("leaks %q: %q", leak, out)
+					}
 				}
+			}
+			if !strings.Contains(logs.String(), tt.want) {
+				t.Errorf("not logged: %q", logs.String())
 			}
 		})
 	}
 }
 
-// azure-live-skus R6, R4: after a 403, no request before a minute, one after
-// it (the generation moves when the retry falls due, so a static cluster
-// analyses again); the dropped token is fetched again, and once the role is
-// granted the sizes load.
+// azure-live-skus R6, R4: after a failure, no request before a minute, one
+// after it (the generation moves when the retry falls due, so a static
+// cluster analyses again). A 401 or 403 drops the token, still valid by the
+// test's clock, so the retry carries the new sign-in's; after a 404 the
+// account is checked again and a changed account's token is used.
 func TestSizesRetryAfterSignIn(t *testing.T) {
-	var forbid atomic.Bool
-	forbid.Store(true)
-	arm := newFakeARM(t, func(w http.ResponseWriter, r *http.Request) {
-		if forbid.Load() {
-			w.WriteHeader(403)
-			_, _ = w.Write([]byte(`{"error":{"code":"AuthorizationFailed"}}`))
+	for _, tt := range []struct {
+		name    string
+		status  int
+		code    string
+		account bool // the account entry changes before the retry
+	}{
+		{"401", 401, "InvalidAuthenticationToken", false},
+		{"403", 403, "AuthorizationFailed", false},
+		{"404 then another account", 404, "SubscriptionNotFound", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var fail atomic.Bool
+			fail.Store(true)
+			var auth atomic.Value
+			arm := newFakeARM(t, func(w http.ResponseWriter, r *http.Request) {
+				auth.Store(r.Header.Get("Authorization"))
+				if fail.Load() {
+					w.WriteHeader(tt.status)
+					_, _ = w.Write([]byte(`{"error":{"code":"` + tt.code + `"}}`))
+					return
+				}
+				_, _ = w.Write(recorded(t))
+			})
+			c := &clock{t: time.Unix(1_800_000_000, 0)}
+			az := newGoAz()
+			az.now = c.now
+			s := newSizes(context.Background(), az.run, arm.srv.URL, arm.srv.Client().Transport, c.now)
+			g := s.generation()
+			s.begin(eastus)
+			g = waitGen(t, s, g)
+			c.add(59 * time.Second)
+			if s.generation() != g {
+				t.Error("the retry fell due before a minute")
+			}
+			s.begin(eastus)
+			if arm.requests.Load() != 1 {
+				t.Errorf("%d requests before the minute", arm.requests.Load())
+			}
+			fail.Store(false)
+			az.mu.Lock()
+			az.token = "tok-2"
+			if tt.account {
+				az.accounts = strings.Replace(enabledAccountJSON, "user-secret@example.com", "other@example.com", 1)
+			}
+			az.mu.Unlock()
+			c.add(time.Second)
+			if s.generation() == g {
+				t.Fatal("no new generation when the retry fell due")
+			}
+			g = s.generation()
+			s.begin(eastus)
+			waitGen(t, s, g)
+			if got := auth.Load(); got != "Bearer tok-2" {
+				t.Errorf("the retry carried %q, want the new sign-in's token", got)
+			}
+			if snap := s.begin(eastus); len(snap.notes) != 0 || len(snap.names) == 0 || arm.requests.Load() != 2 {
+				t.Errorf("after the retry: notes %v, %d sizes, %d requests", snap.notes, len(snap.names), arm.requests.Load())
+			}
+		})
+	}
+}
+
+// azure-live-skus R6: a 429 waits for its Retry-After: no request at 60 s,
+// one at 120 s.
+func TestSizesRetryAfterHeader(t *testing.T) {
+	var limited atomic.Bool
+	limited.Store(true)
+	arm := newFakeARM(t, func(w http.ResponseWriter, _ *http.Request) {
+		if limited.Load() {
+			w.Header().Set("Retry-After", "120")
+			w.WriteHeader(http.StatusTooManyRequests)
 			return
-		}
-		if r.Header.Get("Authorization") != "Bearer tok-2" {
-			t.Errorf("retry with %q, want the new token", r.Header.Get("Authorization"))
 		}
 		_, _ = w.Write(recorded(t))
 	})
 	c := &clock{t: time.Unix(1_800_000_000, 0)}
-	az := newGoAz()
-	s := newSizes(az.run, arm.srv.URL, arm.srv.Client().Transport, c.now)
+	s := newSizes(context.Background(), newGoAz().run, arm.srv.URL, arm.srv.Client().Transport, c.now)
 	g := s.generation()
 	s.begin(eastus)
-	g = waitGen(t, s, g)
-	c.add(59 * time.Second)
-	if s.generation() != g {
-		t.Error("the retry fell due before a minute")
+	waitGen(t, s, g)
+	if notes := s.begin(eastus).notes; len(notes) != 1 || notes[0] != "Azure VM sizes: Azure Resource Manager unavailable (429); retrying in 2m" {
+		t.Errorf("notes %v", notes)
 	}
+	limited.Store(false)
+	c.add(60 * time.Second)
+	s.generation()
 	s.begin(eastus)
+	time.Sleep(50 * time.Millisecond)
 	if arm.requests.Load() != 1 {
-		t.Errorf("%d requests before the minute", arm.requests.Load())
+		t.Errorf("%d requests at 60 s, want 1", arm.requests.Load())
 	}
-	forbid.Store(false)
-	az.mu.Lock()
-	az.token = "tok-2"
-	az.mu.Unlock()
-	c.add(time.Second)
-	if s.generation() == g {
-		t.Fatal("no new generation when the retry fell due")
-	}
+	c.add(60 * time.Second)
 	g = s.generation()
 	s.begin(eastus)
 	waitGen(t, s, g)
-	if snap := s.begin(eastus); len(snap.notes) != 0 || len(snap.names) == 0 || arm.requests.Load() != 2 || az.tokens != 2 {
-		t.Errorf("after the retry: notes %v, %d sizes, %d requests, %d tokens", snap.notes, len(snap.names), arm.requests.Load(), az.tokens)
+	if arm.requests.Load() != 2 {
+		t.Errorf("%d requests at 120 s, want 2", arm.requests.Load())
+	}
+}
+
+// azure-live-skus R4, D2: two regions of one subscription share a slow token
+// request, and their failures are separate values (run with -race).
+func TestSharedTokenFailureNoRace(t *testing.T) {
+	arm := newFakeARM(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(recorded(t)) })
+	az := newGoAz()
+	az.accounts = "[]"
+	az.delay = 200 * time.Millisecond
+	s := newSizes(context.Background(), az.run, arm.srv.URL, arm.srv.Client().Transport, time.Now)
+	pairs := []recommend.Pair{eastus[0], {Subscription: zeroSub, Region: "westus"}}
+	g := s.generation()
+	s.begin(pairs)
+	for s.generation() < g+2 {
+		waitGen(t, s, s.generation())
+	}
+	for range 20 {
+		_ = s.begin(pairs).notes
+	}
+	if notes := s.begin(pairs).notes; len(notes) != 1 || notes[0] != "Azure VM sizes: not signed in to Azure; run az login" {
+		t.Errorf("notes %v", notes)
+	}
+}
+
+// azure-live-skus R10: every argument given to az is a plain word (Go does
+// not escape az.cmd's arguments for cmd.exe, so validation is the only
+// barrier on Windows).
+func TestAzArgumentsArePlain(t *testing.T) {
+	arm := newFakeARM(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(recorded(t)) })
+	az := newGoAz()
+	s := newSizes(context.Background(), az.run, arm.srv.URL, arm.srv.Client().Transport, time.Now)
+	g := s.generation()
+	s.begin(append(eastus, recommend.Pair{Subscription: zeroSub + "&calc", Region: "eastus"}, recommend.Pair{Subscription: zeroSub, Region: "east us"}))
+	waitGen(t, s, g)
+	plain := regexp.MustCompile(`^[A-Za-z0-9:/._-]+$`)
+	az.mu.Lock()
+	defer az.mu.Unlock()
+	if len(az.argv) == 0 {
+		t.Fatal("az never ran")
+	}
+	for _, argv := range az.argv {
+		for _, a := range argv {
+			if !plain.MatchString(a) {
+				t.Errorf("az argument %q", a)
+			}
+		}
 	}
 }
 
@@ -238,7 +370,7 @@ func TestSizesLogOnceAndNamePools(t *testing.T) {
 		_, _ = w.Write(recorded(t))
 	})
 	c := &clock{t: time.Unix(1_800_000_000, 0)}
-	s := newSizes(newGoAz().run, arm.srv.URL, arm.srv.Client().Transport, c.now)
+	s := newSizes(context.Background(), newGoAz().run, arm.srv.URL, arm.srv.Client().Transport, c.now)
 	pairs := []recommend.Pair{eastus[0], {Subscription: zeroSub, Region: "westus", AgentPools: []string{"system", "legacy"}, NodePools: []string{"burst"}}}
 	g := s.generation()
 	s.begin(pairs)
@@ -270,7 +402,7 @@ func TestAdvisorAvailability(t *testing.T) {
 		}
 		_, _ = w.Write(recorded(t))
 	})
-	s := newSizes(newGoAz().run, arm.srv.URL, arm.srv.Client().Transport, time.Now)
+	s := newSizes(context.Background(), newGoAz().run, arm.srv.URL, arm.srv.Client().Transport, time.Now)
 	a := NewAdvisor(&fakeLister{}, false, s)
 	pairs := []recommend.Pair{eastus[0], {Subscription: zeroSub, Region: "westus"}}
 	g := s.generation()
@@ -292,7 +424,8 @@ func TestAdvisorAvailability(t *testing.T) {
 		{east, "Standard_D16s_v5", false},
 		{east, "Standard_D2ds_v5", false},
 		{recommend.Node{Subscription: zeroSub, Region: "eastus", Zone: "eastus-1"}, "Standard_D2ds_v5", true},
-		{recommend.Node{Subscription: zeroSub, Region: "eastus", Zone: "1"}, "Standard_D2ds_v5", true},
+		// a fault domain, not a zone: the regional check only
+		{recommend.Node{Subscription: zeroSub, Region: "eastus", Zone: "3"}, "Standard_D2ds_v5", true},
 		{east, "Standard_D96s_v5", false},
 		{recommend.Node{Subscription: zeroSub, Region: "westus", Zone: "westus-1"}, "Standard_D96s_v5", true},
 	} {

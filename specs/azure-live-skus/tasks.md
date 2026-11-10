@@ -37,6 +37,27 @@
 >   answer size and the `MaxResourceVolumeMB` 0 reading are unmeasured;
 >   Windows `az.cmd` (no Windows machine here).
 
+> **Corrected 2026-11-10 (diff review: 3 HIGH, 6 MEDIUM, 11 LOW, applied).**
+> - Two regions of one subscription shared the token request's error value
+>   and wrote it from two goroutines (a data race); each read now copies it,
+>   with a `-race` test.
+> - A test drives a UI model with the real Azure advisor on a static
+>   cluster: no `az` run before Recommendations, the loading note, then a
+>   rightsize row; none while another screen shows.
+> - `Sizes` takes the session's context; a switch or `Close` kills a running
+>   `az`. A test proves the timeout kills the process group (the fake's
+>   `sleep` child is gone within a second) and that the command has no stdin.
+> - Tests added for: the 429 `Retry-After`, a 401 or 403 dropping a token
+>   still valid by the test clock, a changed account after a 404, logs and
+>   stderr leaking nothing, plain `az` arguments, GUID anchors, the `az login`
+>   match, fault-domain zones, a lower-cased `EastUS` label, the user-pool
+>   minimum on swaps, `-` sizes without `vCPUsAvailable`.
+> - T6 now recovers in the same session through the one-minute retry and
+>   checks the arm row: `scripts/kind-it.sh` passed again (cluster deleted),
+>   `TestKindClusterAzureSizes` showing the permission line, then idle,
+>   consolidation and `add a Standard_D8ps_v5 agent pool` rows after the
+>   retry, with one good answer and no subscription on screen.
+
 > A code change with open tasks here cannot merge, and so cannot release:
 > `scripts/spec-tasks-check.py` fails CI and the `pr-guard` hook blocks
 > `gh pr create` (use `--draft` until the tasks are done).

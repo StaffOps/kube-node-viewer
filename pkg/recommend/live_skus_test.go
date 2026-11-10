@@ -167,3 +167,40 @@ func TestUserPoolMinimum(t *testing.T) {
 		t.Error("userSizeOK boundaries")
 	}
 }
+
+// azure-live-skus R11: a generation target under the user-pool minimum is
+// refused too.
+func TestUserPoolMinimumOnSwaps(t *testing.T) {
+	in := azInput(nil)
+	spec := in.Spec
+	extra := map[string]Spec{
+		"Standard_D1s_v4": {VCPU: 1, MemGiB: 4, Arch: "x86_64", Family: "dsv4"},
+		"Standard_D1s_v5": {VCPU: 1, MemGiB: 4, Arch: "x86_64", Family: "dsv5"},
+	}
+	in.Spec = func(t string) (Spec, bool) {
+		if s, ok := extra[t]; ok {
+			return s, true
+		}
+		return spec(t)
+	}
+	in.Types = append(in.Types, "Standard_D1s_v4", "Standard_D1s_v5")
+	price := in.OnDemand
+	in.OnDemand = func(n Node, t string) (float64, bool) {
+		switch t {
+		case "Standard_D1s_v4":
+			return 0.06, true
+		case "Standard_D1s_v5":
+			return 0.048, true
+		}
+		return price(n, t)
+	}
+	save := azureGeneration["dsv4"]
+	defer func() { azureGeneration["dsv4"] = save }()
+	azureGeneration["dsv4"] = "dsv5"
+	n := azNode("aks-tiny-12345678-vmss000000", "Standard_D1s_v4", "tiny", false, Resources{0.9, 3, 30}, Resources{1, 4, 30}, time.Hour, app(0.05, 0.1))
+	n.Price = 0.06
+	in.Nodes = []Node{n}
+	if g := kinds(Analyze(in), Generation); len(g) != 0 {
+		t.Errorf("a 1-vCPU generation target offered: %+v", g)
+	}
+}

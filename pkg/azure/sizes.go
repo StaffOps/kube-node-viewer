@@ -46,6 +46,11 @@ type Sizes struct {
 	client *skuClient
 	tokens *tokens
 	now    func() time.Time
+	// ctx ends with the session: Close cancels it, which kills a running
+	// az's process group (azure-live-skus D1)
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
 
 	mu     sync.Mutex
 	pairs  map[string]*pairState
@@ -79,15 +84,33 @@ type snapshot struct {
 }
 
 // NewSizes reads sizes with run (RunAz in production) from base
-// (DefaultARM); transport nil is http.DefaultTransport. Only tests change
-// run, base and transport (azure-live-skus D6, R10).
-func NewSizes(run AzRunner, base string, transport http.RoundTripper) *Sizes {
-	return newSizes(run, base, transport, time.Now)
+// (DefaultARM) until ctx ends or Close; transport nil is
+// http.DefaultTransport. Only tests change run, base and transport
+// (azure-live-skus D6, R10).
+func NewSizes(ctx context.Context, run AzRunner, base string, transport http.RoundTripper) *Sizes {
+	return newSizes(ctx, run, base, transport, time.Now)
 }
 
-func newSizes(run AzRunner, base string, transport http.RoundTripper, now func() time.Time) *Sizes {
-	return &Sizes{client: newSKUClient(base, transport), tokens: newTokens(run, now), now: now,
+func newSizes(ctx context.Context, run AzRunner, base string, transport http.RoundTripper, now func() time.Time) *Sizes {
+	ctx, cancel := context.WithCancel(ctx)
+	return &Sizes{client: newSKUClient(base, transport), tokens: newTokens(run, now), now: now, ctx: ctx, cancel: cancel,
 		pairs: map[string]*pairState{}, logged: map[string]bool{}}
+}
+
+// closeWait bounds how long Close waits for a read to stop.
+const closeWait = 3 * time.Second
+
+// Close stops every read: a running az is killed with its process group,
+// and Close waits for the reads to return, at most closeWait. A SIGKILL of
+// the program itself can still leave a hung az behind (azure-live-skus D1).
+func (s *Sizes) Close() {
+	s.cancel()
+	done := make(chan struct{})
+	go func() { s.wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(closeWait):
+	}
 }
 
 func pairKeyOf(subscription, region string) string {
@@ -113,9 +136,13 @@ func (s *Sizes) begin(pairs []recommend.Pair) *snapshot {
 			st = &pairState{subscription: p.Subscription, region: p.Region}
 			s.pairs[k] = st
 		}
-		if st.sizes == nil && !st.fetching && (st.err == nil || !now.Before(st.retryAt)) {
+		if st.sizes == nil && !st.fetching && (st.err == nil || !now.Before(st.retryAt)) && s.ctx.Err() == nil {
 			st.fetching, st.due = true, false
-			go s.fetch(k, st.subscription, st.region, st.failedBefore)
+			s.wg.Add(1)
+			go func(sub, region string, recheck bool) {
+				defer s.wg.Done()
+				s.fetch(k, sub, region, recheck)
+			}(st.subscription, st.region, st.failedBefore)
 		}
 		switch {
 		case st.sizes != nil:
@@ -156,7 +183,7 @@ func (s *Sizes) generation() uint64 {
 }
 
 func (s *Sizes) fetch(k, subscription, region string, recheck bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+	ctx, cancel := context.WithTimeout(s.ctx, fetchTimeout)
 	defer cancel()
 	sizes, err := s.read(ctx, subscription, region, recheck)
 
@@ -204,8 +231,10 @@ func (s *Sizes) read(ctx context.Context, subscription, region string, recheck b
 	if err != nil {
 		var se *sizeError
 		if errors.As(err, &se) {
-			se.retry = sizeRetry
-			return nil, se
+			// a copy: waiters of one token request share its error
+			c := *se
+			c.retry = sizeRetry
+			return nil, &c
 		}
 		return nil, &sizeError{row: rowAzFailed, retry: sizeRetry}
 	}

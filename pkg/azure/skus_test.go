@@ -69,6 +69,10 @@ func TestParseRecordedSKUs(t *testing.T) {
 			t.Errorf("%s = %+v", tt.name, s)
 		}
 	}
+	inline := []byte(`{"value":[{"resourceType":"virtualMachines","name":"Standard_E4-2s_v5","family":"standardESv5Family","capabilities":[{"name":"vCPUs","value":"4"},{"name":"MemoryGB","value":"32"},{"name":"CpuArchitectureType","value":"x64"}]}]}`)
+	if m, _, err := parseSKUs(inline, "eastus"); err != nil || !m["Standard_E4-2s_v5"].Constrained {
+		t.Errorf("a '-' size without vCPUsAvailable is not constrained: %+v %v", m, err)
+	}
 	if got := NormalizeFamily("StandardDpsv6Family"); got != "dpsv6" {
 		t.Errorf("NormalizeFamily = %q", got)
 	}

@@ -20,10 +20,13 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -39,7 +42,11 @@ case "$1 $2" in
   exit 0;;
 "account get-access-token")
   read -r line
-  [ -f "$dir/token.sleep" ] && sleep "$(cat "$dir/token.sleep")"
+  if [ -f "$dir/token.sleep" ]; then
+    sleep "$(cat "$dir/token.sleep")" &
+    echo $! > "$dir/child.pid"
+    wait
+  fi
   cat "$dir/token.err" >&2 2>/dev/null
   cat "$dir/token" 2>/dev/null
   exit "$(cat "$dir/token.rc" 2>/dev/null || echo 0)";;
@@ -202,6 +209,11 @@ func TestAzFailureRows(t *testing.T) {
 			f.set("token.rc", "1")
 			f.unset("token")
 		}, rowSignIn},
+		{"please run az login", func(f *fakeAz) {
+			f.set("token.err", "ERROR: Please run 'az login' to setup account.\n")
+			f.set("token.rc", "1")
+			f.unset("token")
+		}, rowSignIn},
 		{"other failure", func(f *fakeAz) {
 			f.set("token.err", "ERROR: something else\n")
 			f.set("token.rc", "1")
@@ -227,25 +239,42 @@ func TestAzFailureRows(t *testing.T) {
 	})
 }
 
-// azure-live-skus R4, D1: stdin is not attached (a fake az reading it returns
-// at once), and a hung az is killed with its children at the timeout.
+// azure-live-skus R4, D1: stdin is not attached (the command has none, and a
+// fake az reading it returns at once), and a hung az is killed with its
+// children at the timeout.
 func TestAzTimeoutAndStdin(t *testing.T) {
 	f := newFakeAz(t)
+	var stdinSet atomic.Bool
+	beforeRun = func(c *exec.Cmd) { stdinSet.Store(c.Stdin != nil) }
+	defer func() { beforeRun = func(*exec.Cmd) {} }()
 	start := time.Now()
 	if _, err := newTokens(RunAz, time.Now).get(context.Background(), zeroSub, false); err != nil {
 		t.Fatal(err)
 	}
-	if time.Since(start) > 5*time.Second {
-		t.Errorf("az waited on stdin: %v", time.Since(start))
+	if time.Since(start) > 5*time.Second || stdinSet.Load() {
+		t.Errorf("az has a stdin (%v) or waited on it: %v", stdinSet.Load(), time.Since(start))
 	}
 	old := azTimeout
 	azTimeout = 300 * time.Millisecond
 	defer func() { azTimeout = old }()
-	f.set("token.sleep", "30")
+	f.set("token.sleep", "47")
 	start = time.Now()
 	_, err := newTokens(RunAz, time.Now).get(context.Background(), zeroSub, false)
-	if rowOf(err) != rowAzFailed || time.Since(start) > 5*time.Second {
-		t.Errorf("hung az: %v after %v", err, time.Since(start))
+	if took := time.Since(start); rowOf(err) != rowAzFailed || took > 1500*time.Millisecond {
+		t.Errorf("hung az: %v after %v", err, took)
+	}
+	raw, err := os.ReadFile(filepath.Join(f.dir, "child.pid"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, _ := strconv.Atoi(strings.TrimSpace(string(raw)))
+	deadline := time.Now().Add(time.Second)
+	for syscall.Kill(pid, 0) == nil && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if syscall.Kill(pid, 0) == nil {
+		_ = syscall.Kill(pid, syscall.SIGKILL)
+		t.Error("az's child outlived the timeout")
 	}
 }
 
@@ -260,6 +289,9 @@ func TestValidateNodeValues(t *testing.T) {
 		{"00000000-0000-0000-0000-00000000000&", "eastus", rowBadSubscription},
 		{`x" & calc`, "eastus", rowBadSubscription},
 		{"not a guid", "eastus", rowBadSubscription},
+		{"&" + zeroSub, "eastus", rowBadSubscription},
+		{zeroSub + "&calc", "eastus", rowBadSubscription},
+		{zeroSub + "\n", "eastus", rowBadSubscription},
 		{zeroSub, "east us", rowBadRegion},
 		{zeroSub, "", rowBadRegion},
 		{zeroSub, "eastus'", rowBadRegion},

@@ -375,11 +375,12 @@ var azureNodeNames = []string{"aks-userpool-12345678-vmss000000", "aks-userpool-
 const kindSub = "00000000-0000-0000-0000-000000000000"
 
 // TestKindClusterAzureSizes creates made-up AKS Nodes through the API of the
-// scripts/kind-it.sh cluster and runs the sessions with the fake az and
-// Resource Manager of the Go option (azure-live-skus T6, D6): the
-// Recommendations screen says the sizes are loading, then why they can't be
-// read (a 403), and a new session reads them with the node's subscription
-// and region.
+// scripts/kind-it.sh cluster and runs the sessions with the fake az,
+// Resource Manager and candidate prices of the Go option (azure-live-skus T6,
+// D6): the Recommendations screen says why the sizes can't be read (a 403),
+// and once the role is granted the same screen, after its one-minute retry
+// (R6), reads them with the node's subscription and region and shows the
+// arm row they make possible.
 func TestKindClusterAzureSizes(t *testing.T) {
 	kubeconfig, kubeContext := os.Getenv("KNV_IT_KUBECONFIG"), os.Getenv("KNV_IT_CONTEXT")
 	if kubeconfig == "" || kubeContext == "" {
@@ -407,10 +408,16 @@ func TestKindClusterAzureSizes(t *testing.T) {
 			Spec: v1.NodeSpec{ProviderID: "azure:///subscriptions/" + kindSub +
 				"/resourceGroups/MC_example-rg_example_eastus/providers/Microsoft.Compute/virtualMachineScaleSets/aks-userpool-12345678-vmss/virtualMachines/" + fmt.Sprint(i)},
 		}
-		if _, err := cs.CoreV1().Nodes().Create(ctx, n, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+		created, err := cs.CoreV1().Nodes().Create(ctx, n, metav1.CreateOptions{})
+		if err != nil {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { _ = cs.CoreV1().Nodes().Delete(context.Background(), name, metav1.DeleteOptions{}) })
+		created.Status.Capacity = v1.ResourceList{v1.ResourceCPU: resource.MustParse("8"), v1.ResourceMemory: resource.MustParse("32Gi"), v1.ResourcePods: resource.MustParse("250")}
+		created.Status.Allocatable = v1.ResourceList{v1.ResourceCPU: resource.MustParse("7820m"), v1.ResourceMemory: resource.MustParse("27Gi"), v1.ResourcePods: resource.MustParse("250")}
+		if _, err := cs.CoreV1().Nodes().UpdateStatus(ctx, created, metav1.UpdateOptions{}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	raw, err := os.ReadFile(filepath.Join("..", "..", "pkg", "azure", "testdata", "skus-eastus.json"))
@@ -438,45 +445,55 @@ func TestKindClusterAzureSizes(t *testing.T) {
 		}
 		return []byte(fmt.Sprintf(`{"accessToken":"kind-token","expires_on":%d}`, time.Now().Add(time.Hour).Unix())), nil, nil
 	}
-	opt := azureOption{run: az, base: arm.URL, transport: arm.Client().Transport}
+	prices := kindPrices{"Standard_D8s_v5": 0.384, "Standard_D8ps_v5": 0.308}
+	opt := azureOption{run: az, base: arm.URL, transport: arm.Client().Transport, lister: prices}
 
-	// screen opens Recommendations on a new session and drives it until
-	// done says the screen is as wanted
-	screen := func(what string, done func(string) bool) string {
+	u := connectAzure(t, kubeconfig, kubeContext, opt)
+	drive(u, tea.KeyMsg{Type: tea.KeyTab})
+	until := func(what string, limit time.Duration, done func(string) bool) string {
 		t.Helper()
-		u := connectAzure(t, kubeconfig, kubeContext, opt)
-		drive(u, tea.KeyMsg{Type: tea.KeyTab})
-		deadline := time.Now().Add(time.Minute)
+		deadline := time.Now().Add(limit)
 		var out string
 		for time.Now().Before(deadline) {
 			drive(u, tea.WindowSizeMsg{Width: 200, Height: 60})
 			if out = u.View(); done(out) {
 				return out
 			}
-			time.Sleep(200 * time.Millisecond)
+			time.Sleep(500 * time.Millisecond)
 		}
 		t.Fatalf("no %s on the Recommendations screen:\n%s", what, out)
 		return ""
 	}
 	const denied = "Azure VM sizes: no permission to read VM sizes (Microsoft.Compute/skus/read on the subscription, e.g. the Reader role)"
-	out := screen("permission line", func(s string) bool { return strings.Contains(s, denied) })
+	out := until("permission line", time.Minute, func(s string) bool { return strings.Contains(s, denied) })
 	if strings.Contains(out, kindSub) {
 		t.Errorf("the subscription is on screen:\n%s", out)
 	}
 	if got, _ := asked.Load().(string); got != "/subscriptions/"+kindSub+"/providers/Microsoft.Compute/skus?location eq 'eastus' Bearer kind-token" {
 		t.Errorf("request %q", got)
 	}
-	// a new session (c to another context and back) reads the sizes once
-	// the role is granted
+	// the role is granted: the same screen retries within a minute (R6)
 	forbid.Store(false)
-	out = screen("screen without a sizes note", func(s string) bool {
-		return answered.Load() > 0 && !strings.Contains(s, "Azure VM sizes")
+	out = until("arm row after the retry", 90*time.Second, func(s string) bool {
+		return answered.Load() > 0 && !strings.Contains(s, "Azure VM sizes") && strings.Contains(s, "add a Standard_D8ps_v5 agent pool")
 	})
-	if answered.Load() != 1 {
-		t.Errorf("%d good answers for one pair, want 1", answered.Load())
+	if answered.Load() != 1 || strings.Contains(out, kindSub) {
+		t.Errorf("%d good answers for one pair, want 1; or the subscription is on screen", answered.Load())
 	}
 	t.Logf("screen:\n%s", out)
 }
+
+// kindPrices is the Go option's fixed candidate prices.
+type kindPrices map[string]float64
+
+func (k kindPrices) ListPrice(_, size string, _, spot bool) (float64, bool, bool) {
+	if spot {
+		return 0, false, false
+	}
+	p, ok := k[size]
+	return p, ok, false
+}
+func (kindPrices) Generation() uint64 { return 0 }
 
 // connectAzure is connect with pricing on and the Azure Go option, for the
 // made-up AKS nodes plus kind's own.

@@ -128,8 +128,9 @@ retry due (checked in Generation(), on the tick, only while Recommendations is s
 Row 2's text match uses the az 2.88.0 wording: its AAD error handler
 raises `AuthenticationError(error_description, recommendation="Run the
 command below to authenticate interactively; …")` (`azure/cli/core/auth/util.py:40-61`),
-so the match is `AADSTS` or `authenticate interactively`; "interaction
-required" is never printed, and an MFA or Conditional Access error
+so the match is `AADSTS`, `authenticate interactively`, or `az login` (az's
+"Please run 'az login' to setup account."); "interaction required" is never
+printed, and an MFA or Conditional Access error
 (`AADSTS50076`) says nothing about expiry. The fake `az` fixtures copy that
 wording. Account `state` `Disabled` or `Deleted` is row 4; `Warned` and
 `PastDue` subscriptions stay readable (`azure/cli/command_modules/profile/custom.py:65-70`).
@@ -163,8 +164,17 @@ subscription until two minutes (chosen) before it expires. No Azure SDK.
    several tenants needs nothing more. `get-access-token` never opens a
    browser (spec-refuter, 2026-11-10).
 4. **Classifying from `az account list` is stable**: it is local, JSON, and
-   names `id` and `state`; only "expired" and "interaction required" are
-   read from text, and anything else gets the generic row 5.
+   names `id` and `state`; only the sign-in failures of `get-access-token`
+   are read from its text (`AADSTS`, `authenticate interactively`, `az
+   login`, above), and anything else gets the generic row 5.
+
+> **Corrected 2026-11-10 (diff review).** Point 4 said "expired" and
+> "interaction required" were read from text; the code and the paragraph
+> above match `AADSTS`, `authenticate interactively` and `az login`, each
+> with a test. `Sizes` now takes the session's context: switching context or
+> quitting cancels it, `Close` waits up to 3 s, and a running `az` is killed
+> with its process group. A SIGKILL of the program itself can still leave a
+> hung `az` behind.
 
 **Trade-offs accepted**:
 
@@ -317,10 +327,12 @@ recorded answer.
 
 ### D6: The kind run injects the fakes through a Go option
 
-**Choice**: the session takes a Go option (`withAzure(run azRunner, base string)`)
-that replaces the `az` runner and the Resource Manager base URL. Only
-`TestKindCluster` (`cmd/kube-node-viewer/kind_integration_test.go`, itself
-`//go:build integration`) sets it; no flag, environment variable or config
+**Choice**: the session takes a Go option, the `azure` field of
+`sessions` (`azureOption{run, base, transport, lister}`), that replaces the
+`az` runner, the Resource Manager base URL and transport, and the candidate
+prices. Only tests set it: `TestKindClusterAzureSizes`
+(`cmd/kube-node-viewer/kind_integration_test.go`, itself
+`//go:build integration`) and `session_test.go`; no flag, environment variable or config
 key reaches it, and release builds always use `az` on `PATH` and
 `https://management.azure.com`.
 
