@@ -93,7 +93,8 @@ memory. Listed by impact.
       (`existing.Update`, `pkg/model/cluster.go`) until its next update
       ([fix-ready-lock-fargate-panic](specs/fix-ready-lock-fargate-panic/bugfix.md)
       review, out of scope). _Why:_ a Ready node can show NotReady, with no
-      addresses, for one resync.
+      addresses, until the node's next update event (no informer
+      resync is configured).
 
 ## Ideas
 

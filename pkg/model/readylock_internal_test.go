@@ -55,6 +55,20 @@ func TestReadyTakesNoWriteLock(t *testing.T) {
 	}
 }
 
+// fix-ready-lock-fargate-panic R1: Ready reads under the lock; the race
+// detector (go test -race, as scripts/verify.sh runs it) fails an unlocked read
+func TestReadyReadsUnderTheLock(t *testing.T) {
+	n := namelessNode("aws:///us-east-1a/i-0abc", nil)
+	ready := withReady(n, v1.ConditionTrue, time.Unix(1700000700, 0))
+	notReady := withReady(n, v1.ConditionFalse, time.Unix(1700000800, 0))
+	if !loop(100*time.Millisecond, 10*time.Second,
+		func() { _ = n.Ready() },
+		func() { n.Update(ready); n.Update(notReady) },
+	) {
+		t.Fatal("deadlock")
+	}
+}
+
 // fix-ready-lock-fargate-panic R2
 func TestReadyClearedOnUpdate(t *testing.T) {
 	claim := time.Unix(1700000000, 0)

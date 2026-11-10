@@ -24,3 +24,8 @@ active (spec-trace refuses citations of a draft).
   > deleted afterwards): `TestKindCluster` passes; it reaches `Ready` and
   > `Update` on registered nodes, but neither the NodeClaim path (kind has no
   > Karpenter) nor the Fargate path, which the tests above cover.
+  >
+  > After the code review, on 2026-11-10: `TestReadyReadsUnderTheLock` added;
+  > with `Ready`'s read lock removed on a copy it fails with `DATA RACE`.
+  > spec-refuter's mutants of `Update`, `Ready`, `isReady` and the pod.go return
+  > are all killed.

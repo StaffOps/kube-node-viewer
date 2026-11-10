@@ -47,6 +47,12 @@ pkg/model: the test holds the node's read lock and calls `Ready` on a Ready
 NodeClaim node from another goroutine; it fails when `Ready` has not returned
 within 5 seconds._
 
+> **Corrected 2026-11-10 (code review).** "Under the read lock" is checked by
+> `TestReadyReadsUnderTheLock` (`// fix-ready-lock-fargate-panic R1`), pkg/model:
+> `Ready` against `Update` flipping the condition, under `go test -race`;
+> `Ready` without its lock gives `DATA RACE`. `TestReadyTakesNoWriteLock` only
+> catches a write lock.
+
 **R2** WHEN `Update` applies a node object whose Ready condition is True THEN
 the system SHALL clear the NodeClaim creation time, under the same write lock,
 so `Created` and `NotReadyTime` use the node's own times from then on, whether

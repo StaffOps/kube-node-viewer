@@ -18,8 +18,8 @@ All notable changes to this project are documented here. Format:
 - A Fargate pod whose `CapacityProvisioned` annotation is not `<cpu>vCPU <memory>GB`
   no longer ends the program with an index out of range: the node shows
   `Fargate` as its instance type and no price, and the annotation is logged.
-- Drawing the screen no longer takes each Ready node's write lock, which made
-  every render wait for the informers. A node that registered from a Karpenter
+- Drawing the screen no longer takes each Ready node's write lock, which competed
+  with the informers' updates on every render. A node that registered from a Karpenter
   NodeClaim and went Ready now stops showing the NodeClaim's age as soon as the
   update arrives, also when it goes NotReady again before the next render.
 
