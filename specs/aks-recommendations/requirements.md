@@ -1,6 +1,6 @@
 # Requirements: aks-recommendations
 
-> Status: draft · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter, second pass; 2 HIGH, 5 MEDIUM, 13 LOW; applied), earlier 2026-11-10 (spec-refuter; 5 HIGH, 5 MEDIUM, 10 LOW; applied)
+> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter, second pass; 2 HIGH, 5 MEDIUM, 13 LOW; applied), earlier 2026-11-10 (spec-refuter; 5 HIGH, 5 MEDIUM, 10 LOW; applied)
 
 ## Context
 

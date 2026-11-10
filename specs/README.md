@@ -139,7 +139,7 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 33. [`fix-ready-lock-fargate-panic/`](fix-ready-lock-fargate-panic/) — **active**. `Ready` only
     reads (`Update` clears the NodeClaim time); a malformed Fargate annotation no longer panics.
     [bugfix](fix-ready-lock-fargate-panic/bugfix.md) · [tasks](fix-ready-lock-fargate-panic/tasks.md)
-34. [`aks-recommendations/`](aks-recommendations/) — **draft**. The Recommendations screen on
+34. [`aks-recommendations/`](aks-recommendations/) — **active**. The Recommendations screen on
     AKS nodes: the cluster autoscaler's Azure size table, candidate prices from the Retail Prices
     API, agent pools, Arm v5 counterparts, regional Spot, system-pool limits.
     [requirements](aks-recommendations/requirements.md) · [design](aks-recommendations/design.md) · [tasks](aks-recommendations/tasks.md)
