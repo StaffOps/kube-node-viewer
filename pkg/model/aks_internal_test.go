@@ -266,7 +266,46 @@ func TestAdvisorsByCloudRouting(t *testing.T) {
 		t.Error("the analysis did not begin the Azure advisor")
 	}
 	out := u.View()
-	if !strings.Contains(out, "agent pool system") || strings.Contains(out, "agent pool workers") {
+	if !strings.Contains(out, "agent pool system") || strings.Contains(out, "workers") {
 		t.Errorf("a GCE node got advice, or the Azure one none:\n%s", out)
 	}
+}
+
+// fakePricedAzure prices a small Azure catalog, for the golden screen with
+// rightsize, generation and arm rows and a waiting note.
+type fakePricedAzure struct{}
+
+var pricedSpecs = map[string]recommend.Spec{
+	"Standard_D4s_v3":   {VCPU: 4, MemGiB: 16, Arch: "x86_64", Family: "dsv3"},
+	"Standard_D2s_v3":   {VCPU: 2, MemGiB: 8, Arch: "x86_64", Family: "dsv3"},
+	"Standard_D4ds_v5":  {VCPU: 4, MemGiB: 16, Arch: "x86_64", Family: "ddsv5"},
+	"Standard_D4pds_v5": {VCPU: 4, MemGiB: 16, Arch: "arm64", Family: "dpdsv5"},
+}
+
+var pricedList = map[string]float64{"Standard_D4s_v3": 0.192, "Standard_D2s_v3": 0.096, "Standard_D4ds_v5": 0.192, "Standard_D4pds_v5": 0.181}
+
+func (fakePricedAzure) Spec(t string) (recommend.Spec, bool) { s, ok := pricedSpecs[t]; return s, ok }
+func (fakePricedAzure) OnDemand(_ recommend.Node, t string) (float64, bool) {
+	p, ok := pricedList[t]
+	return p, ok
+}
+func (fakePricedAzure) SpotIn(recommend.Node, string) (float64, bool) { return 0, false }
+func (fakePricedAzure) Types() []string {
+	return []string{"Standard_D4s_v3", "Standard_D2s_v3", "Standard_D4ds_v5", "Standard_D4pds_v5"}
+}
+func (fakePricedAzure) Notes() []string { return []string{"waiting for the price of 1 Azure size"} }
+
+// aksPricedUI is aksUI with D4s_v3 nodes measured as AKS reports them.
+func aksPricedUI(t *testing.T) *UIModel {
+	u := aksUI(t)
+	for _, n := range u.stats.Nodes {
+		obj := n.Object().DeepCopy()
+		obj.Labels[v1.LabelInstanceTypeStable] = "Standard_D4s_v3"
+		obj.Status.Capacity = v1.ResourceList{v1.ResourceCPU: resource.MustParse("4"), v1.ResourceMemory: resource.MustParse("15974Mi"), v1.ResourcePods: resource.MustParse("250")}
+		obj.Status.Allocatable = v1.ResourceList{v1.ResourceCPU: resource.MustParse("3860m"), v1.ResourceMemory: resource.MustParse("12185Mi"), v1.ResourcePods: resource.MustParse("250")}
+		n.Update(obj)
+		n.SetPrice(0.192)
+	}
+	u.Refresh()
+	return u
 }

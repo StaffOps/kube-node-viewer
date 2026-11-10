@@ -96,13 +96,19 @@ var goldenScenes = []struct {
 		}
 		pressAll(u, "enter")
 	}},
+	// aks-recommendations R7, R8, R9, R3: priced Azure rows (rightsize, an
+	// info generation row, arm) and the waiting note
+	{"recommendations-aks-priced", 168, 30, func(u *UIModel) {
+		u.advisor = AdvisorsByCloud{"aws": fakeAdvisor{}, "azure": fakePricedAzure{}}
+		pressAll(u, "tab")
+	}},
 	{"help", 168, 60, func(u *UIModel) { press(u, "?") }},
 	{"header-compact", 168, 30, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
 }
 
 // goldenSetup builds the cluster of a scene that is not the README's made-up
 // EKS cluster.
-var goldenSetup = map[string]func(t *testing.T) *UIModel{"recommendations-aks": aksUI}
+var goldenSetup = map[string]func(t *testing.T) *UIModel{"recommendations-aks": aksUI, "recommendations-aks-priced": aksPricedUI}
 
 // TestGoldenScreens compares each screen with testdata/screens/<name>.txt, so
 // a layout change shows in the pull request as a text diff. After a change

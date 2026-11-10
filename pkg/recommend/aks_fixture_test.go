@@ -548,6 +548,13 @@ func TestAWSMathUnchanged(t *testing.T) {
 	if sp.Action != "allow spot in the NodePool (interruptions!)" || sp.Math[0] != "ip-10-0-12-15 in us-east-1b: $0.1920 → $0.0768/h" {
 		t.Errorf("AWS spot row changed: %q %q", sp.Action, sp.Math)
 	}
+	// with a node of the candidate type in the cluster, its pod count is
+	// pinned, with no Azure suffix
+	large := node("ip-192-0-2-20", "m6i.large", "us-east-1a", "", "other-ng", 0.096, Resources{1.93, 7.1, 29}, time.Hour, app(0.1, 0.1))
+	rs2 := find(t, Analyze(fixtureInput(append(fixtureNodes(), large))), Rightsize, "ip-10-0-12-15")
+	if !strings.HasSuffix(rs2.Math[3], "; pods 2 of 29") {
+		t.Errorf("AWS pods line changed: %q", rs2.Math[3])
+	}
 	ng := find(t, r, SpotMove, "node group system-ng")
 	if ng.Action != "add a Spot node group alongside it (interruptions!)" || ng.Math[0] != "sys-0 in us-east-1a: no spot price for this zone" || ng.Priced {
 		t.Errorf("AWS unpriced spot row changed: %q %q", ng.Action, ng.Math)

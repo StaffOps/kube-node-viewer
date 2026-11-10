@@ -61,25 +61,46 @@ func TestListPriceQueuesAndAnswers(t *testing.T) {
 	if _, known, pending := p.ListPrice("", "Standard_D2s_v5", false, false); known || pending {
 		t.Error("no region: queued")
 	}
+	// a name no real label holds never reaches a filter
+	n := len(api.filters)
+	api.mu.Unlock()
+	for _, bad := range [][2]string{{"east us", "Standard_D2s_v5"}, {"eastus2", "Standard_D2s_v5' or 1 eq 1"}} {
+		if _, known, pending := p.ListPrice(bad[0], bad[1], false, false); known || pending {
+			t.Errorf("%q %q: known %v pending %v", bad[0], bad[1], known, pending)
+		}
+	}
+	time.Sleep(100 * time.Millisecond)
+	api.mu.Lock()
+	if len(api.filters) != n {
+		t.Errorf("an invalid name was sent: %v", api.filters[n:])
+	}
 }
 
-// aks-recommendations R3: more than 17 candidate sizes in one region go out
-// in two requests (the fix-azure-price-batch cap, not redefined here).
+// aks-recommendations R3: candidate sizes go out in requests of at most 17
+// (the fix-azure-price-batch cap, not redefined here): 18 sizes in two
+// requests, and a cluster of 8 pools in 8 families (46 sizes) in three.
 func TestListPriceBatches(t *testing.T) {
-	api := &fakeAPI{}
-	p, _ := newTestProvider(t, api)
-	for i := 0; i < maxSizesPerRequest+1; i++ {
-		p.ListPrice("eastus2", fmt.Sprintf("Standard_D%ds_v5", i+1), false, false)
-	}
-	settled(t, p)
-	api.mu.Lock()
-	defer api.mu.Unlock()
-	if len(api.filters) != 2 {
-		t.Fatalf("%d requests for %d sizes, want 2", len(api.filters), maxSizesPerRequest+1)
-	}
-	for _, f := range api.filters {
-		if n := strings.Count(f, "armSkuName eq"); n > maxSizesPerRequest {
-			t.Errorf("a request asks for %d sizes", n)
+	for _, tt := range []struct{ sizes, requests int }{{maxSizesPerRequest + 1, 2}, {46, 3}} {
+		api := &fakeAPI{}
+		p, _ := newTestProvider(t, api)
+		// one analysis asks for them all before the fetch loop runs: queue
+		// all but the last, then ask for the last, which starts the loop
+		p.mu.Lock()
+		for i := 0; i < tt.sizes-1; i++ {
+			p.wanted[key{"eastus2", fmt.Sprintf("Standard_D%ds_v5", i+1)}] = true
 		}
+		p.mu.Unlock()
+		p.ListPrice("eastus2", fmt.Sprintf("Standard_D%ds_v5", tt.sizes), false, false)
+		settled(t, p)
+		api.mu.Lock()
+		if len(api.filters) != tt.requests {
+			t.Errorf("%d requests for %d sizes, want %d", len(api.filters), tt.sizes, tt.requests)
+		}
+		for _, f := range api.filters {
+			if n := strings.Count(f, "armSkuName eq"); n > maxSizesPerRequest {
+				t.Errorf("a request asks for %d sizes", n)
+			}
+		}
+		api.mu.Unlock()
 	}
 }

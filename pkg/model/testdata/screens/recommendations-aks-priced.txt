@@ -1,0 +1,24 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer · Recommendations                                                                                                                                   │
+│ Context:  aks                                                                                                                             f filters     g group by   │
+│ Cluster:  https://example-aks.hcp.eastus2.azmk8s.io:443                                                                                   s sort        o columns    │
+│ Region:   eastus2                                                                                                                         / search      r resources  │
+│ Nodes:    2 of 2 shown · 0 pods · $280.320/month (global cluster)                                                                         c context     v views      │
+│ View:     Filters: none │ Group: none │ Sort: creation ↓ │ cpu                                                                            ? help       ^e compact    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  0/7720m 0.0% cpu ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.384/hour | $280.320/month
+
+  Savings: $140.16/month  best non-Spot option per node; estimates from requests and list prices, by requests only
+  ⚠ waiting for the price of 1 Azure size
+
+  KIND        TARGET                                    ACTION                                              SAVES/MO
+▌ idle        agent pool workers (1 nodes)              $140.16/mo requested by nothing                         info
+  idle        agent pool system (1 nodes)               $140.16/mo requested by nothing                         info
+  rightsize   aks-workers-vmss000001 (Standard_D4s_v3)  → Standard_D2s_v3 (≈0% cpu, 0% mem)                   $70.08
+  rightsize   aks-system-vmss000000 (Standard_D4s_v3)   → Standard_D2s_v3 (≈0% cpu, 0% mem)                   $70.08
+  generation  agent pool workers (Standard_D4s_v3 ×1)   → Standard_D4ds_v5: same price, newer hardware          info
+  generation  agent pool system (Standard_D4s_v3 ×1)    → Standard_D4ds_v5: same price, newer hardware          info
+  arm         agent pool workers (Standard_D4s_v3 ×1)   add a Standard_D4pds_v5 agent pool (arm64 images!)     $8.03
+  arm         agent pool system (Standard_D4s_v3 ×1)    add a Standard_D4pds_v5 agent pool (arm64 images!)     $8.03
+
+  ↑/↓: select • enter: why • tab/:ov: Overview • f: filter • /: search • c: context • v: views • e: export • ?: help • q: quit

@@ -79,6 +79,8 @@ tests, so spec-trace passes.
   > `TestAzureNotesGenerationAndNoWait`, `TestRecommendNodeFromAKSLabels`,
   > and the `recommendations-aks` golden screen. The AWS golden files are
   > unchanged.
+  >
+  > **2026-11-10:** reopened on diff review M4, and closed with T2.
 - [x] T5. `cmd/kube-node-viewer/session.go`: `awsAdvisor` signatures; `azureAdvisor` from the `ByCloud` Azure provider, and over the catalog with pricing disabled when `--disable-pricing` (`session.go:205-206`)
   - _Covers: R1, R3 · Depends on: T2, T4 · Verified by: session tests with and without `--disable-pricing`_
 
@@ -89,24 +91,22 @@ tests, so spec-trace passes.
   > adds; until then candidate prices are absent and so are the rows that
   > need them. Tests: `TestAdvisorPricesAndNotes`,
   > `TestAdvisorPricingDisabled`, `TestSessionPricingPerServer`.
-- [ ] T6. `refresh-data.yaml` runs `make azure-catalog` with `make prices`
-  - _Covers: R16 · Depends on: T1 · Verified by: a workflow_dispatch run's PR_
+  >
+  > **2026-11-10:** reopened on diff review M4, and closed with T2.
+> **Corrected 2026-11-10 (diff review M2).** T6 is deferred to its own PR
+> (Deferred table below). `refresh-data.yaml` guards its patch to `pkg/aws`
+> in two places, the `Patch` step (`:55`) and the PR job (`:100`). Running
+> `make azure-catalog` there means widening both, in a write-capable
+> workflow, so it gets its own review. Until then the table is refreshed by
+> hand with `make azure-catalog`, as a separate commit.
 
-  > **Not done, 2026-11-10: not a one-line change.** `refresh-data.yaml`
-  > guards its patch to `pkg/aws` in two places: the `Patch` step refuses a
-  > diff outside `pkg/aws`, and the PR job refuses any file but
-  > `pkg/aws/zz_generated*.go`. Running `make azure-catalog` there means
-  > widening both guards to `pkg/azure/zz_generated_instance_types.go`, and
-  > changing the PR title and body. That is a change to a write-capable
-  > workflow, so it gets its own review. Until then the table is refreshed
-  > by hand with `make azure-catalog`, as a separate commit.
 - [x] T7. Docs:
   - README: Recommendations on AKS, and credit for the cluster autoscaler table;
   - CHANGELOG `### Added`;
   - aks-pricing R3 marked `_Test: withdrawn (R3) — <dated note>._` with a dated note pointing here;
   - recommendations dated notes (Azure out of scope, the services counter-example);
   - the Ideas item removed from TODO, and the deferred rows in aks-pricing and recommendations.
-  - _Covers: — · Depends on: T1–T6 · Verified by: review, `scripts/spec-trace.py`_
+  - _Covers: — · Depends on: T1–T5 · Verified by: review, `scripts/spec-trace.py`_
 
   > **In progress 2026-11-10 (diff review M4).** The docs stand except what
   > T2 and T6 bring. The CHANGELOG says candidate prices come later, and T2
@@ -115,8 +115,7 @@ tests, so spec-trace passes.
   > note `Azure candidate prices not available yet` says so on screen.
   >
   > **Done 2026-11-10** with T2: the CHANGELOG line now describes the
-  > candidate prices, and T4 and T5 are closed with it. T6 stays its own
-  > task.
+  > candidate prices, and T4 and T5 are closed with it. T6 is deferred.
 - [ ] T8. Verify: `scripts/verify.sh` and `make lint` green; run on a cluster: note what was checked, never the cluster's name
   - _Covers: all · Depends on: T1–T7 · Verified by: command output and the cluster run (kind with made-up `azure://` nodes, priced through the public API), recorded here as a dated note_
 
@@ -128,6 +127,7 @@ tests, so spec-trace passes.
 
 | Task | Promotion trigger |
 |------|-------------------|
+| The monthly `refresh-data.yaml` runs `make azure-catalog`. This widens the guards at `refresh-data.yaml:55` and `:100` to `pkg/azure/zz_generated_instance_types.go`, and pulls autoscaler `master` as `make prices` pulls Karpenter `main` (was T6, deferred 2026-11-10) | its own reviewed PR |
 | Arm v6 (Cobalt 100) targets (deferred by the owner, 2026-11-10) | AKS's Arm64 page names them, or the owner asks |
 | Arm system pools | AKS documents Arm64 system pools |
 | Non-temp-disk targets for nodes that don't use their temp disk | owner asks |

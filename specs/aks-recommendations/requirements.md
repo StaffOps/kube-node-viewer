@@ -1,6 +1,6 @@
 # Requirements: aks-recommendations
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter, second pass; 2 HIGH, 5 MEDIUM, 13 LOW; applied), earlier 2026-11-10 (spec-refuter; 5 HIGH, 5 MEDIUM, 10 LOW; applied)
+> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter, second pass; 2 HIGH, 5 MEDIUM, 13 LOW; applied), earlier 2026-11-10 (spec-refuter; 5 HIGH, 5 MEDIUM, 10 LOW; applied); diff 2026-11-10 (spec-refuter, two passes; 1 HIGH, 9 MEDIUM, 15 LOW; applied)
 
 ## Context
 
@@ -428,7 +428,13 @@ data-refresh workflow SHALL run it with the price tables.
   `kubernetes/autoscaler` verbatim. It is already `package azure` and
   carries its Apache-2.0 header, so nothing in it changes and it gets no
   modification note. A run with no upstream change leaves the file
-  unchanged. _Test: ci — `refresh-data.yaml` opens the PR._
+  unchanged.
+
+> **Corrected 2026-11-10 (diff review M2).** The workflow clause ("the
+> monthly data-refresh workflow SHALL run it") is deferred to its own PR
+> (tasks, Deferred). R16 now holds for `make azure-catalog` run by hand.
+> _Test: manual — `make azure-catalog` by hand: the table is identical to
+> upstream (commit `c1239b4`), with no credentials._
 
 ## Counter-examples
 

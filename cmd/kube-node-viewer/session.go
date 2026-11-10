@@ -261,7 +261,8 @@ func newAdvisor(p pricing.Provider, disablePricing bool) model.Advisor {
 		advisors[recommend.CloudAWS] = awsAdvisor{prices: ap}
 	}
 	// the Azure provider lists candidate prices (aks-recommendations R3);
-	// TestSessionPricingPerServer checks it still does
+	// TestSessionPricingPerServer checks the session's provider is one and
+	// that a candidate is queued with it
 	lister, _ := azureP.(azure.PriceLister)
 	advisors[recommend.CloudAzure] = azure.NewAdvisor(lister, disablePricing)
 	return advisors

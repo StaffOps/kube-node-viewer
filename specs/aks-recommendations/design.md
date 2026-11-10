@@ -47,7 +47,7 @@ UI: recKey includes the Azure price generation → analysis again when prices ar
 | `pkg/model/golden_test.go`, `pkg/model/testdata/screens/` | a new AKS Recommendations golden file; the AWS files unchanged |
 | `pkg/model/aks_internal_test.go:79-99` | `TestAKSRecommendationsSayEKSOnly` is rewritten for R1; GCP and empty-cluster tests |
 | `cmd/kube-node-viewer/session.go:205-206,240-282` | `awsAdvisor` signatures (:270-276); `azureAdvisor` from the `ByCloud` Azure provider; with `--disable-pricing`, an `azureAdvisor` over the catalog with pricing disabled |
-| `.github/workflows/refresh-data.yaml` | runs `make azure-catalog` with `make prices` |
+| `.github/workflows/refresh-data.yaml` | runs `make azure-catalog` with `make prices` (deferred 2026-11-10 to its own PR: tasks, Deferred) |
 | `README.md`, `CHANGELOG.md` | Recommendations on AKS; credit to the cluster autoscaler table next to Karpenter's |
 | `specs/aks-pricing/requirements.md` | R3 `Test: withdrawn (R3)`, with a dated note pointing here |
 | `specs/recommendations/requirements.md` | dated notes: the Azure out-of-scope line and the services counter-example |

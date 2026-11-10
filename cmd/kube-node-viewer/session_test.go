@@ -100,6 +100,9 @@ func TestSessionPricingPerServer(t *testing.T) {
 			if _, ok := az.OnDemand(recommend.Node{Cloud: "azure", Region: "eastus"}, "Standard_D4s_v5"); ok {
 				t.Error("a candidate price before any answer")
 			}
+			if !tt.disable && !strings.Contains(strings.Join(az.Notes(), " "), "waiting for the price of 1 Azure size") {
+				t.Errorf("the candidate was not queued with the Azure provider: notes %q", az.Notes())
+			}
 			// aks-recommendations T2: the seam can't fail silently: the
 			// ByCloud Azure provider lists candidate prices
 			if b, ok := p.(pricing.ByCloud); ok {
