@@ -33,9 +33,11 @@
   (`pkg/model/node.go:512-514`).
 - **Permission:** `Microsoft.Compute/skus/read` "Gets the list of
   Microsoft.Compute SKUs available for your Subscription" (Azure
-  permissions for Compute, read 2026-11-10). Reader includes it; the AKS
-  Cluster User, Cluster Admin and Contributor roles don't (built-in roles,
-  Containers; spec-refuter 2026-11-10).
+  permissions for Compute, read 2026-11-10). Reader includes it, and so does
+  the general Contributor role (`*`); the AKS roles "Azure Kubernetes
+  Service Cluster User Role", "Cluster Admin Role" and "Azure Kubernetes
+  Service Contributor Role" don't (built-in roles, Containers; spec-refuter
+  2026-11-10).
 
 ## Target state
 
@@ -63,19 +65,36 @@ retry due (checked in Generation(), on the tick, only while Recommendations is s
   failed pair's retry falls due. `Generation()` is only read through
   `recKey`, which runs only while Recommendations is shown, so retries never
   happen on other screens (R6).
-- `Spec(t)` answers from the union of loaded pairs (a size's spec doesn't
-  depend on the region). Availability (R3) is a new `Available(n, t)` on
-  the advisor, checked by the rules for candidates and targets and for the
-  node's own size before a Spot row; it reads only the node's own pair.
-- `Types()` lists, per analysis, the sizes of the loaded pairs; a rule still
-  filters candidates by `Available(n, t)`.
+- **Per-analysis snapshot.** `Begin(pairs)` takes a snapshot of the pair
+  states and the loaded answers; `Types`, `Spec`, `Available` and `Notes`
+  of that analysis read only the snapshot, so they agree even though they
+  run in the analysis goroutine (`pkg/recommend/recommend.go:214-215`) while
+  fetches complete. Advisor tests run under `-race`.
+- `Spec(t)` answers from the union of the snapshot's loaded pairs (a size's
+  spec doesn't depend on the region). Availability (R3) is a new
+  `Input.Available func(n Node, t string) bool`, checked by the rules for
+  candidates and targets and for the node's own size before a Spot row; on
+  Azure it reads only the node's own pair. A nil `Input.Available` means
+  "available", and `awsAdvisor` gives none, so AWS behaviour is unchanged.
+- **Seams in `pkg/model`:** the `beginner` interface becomes
+  `Begin(pairs []recommend.Pair)` (`pkg/model/recommendations.go:124`);
+  `AdvisorsByCloud.Begin` passes the pairs to the Azure advisor
+  (`recommendations.go:101-107`); `AdvisorsByCloud.Available` routes by the
+  node's cloud through `forNode`, and answers true for AWS.
+- **Spot without sizes.** On Azure, while the node's pair is loading or
+  failed, the Spot rule skips `comparableSpec` and needs only the node's
+  instance type and the two prices; the Fargate, Auto Mode, virtual-node and
+  no-type guards stay (`recommend.go:885`). With the pair loaded, the node's
+  own size must be in the answer and available (R3).
+- `Types()` lists the snapshot's loaded sizes; a rule still filters
+  candidates by `Available(n, t)`.
 
 ## Components touched
 
 | Path | Change |
 |------|--------|
 | `pkg/azure/skus.go` (new) | Resource SKUs client: URL from `url.Values`, host and `nextLink` checks, paging, body cap, HTTP timeout, parse (R2, R3, R9), error type `armError` with status and code only (R5) |
-| `pkg/azure/azcli.go` (new) | `az` runner: account list, token, cache, process handling (D1, R4, R5) |
+| `pkg/azure/azcli.go`, `azcli_unix.go`, `azcli_windows.go` (new) | `az` runner: account list, token, cache, one in-flight request per subscription, process handling (`Setpgid` and group kill in `azcli_unix.go` only) (D1, R4, R5) |
 | `pkg/azure/advisor.go` | pair states, `Begin(pairs)`, `Available`, notes, generation, retry (R1, R3, R5–R7) |
 | `pkg/azure/catalog.go`, `zz_generated_instance_types.go`, `catalog_test.go` | removed; `NormalizeFamily` moves to `skus.go`; R2 citations move to `skus_test.go` (R12) |
 | `pkg/azure/testdata/skus-eastus.json` (new) | recorded made-up SKU answer (D5) |
@@ -84,11 +103,12 @@ retry due (checked in Generation(), on the tick, only while Recommendations is s
 | `pkg/recommend/tables_azure_ext_test.go`, AKS fixtures | on the extract and the recorded answer (R12) |
 | `pkg/model/recommendations.go` | `Subscription` from the provider ID; pairs into `Begin`; `Types()` after it |
 | `pkg/model/testdata/screens/recommendations-aks*.txt` | the `sizes:` line in open math popups (R8) |
-| `cmd/kube-node-viewer/session.go` | advisor gets the SKU reader; none when pricing is disabled (R7); an option to inject the `az` runner and the Resource Manager base URL, used by `TestKindCluster` |
+| `cmd/kube-node-viewer/session.go` | advisor gets the SKU reader; none when pricing is disabled (R7); a Go option to inject the `az` runner and the Resource Manager base URL, used by `TestKindCluster` (D6) |
+| `cmd/kube-node-viewer/kind_integration_test.go`, `testdata/kind/` | Azure Nodes created through the API, the fake `az` and Resource Manager injected (D6, T6) |
 | `Makefile` | `azure-catalog` and `AUTOSCALER_AZURE` removed |
 | `AGENTS.md` | `pkg/azure/` row: Retail Prices with no credentials; VM sizes from Resource Manager with the `az` sign-in |
 | `README.md` | Recommendations on AKS: source, Reader, the R5 lines; Troubleshooting entry for them; autoscaler credit kept for the test extract only |
-| `CHANGELOG.md` | the `[Unreleased]` AKS entry from #75 edited (no separate `Changed`) |
+| `CHANGELOG.md` | the `[Unreleased]` AKS entry from #75 edited; if v0.16.0 has released before this merges (Monday 2026-11-16, or earlier on demand), a `### Changed` entry instead, since a released section is never edited |
 | `TODO.md` | the refresh-data.yaml item removed |
 | `specs/aks-recommendations/*` | dated notes (context, R2, R12, R16, counter-examples, D1, invariants, T1, Deferred) |
 
@@ -104,6 +124,22 @@ retry due (checked in Generation(), on the tick, only while Recommendations is s
    `expires_on` (POSIX; `expiresOn`, local time, when `expires_on` is
    absent, as in `az` before 2.54.0 — azidentity reads it the same way,
    `azure_cli_credential.go:136-143`).
+
+Row 2's text match uses the az 2.88.0 wording: its AAD error handler
+raises `AuthenticationError(error_description, recommendation="Run the
+command below to authenticate interactively; …")` (`azure/cli/core/auth/util.py:40-61`),
+so the match is `AADSTS` or `authenticate interactively`; "interaction
+required" is never printed, and an MFA or Conditional Access error
+(`AADSTS50076`) says nothing about expiry. The fake `az` fixtures copy that
+wording. Account `state` `Disabled` or `Deleted` is row 4; `Warned` and
+`PastDue` subscriptions stay readable (`azure/cli/command_modules/profile/custom.py:65-70`).
+Entries whose `cloudName` is not `AzureCloud` are ignored (`--all` lists
+every cloud the CLI knows).
+
+The cached token is dropped on a `401` or `403` answer and when the
+subscription's `az account list` entry changes (`user.name`, `tenantId`;
+compared in memory). One `get-access-token` per subscription is in flight
+at a time; fetches of other regions wait for it.
 
 Exit 0 with warnings on stderr is success. Each run has a 30 s timeout
 (chosen, unmeasured); on Unix the process gets its own process group
@@ -136,7 +172,8 @@ subscription until two minutes (chosen) before it expires. No Azure SDK.
 |------|----------------|
 | No managed identity, workload identity or service-principal env vars | the owner's case is an admin at a workstation; a jump host can `az login --identity` |
 | About a second per `az` run, two runs the first time | in the background, at most once per subscription per token lifetime, plus the retries R6 allows while an error holds |
-| Windows is not tested in CI (`az.cmd` goes through `cmd.exe`) | inputs are validated before they reach the command line (R10); T5 records a manual Windows check |
+| Windows is not tested in CI (`az.cmd` goes through `cmd.exe`) | inputs are validated before they reach the command line (R10); `GOOS=windows go vet ./pkg/azure` and a windows cross-build run in T1; T5 records a manual Windows check |
+| On Windows, killing `az.cmd` at the timeout can leave its Python child running | rare (a hung `az`), and it exits on its own; a job object is not worth the code yet |
 | The `az account list` output names tenants and users | it is parsed in memory, never logged or shown |
 
 **When this would be wrong**: admins report running it where `az` can't be
@@ -253,8 +290,12 @@ R3); `az` runs and sign-in errors would buy nothing. No new flag.
   their public specs, and made-up locations, zones and restrictions.
 - `pkg/recommend/testdata/azure-sizes.tsv`: size, family, vCPU, MiB and
   architecture of every size in the autoscaler table at `03e49d9cb822`,
-  extracted once, frozen, with its Apache-2.0 credit in a header line; never
-  refreshed and never in the binary. The table-coverage tests (every D5 key
+  extracted once, frozen, never refreshed and never in the binary. Its
+  header lines: `Copyright The Kubernetes Authors.`, the Apache-2.0
+  notice, and a statement of change (Apache-2.0 §4(b)): "Extracted from
+  kubernetes/autoscaler cluster-autoscaler/cloudprovider/azure/azure_instance_types.go
+  at commit 03e49d9cb822: name, family, vCPU, memory and architecture
+  only." `headers.py` doesn't read `.tsv`, so T4 checks the header itself. The table-coverage tests (every D5 key
   and target exists, every mapping keeps the temp disk family set) run on it.
 
 **Justification**: no credential in CI or the repo; public size specs are not
@@ -273,6 +314,23 @@ extract — extract again, by hand, in that PR.
 
 **Reversal action**: delete the extract and narrow the coverage tests to the
 recorded answer.
+
+### D6: The kind run injects the fakes through a Go option
+
+**Choice**: the session takes a Go option (`withAzure(run azRunner, base string)`)
+that replaces the `az` runner and the Resource Manager base URL. Only
+`TestKindCluster` (`cmd/kube-node-viewer/kind_integration_test.go`, itself
+`//go:build integration`) sets it; no flag, environment variable or config
+key reaches it, and release builds always use `az` on `PATH` and
+`https://management.azure.com`.
+
+**Justification**: the kind test already runs the session in process
+(`kind_integration_test.go:1,69`), so a build tag would add a second binary
+for nothing.
+
+**When this would be wrong**: a test needs the real binary against the fake.
+
+**Reversal action**: add a build-tagged main for that test.
 
 ## Invariants
 

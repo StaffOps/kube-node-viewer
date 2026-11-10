@@ -1,6 +1,6 @@
 # Requirements: azure-live-skus
 
-> Status: draft · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 3 HIGH, 12 MEDIUM, 10 LOW; applied)
+> Status: draft · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 3 HIGH, 12 MEDIUM, 10 LOW; applied); second pass 2026-11-10 (2 HIGH, 8 MEDIUM, 9 LOW; applied)
 
 ## Context
 
@@ -81,9 +81,13 @@ the Azure Resource SKUs API (`GET
 https://management.azure.com/subscriptions/<id>/providers/Microsoft.Compute/skus`,
 `api-version=2021-07-01`, `$filter=location eq '<region>'`), once per
 session, without blocking the screen.
-- The pairs come from the shown Azure nodes: `recommendInput` gathers them
-  in its node loop and passes them to `Begin(pairs)` before the input reads
-  `Types()` (design D2).
+- The pairs come from the shown Azure nodes a size rule could compare: not
+  an ACI virtual node, with an instance type and a valid region label.
+  `recommendInput` gathers them in its node loop and passes them to
+  `Begin(pairs)` before the input reads `Types()` (design D2). An Azure node
+  with an instance type and no valid region label gets R5 row 14.
+- No Azure node a size rule could compare (an AWS-only or empty view, or
+  only virtual nodes): no `az` run and no request.
 - The subscription comes from the node's provider ID
   (`azure:///subscriptions/<id>/resourceGroups/…`), the region from its
   `topology.kubernetes.io/region` label, lower-cased.
@@ -102,6 +106,9 @@ session, without blocking the screen.
 - [ ] Test: no request before Recommendations is shown.
 - [ ] Test: nodes in two regions → two requests; one subscription and
   region per request.
+- [ ] Test: an AWS-only view, an empty view and a view of virtual nodes
+  only → no `az` run and no request; an Azure node with no region label →
+  row 14 and no request for it.
 
 **R2** WHEN the system reads a SKU answer THEN it SHALL keep only
 `resourceType` `virtualMachines` and take, per size:
@@ -140,9 +147,11 @@ Per rule:
 - **rightsize, generation, arm:** the candidate or target must be
   available.
 - **Spot:** the target is the node's own size; when the answer is loaded and
-  that size is not available to the node, the node gets no Spot row. When
-  the answer can't be read, Spot rows stay (they need only prices; decided
-  2026-11-10).
+  that size is not available to the node, the node gets no Spot row. While
+  the node's pair is loading or failed, the Spot rule needs only the node's
+  instance type and the two prices (decided 2026-11-10), so Spot rows stay;
+  the Fargate, Auto Mode, virtual-node and no-type guards still apply
+  (design D2).
 - **The node's own size** is read from the answer, available or not, so the
   node can be compared.
 
@@ -152,6 +161,8 @@ Per rule:
   regional check; a candidate present only in another region's answer is
   not offered; a node whose own size is restricted is still rightsized and
   gets no Spot row.
+- [ ] Test: with R5 row 7 holding, the fixture's Spot rows show with their
+  amounts and the total is unchanged by them (Spot stays out of it).
 
 **R4** WHEN the system needs a token THEN it SHALL use only the Azure CLI
 sign-in already on the machine, never prompt, and never create anything:
@@ -159,7 +170,13 @@ sign-in already on the machine, never prompt, and never create anything:
   --subscription <id> --output json`, stdin not attached, with a timeout
   (design D1);
 - the token is reused until two minutes before `expires_on` (or
-  `expiresOn`, local time, from `az` before 2.54.0);
+  `expiresOn`, local time, from `az` before 2.54.0), then fetched again;
+- the cached token is dropped on a `401` or `403` answer (R5 rows 6–8), and
+  when that subscription's entry in `az account list` changes (`user.name`
+  or `tenantId`, compared in memory, never stored or logged), so a new
+  sign-in is used at the next retry;
+- one token request per subscription is in flight at a time, shared by the
+  fetches of all its regions;
 - no browser, device-code or interactive flow; no credential is stored by
   this tool, and it never reads `~/.azure` itself.
 
@@ -169,6 +186,12 @@ sign-in already on the machine, never prompt, and never create anything:
 - [ ] Test: one `az` run per subscription while the token is valid; an
   answer with only `expiresOn` is read.
 - [ ] Test: `az` exiting 0 with warnings on stderr gives a token.
+- [ ] Test: a token two minutes from expiry is fetched again.
+- [ ] Test: after a `401`, the fake `az` returns a new token and the next
+  request carries it; a changed account entry drops the token too.
+- [ ] Test: two regions of one subscription → one `get-access-token` run.
+- [ ] Test: a fake `az` that reads stdin returns at once (stdin is not
+  attached).
 
 **R5** WHEN the sizes can't be read THEN the Recommendations notes SHALL show
 one line saying why and what to do, from this table, and log it once (the
@@ -177,18 +200,19 @@ header issue log, as price failures):
 | # | Cause | Line (after `Azure VM sizes: `) |
 |---|---|---|
 | 1 | `az` not on `PATH` | `the Azure CLI (az) was not found; install it and run az login` |
-| 2 | `az account list --all` empty, or the token says expired / interaction required | `not signed in to Azure; run az login` |
+| 2 | `az account list --all` empty, or `get-access-token` fails with `AADSTS` or `authenticate interactively` in its stderr (az 2.88.0 wording, design D1) | `not signed in to Azure; run az login` |
 | 3 | no account in that list has the node's subscription id | `the signed-in account can't see the nodes' subscription; az login with an account that can` |
-| 4 | that account's `state` is not `Enabled` | `the nodes' subscription was not found or is disabled` |
+| 4 | that account's `state` is `Disabled` or `Deleted` (`Warned` and `PastDue` stay readable) | `the nodes' subscription was not found or is disabled` |
 | 5 | `az` fails otherwise, or times out | `the Azure CLI failed to give a token; run az account get-access-token to see why` |
 | 6 | `401` | `Azure refused the token; run az login` |
 | 7 | `403` `AuthorizationFailed` | `no permission to read VM sizes (Microsoft.Compute/skus/read on the subscription, e.g. the Reader role)` |
 | 8 | `403` with another code (e.g. `RequestDisallowedByPolicy`) | `Azure refused the request (403); check the subscription's policies` |
 | 9 | `404` `SubscriptionNotFound` | `the nodes' subscription was not found or is disabled` |
 | 10 | `400`, `409`, other `4xx` | `Azure refused the request (<status>)` |
-| 11 | `429`, `5xx`, network error, timeout | `Azure Resource Manager unavailable (<status>); retrying in <d>` |
+| 11 | `429`, `5xx`, network error, timeout | `Azure Resource Manager unavailable (<status>); retrying in <d>`, with `<status>` the code, `network error` or `timeout` |
 | 12 | answer malformed, over the size cap, or a `nextLink` R10 refuses | `Azure Resource Manager gave an answer that can't be read; retrying in <d>` |
-| 13 | provider ID subscription not a GUID, or region not `^[a-z0-9]+$` (R10) | `the nodes' provider ID names no valid subscription` |
+| 13 | provider ID subscription not a GUID (R10) | `the nodes' provider ID names no valid subscription` |
+| 14 | region label missing or not `^[a-z0-9]+$` (R1, R10) | `a node has no valid region label` |
 
 - No line or log carries a subscription id, tenant id, account, client or
   object id, scope or token. `az`'s output and Resource Manager's error
@@ -196,21 +220,31 @@ header issue log, as price failures):
   status and the error `code` are read.
 - While a line shows, rightsize, generation and arm rows don't appear; idle,
   consolidation, old-node and Spot rows do (R3).
-- With nodes in two subscriptions and only one failing, the line names the
-  affected agent pools, not the subscription:
+- With nodes in two subscriptions or regions and only one pair failing, the
+  line names the affected agent pools and NodePools, not the subscription:
   `Azure VM sizes (agent pools legacy, system): <line>`.
+- `az account list --all` lists every cloud the CLI knows; entries of
+  another cloud (`cloudName` other than `AzureCloud`) are ignored, so a
+  same-id entry there neither matches nor fails row 3.
 
 - [ ] Test: a table test drives each row (fake `az`, fake Resource Manager)
   and checks the exact line, that it contains neither the fixture's
   subscription id nor the fake token nor the fake error message, and the
   row kinds shown.
+- [ ] Test: the same failure on two analyses is logged once.
+- [ ] Test: two pairs, one failing → the line names the failing pair's
+  agent pools and NodePools.
+- [ ] Test: row 2 from the az 2.88.0 `AuthenticationError` wording (an
+  `AADSTS50076` description and the `authenticate interactively`
+  recommendation); row 4 for `Disabled`, not for `Warned`; an `AzureChinaCloud`
+  entry with the same id is ignored.
 
-**R6** WHEN a size read failed (R5 rows 1–10) THEN the system SHALL try again
+**R6** WHEN a size read failed (R5 rows 1–10, 14) THEN the system SHALL try again
 at most once a minute while Recommendations is shown, so an admin can run
 `az login` or get the role and come back without restarting. Rows 11 and 12
 wait as the price provider does (fix-azure-retry: the answer's retry
 header, at least a minute, at most 10 minutes). Row 13 is not retried (the
-provider ID doesn't change).
+provider ID doesn't change); row 14 clears when the label appears.
 
 - [ ] Test (fake clock, static cluster): after a `403`, no request for 59 s,
   one at 60 s while shown, none while another screen is shown; after the
@@ -236,7 +270,8 @@ export (hide-cloud-ids).
 
 - [ ] Test: the fixture's rightsize, generation and arm math hold the line;
   no AWS math does; no rendered screen of the fixture contains its
-  subscription id.
+  subscription id, nor a `/` search for it matches, nor the CSV and JSON
+  export contain it.
 
 **R9** WHEN a generation or arm target is chosen for a node whose size has a
 temp disk (`MaxResourceVolumeMB` > 0) THEN the target SHALL have one too,
@@ -256,15 +291,24 @@ the region `^[a-z0-9]+$`; otherwise R5 row 13.
 - The token is sent only to `https://management.azure.com`; a `nextLink`
   is followed only when its scheme is `https` and its host is
   `management.azure.com`, else R5 row 12.
+- Redirects are refused (the client's `CheckRedirect` returns an error):
+  row 12.
+- The base URL is `https://management.azure.com` and can be changed only by
+  a Go option for tests (`TestKindCluster`, design D6); no flag,
+  environment variable or config key sets it.
 
 - [ ] Test: provider IDs with `&`, `"`, spaces or a non-GUID → row 13 and no
   `az` run; region `east us` → row 13; a `nextLink` to another host or over
-  `http` is not followed and no request reaches it with the token.
+  `http` is not followed and no request reaches it with the token; a `302`
+  is not followed; the default base is `https://management.azure.com` and
+  the host check runs against it.
 
 **R11** WHEN a rule recommends a size for an AKS user pool THEN the size
-SHALL have at least 2 vCPU and 2 GiB of memory (AKS's user-pool minimum,
-learn.microsoft.com/azure/aks/quotas-skus-regions; system pools keep
-aks-recommendations R15). `Standard_B1ls` (1 vCPU, 0.5 GiB), now read with
+SHALL have at least 2 vCPU and 2 GiB of memory; system pools keep
+aks-recommendations R15. AKS's page (learn.microsoft.com/azure/aks/quotas-skus-regions,
+`ms.date` 2026-08-03, read 2026-11-10) says: "For user node pools, you might
+not be able to use VM versions with fewer than two vCPUs and 2 GB of
+memory." Its 2 GB is read as 2 GiB, the unit the rules use. `Standard_B1ls` (1 vCPU, 0.5 GiB), now read with
 its real memory (R2), is refused by this rule rather than by a 0 entry.
 
 - [ ] Test: a user-pool node with tiny requests is never rightsized to
@@ -324,5 +368,6 @@ answer is the only Azure size source at run time. Tests SHALL use:
      tests; the recorded answer covers parsing (R12, design D5).
   4. The live temp-disk check is in scope; the D5 maps stay the policy (R9).
   5. User-pool minimum 2 vCPU / 2 GiB; B1ls handled by it (R11).
-  6. The kind run injects the fakes in process, no build tag (design, test
-     plan).
+  6. The kind run injects the fakes through a Go option in process, no build
+     tag (`kind_integration_test.go` is itself `//go:build integration`;
+     design D6, T6).
