@@ -109,7 +109,7 @@ func aksNode(size string, labels map[string]string) *model.Node {
 	}
 	return model.NewNode(&v1.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: "aks-" + size, Labels: l},
-		Spec:       v1.NodeSpec{ProviderID: "azure:///subscriptions/s/resourceGroups/rg/providers/Microsoft.Compute/virtualMachineScaleSets/x/virtualMachines/0"},
+		Spec:       v1.NodeSpec{ProviderID: "azure:///subscriptions/s/resourceGroups/example-rg/providers/Microsoft.Compute/virtualMachineScaleSets/x/virtualMachines/0"},
 	})
 }
 

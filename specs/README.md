@@ -127,7 +127,10 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 29. [`hide-cloud-ids/`](hide-cloud-ids/) — **active**. The headers shorten gcloud's multi-cloud
     and Connect gateway contexts, and node details stop showing the project or subscription.
     [requirements](hide-cloud-ids/requirements.md) · [design](hide-cloud-ids/design.md) · [tasks](hide-cloud-ids/tasks.md)
-30. [`decisions/`](decisions/) — decision records (index below).
+30. [`content-cloud-ids/`](content-cloud-ids/) — **active**. The content check blocks real GCE
+    projects and Azure resource groups in provider IDs.
+    [requirements](content-cloud-ids/requirements.md) · [design](content-cloud-ids/design.md) · [tasks](content-cloud-ids/tasks.md)
+31. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>

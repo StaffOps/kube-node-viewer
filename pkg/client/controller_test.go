@@ -61,7 +61,7 @@ func TestUpdatePriceOverrideOnAKSNode(t *testing.T) {
 			v1.LabelTopologyRegion:               "eastus2",
 			v1.LabelInstanceTypeStable:           "Standard_D2s_v5",
 		}},
-		Spec: v1.NodeSpec{ProviderID: "azure:///subscriptions/s/resourceGroups/rg/providers/Microsoft.Compute/virtualMachineScaleSets/x/virtualMachines/0"},
+		Spec: v1.NodeSpec{ProviderID: "azure:///subscriptions/s/resourceGroups/example-rg/providers/Microsoft.Compute/virtualMachineScaleSets/x/virtualMachines/0"},
 	})
 	calls := &countingPricing{}
 	(&Controller{pricing: calls}).updatePrice(node)

@@ -70,10 +70,17 @@ memory. Listed by impact.
 - [ ] gcloud's `edgecontainer_{project_id}_{location}_{cluster_id}` context
       form, for Distributed Cloud clusters, still shows the project.
       _Why:_ the same leak as the other gcloud forms.
-- [ ] `content.sh` has no rule for a real `gce://<project>/…` provider ID or an
-      Azure resource group name outside `MC_…`.
-      _Why:_ hide-cloud-ids treats them as sensitive on screen; the guard
-      does not stop them in a commit.
+- [ ] `content.sh` blocks `gce://<project>/` and `resourceGroups/<name>`
+      ([content-cloud-ids](specs/content-cloud-ids/requirements.md)), not the
+      other spellings: `--resource-group <name>`, `"resourceGroup": "…"`,
+      `resource_group = …`, `%2F`- and `\/`-escaped resource ids, names that
+      start with `-`, `(` or a Unicode letter (Azure allows them), and GCP
+      project ids or numbers outside a `gce://` id (`projects/<id>/zones/…`,
+      the GKE PD CSI node id). _Why:_ a pasted CLI output or Terraform file
+      still carries them.
+- [ ] `gke_ok` in `content.sh` accepts any project after `example.com:`
+      (`gke_example.com:<real project>_…` passes), unlike `gce_ok`. _Why:_ a
+      real project behind an example domain slips through.
 - [ ] `Node.Name` takes the read lock and calls `InstanceID`, which takes it
       again (`pkg/model/node.go`). _Why:_ a recursive read lock can deadlock
       with a pending writer.

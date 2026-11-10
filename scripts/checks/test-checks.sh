@@ -122,7 +122,32 @@ commit "AKS example resource group"  passes  docs.md "MC_example-rg_example-aks_
 commit "AKS node name"               blocked:aks docs.md "aks-system-37104428-vmss000002"
 commit "AKS example node name"       passes  docs.md "aks-userpool-12345678-vmss000003"
 commit "Azure subscription"          blocked:azure docs.md "azure:///subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/mc_x"
-commit "Azure example subscription"  passes  docs.md "azure:///subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/x"
+commit "Azure example subscription"  passes  docs.md "azure:///subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-x"
+# content-cloud-ids R1
+commit "GCE project"                 blocked:gce docs.md "gce://acme-prod-123/us-central1-a/gke-x"
+commit "GCE project, upper case"     blocked:gce docs.md "GCE://ACME-PROD-123/US-CENTRAL1-A/GKE-X"
+commit "GCE domain-scoped project"   blocked:gce docs.md "gce://acme.dev:prod-123/us-central1-a/x"
+commit "GCE real project, example domain" blocked:gce docs.md "gce://example.com:acme-prod/us-central1-a/x"
+commit "GCE example-prefixed domain" blocked:gce docs.md "gce://example.acme.dev:prod-123/us-central1-a/x"
+commit "GCE example project"         passes  docs.md "gce://example-project/us-central1-a/x"
+commit "GCE example domain project"  passes  docs.md "gce://example.com:example-project/us-central1-a/x"
+commit "GCE real after an example"   blocked:gce docs.md "gce://example-project/z/x gce://acme-prod-123/z/x"
+commit "two GCE examples, one line"  passes  docs.md "gce://example-a1b2c3/z/x,gce://example-project/z/y"
+commit "GCE text that is no project" passes  docs.md 'gce://…/z/x gce://<project>/z/x gce://[^/]+/ gce://p/z/x'
+commit "GCE example project, real domain" blocked:gce docs.md "gce://acme.dev:example-project/z/x"
+commit "GCE example project, near-example domain" blocked:gce docs.md "gce://exampleXcom:example-project/z/x"
+commit "GCE ids outside the project rule" passes docs.md "gce://abcde/z/ gce://1acme-prod/z/ gce://acme-prod-/z/ gce://a$(printf '%030d' 0 | tr 0 b)/z/"
+# content-cloud-ids R2
+commit "resource group"              blocked:resourcegroup docs.md "azure:///subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/acme-prod-rg/providers/x"
+commit "resource group, upper case"  blocked:resourcegroup docs.md "/RESOURCEGROUPS/ACME-PROD-RG/providers/x"
+commit "node resource group"         blocked:resourcegroup docs.md "resourceGroups/MC_acme-rg_acme-aks_eastus"
+commit "example resource groups"     passes  docs.md "resourceGroups/example-rg/x resourceGroups/MC_example-rg_example-aks_eastus/x"
+commit "resource group after example" blocked:resourcegroup docs.md "resourceGroups/example-rg/x resourceGroups/acme-prod-rg/x"
+commit "short resource group"        blocked:resourcegroup docs.md "resourceGroups/rg/providers/x"
+commit "resource group, digit first" blocked:resourcegroup docs.md "resourceGroups/1prod/x"
+commit "resource group, _ first"     blocked:resourcegroup docs.md "resourceGroups/_prod/x"
+# shellcheck disable=SC2016 # backticks of a Go regexp, literal on purpose
+commit "resource group regexes"      passes  docs.md 'regexp.MustCompile(`resourceGroups/([^/]+)/`) resourceGroups/(.*) resourceGroups/<group>'
 commit "API server URL"              blocked:server kubeconfig "    server: https://k8s.prod.acme.dev"
 commit "API server port 6443"        blocked:server docs.md "curl https://rancher.prod.io:6443/version"
 commit "example API servers"         passes  kubeconfig "$(printf '    server: https://kind.local:6443\n    server: https://127.0.0.1:1\n    server: https://a.example\n    server: https://kubernetes.default.svc\n    server: https://kubernetes.docker.internal:6443')"
@@ -199,6 +224,14 @@ commit "AI co-author"                blocked docs.md "x" "$(printf 'docs: x\n\nC
 commit "deny-listed name in message" blocked:deny docs.md "x" "fix: crash seen at acme corp"
 commit "private IP in message"       blocked:ip docs.md "x" "fix: node 10.20.30.40 lost its price"
 commit "cluster URL in message"      blocked:eks docs.md "x" "fix: 0123456789ABCDEF0123456789ABCDEF.gr7.us-east-1.eks.amazonaws.com"
+# content-cloud-ids R3
+commit "GCE project in message"      blocked:gce docs.md "x" "fix: node gce://acme-prod-123/us-central1-a/x"
+# content-cloud-ids R3
+commit "resource group in message"   blocked:resourcegroup docs.md "x" "fix: resourceGroups/acme-prod-rg/x"
+# content-cloud-ids R3
+tree "resource group, full tree"     blocked:resourcegroup docs.md "resourceGroups/acme-prod-rg/providers/x"
+# content-cloud-ids R3
+tree "GCE project, full tree"        blocked:gce docs.md "gce://acme-prod-123/z/x"
 commit "e-mail in message passes"    passes  docs.md "x" "$(printf 'fix: x\n\nSigned-off-by: Jane <jane@acme.io>')"
 commit "deny-listed author e-mail"   blocked:deny docs.md "x" "docs: x" -c user.email=dev@acmecorp.com
 commit "deny-listed author name"     blocked:deny docs.md "x" "docs: x" -c "user.name=Dev (ACME Corp)"
