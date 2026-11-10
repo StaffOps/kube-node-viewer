@@ -87,13 +87,21 @@ memory. Listed by impact.
       Azure subscription ids outside `subscriptions/<guid>`
       (`"subscriptionId": …`). _Why:_ a pasted CLI output or Terraform file
       still carries them.
-- [ ] `Node.Ready` takes the write lock on every call for a Ready node, to clear
-      the NodeClaim creation time, and the view calls it on every render
-      (`pkg/model/node.go`). _Why:_ needless contention with the informers;
-      clear it once, in `Update`.
-- [ ] `Pod.FargateCapacityProvisioned` logs a `CapacityProvisioned` annotation
-      it cannot parse and then indexes the failed match (`pkg/model/pod.go`).
-      _Why:_ a malformed annotation panics the program.
+- [ ] The NodeClaim informer checks `GetNode` and then calls `AddNode` without
+      holding the store's lock in between (`pkg/client/controller.go`); a node
+      registered in that gap is overwritten by the NodeClaim stub
+      (`existing.Update`, `pkg/model/cluster.go`) until its next update
+      ([fix-ready-lock-fargate-panic](specs/fix-ready-lock-fargate-panic/bugfix.md)
+      review, out of scope). _Why:_ a Ready node can show NotReady, with no
+      addresses, until the node's next update event (no informer
+      resync is configured).
+
+- [ ] `c` on the current context only closes the popup
+      (`pkg/model/contexts.go:135-138`); make it reconnect, building new
+      clients and pricing providers. _Why:_ an Azure batch refused as over the
+      API's cap ([fix-azure-price-batch](specs/fix-azure-price-batch/design.md)
+      D1) leaves its sizes without a price until a restart or a switch to
+      another context and back.
 
 ## Ideas
 

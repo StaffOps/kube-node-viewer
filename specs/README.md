@@ -136,7 +136,14 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 32. [`content-cloud-ids/`](content-cloud-ids/) — **active**. The content check blocks real GCE
     projects and Azure resource groups in provider IDs.
     [requirements](content-cloud-ids/requirements.md) · [design](content-cloud-ids/design.md) · [tasks](content-cloud-ids/tasks.md)
-33. [`decisions/`](decisions/) — decision records (index below).
+33. [`fix-ready-lock-fargate-panic/`](fix-ready-lock-fargate-panic/) — **active**. `Ready` only
+    reads (`Update` clears the NodeClaim time); a malformed Fargate annotation no longer panics.
+    [bugfix](fix-ready-lock-fargate-panic/bugfix.md) · [tasks](fix-ready-lock-fargate-panic/tasks.md)
+34. [`fix-azure-price-batch/`](fix-azure-price-batch/) — **active**. Azure prices are asked in
+    batches of at most 17 sizes; a request refused as over the API's cap is not sent again, another
+    `400` waits 10 minutes.
+    [bugfix](fix-azure-price-batch/bugfix.md) · [design](fix-azure-price-batch/design.md) · [tasks](fix-azure-price-batch/tasks.md)
+35. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>
