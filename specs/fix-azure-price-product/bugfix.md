@@ -107,6 +107,10 @@ unfiltered, and a filtered query one.
 - One request per region for all wanted sizes; a size the API does not
   list gets no price and is not asked again; a failure is retried no sooner
   than a minute later.
+
+  > **Corrected 2026-11-10 ([fix-azure-price-batch](../fix-azure-price-batch/bugfix.md) R1, R3).**
+  > One request per batch of at most 17 sizes; the cap's `400` is not
+  > retried, any other `400` waits 10 minutes.
 - `--disable-pricing` fetches nothing; the `kube-node-viewer/instance-price`
   label still overrides the lookup; AWS nodes make no Azure request.
 

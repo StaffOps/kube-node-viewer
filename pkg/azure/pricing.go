@@ -21,13 +21,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/staffops/kube-node-viewer/pkg/model"
 )
@@ -40,6 +43,28 @@ const (
 	retryAfter     = time.Minute
 	maxPages       = 20
 )
+
+const (
+	// maxFilterComparisons is how many comparisons the API takes in one
+	// $filter: 21 were refused with 400 "Invalid OData parameters supplied",
+	// 20 answered (measured 2026-11-10 in eastus; fix-azure-price-batch D1).
+	maxFilterComparisons = 20
+	// baseConditions are the comparisons filterFor puts before the sizes.
+	baseConditions = 3
+	// maxSizesPerRequest is how many sizes one request asks for
+	// (fix-azure-price-batch R1).
+	maxSizesPerRequest = maxFilterComparisons - baseConditions
+	// capRefusal is the API's message for a filter over the cap; a 400
+	// with it is never sent again (fix-azure-price-batch R3, D2).
+	capRefusal = "Invalid OData parameters supplied"
+)
+
+// labelValue is the Kubernetes label value charset without the empty value;
+// a region or size outside it never goes into a filter
+// (fix-azure-price-batch R5, D3).
+var labelValue = regexp.MustCompile(`^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$`)
+
+func validName(s string) bool { return labelValue.MatchString(s) }
 
 // sizePrices are the prices of one VM size in one region; the has* fields
 // tell which the API gave. All false: the API has no such size there.
@@ -64,6 +89,7 @@ type Provider struct {
 	retryAt   map[string]time.Time // region → not asked again before (fix-azure-retry R2)
 	failed    map[string]bool      // regions whose failure was logged and not yet resolved
 	cutShort  map[string]bool      // regions whose cut-short answer was logged
+	refused   map[string]bool      // regions whose cap refusal was logged (fix-azure-price-batch R3)
 	onUpdate  []func()
 	wake      chan struct{}
 	startOnce sync.Once
@@ -78,7 +104,7 @@ func NewProvider(ctx context.Context, endpoint string) *Provider {
 		now:    time.Now,
 		retry:  retryAfter,
 		prices: map[key]*sizePrices{}, wanted: map[key]bool{}, cutShort: map[string]bool{},
-		retryAt: map[string]time.Time{}, failed: map[string]bool{},
+		retryAt: map[string]time.Time{}, failed: map[string]bool{}, refused: map[string]bool{},
 		wake: make(chan struct{}, 1),
 	}
 }
@@ -100,6 +126,15 @@ func (p *Provider) NodePrice(n *model.Node) (float64, bool) {
 	spot := n.CapacityType() == model.CapacitySpot
 	windows := n.LabelValue("kubernetes.io/os") == "windows"
 	k := key{strings.ToLower(region), size}
+	if !validName(k.region) || !validName(size) {
+		// no real label holds it; never put it in a filter (fix-azure-price-batch R5)
+		p.mu.Lock()
+		if _, ok := p.prices[k]; !ok {
+			p.prices[k] = &sizePrices{}
+		}
+		p.mu.Unlock()
+		return 0, false
+	}
 
 	p.mu.Lock()
 	sp, ok := p.prices[k]
@@ -126,8 +161,8 @@ func (p *Provider) NodePrice(n *model.Node) (float64, bool) {
 	return sp.regular, sp.hasRegular
 }
 
-// run fetches wanted sizes whenever woken, one request per due region, and
-// wakes itself when the earliest deferred region is due again.
+// run fetches wanted sizes whenever woken, one request per batch of a due
+// region, and wakes itself when the earliest deferred region is due again.
 func (p *Provider) run() {
 	var due <-chan time.Time
 	for {
@@ -177,46 +212,79 @@ func (p *Provider) fetchWanted() time.Time {
 	for _, region := range regions {
 		sizes := byRegion[region]
 		sort.Strings(sizes)
-		found, err := p.fetch(region, sizes)
-		p.mu.Lock()
-		if err != nil {
-			delay, note := p.retry, ""
+		answered := true // every batch of the region answered this pass
+		for start := 0; start < len(sizes); start += maxSizesPerRequest {
+			batch := sizes[start:min(start+maxSizesPerRequest, len(sizes))]
+			found, err := p.fetch(region, batch)
 			var se *statusError
-			if errors.As(err, &se) {
-				delay, note = retryDelay(se.code, se.header, p.now(), p.retry)
+			isStatus := errors.As(err, &se)
+			if isStatus && se.code == http.StatusBadRequest && se.message == capRefusal {
+				// the same filter gets the same answer: not sent again
+				// (fix-azure-price-batch R3)
+				p.mu.Lock()
+				for _, size := range batch {
+					p.prices[key{region, size}] = &sizePrices{}
+					delete(p.wanted, key{region, size})
+				}
+				first := !p.refused[region]
+				p.refused[region] = true
+				p.mu.Unlock()
+				if first {
+					log.Printf("Azure pricing for %s: request refused (%s), some sizes have no price", region, err)
+				}
+				continue
 			}
-			at := p.now().Add(delay)
-			p.retryAt[region] = at
-			p.failed[region] = true
-			if next.IsZero() || at.Before(next) {
-				next = at
+			if err != nil {
+				delay, note := p.retry, ""
+				if isStatus {
+					delay, note = retryDelay(se.code, se.header, p.now(), p.retry)
+					if se.code == http.StatusBadRequest && delay < maxRetryAfter {
+						// unexplained: retried, but not every minute (D2)
+						delay, note = maxRetryAfter, fmt.Sprintf("waiting %s", maxRetryAfter)
+					}
+				}
+				p.mu.Lock()
+				at := p.now().Add(delay)
+				p.retryAt[region] = at
+				p.failed[region] = true
+				if next.IsZero() || at.Before(next) {
+					next = at
+				}
+				p.mu.Unlock()
+				if note != "" {
+					log.Printf("%s, %s (%s)", failurePrefix(region), err, note)
+				} else {
+					log.Printf("%s, %s", failurePrefix(region), err)
+				}
+				// the rest of the region waits with it (fix-azure-price-batch R2)
+				answered = false
+				break
+			}
+			p.mu.Lock()
+			for _, size := range batch {
+				k := key{region, size}
+				sp := found[size]
+				if sp == nil {
+					// the API has no such size here: don't ask again
+					sp = &sizePrices{}
+				}
+				p.prices[k] = sp
+				delete(p.wanted, k)
 			}
 			p.mu.Unlock()
-			if note != "" {
-				log.Printf("%s, %s (%s)", failurePrefix(region), err, note)
-			} else {
-				log.Printf("%s, %s", failurePrefix(region), err)
-			}
+			got = true
+		}
+		if !answered {
 			continue
 		}
+		p.mu.Lock()
 		delete(p.retryAt, region)
 		resolved := p.failed[region]
 		delete(p.failed, region)
-		for _, size := range sizes {
-			k := key{region, size}
-			sp := found[size]
-			if sp == nil {
-				// the API has no such size here: don't ask again
-				sp = &sizePrices{}
-			}
-			p.prices[k] = sp
-			delete(p.wanted, k)
-		}
 		p.mu.Unlock()
 		if resolved {
 			log.Printf("%s%s", model.ResolvedPrefix, failurePrefix(region))
 		}
-		got = true
 	}
 	if got {
 		p.mu.Lock()
@@ -245,15 +313,21 @@ type retailPage struct {
 	NextPageLink string       `json:"NextPageLink"`
 }
 
-// fetch asks for the sizes in one region and returns their prices by size.
-func (p *Provider) fetch(region string, sizes []string) (map[string]*sizePrices, error) {
+// filterFor is the $filter for sizes in region: baseConditions comparisons,
+// then one per size.
+func filterFor(region string, sizes []string) string {
 	var or []string
 	for _, s := range sizes {
 		or = append(or, fmt.Sprintf("armSkuName eq '%s'", strings.ReplaceAll(s, "'", "''")))
 	}
-	filter := fmt.Sprintf("serviceName eq 'Virtual Machines' and priceType eq 'Consumption' and armRegionName eq '%s' and (%s)",
+	return fmt.Sprintf("serviceName eq 'Virtual Machines' and priceType eq 'Consumption' and armRegionName eq '%s' and (%s)",
 		strings.ReplaceAll(region, "'", "''"), strings.Join(or, " or "))
-	next := p.endpoint + "?" + url.Values{"$filter": {filter}}.Encode()
+}
+
+// fetch asks for the sizes in one region (at most maxSizesPerRequest) and
+// returns their prices by size.
+func (p *Provider) fetch(region string, sizes []string) (map[string]*sizePrices, error) {
+	next := p.endpoint + "?" + url.Values{"$filter": {filterFor(region, sizes)}}.Encode()
 
 	type pick struct {
 		price float64
@@ -371,11 +445,41 @@ func (p *Provider) get(u string) (retailPage, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return retailPage{}, &statusError{code: resp.StatusCode, status: resp.Status, header: resp.Header}
+		return retailPage{}, &statusError{code: resp.StatusCode, status: resp.Status, header: resp.Header,
+			message: apiMessage(resp.Body)}
 	}
 	var page retailPage
 	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
 		return retailPage{}, fmt.Errorf("retail prices API: %w", err)
 	}
 	return page, nil
+}
+
+// maxMessage caps the API's error message in a log line.
+const maxMessage = 200
+
+// apiMessage is the Message of the API's error body
+// ({"Error":{"Code":…,"Message":…}}), empty when the body is not that or is
+// over 4096 bytes; control characters become spaces and it is cut to
+// maxMessage characters, so it stays one header line (fix-azure-price-batch
+// R6).
+func apiMessage(body io.Reader) string {
+	var e struct {
+		Error struct {
+			Message string `json:"Message"`
+		} `json:"Error"`
+	}
+	if json.NewDecoder(io.LimitReader(body, 4096)).Decode(&e) != nil {
+		return ""
+	}
+	msg := []rune(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, e.Error.Message))
+	if len(msg) > maxMessage {
+		msg = msg[:maxMessage]
+	}
+	return strings.TrimSpace(string(msg))
 }
