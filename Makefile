@@ -1,5 +1,5 @@
 # Modified by the kube-node-viewer authors, 2026.
-.PHONY: help clean hooks kiro-selftest check verify lint vuln prices catalog boilerplate licenses download coverage generate test
+.PHONY: help clean hooks kiro-selftest check verify lint vuln prices azure-catalog catalog boilerplate licenses download coverage generate test
 
 NO_COLOR=\033[0m
 GREEN=\033[32;01m
@@ -108,6 +108,11 @@ prices: ## Refresh the static on-demand price tables (from Karpenter; no credent
 	for f in pkg/aws/zz_generated_*.pricing.go; do \
 	  awk '{print} /^\*\/$$/ && !d {getline; print; print "// Modified by the kube-node-viewer authors, 2026."; print ""; d=1}' "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f" || exit 1; \
 	done
+
+AUTOSCALER_AZURE=https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/azure
+
+azure-catalog: ## Refresh the Azure size table (copied verbatim from the cluster autoscaler; no credentials)
+	curl -fsSL "$(AUTOSCALER_AZURE)/azure_instance_types.go" -o pkg/azure/zz_generated_instance_types.go
 
 catalog: ## Refresh the instance catalog from the AWS Price List (needs pricing:GetProducts)
 	go run ./hack/catalog
