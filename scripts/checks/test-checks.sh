@@ -148,6 +148,156 @@ commit "resource group, digit first" blocked:resourcegroup docs.md "resourceGrou
 commit "resource group, _ first"     blocked:resourcegroup docs.md "resourceGroups/_prod/x"
 # shellcheck disable=SC2016 # backticks of a Go regexp, literal on purpose
 commit "resource group regexes"      passes  docs.md 'regexp.MustCompile(`resourceGroups/([^/]+)/`) resourceGroups/(.*) resourceGroups/<group>'
+# content-cloud-ids R5
+commit "GKE example-prefixed project" blocked:gke docs.md "gke_exampleacme-prod_us-central1_main"
+# content-cloud-ids R5
+commit "connect gateway example-prefixed" blocked:gke docs.md "connectgateway_exampleacme_global_main"
+# content-cloud-ids R5
+commit "edge example-prefixed project" blocked:gke docs.md "edgecontainer_exampleacme-prod_us-central1_main"
+# content-cloud-ids R5
+commit "GKE real project, example domain" blocked:gke docs.md "gke_example.com:acme-prod_us-central1_main"
+# content-cloud-ids R5
+commit "GKE example project alone"   passes  docs.md "gke_example_us-central1_demo gke_example.com:example_us-central1_demo"
+# content-cloud-ids R5
+commit "GCE example-prefixed project" blocked:gce docs.md "gce://exampleacme-prod/z/x"
+# content-cloud-ids R5
+commit "resource group, example prefix" blocked:resourcegroup docs.md "resourceGroups/exampleacme/x"
+# content-cloud-ids R5
+commit "node resource group, example prefix" blocked:resourcegroup docs.md "resourceGroups/MC_exampleacme_x_eastus/x"
+# content-cloud-ids R5
+commit "resource group, example_"    blocked:resourcegroup docs.md "resourceGroups/example_acme/x"
+# content-cloud-ids R5
+commit "AKS node resource group, example prefix" blocked:aks docs.md "MC_exampleacme_prod_eastus"
+# content-cloud-ids R5
+commit "AKS host, example prefix"    blocked:aks docs.md "exampleacme.hcp.eastus.azmk8s.io"
+# content-cloud-ids R5
+commit "repository examples"         passes  docs.md "gke_example-a_us-central1_b gce://example-a1b2c3/z/x resourceGroups/example-g/x resourceGroups/example1/x example1-demo1-a1b2c3d4.hcp.eastus2.azmk8s.io MC_example-rg_example-aks_eastus resourceGroups/MC_example…"
+# content-cloud-ids R6
+commit "resource group flag"         blocked:resourcegroup docs.md "az aks show --resource-group acme-prod-rg -n x"
+# content-cloud-ids R6
+commit "resource group flag with ="  blocked:resourcegroup docs.md "az aks show --resource-group=acme-prod-rg"
+# content-cloud-ids R6
+commit "az -g"                       blocked:resourcegroup docs.md "az aks get-credentials -g acme-prod-rg -n x"
+# content-cloud-ids R6
+commit "resourceGroup JSON key"      blocked:resourcegroup azure.json '{"resourceGroup": "acme-prod-rg"}'
+# content-cloud-ids R6
+commit "nodeResourceGroup JSON key"  blocked:resourcegroup docs.md '"nodeResourceGroup": "acme-nodes"'
+# content-cloud-ids R6
+commit "Terraform resource group"    blocked:resourcegroup main.tf '  resource_group_name = "acme-prod-rg"'
+# content-cloud-ids R6
+commit "Terraform resource_group"    blocked:resourcegroup main.tf "  resource_group = 'acme-prod-rg'"
+# content-cloud-ids R6
+commit "YAML resource group"         blocked:resourcegroup values.yaml "  resourceGroup: acme-prod-rg"
+# content-cloud-ids R6
+commit "YAML resource group, comment" blocked:resourcegroup values.yaml "  resourceGroupName: acme-prod-rg  # prod"
+# content-cloud-ids R6
+commit "resource group env variable" blocked:resourcegroup docs.md "export AZURE_RESOURCE_GROUP=acme-prod-rg"
+# content-cloud-ids R6
+commit "resource group --set"        blocked:resourcegroup docs.md "helm install x --set azureResourceGroup=acme-prod-rg"
+# content-cloud-ids R6
+commit "node resource group flag"   blocked:resourcegroup docs.md "az aks create --node-resource-group acme-nodes"
+# content-cloud-ids R6
+commit "Az PowerShell resource group" blocked:resourcegroup docs.md "Get-AzAksCluster -ResourceGroupName acme-prod-rg"
+# content-cloud-ids R6
+commit "resource group key with :="  blocked:resourcegroup x.md 'resourceGroup := "acme-prod-rg"'
+# content-cloud-ids R6
+commit "resource-group annotation"   blocked:resourcegroup svc.yaml '    service.beta.kubernetes.io/azure-load-balancer-resource-group: "acme-prod-rg"'
+# content-cloud-ids R6
+commit "az -g with ="                blocked:resourcegroup docs.md "az aks show -g=acme-prod-rg"
+# content-cloud-ids R6
+commit "YAML resource group, accented" blocked:resourcegroup values.yaml "$(printf '  resourceGroup: caf\303\251')"
+# content-cloud-ids R6
+commit "Python keyword arguments"    passes  x.md "client.get(resource_group_name=rg, resource_name=name); f(resource_group=group)"
+# content-cloud-ids R6
+commit "-g after az, another command" passes docs.md "az login; npm install -g typescript"
+# content-cloud-ids R6
+commit "resource group spellings, examples" passes docs.md 'az x --resource-group example-rg -g example-rg; {"resourceGroup": "example-rg", "nodeResourceGroup": "MC_example-rg_example-aks_eastus"} resource_group_name = "example-rg" AZURE_RESOURCE_GROUP=example-rg'
+# content-cloud-ids R6
+commit "YAML example resource group" passes values.yaml "  resourceGroup: example-rg"
+# content-cloud-ids R6
+commit "resource group from code"    passes  x.md 'ResourceGroup: group, resourceGroup := parts[4]; resourceGroup = strings.ToLower(g)'
+# content-cloud-ids R6
+# shellcheck disable=SC2016 # a shell variable, literal on purpose
+commit "resource group variables"    passes  docs.md 'az aks show --resource-group "$RG" -g ${RG} --resource-group <name> resourceGroup: <name>'
+# content-cloud-ids R6
+commit "-g outside az"               passes  docs.md "npm install -g typescript; go build -gcflags=all=-N; tar -g snap -cf x.tar ."
+# content-cloud-ids R7
+commit "resource group, %2F"         blocked:resourcegroup docs.md "https://portal.azure.com/x/resourceGroups%2Facme-prod-rg%2Fproviders"
+# content-cloud-ids R7
+commit "resource group, %2f"         blocked:resourcegroup docs.md "resourcegroups%2facme-prod-rg"
+# content-cloud-ids R7
+commit "resource group, \\/"         blocked:resourcegroup docs.md '{"id": "\/subscriptions\/00000000-0000-0000-0000-000000000000\/resourceGroups\/acme-prod-rg\/providers"}'
+# content-cloud-ids R7
+commit "escaped example resource groups" passes docs.md 'resourceGroups%2Fexample-rg%2Fx resourceGroups\/example-rg\/x'
+# content-cloud-ids R7
+commit "resource group, leading -"   blocked:resourcegroup docs.md "resourceGroups/-prod/x"
+# content-cloud-ids R7
+commit "resource group, leading ("   blocked:resourcegroup docs.md "resourceGroups/(prod)/x"
+# content-cloud-ids R7
+commit "resource group, accented"    blocked:resourcegroup docs.md "$(printf 'resourceGroups/\303\211tude/x')"
+# content-cloud-ids R7
+commit "resource group, Vietnamese"  blocked:resourcegroup docs.md "$(printf 'resourceGroups/\341\272\241rg/x')"
+# content-cloud-ids R7
+commit "resource group, ( and accent" blocked:resourcegroup docs.md "$(printf 'resourceGroups/(\303\211tude)/x')"
+# content-cloud-ids R7
+commit "resource group, 4-byte letter" blocked:resourcegroup docs.md "$(printf 'resourceGroups/\360\240\200\200rg/x')"
+# content-cloud-ids R7
+commit "resource group, example then accent" blocked:resourcegroup docs.md "$(printf 'resourceGroups/example-\303\251/x')"
+# content-cloud-ids R7
+commit "resource group, ( names to each end" blocked:resourcegroup docs.md "$(printf 'resourceGroups/(a1)\\\\x resourceGroups/(a2)%%2F resourceGroups/(a3),x resourceGroups/(a4);x resourceGroups/(a5)&x resourceGroups/(a6)\\"x resourceGroups/(a7) x\\nresourceGroups/(a8)')"
+# content-cloud-ids R7
+commit "resource group, symbol start" passes docs.md "$(printf 'resourceGroups/\302\251 resourceGroups/\342\200\246')"
+# content-cloud-ids R7
+commit "resource group, CJK"         blocked:resourcegroup docs.md "$(printf 'resourceGroups/\346\227\245\346\234\254/x')"
+# content-cloud-ids R7
+# shellcheck disable=SC2016 # backticks of a Go regexp, literal on purpose
+commit "resource group regexes, parens" passes docs.md 'resourceGroups/(mc_)?example[a-z]* resourceGroups/(rg-a|rg-b)/x resourceGroups/(?P<g>[^/]+) resourceGroups/(\w+) resourceGroups/… resourceGroups/<name>'
+# content-cloud-ids R8
+commit "GCP project path"            blocked:gcp docs.md "projects/acme-prod/zones/us-central1-a/instances/gke-x"
+# content-cloud-ids R8
+commit "GCP compute URL"             blocked:gcp docs.md "https://www.googleapis.com/compute/v1/projects/acme-prod-1/regions/us-east1/x"
+# content-cloud-ids R8
+commit "GCP project number"          blocked:gcp docs.md "https://connectgateway.googleapis.com/v1/projects/987654321098/locations/global/x"
+# content-cloud-ids R8
+commit "GCP domain-scoped project"   blocked:gcp docs.md "projects/acme.dev:prod-123/global/networks/x"
+# content-cloud-ids R5 R8
+commit "GCP example-prefixed project" blocked:gcp docs.md "projects/exampleacme/zones/x"
+# content-cloud-ids R5 R8
+commit "GCP example project, real domain" blocked:gcp docs.md "projects/acme.dev:example-project/zones/x"
+# content-cloud-ids R8
+commit "GCP project, escaped"        blocked:gcp docs.md 'projects%2Facme-prod%2Fzones%2Fx projects\/acme-prod-2\/zones\/x'
+# content-cloud-ids R8
+commit "GCP collection prefix"       passes  docs.md "projects/acme-prod/zonesfoo/x"
+# content-cloud-ids R8
+commit "GCP example projects"        passes  docs.md "projects/example-project/locations/global/x projects/123456789/zones/x projects/000000000000/global projects/example.com:example-project/zones/x"
+# content-cloud-ids R8
+commit "projects/ outside GCP"       passes  docs.md "/home/dev/Projects/01-Platform/kube-node-viewer github.com/orgs/example/projects/3 projects/acme-prod/README.md"
+# content-cloud-ids R9
+commit "resource group flag in message" blocked:resourcegroup docs.md "x" "fix: az aks show -g acme-prod-rg"
+# content-cloud-ids R9
+commit "GCP project in message"      blocked:gcp docs.md "x" "fix: projects/acme-prod/zones/us-central1-a/instances/x"
+# content-cloud-ids R9
+tree "resource group flag, full tree" blocked:resourcegroup docs.md "az aks show --resource-group acme-prod-rg"
+# content-cloud-ids R9
+tree "az -g, full tree" blocked:resourcegroup docs.md "$(printf 'az aks show\t-g acme-prod-rg')"
+# content-cloud-ids R9
+tree "resource group key, full tree" blocked:resourcegroup docs.md "{\"resourceGroup\": \"acme-prod-rg\"}"
+# content-cloud-ids R9
+tree "YAML resource group, full tree" blocked:resourcegroup docs.md "  resourceGroup: acme-prod-rg"
+# content-cloud-ids R9
+tree "resource group env, full tree" blocked:resourcegroup docs.md "AZURE_RESOURCE_GROUP=acme-prod-rg"
+# content-cloud-ids R9
+tree "resource group, %2F, full tree" blocked:resourcegroup docs.md "resourceGroups%2Facme-prod-rg"
+# content-cloud-ids R9
+tree "resource group, \\/, full tree" blocked:resourcegroup docs.md "resourceGroups\\/acme-prod-rg"
+# content-cloud-ids R9
+tree "resource group, leading -, full tree" blocked:resourcegroup docs.md "resourceGroups/-prod/x"
+# content-cloud-ids R9
+tree "accented resource group, full tree" blocked:resourcegroup docs.md "$(printf 'resourceGroups/\303\211tude/x')"
+# content-cloud-ids R9
+tree "GCP project, full tree" blocked:gcp docs.md "projects/acme-prod/zones/us-central1-a/x"
+# content-cloud-ids R9
+tree "examples, full tree" passes docs.md "az x -g example-rg; projects/example-project/zones/x; resourceGroups%2Fexample-rg"
 commit "API server URL"              blocked:server kubeconfig "    server: https://k8s.prod.acme.dev"
 commit "API server port 6443"        blocked:server docs.md "curl https://rancher.prod.io:6443/version"
 commit "example API servers"         passes  kubeconfig "$(printf '    server: https://kind.local:6443\n    server: https://127.0.0.1:1\n    server: https://a.example\n    server: https://kubernetes.default.svc\n    server: https://kubernetes.docker.internal:6443')"

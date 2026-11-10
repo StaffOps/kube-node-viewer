@@ -26,7 +26,7 @@
 #              (ABCDEF0123456789ABCDEF0123456789.gr7…, …/id/ABCDEF…)
 #   aks        AKS API hosts (hcp, privatelink, portal), OIDC issuers, node
 #              resource groups (MC_…) and node names (aks-<pool>-<8 digits>-vmss…)
-#              (example-…, cluster-abc.privatelink…, MC_example…, the
+#              (example-…, cluster-abc.privatelink…, MC_example-…, the
 #              zero GUID, aks-<pool>-12345678-vmss…)
 #   server     API server URLs: `server: https://…` and https://…:6443/8443/16443
 #              (localhost, 127.0.0.1, kind.local, kubernetes.default.svc,
@@ -34,8 +34,8 @@
 #              EKS/AKS hosts are the rules above)
 #   gke        GKE kubeconfig context names gke_<project>_<zone>_<cluster>,
 #              with a legacy domain:project too, and connectgateway_ and
-#              edgecontainer_ ones (gke_example…, gke_example.com:…,
-#              connectgateway_example…, edgecontainer_example…)
+#              edgecontainer_ ones (gke_example-…, gke_example.com:example-…,
+#              connectgateway_example-…, edgecontainer_example-…)
 #   ip         private IPv4 addresses and ip-a-b-c-d node names (the example
 #              values already in the repo, listed in ip_ok; for new ones use
 #              the documentation ranges 192.0.2.0/24, 198.51.100.0/24,
@@ -47,10 +47,20 @@
 #   azure      Azure subscription ids (00000000-0000-0000-0000-000000000000)
 #   gce        GCE provider IDs, gce://<project>/…, a project id after the
 #              scheme, optionally after a domain and a colon
-#              (gce://example…/, gce://example.com:example…/)
-#   resourcegroup  Azure resource group names in resource ids,
-#              resourceGroups/<name>, any case (resourceGroups/example…,
-#              resourceGroups/MC_example…)
+#              (gce://example-…/, gce://example.com:example-…/)
+#   gcp        GCP project ids and numbers in resource paths,
+#              projects/<project or number>/zones|regions|locations|global
+#              (projects/example-…/, projects/123456789/, all zeros; the /
+#              may be %2F- or \/-escaped)
+#   resourcegroup  Azure resource group names: resourceGroups/<name> (also
+#              %2F- and \/-escaped), --(node-)resource-group <name>,
+#              az … -g <name>, -ResourceGroupName <name> (Az PowerShell),
+#              a resourceGroup / resource_group(_name) key with a quoted
+#              value, an unquoted one ending a YAML line, or KEY=<name>
+#              (example-…, MC_example-…)
+#   In aks, gke, gce, gcp and resourcegroup an example is `example` alone or
+#   followed by - or a digit: example<letters> and example_… are blocked (so
+#   is MC_example_…; write MC_example-rg_…). server keeps example… hosts.
 #   domain     internal host names: *.corp, *.intra(net), *.lan, *.internal,
 #              a.b.local (ec2/compute/docker.internal, cluster.local pass)
 #   email      e-mail addresses in files (example.com/org/net, GitHub noreply,
@@ -63,11 +73,15 @@
 #              Also matched against author and committer names and e-mails.
 # Known gaps: public IPs and bare 12-digit numbers are not flagged (too many
 # false positives); names nobody put in the deny list pass; resource groups
-# spelled other than resourceGroups/<name> (--resource-group, "resourceGroup":,
-# resource_group =, %2F- or \/-escaped ids), names that start with a
-# character other than a letter, a digit or _ (a leading - or (, Unicode
-# letters: Azure allows them), and GCP project ids or numbers outside a
-# gce:// id (projects/<id>/zones/…, the GKE PD CSI node id) pass; --commits does
+# in az table output, as `az group … --name`, in a Terraform or Bicep block
+# (name = …, resourceGroup('…')), spanning YAML lines (ASO owner:), unquoted
+# after `= ` or before more text, or starting with a letter whose UTF-8 lead
+# byte is \342, as New-AzResourceGroup -Name, or double-encoded (%252F, \\/)
+# pass; GCP projects outside gce:// and projects/<id>/<zones,
+# regions, locations, global> (gcloud --project, a project or project_id
+# key, image registries, *.svc.id.goog, service account e-mails in commit
+# messages, other collections) and project numbers anywhere else pass;
+# Azure subscription ids outside subscriptions/<guid> pass; --commits does
 # not diff merge commits (lines added while resolving a conflict are only
 # seen by the full-tree check).
 # A line that must keep such a value says `content-check: allow` (reviewed in
@@ -85,11 +99,13 @@ skip='^(scripts/checks/content\.sh|scripts/checks/test-checks\.sh|([^:@]*/)?ATTR
 eks='[0-9a-f]{32}\.[a-z0-9]{3}\.[a-z0-9-]+\.eks\.amazonaws\.com|oidc\.eks\.[a-z0-9-]+\.amazonaws\.com/id/[0-9a-f]{32}'
 eks_ok='abcdef0123456789abcdef0123456789|0{32}'
 aks='[a-z0-9-]+\.(hcp|portal\.hcp|privatelink)\.[a-z0-9]+\.azmk8s\.io|\.oic\.prod-aks\.azure\.com/[0-9a-f-]{36}|(^|[^a-z0-9])mc_[a-z0-9.-]+_[a-z0-9._-]+_[a-z0-9]+|aks-[a-z0-9]+-[0-9]{8}-vmss'
-aks_ok='(^|[^a-z0-9-])(example[a-z0-9-]*|cluster-abc)\.(hcp|portal|privatelink)\.|0{8}-0{4}-0{4}-0{4}-0{12}|(^|[^a-z0-9])mc_example[a-z0-9._-]*|aks-[a-z0-9]+-12345678-vmss'
+aks_ok='(^|[^a-z0-9-])(example([-0-9][a-z0-9-]*)?|cluster-abc)\.(hcp|portal|privatelink)\.|0{8}-0{4}-0{4}-0{4}-0{12}|(^|[^a-z0-9])mc_example([-0-9][a-z0-9._-]*)?([^a-z0-9._-]|$)|aks-[a-z0-9]+-12345678-vmss'
 server='server["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?https?://[a-z0-9.-]+|https?://[a-z0-9.-]+:(6443|8443|16443)([^0-9]|$)'
 server_ok='https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|kind\.local|kubernetes\.default\.svc|kubernetes\.docker\.internal|([a-z0-9-]+\.)*example(\.(com|org|net))?|example[a-z0-9-]*(\.[a-z0-9-]+)*|[a-z0-9.-]+\.(eks\.amazonaws\.com|azmk8s\.io))(:[0-9]+)?([^a-z0-9.-]|$)'
 gke='(^|[^a-z0-9])(gke|connectgateway|edgecontainer)_[a-z0-9.:-]+_[a-z0-9-]+_[a-z0-9-]+'
-gke_ok='(^|[^a-z0-9])(gke|connectgateway|edgecontainer)_example(\.com:[a-z0-9-]+)?[a-z0-9_-]*([^a-z0-9_.:-]|[.:][a-z0-9.:-]*([^a-z0-9_.:-]|$)|$)'
+# an example project: example alone or example-…, after example.com: only
+exproj='(example\.com:)?example([-0-9][a-z0-9-]*)?'
+gke_ok="(^|[^a-z0-9])(gke|connectgateway|edgecontainer)_${exproj}_[a-z0-9_-]*([^a-z0-9_.:-]|[.:][a-z0-9.:-]*([^a-z0-9_.:-]|\$)|\$)"
 o='[0-9]{1,3}'
 ip="(^|[^0-9.])(10\.$o\.$o\.$o|172\.(1[6-9]|2[0-9]|3[01])\.$o\.$o|192\.168\.$o\.$o)([^0-9.]|\.[^0-9]|\.?$)|ip-(10-$o|172-(1[6-9]|2[0-9]|3[01])|192-168)-$o-$o([^0-9-]|$)"
 ip_ok='(^|[^0-9.])10\.0\.(0\.1|1\.5|1\.9|2\.7|3\.1)([^0-9.]|\.[^0-9]|\.?$)|ip-10-0-(0-1|1-12|1-23|1-3|1-5|11-70|12-15|12-33|12-61|12-7|133-127|2-40|2-7|3-9)([^0-9-]|$)'
@@ -100,9 +116,31 @@ account_ok='111122223333|123456789012|000000000000'
 azure='subscriptions/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 azure_ok='subscriptions/0{8}-0{4}-0{4}-0{4}-0{12}'
 gce='gce://([a-z0-9.-]+:)?[a-z][a-z0-9-]{4,28}[a-z0-9]/'
-gce_ok='gce://(example\.com:)?example[a-z0-9-]*/'
-resourcegroup='resourcegroups/[a-z0-9_][a-z0-9._()-]*'
-resourcegroup_ok='resourcegroups/(mc_)?example[a-z0-9._()-]*'
+gce_ok="gce://$exproj/"
+# a / that may be URL-encoded or JSON-escaped
+sep='(/|%2f|\\/)'
+gcp="projects$sep([a-z0-9.-]+:)?([a-z][a-z0-9-]{4,28}[a-z0-9]|[0-9]{6,})$sep(zones|regions|locations|global)([^a-z0-9_-]|\$)"
+gcp_ok="projects$sep($exproj|123456789|123456789012|0+)$sep"
+# Resource groups. A name starts with a letter, a digit, _ or the lead byte
+# of a non-ASCII letter in UTF-8 (match() runs in the C locale, so these are
+# bytes), after any number of -, or with ( when it is a whole name; keys take
+# a quoted value, an unquoted one that ends a YAML line, or KEY=<name> ended
+# by a space, ;, &, |, a quote or the end of the line (not , or ), so a
+# Python keyword argument from a variable passes); az takes
+# --(node-)resource-group or -g, Az PowerShell -ResourceGroupName.
+hi=$(printf '\303-\337\340-\341\343-\357\360-\364')
+cont=$(printf '\200-\277') # UTF-8 continuation bytes
+rgs="[a-z0-9_$hi]"
+rgc="[a-z0-9._()$hi$cont-]"
+rgkey='resource[_-]?group(_?name)?'
+# a name with a ( must run to one of these, so a regular expression after
+# resourceGroups/ ((mc_)?, ([^/]+), (.*)) is not taken for one
+rgend='([/"'"'"'[:space:],;&%\]|$)'
+rgval="[\"']?[(]*$rgs" # the value of a flag
+resourcegroup="resourcegroups$sep(-*$rgs|[-(]+$rgs$rgc*$rgend)|${rgkey}[\"']?[[:space:]]*:?[:=][[:space:]]*[\"'][-(]*$rgs|${rgkey}[[:space:]]*:[[:space:]]+[-(]*$rgs$rgc*[[:space:]]*(#.*)?\$|${rgkey}=[-(]*${rgs}[a-z0-9._$hi$cont-]*([[:space:];&|\"']|\$)|--(node-)?resource-group([[:space:]]+|=)$rgval|(^|[[:space:]])-resourcegroupname[[:space:]]+$rgval|(^|[^a-z0-9_.-])az[[:space:]][^|;&]*[[:space:]]-g([[:space:]]+|=)$rgval"
+resourcegroup_ok="(resourcegroups$sep|${rgkey}[\"']?[[:space:]]*:?[:=][[:space:]]*[\"']?|--(node-)?resource-group([[:space:]]+|=)[\"']?|-resourcegroupname[[:space:]]+[\"']?|[[:space:]]-g([[:space:]]+|=)[\"']?)(mc_)?example([-0-9][a-z0-9._()-]*)?([^a-z0-9._()$hi-]|\$)"
+# ASCII only, for git grep in the user's locale: the lines match() then reads
+rg_pre='resource[_-]?group|[[:space:]]-g([[:space:]]|=)'
 # case-sensitive: host names are written in lower case, and Go code such as
 # addr.Internal() must not match
 domain='[a-z0-9-]+\.(corp|intra|intranet|lan|internal)([^A-Za-z0-9(-]|$)|[a-z0-9-]+\.[a-z0-9-]+\.local([^A-Za-z0-9(-]|$)'
@@ -182,7 +220,7 @@ committer: $(git var GIT_COMMITTER_IDENT 2>/dev/null | sed 's/ [0-9]* [-+][0-9]*
 $diffs"
     idents=$(git log --format='commit %h: author: %an <%ae>%ncommit %h: committer: %cn <%ce>' "$2") ;;
   all)
-    text=$(git -c core.quotePath=false grep -n -I -E -i "$eks|$aks|$server|$gke|$ip|$instance|$account|$azure|$gce|$resourcegroup|$domain|$email|$credential${deny:+|$deny}" -- . 2>/dev/null)
+    text=$(git -c core.quotePath=false grep -n -I -E -i "$eks|$aks|$server|$gke|$ip|$instance|$account|$azure|$gce|$gcp|$rg_pre|$domain|$email|$credential${deny:+|$deny}" -- . 2>/dev/null)
     rc=$?
     [ "$rc" -gt 1 ] && { echo "content check: git grep failed (rc=$rc)" >&2; exit 2; } ;;
   *) echo "usage: $0 [--staged | --message FILE | --commits RANGE]" >&2; exit 2 ;;
@@ -210,7 +248,7 @@ match() {
   i=-i
   [ "${4:-}" = cs ] && i=
   # shellcheck disable=SC2086 # $i is empty or -i
-  printf '%s\n' "$scan" | grep -E $i -- "$2" | while IFS= read -r line; do
+  printf '%s\n' "$scan" | LC_ALL=C grep -E $i -- "$2" | while IFS= read -r line; do
     rest=$line
     # shellcheck disable=SC2018,SC2019 # ASCII only on purpose: the patterns are ASCII
     [ -z "$i" ] || rest=$(printf '%s\n' "$line" | LC_ALL=C tr 'A-Z' 'a-z')
@@ -221,11 +259,11 @@ match() {
       prev=
       while [ "$rest" != "$prev" ]; do
         prev=$rest
-        rest=$(printf '%s\n' "$rest" | sed -E "s#$3# #g")
+        rest=$(printf '%s\n' "$rest" | LC_ALL=C sed -E "s#$3# #g")
       done
     fi
     # shellcheck disable=SC2086
-    printf '%s\n' "$rest" | grep -Eq $i -- "$2" || continue
+    printf '%s\n' "$rest" | LC_ALL=C grep -Eq $i -- "$2" || continue
     report "$1" "$line"
   done
 }
@@ -240,6 +278,7 @@ hits=$(
   match account "$account" "$account_ok"
   match azure "$azure" "$azure_ok"
   match gce "$gce" "$gce_ok"
+  match gcp "$gcp" "$gcp_ok"
   match resourcegroup "$resourcegroup" "$resourcegroup_ok"
   match domain "$domain" "$domain_ok" cs
   # e-mails only in content: commit trailers (Signed-off-by, Co-authored-by,
