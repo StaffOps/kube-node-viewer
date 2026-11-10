@@ -53,15 +53,21 @@ memory. Listed by impact.
 
 ## Follow-ups
 
-- [ ] Other context forms that show a project id in the headers:
-      `connectgateway_{project}_{location}_{membership}` and the GKE
-      multicloud `gke_{kind}_{project}_{location}_{cluster}`
-      ([short-gke-context](specs/short-gke-context/requirements.md), out of
-      scope). _Why:_ a screenshot shares the project id.
-- [ ] Project or account ids elsewhere on screen: the Provider ID row of node
-      details (`gce://<project>/…` by convention, not observed here) and node
-      names when a cloud puts one in them. _Why:_ the headers and the export
-      file name no longer show the id, but a screenshot of those can.
+- [ ] Project or account ids still on screen, and in `/` search and the export:
+      node labels (on AKS `kubernetes.azure.com/cluster` holds the resource
+      group) and node names when a cloud puts one in them
+      ([hide-cloud-ids](specs/hide-cloud-ids/requirements.md), out of scope).
+      _Why:_ a screenshot of node details shares them.
+- [ ] gcloud's `edgecontainer_{project_id}_{location}_{cluster_id}` context
+      form, for Distributed Cloud clusters, still shows the project.
+      _Why:_ the same leak as the other gcloud forms.
+- [ ] `content.sh` has no rule for a real `gce://<project>/…` provider ID or an
+      Azure resource group name outside `MC_…`.
+      _Why:_ hide-cloud-ids treats them as sensitive on screen; the guard
+      does not stop them in a commit.
+- [ ] `Node.Name` takes the read lock and calls `InstanceID`, which takes it
+      again (`pkg/model/node.go`). _Why:_ a recursive read lock can deadlock
+      with a pending writer.
 
 ## Ideas
 

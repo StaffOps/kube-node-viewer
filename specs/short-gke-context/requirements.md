@@ -132,6 +132,12 @@ and error lines: they read the kubeconfig name and are untouched by the diff.
 The popup, the "connecting to" row, the JSON `context` and the state key have
 the tests above._
 
+> **Corrected 2026-11-09.** [hide-cloud-ids](../hide-cloud-ids/requirements.md)
+> shortens in the headers the two forms R2 and Out of scope leave as they are,
+> `connectgateway_…` and `gke_{kind}_…`. R3's "any other name" and R4's list no
+> longer cover them: hide-cloud-ids R4 gives them the same file name and
+> full-name rules.
+
 ## Counter-examples
 
 - The system SHALL NOT change the saved-state key: a saved view keyed by
