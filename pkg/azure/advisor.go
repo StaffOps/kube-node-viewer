@@ -16,6 +16,7 @@ package azure
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -23,8 +24,7 @@ import (
 )
 
 // PriceLister answers the list price of any size in a region, for sizes no
-// node runs (aks-recommendations R3, D3). The Provider implements it with
-// candidate prices (task T2); until then the session gives the advisor none.
+// node runs (aks-recommendations R3, D3).
 type PriceLister interface {
 	// ListPrice is the hourly price of size in region for the OS and the
 	// market. known is false when there is no price; pending is true while
@@ -34,45 +34,90 @@ type PriceLister interface {
 	Generation() uint64
 }
 
-// Advisor answers the recommendations for Azure nodes from the size catalog
-// and a PriceLister (aks-recommendations D2). Safe for concurrent use: the
-// analysis runs off the UI goroutine.
+// Advisor answers the recommendations for Azure nodes from the live VM sizes
+// (azure-live-skus) and a PriceLister (aks-recommendations D2). Begin takes a
+// snapshot of the sizes for the analysis that follows, so Types, Spec,
+// Available and Notes agree while it runs off the UI goroutine.
 type Advisor struct {
 	prices   PriceLister
 	disabled bool
+	sizes    *Sizes
 
-	// pending holds the sizes this analysis found awaited, by region and
-	// size: the provider caches all meters of a size together (regular,
-	// Spot, Windows), so one answer settles every variant
 	mu      sync.Mutex
 	pending map[key]bool
+	snap    *snapshot
 }
 
-// Begin starts an analysis: the sizes awaited are counted afresh, so a size
-// no row asks for any more leaves the note (aks-recommendations R3).
-func (a *Advisor) Begin() {
+// NewAdvisor makes an advisor over prices and sizes; disabled means
+// --disable-pricing: lookups answer "no price", nothing is queued and no size
+// is read (aks-recommendations R3, azure-live-skus R7).
+func NewAdvisor(prices PriceLister, disabled bool, sizes *Sizes) *Advisor {
+	if disabled {
+		sizes = nil
+	}
+	return &Advisor{prices: prices, disabled: disabled, sizes: sizes, pending: map[key]bool{}, snap: &snapshot{}}
+}
+
+// Begin starts an analysis of the nodes of pairs: the sizes awaited are
+// counted afresh, the size reads they need are started, and a snapshot is
+// taken (aks-recommendations R3, azure-live-skus R1, D2).
+func (a *Advisor) Begin(pairs []recommend.Pair) {
+	s := &snapshot{}
+	if a.sizes != nil {
+		s = a.sizes.begin(pairs)
+	}
 	a.mu.Lock()
 	a.pending = map[key]bool{}
+	a.snap = s
 	a.mu.Unlock()
 }
 
-// NewAdvisor makes an advisor over prices; nil prices with disabled means
-// --disable-pricing: lookups answer "no price" and nothing is queued (R3).
-func NewAdvisor(prices PriceLister, disabled bool) *Advisor {
-	return &Advisor{prices: prices, disabled: disabled, pending: map[key]bool{}}
+func (a *Advisor) snapshot() *snapshot {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.snap
 }
 
-// Spec is the size from the catalog.
+// Spec is the size from the loaded answers (azure-live-skus R2).
 func (a *Advisor) Spec(t string) (recommend.Spec, bool) {
-	s, ok := LookupSize(t)
+	s, ok := a.snapshot().union[t]
 	if !ok {
 		return recommend.Spec{}, false
 	}
-	return recommend.Spec{VCPU: s.VCPU, MemGiB: s.MemGiB, Arch: s.Arch, Family: s.Family, Constrained: s.Constrained}, true
+	return recommend.Spec{VCPU: s.VCPU, MemGiB: s.MemGiB, Arch: s.Arch, Family: s.Family, Constrained: s.Constrained, TempDiskMB: s.TempDiskMB}, true
 }
 
-// Types lists the catalog's sizes.
-func (a *Advisor) Types() []string { return SizeNames() }
+// Types lists the loaded sizes.
+func (a *Advisor) Types() []string { return a.snapshot().names }
+
+// Available tells whether size t can run on node n: in the answer of n's
+// own subscription and region, not restricted there or in its zone
+// (azure-live-skus R3).
+func (a *Advisor) Available(n recommend.Node, t string) bool {
+	p, ok := a.snapshot().loaded[pairKeyOf(n.Subscription, n.Region)]
+	if !ok {
+		return false
+	}
+	s, ok := p[t]
+	return ok && s.AvailableIn(zoneOf(n))
+}
+
+// SizesLoaded tells whether n's pair has its sizes (azure-live-skus R3: Spot
+// needs no size while they are loading or failed).
+func (a *Advisor) SizesLoaded(n recommend.Node) bool {
+	_, ok := a.snapshot().loaded[pairKeyOf(n.Subscription, n.Region)]
+	return ok
+}
+
+// zoneOf is the zone of a zonal AKS node (label <region>-<n>), empty for a
+// fault domain (azure-live-skus R3).
+func zoneOf(n recommend.Node) string {
+	region := strings.ToLower(n.Region)
+	if z, ok := strings.CutPrefix(strings.ToLower(n.Zone), region+"-"); ok && region != "" {
+		return z
+	}
+	return ""
+}
 
 // OnDemand is the regular price of a size in node n's region, for n's OS.
 func (a *Advisor) OnDemand(n recommend.Node, t string) (float64, bool) { return a.price(n, t, false) }
@@ -96,31 +141,103 @@ func (a *Advisor) price(n recommend.Node, t string, spot bool) (float64, bool) {
 	return p, known
 }
 
-// Notes say why Azure rows may be missing: pricing disabled, or prices
-// awaited (aks-recommendations R3).
+// Notes say why Azure rows may be missing: pricing disabled, sizes loading or
+// not readable, or prices awaited (aks-recommendations R3, azure-live-skus
+// R1, R5).
 func (a *Advisor) Notes() []string {
-	switch {
-	case a.disabled:
+	if a.disabled {
 		return []string{"pricing disabled: Azure rows that need a price are not shown"}
-	case a.prices == nil:
-		return []string{"Azure candidate prices not available yet: rows that need them are not shown"}
+	}
+	out := append([]string(nil), a.snapshot().notes...)
+	if a.prices == nil {
+		return append(out, "Azure candidate prices not available yet: rows that need them are not shown")
 	}
 	a.mu.Lock()
 	n := len(a.pending)
 	a.mu.Unlock()
 	switch {
 	case n == 1:
-		return []string{"waiting for the price of 1 Azure size"}
+		out = append(out, "waiting for the price of 1 Azure size")
 	case n > 1:
-		return []string{fmt.Sprintf("waiting for the prices of %d Azure sizes", n)}
+		out = append(out, fmt.Sprintf("waiting for the prices of %d Azure sizes", n))
 	}
-	return nil
+	return out
 }
 
-// Generation changes when new prices arrive, so the screen analyses again.
+// Generation changes when new prices arrive and when the sizes' state
+// changes or a retry falls due, so the screen analyses again
+// (azure-live-skus D2).
 func (a *Advisor) Generation() uint64 {
-	if a.prices == nil {
-		return 0
+	var g uint64
+	if a.prices != nil {
+		g = a.prices.Generation()
 	}
-	return a.prices.Generation()
+	if a.sizes != nil {
+		g += a.sizes.generation()
+	}
+	return g
+}
+
+// pairNotes words the size notes of a snapshot: loading, then one line per
+// failure, naming the pools when other pairs are fine (azure-live-skus R5).
+func pairNotes(pairs []recommend.Pair, states map[string]pairView) []string {
+	loading := false
+	type fail struct{ agent, np map[string]bool }
+	fails := map[string]*fail{}
+	var order []string
+	fine := 0
+	for _, p := range pairs {
+		v := states[pairKeyOf(p.Subscription, p.Region)]
+		switch {
+		case v.err != nil:
+			line := v.err.line()
+			f, seen := fails[line]
+			if !seen {
+				f = &fail{agent: map[string]bool{}, np: map[string]bool{}}
+				fails[line] = f
+				order = append(order, line)
+			}
+			for _, x := range p.AgentPools {
+				f.agent[x] = true
+			}
+			for _, x := range p.NodePools {
+				f.np[x] = true
+			}
+		case v.loading:
+			loading = true
+		default:
+			fine++
+		}
+	}
+	var out []string
+	if loading {
+		out = append(out, "Azure VM sizes: loading")
+	}
+	for _, line := range order {
+		f := fails[line]
+		var parts []string
+		if fine > 0 || len(order) > 1 || loading {
+			if len(f.agent) > 0 {
+				parts = append(parts, "agent pools "+strings.Join(sortedKeys(f.agent), ", "))
+			}
+			if len(f.np) > 0 {
+				parts = append(parts, "NodePools "+strings.Join(sortedKeys(f.np), ", "))
+			}
+		}
+		if len(parts) == 0 {
+			out = append(out, "Azure VM sizes: "+line)
+			continue
+		}
+		out = append(out, "Azure VM sizes ("+strings.Join(parts, "; ")+"): "+line)
+	}
+	return out
+}
+
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

@@ -45,7 +45,7 @@ func (f *fakeLister) Generation() uint64 { return f.gen }
 // awaited sizes make the waiting note, which clears when they arrive.
 func TestAdvisorPricesAndNotes(t *testing.T) {
 	f := &fakeLister{prices: map[string]float64{"Standard_D4s_v5": 0.192}, wait: map[string]bool{"Standard_D2s_v5": true}}
-	a := NewAdvisor(f, false)
+	a := NewAdvisor(f, false, nil)
 	n := recommend.Node{Cloud: recommend.CloudAzure, Region: "eastus", Windows: true}
 	if p, ok := a.OnDemand(n, "Standard_D4s_v5"); !ok || p != 0.192 {
 		t.Errorf("OnDemand = %v %v", p, ok)
@@ -65,23 +65,20 @@ func TestAdvisorPricesAndNotes(t *testing.T) {
 	if notes := a.Notes(); len(notes) != 0 || a.Generation() != 1 {
 		t.Errorf("after the answer: notes %v, generation %d", notes, a.Generation())
 	}
-	if s, ok := a.Spec("Standard_D64ps_v5"); !ok || s.MemGiB != 208 || s.Family != "dpsv5" || s.Arch != "arm64" {
-		t.Errorf("Spec = %+v %v", s, ok)
-	}
 }
 
 // aks-recommendations R3: with pricing disabled nothing is asked and the
 // note says why the price rows are missing.
 func TestAdvisorPricingDisabled(t *testing.T) {
 	f := &fakeLister{prices: map[string]float64{"Standard_D4s_v5": 0.192}}
-	a := NewAdvisor(f, true)
+	a := NewAdvisor(f, true, nil)
 	if _, ok := a.OnDemand(recommend.Node{Region: "eastus"}, "Standard_D4s_v5"); ok || len(f.calls) != 0 {
 		t.Errorf("pricing disabled, but asked: %v", f.calls)
 	}
 	if notes := a.Notes(); len(notes) != 1 || !strings.HasPrefix(notes[0], "pricing disabled") {
 		t.Errorf("notes %v", notes)
 	}
-	if NewAdvisor(nil, true).Generation() != 0 {
+	if NewAdvisor(nil, true, nil).Generation() != 0 {
 		t.Error("generation without prices")
 	}
 }
@@ -91,19 +88,19 @@ func TestAdvisorPricingDisabled(t *testing.T) {
 // with no price source the note says candidate prices are not available.
 func TestAdvisorPendingPerAnalysis(t *testing.T) {
 	f := &fakeLister{wait: map[string]bool{"Standard_D2s_v5": true, "Standard_D4s_v5": true}}
-	a := NewAdvisor(f, false)
+	a := NewAdvisor(f, false, nil)
 	n := recommend.Node{Region: "eastus"}
-	a.Begin()
+	a.Begin(nil)
 	a.OnDemand(n, "Standard_D2s_v5")
 	a.OnDemand(n, "Standard_D4s_v5")
 	if notes := a.Notes(); len(notes) != 1 || notes[0] != "waiting for the prices of 2 Azure sizes" {
 		t.Errorf("notes %v", notes)
 	}
-	a.Begin() // the filter now keeps nodes that ask for neither
+	a.Begin(nil) // the filter now keeps nodes that ask for neither
 	if notes := a.Notes(); len(notes) != 0 {
 		t.Errorf("a size nobody asks for kept the note: %v", notes)
 	}
-	if notes := NewAdvisor(nil, false).Notes(); len(notes) != 1 || !strings.HasPrefix(notes[0], "Azure candidate prices not available yet") {
+	if notes := NewAdvisor(nil, false, nil).Notes(); len(notes) != 1 || !strings.HasPrefix(notes[0], "Azure candidate prices not available yet") {
 		t.Errorf("no price source: notes %v", notes)
 	}
 }

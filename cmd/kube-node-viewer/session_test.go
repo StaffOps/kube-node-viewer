@@ -17,7 +17,9 @@ package main
 import (
 	"context"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/staffops/kube-node-viewer/pkg/aws"
 	"github.com/staffops/kube-node-viewer/pkg/azure"
@@ -83,7 +85,7 @@ func TestSessionPricingPerServer(t *testing.T) {
 					t.Errorf("pricing off, but %T can reach the Azure prices API", p)
 				}
 			}
-			adv, ok := newAdvisor(p, tt.disable).(model.AdvisorsByCloud)
+			adv, ok := newAdvisor(p, tt.disable, azureOption{}).(model.AdvisorsByCloud)
 			if !ok || adv["aws"] == nil {
 				t.Error("no Recommendations advisor for this provider")
 			}
@@ -111,5 +113,35 @@ func TestSessionPricingPerServer(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// azure-live-skus R7, D6: with pricing disabled the Azure advisor runs no az
+// and reads no size; with pricing on, the Go option's az and Resource
+// Manager are used (the default is az on PATH and management.azure.com).
+func TestSessionAzureSizesOption(t *testing.T) {
+	var runs atomic.Int32
+	run := func(context.Context, ...string) ([]byte, []byte, error) {
+		runs.Add(1)
+		return []byte("[]"), nil, nil
+	}
+	pairs := []recommend.Pair{{Subscription: "00000000-0000-0000-0000-000000000000", Region: "eastus"}}
+	off := newAdvisor(aws.NewStaticPricingProvider(), true, azureOption{run: run, base: "https://127.0.0.1:1"}).(model.AdvisorsByCloud)
+	off.Begin(pairs)
+	time.Sleep(100 * time.Millisecond)
+	if runs.Load() != 0 {
+		t.Errorf("pricing disabled, yet az ran %d times", runs.Load())
+	}
+	on := newAdvisor(aws.NewStaticPricingProvider(), false, azureOption{run: run, base: "https://127.0.0.1:1"}).(model.AdvisorsByCloud)
+	on.Begin(pairs)
+	deadline := time.Now().Add(5 * time.Second)
+	for runs.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if runs.Load() == 0 {
+		t.Error("the option's az was not used")
+	}
+	if (azureOption{}).base != "" || azure.DefaultARM != "https://management.azure.com" {
+		t.Error("the default Resource Manager changed")
 	}
 }
