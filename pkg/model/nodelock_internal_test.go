@@ -120,8 +120,9 @@ func TestNodeReadersAreLocked(t *testing.T) {
 		})
 	}
 
-	// a NodeClaim node whose Ready condition flips: Ready clears the NodeClaim
-	// creation time while NotReadyTime and Created read it
+	// a NodeClaim node whose Ready condition flips: Update clears the NodeClaim
+	// creation time (fix-ready-lock-fargate-panic R2) while NotReadyTime and
+	// Created read it
 	for name, read := range map[string]func(n *Node){
 		"NotReadyTime": func(n *Node) { _ = n.NotReadyTime() },
 		"Created":      func(n *Node) { _ = n.Created() },
@@ -133,7 +134,7 @@ func TestNodeReadersAreLocked(t *testing.T) {
 			n.Update(notReady)
 			if !loop(100*time.Millisecond, 10*time.Second,
 				func() { read(n) },
-				func() { n.Update(ready); n.Ready(); n.Update(notReady) },
+				func() { n.Update(ready); n.Update(notReady) },
 			) {
 				t.Fatal("deadlock")
 			}

@@ -15,6 +15,13 @@ All notable changes to this project are documented here. Format:
   bound can no longer abort with `concurrent map iteration and map write`; the
   AWS Fargate price reads a node's pods once, so a pod deleted meanwhile can no
   longer panic it with an index out of range.
+- A Fargate pod whose `CapacityProvisioned` annotation is not `<cpu>vCPU <memory>GB`
+  no longer ends the program with an index out of range: the node shows
+  `Fargate` as its instance type and no price, and the annotation is logged.
+- Drawing the screen no longer takes each Ready node's write lock, which made
+  every render wait for the informers. A node that registered from a Karpenter
+  NodeClaim and went Ready now stops showing the NodeClaim's age as soon as the
+  update arrives, also when it goes NotReady again before the next render.
 
 ### Changed
 
