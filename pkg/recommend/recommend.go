@@ -302,24 +302,9 @@ func byFamily(in Input) map[string][]string {
 	return out
 }
 
-// sameFamily tells whether two types are of one family.
-func sameFamily(in Input, a, b string) bool {
-	if azureType(a) != azureType(b) {
-		return false
-	}
-	if !azureType(a) {
-		fa, _ := splitType(a)
-		fb, _ := splitType(b)
-		return fa == fb
-	}
-	sa, ok1 := in.Spec(a)
-	sb, ok2 := in.Spec(b)
-	return ok1 && ok2 && sa.Family == sb.Family
-}
-
 // counterpart is the Azure size of family with the same vCPU count and no
-// less memory, the smallest such (aks-recommendations R8, R9).
-func counterpart(in Input, idx map[string][]string, family string, spec Spec) (string, bool) {
+// less memory, the smallest such, or "" (aks-recommendations R8, R9).
+func counterpart(in Input, idx map[string][]string, family string, spec Spec) string {
 	best, bestMem := "", math.Inf(1)
 	for _, t := range idx["azure/"+family] {
 		s, _ := in.Spec(t)
@@ -330,7 +315,7 @@ func counterpart(in Input, idx map[string][]string, family string, spec Spec) (s
 			best, bestMem = t, s.MemGiB
 		}
 	}
-	return best, best != ""
+	return best
 }
 
 // systemSizeOK tells whether an AKS system pool may use the size: at least 4
@@ -713,22 +698,19 @@ func money4(v float64) string { return fmt.Sprintf("$%.4f", v) }
 // (aks-recommendations R8).
 const sameAzurePrice = 0.0001
 
-// swapTarget is the family swap for a node: the type, or "" for none, and
-// whether the AWS rules apply.
+// swapTarget is the family swap for a node: the type, or "" for none.
 func swapTarget(in Input, idx map[string][]string, n Node, spec Spec, kind Kind) string {
 	if isAzure(n) {
 		switch kind {
 		case Generation:
 			if t := azureGeneration[spec.Family]; t != "" {
-				c, _ := counterpart(in, idx, t, spec)
-				return c
+				return counterpart(in, idx, t, spec)
 			}
 		case Graviton:
 			// Linux, not a system pool (R9, R15)
 			if spec.Arch == "x86_64" && !n.Windows && !n.System {
 				if t := azureArm[spec.Family]; t != "" {
-					c, _ := counterpart(in, idx, t, spec)
-					return c
+					return counterpart(in, idx, t, spec)
 				}
 			}
 		}
