@@ -19,6 +19,11 @@ list prices for sizes the cluster does not run. AWS has both. Azure has only
 the prices of the sizes on the nodes (`pkg/azure/pricing.go`), and the
 Retail Prices API carries no vCPU, memory or architecture (design D1).
 
+> **Corrected 2026-11-10 (azure-live-skus).** Once azure-live-skus ships, the size
+> catalog (point 1 below) is read at run time from Azure Resource Manager with the
+> machine's Azure CLI sign-in, by the owner's decision; prices stay credential-free
+> ([azure-live-skus](../azure-live-skus/requirements.md) Context).
+
 The owner wants the screen on AKS clusters, with no Azure credentials: no
 login, no service principal, no managed identity, no IAM role. This spec
 adds three things:
@@ -198,7 +203,7 @@ math popup SHALL show them.
 > **Corrected 2026-11-10 (azure-live-skus).** Superseded once azure-live-skus ships: the
 > family, vCPU, memory and architecture come live from the Azure Resource SKUs
 > API ([azure-live-skus](../azure-live-skus/requirements.md) R1, R2), with fractional
-> memory and usable vCPUs of constrained sizes; the copied table goes (R9).
+> memory and usable vCPUs of constrained sizes; the copied table goes (its R12).
 
 **R3** WHEN a rule needs the list price of an Azure size in a region THEN the
 system SHALL take it from the Retail Prices API, as aks-pricing R1 prices a
@@ -451,6 +456,12 @@ data-refresh workflow SHALL run it with the price tables.
 > workflow clause; nothing is refreshed by hand.
 
 ## Counter-examples
+
+> **Corrected 2026-11-10 (azure-live-skus).** Once azure-live-skus ships, the first two
+> counter-examples hold for prices only: the size catalog is read from Azure Resource
+> Manager with the machine's `az` sign-in (this tool still never reads `~/.azure`
+> itself), and Resource Manager joins the Retail Prices API as a run-time service
+> ([azure-live-skus](../azure-live-skus/requirements.md) R1, R4).
 
 - SHALL NOT ask for Azure credentials, read `~/.azure`, or call the Azure
   Resource Manager API, at run time or when refreshing the catalog.

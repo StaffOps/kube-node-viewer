@@ -10,155 +10,209 @@
   it by hand.
 - **Advisor:** `pkg/azure/advisor.go` answers `Spec(t)` and `Types()` from that
   table, and `OnDemand`/`SpotIn` from a `PriceLister` (the Retail Prices
-  provider). `Notes()` says why rows are missing; `Generation()` bumps the
-  analysis key when prices arrive (`pkg/model/recommendations.go:145-166`).
+  provider). `Notes()` says why rows are missing; `Generation()` follows the
+  price cache.
+- **When analysis runs:** only when `recKey` changes
+  (`pkg/model/recommendations.go:145-166`); `maybeAnalyze` checks it on every
+  message, the 1 s tick included (`pkg/model/uimodel.go:518-528`). `recKey`
+  includes the advisor's `Generation()`. `recommendInput` reads `a.Types()`
+  while building the input, then calls `Begin()`, then loops over the shown
+  nodes (`recommendations.go:172-195`).
 - **Wiring:** `cmd/kube-node-viewer/session.go:255-266` builds one Azure
   advisor per session, with pricing disabled or not.
 - **Rules:** `pkg/recommend` calls `in.Spec(t)` (global, not per node) and
-  `in.Types`; `in.OnDemand(n, t)` is per node. Idle, consolidation and old
-  node use no catalog (`recommend.go:346,384,852`).
+  `in.Types`; `in.OnDemand(n, t)` and `in.SpotIn(n, t)` are per node. Idle,
+  consolidation and old node read no catalog (`recommend.go:346,384,852`);
+  Spot calls `comparableSpec` (`recommend.go:885`). The only per-pool size
+  floor is `systemSizeOK` (`recommend.go:323`), for system pools.
 - **Node:** `recommend.Node` has cloud, region, zone, OS, mode
-  (`pkg/model/recommendations.go:198-230`); not the subscription. The
-  subscription is in `obj.Spec.ProviderID`; hide-cloud-ids hides it on screen
-  (`pkg/model/node.go:42`).
+  (`pkg/model/recommendations.go:198-230`), not the subscription. The
+  provider ID regex accepts any `[^/\s]+` subscription (`pkg/model/node.go:42`);
+  hide-cloud-ids hides it on screen. Zone labels are `<region>-<n>` on zonal
+  AKS nodes and a fault domain (`0`, `1`, …) otherwise
+  (`pkg/model/node.go:512-514`).
 - **Permission:** `Microsoft.Compute/skus/read` "Gets the list of
-  Microsoft.Compute SKUs available for your Subscription"
-  (learn.microsoft.com, Azure permissions for Compute, read 2026-11-10).
-  The AKS "Cluster User" role grants none of it (built-in roles, Containers,
-  read 2026-11-10), so cluster access alone doesn't give it; Reader on the
-  subscription does.
+  Microsoft.Compute SKUs available for your Subscription" (Azure
+  permissions for Compute, read 2026-11-10). Reader includes it; the AKS
+  Cluster User, Cluster Admin and Contributor roles don't (built-in roles,
+  Containers; spec-refuter 2026-11-10).
 
 ## Target state
 
 ```
-Recommendations shown ─▶ model.recommendInput ─▶ Advisor.Begin()
-                                               ├─ Spec(t) / Types()  ◀── skuCache (per subscription+region)
-                                               │                         ▲ fetch in background:
-                                               │                         │  az account get-access-token (token cache)
-                                               │                         │  GET management.azure.com …/skus
-                                               ├─ OnDemand(n,t): restricted for n? → no price
-                                               └─ Notes(): loading / R5 line / waiting for prices
-skuCache answer ─▶ Generation()++ ─▶ recKey changes ─▶ analysis again
+recommendInput (Recommendations shown)
+  node loop ─▶ pairs {(subscription, region)} of shown Azure nodes
+  Advisor.Begin(pairs)  ─▶ start a fetch for a pair not loaded and not failing,
+                           or whose retry is due
+  in.Types = Advisor.Types()   (read after Begin)
+  rules ─▶ Spec(t) / Available(n, t) / OnDemand / SpotIn
+fetch (goroutine): validate (R10) ─▶ az account list / get-access-token (token cache)
+                   ─▶ GET management.azure.com …/skus (pages) ─▶ parse (R2, R3)
+                   ─▶ pair state = loaded | failed(row, retryAt) ─▶ gen++
+1 s tick ─▶ recKey (includes Advisor.Generation) ─▶ analysis again
+retry due (checked in Generation(), on the tick, only while Recommendations is shown)
+          ─▶ gen++ ─▶ analysis ─▶ Begin starts the retry
 ```
 
 - `recommend.Node` gains `Subscription string`, filled from the provider ID
   in `recommendNode`; nothing renders it.
-- `Advisor.Begin()` also records the (subscription, region) pairs of the
-  shown Azure nodes; the advisor starts a fetch for a pair it has not got or
-  whose retry time passed (R1, R6). `Types()` and `Spec(t)` answer from the
-  union of the loaded pairs (a size's spec doesn't depend on the region);
-  availability is per pair and per zone, applied in `OnDemand`/`SpotIn`,
-  which already take the node (R3).
+- `recommendInput` gathers the pairs in its node loop, calls
+  `Begin(pairs)`, then sets `in.Types` (the order changes from today's).
+- `Generation()` is the sum of the price generation and the SKU state
+  generation; the SKU generation moves on an answer, a failure, and when a
+  failed pair's retry falls due. `Generation()` is only read through
+  `recKey`, which runs only while Recommendations is shown, so retries never
+  happen on other screens (R6).
+- `Spec(t)` answers from the union of loaded pairs (a size's spec doesn't
+  depend on the region). Availability (R3) is a new `Available(n, t)` on
+  the advisor, checked by the rules for candidates and targets and for the
+  node's own size before a Spot row; it reads only the node's own pair.
+- `Types()` lists, per analysis, the sizes of the loaded pairs; a rule still
+  filters candidates by `Available(n, t)`.
 
 ## Components touched
 
 | Path | Change |
 |------|--------|
-| `pkg/azure/skus.go` (new) | Resource SKUs client: request, paging (`nextLink`), body cap, parse (R2, R3), error classes (R5) |
-| `pkg/azure/token.go` (new) | `az account get-access-token` runner, token cache, error classes (R4, R5) |
-| `pkg/azure/advisor.go` | catalog from the SKU cache; pairs from `Begin`; restrictions; notes; retry (R1, R3, R5–R7) |
-| `pkg/azure/catalog.go`, `zz_generated_instance_types.go`, `catalog_test.go` | removed; `NormalizeFamily` moves to `skus.go` (R9) |
-| `pkg/azure/testdata/skus-eastus.json` (new) | recorded made-up SKU answer for the tests (D5) |
-| `pkg/recommend/recommend.go` | `Node.Subscription`; math size line names the source (R8) |
-| `pkg/recommend/tables_azure_ext_test.go`, AKS fixtures | read the recorded answer instead of the table (R9) |
-| `pkg/model/recommendations.go` | `Subscription` from the provider ID; pairs passed through `Begin` |
-| `cmd/kube-node-viewer/session.go` | advisor gets the SKU reader; nothing when pricing is disabled (R7) |
-| `Makefile` | `azure-catalog` target and `AUTOSCALER_AZURE` removed |
-| `README.md`, `CHANGELOG.md`, `TODO.md` | source, permissions, errors; Deferred T6 row and TODO item removed |
-| `specs/aks-recommendations/*` | dated notes (D1, R2, R12, R16, T1, T6) |
+| `pkg/azure/skus.go` (new) | Resource SKUs client: URL from `url.Values`, host and `nextLink` checks, paging, body cap, HTTP timeout, parse (R2, R3, R9), error type `armError` with status and code only (R5) |
+| `pkg/azure/azcli.go` (new) | `az` runner: account list, token, cache, process handling (D1, R4, R5) |
+| `pkg/azure/advisor.go` | pair states, `Begin(pairs)`, `Available`, notes, generation, retry (R1, R3, R5–R7) |
+| `pkg/azure/catalog.go`, `zz_generated_instance_types.go`, `catalog_test.go` | removed; `NormalizeFamily` moves to `skus.go`; R2 citations move to `skus_test.go` (R12) |
+| `pkg/azure/testdata/skus-eastus.json` (new) | recorded made-up SKU answer (D5) |
+| `pkg/recommend/recommend.go` | `Node.Subscription`; `Input.Available`; availability in rightsize, swap and Spot; user-pool minimum (R11); temp-disk check (R9); `sizes:` math line (R8) |
+| `pkg/recommend/testdata/azure-sizes.tsv` (new) | frozen extract of the autoscaler table with its credit, for the coverage tests (D5) |
+| `pkg/recommend/tables_azure_ext_test.go`, AKS fixtures | on the extract and the recorded answer (R12) |
+| `pkg/model/recommendations.go` | `Subscription` from the provider ID; pairs into `Begin`; `Types()` after it |
+| `pkg/model/testdata/screens/recommendations-aks*.txt` | the `sizes:` line in open math popups (R8) |
+| `cmd/kube-node-viewer/session.go` | advisor gets the SKU reader; none when pricing is disabled (R7); an option to inject the `az` runner and the Resource Manager base URL, used by `TestKindCluster` |
+| `Makefile` | `azure-catalog` and `AUTOSCALER_AZURE` removed |
+| `AGENTS.md` | `pkg/azure/` row: Retail Prices with no credentials; VM sizes from Resource Manager with the `az` sign-in |
+| `README.md` | Recommendations on AKS: source, Reader, the R5 lines; Troubleshooting entry for them; autoscaler credit kept for the test extract only |
+| `CHANGELOG.md` | the `[Unreleased]` AKS entry from #75 edited (no separate `Changed`) |
+| `TODO.md` | the refresh-data.yaml item removed |
+| `specs/aks-recommendations/*` | dated notes (context, R2, R12, R16, counter-examples, D1, invariants, T1, Deferred) |
 
 ## Decisions
 
-### D1: The token comes from the Azure CLI, run as `az account get-access-token`
+### D1: The token comes from the Azure CLI, run as a command
 
-**Choice**: run `az account get-access-token --resource-type arm
---subscription <id> --output json` (30 s timeout), read `accessToken` and
-`expires_on`, cache it per subscription until two minutes before it
-expires. No Azure SDK.
+**Choice**: run, with stdin not attached and stderr captured:
+1. `az account list --all --output json`, to classify (R5 rows 2–4) from
+   structured output;
+2. `az account get-access-token --resource https://management.azure.com/
+   --subscription <id> --output json`, to get `accessToken` and
+   `expires_on` (POSIX; `expiresOn`, local time, when `expires_on` is
+   absent, as in `az` before 2.54.0 — azidentity reads it the same way,
+   `azure_cli_credential.go:136-143`).
+
+Exit 0 with warnings on stderr is success. Each run has a 30 s timeout
+(chosen, unmeasured); on Unix the process gets its own process group
+(`Setpgid`) and the group is killed on timeout, and `cmd.WaitDelay` is set,
+because Homebrew's `az` is a bash script that starts Python without `exec`,
+so killing bash alone leaves the pipe open. The token is cached per
+subscription until two minutes (chosen) before it expires. No Azure SDK.
 
 **Justification, strongest first**:
-1. **The owner's words: "the same identity as `az login`".** AKS admins
-   already have the CLI; `az aks get-credentials` and kubelogin's
+1. **The owner's decision (2026-11-10): call `az`, no new dependency.**
+   AKS admins already have the CLI; `az aks get-credentials` and kubelogin's
    `azurecli` mode use it.
 2. **`azidentity` fails the licence allowlist.** A scratch module with
-   `azidentity` v1.15.0 links `github.com/pkg/browser` on linux, darwin
-   and windows, which is BSD-2-Clause (`go-licenses report`, 2026-11-10);
-   `make licenses` allows MIT, Apache-2.0, BSD-3-Clause and ISC only
-   (`Makefile:47`). Its other modules are MIT, Apache-2.0 or BSD-3-Clause
-   (azcore, MSAL, golang-jwt, godebug, google/uuid, x/crypto, x/net,
-   x/sync, x/text).
-3. **No new dependency at all**, and `azidentity`'s `AzureCLICredential`
-   runs the same command anyway.
-4. **`--subscription` picks the right tenant.** `az` resolves the
-   subscription's tenant from its account list (`az account
-   get-access-token -h`: "Name or ID of subscription"), so a guest admin in
-   several tenants needs nothing more.
+   `azidentity` v1.15.0 links `github.com/pkg/browser` on linux, darwin and
+   windows, BSD-2-Clause, even for `AzureCLICredential` alone
+   (`go-licenses report`, 2026-11-10; confirmed by spec-refuter);
+   `make licenses` allows MIT, Apache-2.0, BSD-3-Clause and ISC
+   (`Makefile:47`).
+3. **`--subscription` picks the tenant.** `az` resolves the subscription's
+   tenant from its profile (`_profile.py:379-416`), so a guest admin in
+   several tenants needs nothing more. `get-access-token` never opens a
+   browser (spec-refuter, 2026-11-10).
+4. **Classifying from `az account list` is stable**: it is local, JSON, and
+   names `id` and `state`; only "expired" and "interaction required" are
+   read from text, and anything else gets the generic row 5.
 
 **Trade-offs accepted**:
 
 | Cost | Why acceptable |
 |------|----------------|
-| No managed identity, workload identity or service-principal env vars | the owner's case is an admin at a workstation; a jump host with a managed identity can `az login --identity` |
-| About a second per `az` run | once per subscription per hour at most; in the background |
-| Classifying `az` failures from its stderr text | the classes are coarse (R5), and an unmatched failure still gets an actionable line (row 4) |
+| No managed identity, workload identity or service-principal env vars | the owner's case is an admin at a workstation; a jump host can `az login --identity` |
+| About a second per `az` run, two runs the first time | in the background, at most once per subscription per token lifetime, plus the retries R6 allows while an error holds |
+| Windows is not tested in CI (`az.cmd` goes through `cmd.exe`) | inputs are validated before they reach the command line (R10); T5 records a manual Windows check |
+| The `az account list` output names tenants and users | it is parsed in memory, never logged or shown |
 
 **When this would be wrong**: admins report running it where `az` can't be
-installed (containers, CI) — add `azidentity` with the licence question
-answered, or IMDS directly.
+installed (containers, CI) — then a token from `azcore`-compatible code, or
+IMDS directly.
 
-**Reversal action**: replace `token.go` with a `TokenCredential`; the SKU
-client takes a token function, so nothing else changes.
+**Reversal action**: replace `azcli.go` with a token function; the SKU client
+takes one, so nothing else changes.
 
 **Alternatives discarded**:
-- `azidentity.NewDefaultAzureCredential` — fails `make licenses` (point 2);
-  allowing BSD-2-Clause is the owner's call and not needed for `az`.
-- Calling IMDS for managed identity ourselves — no case for it yet.
-- `armcompute` SDK — the same licence chain plus a large module for one GET.
+- `azidentity.NewDefaultAzureCredential` — fails `make licenses` (point 2).
+- `armcompute` v7.3.0 — passes the allowlist (it pulls azcore, not
+  azidentity or pkg/browser), but one GET doesn't need it.
+- `azcore` with our own `az` token function — valid, and passes the
+  allowlist; not taken because plain `net/http` does the one GET.
+- IMDS for managed identity — no case for it yet.
 
-### D2: One Resource SKUs request per (subscription, region), lazily, cached for the session
+### D2: One request per (subscription, region), lazily; state changes move the generation
 
-**Choice**: the first analysis that shows Azure nodes starts one request per
-(subscription, region) pair, with `$filter=location eq '<region>'`
-(api-version 2021-07-01, "Only location filter is supported currently",
-REST reference read 2026-11-10). The answer is kept for the session; `c` to
-another context builds a new session and so asks again.
+**Choice**: `Begin(pairs)` starts one fetch per pair not yet loaded, not in
+flight, and not failing with a retry still pending. Each pair is `loading`,
+`loaded` or `failed(row, retryAt)`. Every state change, and a retry falling
+due, increments the SKU generation that `Generation()` adds to the price
+generation, so `recKey` changes and the screen analyses again on the next
+tick, on a static cluster too. The answer is kept for the session; `c` to
+another context builds a new session and asks again.
+
+The request uses `$filter=location eq '<region>'` (api-version 2021-07-01,
+"Only location filter is supported currently", REST reference read
+2026-11-10), an HTTP timeout of 60 s per page (chosen, unmeasured), a body
+cap of 64 MiB per page (chosen; the per-region answer holds every Compute
+resource type and its size is unmeasured), and follows `nextLink` within
+R10's checks.
 
 **Justification, strongest first**:
-1. **Lazy:** a user who never opens Recommendations makes no request and sees
+1. **Analysis only runs when `recKey` changes**; without the generation
+   moving on a failure or a due retry, the loading note would stay and R6
+   could never fire (spec-refuter H1).
+2. **Lazy:** a user who never opens Recommendations makes no request and sees
    no error (R1).
-2. **Per region:** a region's answer is all one node needs; the unfiltered
-   list covers every region.
-3. **Sizes don't change within a session.**
+3. **Per region:** one region's answer is all its nodes need.
+4. **Sizes don't change within a session.**
 
 **Trade-offs accepted**:
 
 | Cost | Why acceptable |
 |------|----------------|
-| Answer size unmeasured: the answer holds every Compute resource type of the region (disks, snapshots, …) | read with a 64 MiB cap and `nextLink` paging; T5 measures it on a real subscription when the owner names one |
+| Answer size unmeasured | capped and paged; T5 measures it when the owner names a real subscription |
 | A size released mid-session is unseen | restart or `c` |
+| One analysis a minute while an error holds | the rules are pure functions over a snapshot, already run on every change |
 
-**When this would be wrong**: the per-region answer is so large that it
-takes more than a few seconds — then stream-parse it.
+**When this would be wrong**: the answer takes more than a few seconds or
+nears the cap — then stream-parse it.
 
 **Reversal action**: none needed; a cache TTL could be added.
 
 **Alternatives discarded**: fetching at session start — every AKS user would
-pay a request and see sign-in errors on the Overview.
+pay a request and see sign-in errors on the Overview; a timer goroutine for
+retries — `recKey` polling already gives "only while shown".
 
-### D3: Errors are shown, retried while the screen is shown, never hidden behind a stale table
+### D3: Errors are fixed lines, retried while the screen is shown, never hidden behind a stale table
 
-**Choice**: each failure maps to one fixed line (R5) shown in the
-Recommendations notes while it holds and logged once; sign-in, permission
-and subscription failures are retried at most once a minute while
-Recommendations is shown (R6); `429`/`5xx`/network follow
-`retryDelay` (`pkg/azure/retry.go:58`).
+**Choice**: each failure maps to one R5 row, shown in the Recommendations
+notes while it holds and logged once per distinct line. The SKU client has
+its own error type (status and Resource Manager error `code` only), not the
+price provider's `statusError`, whose text says "retail prices API"
+(`pkg/azure/retry.go:44-49`). Rows 1–10 retry once a minute while shown;
+11 and 12 use `retryDelay` (`pkg/azure/retry.go:58`); 13 never.
 
 **Justification, strongest first**:
 1. **The owner's decision**: say there is no permission, don't advise from
    old data.
-2. **Fixed lines carry no identifiers.** `az` stderr and ARM error bodies can
-   name the subscription, tenant or user; they are classified, never shown.
-3. **The retry is user-driven:** an admin runs `az login` in another terminal
+2. **Fixed lines carry no identifiers.** `az` output and Resource Manager
+   messages can name the subscription, tenant, user, client or object id and
+   scope (`AuthorizationFailed` does); only status and code are kept.
+3. **The retry is user-driven:** an admin runs `az login` or gets the role,
    and the screen recovers within a minute, without restarting (the open
    TODO "`c` on the current context only closes the popup" makes restarting
    the only other way).
@@ -167,84 +221,95 @@ Recommendations is shown (R6); `429`/`5xx`/network follow
 
 | Cost | Why acceptable |
 |------|----------------|
-| An `az` run a minute while a permission error holds and the screen is open | cheap, local; stops when the screen is left |
-| Some `az` failures land in the generic row | it tells the admin the command that shows the cause |
+| An `az account list` and a request a minute while a sign-in or permission error holds and the screen is open | local and cheap; stops when the screen is left; the token cache (R4) still avoids `get-access-token` while a token is valid |
+| Unmatched failures land in generic rows (5, 10) | they name the command or status that shows the cause |
 
 **When this would be wrong**: users find the note noisy on clusters where
-they deliberately lack the role — then a config key to turn the catalog off.
+they deliberately lack the role — then a config key to turn it off.
 
 **Reversal action**: drop the retry; a failure then holds for the session.
 
 **Alternatives discarded**: falling back to the embedded table — the owner
-refused it; showing `az`'s raw message — leaks identifiers.
+refused it; showing `az`'s or Resource Manager's message — leaks
+identifiers.
 
-### D4: `--disable-pricing` also skips the SKU request
+### D4: `--disable-pricing` also skips `az` and the SKU request
 
 **Choice**: with pricing disabled the advisor gets no SKU reader (R7).
 
 **Justification**: every rule that reads a size (rightsize, generation, arm,
 Spot) also needs a price, and none runs without one (aks-recommendations
-R3); a request and its sign-in errors would buy nothing. No new flag.
+R3); `az` runs and sign-in errors would buy nothing. No new flag.
 
 **When this would be wrong**: a rule needs sizes without prices.
 
 **Reversal action**: pass the reader regardless.
 
-### D5: Tests use a recorded made-up SKU answer
+### D5: Tests: a recorded made-up answer for parsing, a frozen autoscaler extract for coverage
 
-**Choice**: `pkg/azure/testdata/skus-eastus.json` holds a hand-built answer
-in the API's shape, with the public sizes the aks-recommendations fixtures,
-the D5 tables (generation, Arm, temp disk) and the R2/R3 cases need, public
-specs from the Azure size pages, and made-up locations, zones and
-restrictions. The table-coverage tests check the D5 tables against it.
+**Choice**:
+- `pkg/azure/testdata/skus-eastus.json`: a hand-built answer in the API's
+  shape with the public sizes the fixtures and the R2, R3, R9 cases need,
+  their public specs, and made-up locations, zones and restrictions.
+- `pkg/recommend/testdata/azure-sizes.tsv`: size, family, vCPU, MiB and
+  architecture of every size in the autoscaler table at `03e49d9cb822`,
+  extracted once, frozen, with its Apache-2.0 credit in a header line; never
+  refreshed and never in the binary. The table-coverage tests (every D5 key
+  and target exists, every mapping keeps the temp disk family set) run on it.
 
-**Justification**: no credential in CI or in the repo; public size specs are
-not environment data.
+**Justification**: no credential in CI or the repo; public size specs are not
+environment data; coverage over 1,370 real sizes is kept without a refresh
+chore (decided 2026-11-10).
 
 **Trade-offs accepted**:
 
 | Cost | Why acceptable |
 |------|----------------|
-| Coverage tests now check the tables against the fixture, not against all 1,370 real sizes | a table target missing from a real region shows at run time as no row, not as wrong advice |
-| The fixture is hand-made | T2 checks each size's numbers against the public size pages and records the date |
+| The extract ages | it only checks the fixed D5 tables; a family it lacks gets no row at run time, not wrong advice |
+| The recorded answer is hand-made | T2 checks each size's numbers against the public size pages and records the date |
 
-**When this would be wrong**: a table entry goes wrong unnoticed — keep a
-test-only copy of the autoscaler table, outside the binary, for coverage.
+**When this would be wrong**: a D5 table needs a family newer than the
+extract — extract again, by hand, in that PR.
 
-**Reversal action**: add that copy under `testdata/`.
-
-**Alternatives discarded**: keeping the autoscaler file for tests only —
-possible (D5 "When this would be wrong"), but it keeps the refresh chore the
-owner wants gone.
+**Reversal action**: delete the extract and narrow the coverage tests to the
+recorded answer.
 
 ## Invariants
 
-- No Azure HTTP outside `pkg/azure` (AGENTS.md); `os/exec` of `az` lives
-  there too.
-- No subscription id, tenant id, account or token in any rendered text, log
-  line or export.
+- No Azure HTTP and no `az` run outside `pkg/azure` (AGENTS.md layering).
+- No subscription id, tenant id, account, client or object id, scope or
+  token in any rendered text, log line or export.
+- The token goes only to `https://management.azure.com`.
 - AWS rows, AWS golden screens and the EKS fixture total ($242.94) unchanged.
-- No interactive prompt, ever.
+- No interactive prompt, ever; `Update` never waits on `az` or Resource
+  Manager.
 
 ## Failure modes
 
 | Failure | Behaviour |
 |---------|-----------|
-| `az` missing, not signed in, wrong account, no role, subscription gone | R5 line; idle, consolidation, old-node rows only; retried each minute while shown (R6) |
-| `az` hangs | killed at 30 s; R5 row 4 |
-| ARM `429`/`5xx`/network | R5 row 8; `retryDelay` |
-| Answer over 64 MiB, or malformed | treated as row 8 with status `bad answer`; retried |
-| One of two subscriptions fails | its nodes get the R5 line's rows only; the other's nodes are advised |
+| `az` missing, not signed in, wrong account, subscription disabled | R5 rows 1–4; idle, consolidation, old-node and Spot rows; retried each minute while shown |
+| `az` hangs | process group killed at 30 s; row 5 |
+| No role, policy denial, other `4xx` | rows 7, 8, 10 |
+| `429`/`5xx`/network/timeout | row 11; `retryDelay` |
+| Answer over the cap, malformed, foreign `nextLink` | row 12; `retryDelay` |
+| Bad provider ID or region | row 13; no `az` run |
+| One of two subscriptions fails | its agent pools named in the line; the other's nodes are advised |
 
 ## Test plan
 
-- **Unit, `pkg/azure`:** fake `az` script on `PATH` (token, each failure);
-  `httptest` Resource Manager (pages, 401/403/404/429/503, oversize); parse
-  of the recorded answer (R2, R3); token reuse; retry clock (R6).
+- **Unit, `pkg/azure`:** a fake `az` script on `PATH` (account list shapes,
+  token with `expires_on` or only `expiresOn`, warnings, each failure, a hang
+  for the timeout); an `httptest` TLS Resource Manager (pages, foreign
+  `nextLink`, 400/401/403×2/404/409/429/503, oversize, malformed); parse of
+  the recorded answer (R2, R3, R9); token reuse; R10 validation; retry clock
+  (R6).
 - **Unit, `pkg/recommend` / `pkg/model`:** fixtures on the recorded answer
-  ($322.66, $565.60, $242.94); R5 row kinds; R8 source line and no
-  subscription in any golden screen.
-- **Run:** kind with made-up `azure://` nodes and the binary built with a test
-  build tag that points the Resource Manager host at a local fake and puts a
-  fake `az` first on `PATH` (T5); release builds have no such hook. A real
-  subscription only when the owner names one; otherwise recorded as not run.
+  ($322.66, $565.60, $242.94); availability per rule; user-pool minimum;
+  temp-disk check; R5 row kinds; R8 line and no subscription in any golden
+  screen; static-cluster recovery through `recKey`.
+- **Run:** `TestKindCluster` runs in process (`kind_integration_test.go:1,69`),
+  so the session option injects a fake `az` runner and the fake Resource
+  Manager's URL there; release builds take no such input. A real
+  subscription only when the owner names one; Windows `az.cmd` checked by
+  hand; otherwise recorded as not run.

@@ -480,6 +480,10 @@ documents Arm64 system pools, or AKS allows Spot in system pools.
 
 ## Invariants
 
+> **Corrected 2026-11-10 (azure-live-skus).** Once azure-live-skus ships, the first two
+> invariants hold for prices only; sizes come from Azure Resource Manager with the
+> `az` sign-in ([azure-live-skus](../azure-live-skus/design.md) Invariants).
+
 - No Azure credentials, no `~/.azure`, no ARM API, at run time or at
   refresh.
 - At run time, only the Retail Prices API, which is already used.
