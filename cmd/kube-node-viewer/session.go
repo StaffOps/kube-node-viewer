@@ -188,7 +188,7 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 			s.starts.changed(key, v)
 			s.saver.Save(key, v)
 		},
-		Advisor: newAdvisor(prices),
+		Advisor: newAdvisor(prices, s.flags.DisablePricing),
 	}, nil
 }
 
@@ -244,19 +244,27 @@ type awsAdvisor struct {
 	}
 }
 
-// newAdvisor is nil when the provider can't answer list prices.
-func newAdvisor(p pricing.Provider) model.Advisor {
+// newAdvisor gives Recommendations an advisor per cloud
+// (aks-recommendations D2): AWS when the provider answers list prices, and
+// Azure from the size catalog with the Azure provider's candidate prices.
+// With --disable-pricing the Azure advisor asks for no price (R3).
+func newAdvisor(p pricing.Provider, disablePricing bool) model.Advisor {
+	advisors := model.AdvisorsByCloud{}
+	awsP, azureP := p, pricing.Provider(nil)
 	if b, ok := p.(pricing.ByCloud); ok {
-		p = b.Clouds["aws"]
+		awsP, azureP = b.Clouds["aws"], b.Clouds["azure"]
 	}
-	ap, ok := p.(interface {
+	if ap, ok := awsP.(interface {
 		OnDemandPrice(ec2types.InstanceType) (float64, bool)
 		SpotPriceInZone(ec2types.InstanceType, string) (float64, bool)
-	})
-	if !ok {
-		return nil
+	}); ok {
+		advisors[recommend.CloudAWS] = awsAdvisor{prices: ap}
 	}
-	return awsAdvisor{prices: ap}
+	// the Azure provider lists candidate prices once T2 lands; until then
+	// the rows that need them are absent
+	lister, _ := azureP.(azure.PriceLister)
+	advisors[recommend.CloudAzure] = azure.NewAdvisor(lister, disablePricing)
+	return advisors
 }
 
 func (a awsAdvisor) Spec(t string) (recommend.Spec, bool) {

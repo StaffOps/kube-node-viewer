@@ -63,8 +63,16 @@ tests, so spec-trace passes.
   > `TestAzureNotesGenerationAndNoWait`, `TestRecommendNodeFromAKSLabels`,
   > and the `recommendations-aks` golden screen. The AWS golden files are
   > unchanged.
-- [ ] T5. `cmd/kube-node-viewer/session.go`: `awsAdvisor` signatures; `azureAdvisor` from the `ByCloud` Azure provider, and over the catalog with pricing disabled when `--disable-pricing` (`session.go:205-206`)
+- [x] T5. `cmd/kube-node-viewer/session.go`: `awsAdvisor` signatures; `azureAdvisor` from the `ByCloud` Azure provider, and over the catalog with pricing disabled when `--disable-pricing` (`session.go:205-206`)
   - _Covers: R1, R3 · Depends on: T2, T4 · Verified by: session tests with and without `--disable-pricing`_
+
+  > **Done 2026-11-10**, ahead of T2. The Azure advisor is
+  > `pkg/azure/advisor.go` (new file; `pricing.go` untouched). It takes a
+  > `PriceLister` (`ListPrice`, `Generation`). The session passes the
+  > `ByCloud` Azure provider when it implements that interface, which T2
+  > adds; until then candidate prices are absent and so are the rows that
+  > need them. Tests: `TestAdvisorPricesAndNotes`,
+  > `TestAdvisorPricingDisabled`, `TestSessionPricingPerServer`.
 - [ ] T6. `refresh-data.yaml` runs `make azure-catalog` with `make prices`
   - _Covers: R16 · Depends on: T1 · Verified by: a workflow_dispatch run's PR_
 - [ ] T7. Docs:

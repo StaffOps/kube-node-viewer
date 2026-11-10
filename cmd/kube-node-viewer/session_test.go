@@ -16,10 +16,14 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/staffops/kube-node-viewer/pkg/aws"
+	"github.com/staffops/kube-node-viewer/pkg/azure"
+	"github.com/staffops/kube-node-viewer/pkg/model"
 	"github.com/staffops/kube-node-viewer/pkg/pricing"
+	"github.com/staffops/kube-node-viewer/pkg/recommend"
 )
 
 // interactive-tui R10: each connection gets the pricing of its server.
@@ -79,8 +83,22 @@ func TestSessionPricingPerServer(t *testing.T) {
 					t.Errorf("pricing off, but %T can reach the Azure prices API", p)
 				}
 			}
-			if newAdvisor(p) == nil {
+			adv, ok := newAdvisor(p, tt.disable).(model.AdvisorsByCloud)
+			if !ok || adv["aws"] == nil {
 				t.Error("no Recommendations advisor for this provider")
+			}
+			// aks-recommendations R3: an Azure advisor always; with pricing
+			// off it asks for no price and says so
+			az, ok := adv["azure"].(*azure.Advisor)
+			if !ok {
+				t.Fatalf("no Azure advisor: %T", adv["azure"])
+			}
+			notes := strings.Join(az.Notes(), " ")
+			if tt.disable != strings.Contains(notes, "pricing disabled") {
+				t.Errorf("pricing off %v, notes %q", tt.disable, notes)
+			}
+			if _, ok := az.OnDemand(recommend.Node{Cloud: "azure", Region: "eastus"}, "Standard_D4s_v5"); ok {
+				t.Error("an Azure price without T2's candidate prices")
 			}
 		})
 	}
