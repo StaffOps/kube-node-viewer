@@ -223,6 +223,10 @@ JSON), pkg/model._
 - Node names, which are what `kubectl` takes and the cloud chooses (`TODO.md`).
 - gcloud's `edgecontainer_{project_id}_{location}_{cluster_id}` form, for
   Distributed Cloud clusters (`TODO.md`).
+
+  > **Corrected 2026-11-10.** [short-edge-context](../short-edge-context/requirements.md)
+  > shortens this form, and its offline-credential variant, in the headers and
+  > the export file name.
 - Context names people choose, and any other cloud's context format.
 - Masking ids in logs and error messages.
 - Telling apart two nameless nodes whose masked ids are the same, which needs one

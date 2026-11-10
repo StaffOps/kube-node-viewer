@@ -24,6 +24,10 @@ All notable changes to this project are documented here. Format:
   with or without `_ns-<namespace>`. The full panel's `Cluster:` row hides the
   project of a Connect gateway or multi-cloud API URL; the JSON export keeps the
   full context and URL.
+- A Google Distributed Cloud context (`edgecontainer_<project>_<location>_<cluster>`,
+  and its offline-credential form ending in `_<user id>_offline`) shows as its
+  cluster name in the headers and the export file name; the contexts popup and
+  the JSON export keep the full name.
 - Node details show a GCE provider ID without the project and an Azure one
   without the subscription and resource group. A node with no name yet is listed
   by that same short form on those clouds. Node labels are still shown whole.

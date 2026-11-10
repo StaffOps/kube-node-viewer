@@ -105,12 +105,14 @@ func TestIsAKSServer(t *testing.T) {
 // short-arn-context R3: the saved-state key keeps the full context name
 // short-gke-context R4
 // hide-cloud-ids R4
+// short-edge-context R4
 func TestClusterKeyKeepsTheFullContext(t *testing.T) {
 	for _, context := range []string{
 		"arn:aws:eks:us-east-1:111122223333:cluster/demo-prod",
 		"gke_example-project_us-central1-a_demo-prod",
 		"gke_" + "aws_example-project_us-west1_demo-prod",
 		"connectgateway_example-project_global_demo-prod_ns-team-a",
+		"edgecontainer_example-project_us-central1_demo-prod_ops_user@example.org_offline",
 	} {
 		c := Cluster{Context: context, Server: "https://example.com"}
 		if got, want := c.Key(), context+"@https://example.com"; got != want {

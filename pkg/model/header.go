@@ -338,6 +338,10 @@ var (
 	// optionally _ns-<namespace>; shortContext returns the last capture, so
 	// the namespace must not capture
 	connectGatewayContext = regexp.MustCompile(`^connectgateway_` + gkeProject + `_(?:global|` + gkeLocation + `)_(` + dnsLabel + `)(?:_ns-` + dnsLabel + `)?$`)
+	// edgeContainerContext is edgecontainer_<project>_<location>_<cluster>,
+	// optionally _<user id>_offline (short-edge-context D1); the suffix must
+	// not capture
+	edgeContainerContext = regexp.MustCompile(`^edgecontainer_` + gkeProject + `_` + gkeLocation + `_(` + dnsLabel + `)(?:_\S+_offline)?$`)
 	// gatewayServer is an API server URL that names a project: Connect gateway
 	// and GKE multi-cloud (hide-cloud-ids R10)
 	gatewayServer = regexp.MustCompile(`^(https://[^/\s]+/v[0-9][0-9a-z]*/projects/)[^/\s]+(/locations/\S+)$`)
@@ -346,9 +350,9 @@ var (
 // shortContext is the context name the headers and the export file name use:
 // the cluster name of an EKS cluster ARN or a gcloud context, any other name
 // as it is (short-arn-context R1, R2; short-gke-context R1, R2; hide-cloud-ids
-// R1, R2, R3).
+// R1, R2, R3; short-edge-context R1, R2, R3).
 func shortContext(name string) string {
-	for _, re := range []*regexp.Regexp{eksClusterARN, gkeContext, gkeFleetContext, connectGatewayContext} {
+	for _, re := range []*regexp.Regexp{eksClusterARN, gkeContext, gkeFleetContext, connectGatewayContext, edgeContainerContext} {
 		if m := re.FindStringSubmatch(name); m != nil {
 			return m[len(m)-1]
 		}
