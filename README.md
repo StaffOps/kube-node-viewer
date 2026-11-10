@@ -802,7 +802,7 @@ table as a fallback until the first lookup answers. On other clouds, run with
 **AKS.** Azure nodes are priced from the public
 [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)
 (pay-as-you-go list prices in USD; Spot and Windows meters where they apply),
-with no Azure login or permission. Prices show a second or two after start.
+with no Azure login or permission. Prices show `-` until the API answers.
 Nodes show their agent pool, capacity and region; AKS clusters
 (`*.azmk8s.io`) make no AWS lookup. Reservations and Savings Plans are not
 taken into account.

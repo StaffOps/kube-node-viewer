@@ -33,14 +33,21 @@ var retryHeaders = []string{"Retry-After", "x-ms-ratelimit-microsoft.consumption
 
 var seconds = regexp.MustCompile(`^[0-9]+$`)
 
-// statusError is a non-200 answer, with what retryDelay needs.
+// statusError is a non-200 answer, with what retryDelay needs and the API's
+// error message, if it gave one (fix-azure-price-batch R6).
 type statusError struct {
-	code   int
-	status string
-	header http.Header
+	code    int
+	status  string
+	header  http.Header
+	message string
 }
 
-func (e *statusError) Error() string { return "retail prices API: " + e.status }
+func (e *statusError) Error() string {
+	if e.message != "" {
+		return "retail prices API: " + e.status + ": " + e.message
+	}
+	return "retail prices API: " + e.status
+}
 
 // retryDelay is how long to wait before asking a region again after a failed
 // answer: the larger of floor and the answer's retry header (positive

@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -285,5 +286,38 @@ func TestLivePrices(t *testing.T) {
 			t.Errorf("%s %s: got linux %v windows %v, want %v %v", c.region, c.size, linux, win, c.linux, c.window)
 		}
 		time.Sleep(time.Second) // the API rate-limits
+	}
+}
+
+// More sizes in one region than one request may ask for: every one priced
+// (fix-azure-price-batch R1, live; KNV_AZURE_LIVE=1). The sizes are public
+// Azure VM sizes, sold in eastus when this was written.
+//
+// fix-azure-price-batch R1 (live)
+func TestLiveManySizesInOneRegion(t *testing.T) {
+	if os.Getenv("KNV_AZURE_LIVE") != "1" {
+		t.Skip("set KNV_AZURE_LIVE=1 to ask the public Retail Prices API")
+	}
+	var sizes []string
+	for _, n := range []int{2, 4, 8, 16, 32, 48, 64, 96} {
+		sizes = append(sizes, fmt.Sprintf("Standard_D%ds_v5", n), fmt.Sprintf("Standard_E%ds_v5", n))
+	}
+	sizes = append(sizes, "Standard_F2s_v2", "Standard_F4s_v2", "Standard_F8s_v2", "Standard_F16s_v2")
+	if len(sizes) <= maxSizesPerRequest {
+		t.Fatalf("%d sizes fit one request", len(sizes))
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	p := NewProvider(ctx, Endpoint)
+	l := map[string]string{"topology.kubernetes.io/region": "eastus"}
+	for _, s := range sizes {
+		p.NodePrice(aksNode(s, l))
+	}
+	settled(t, p)
+	for _, s := range sizes {
+		price, ok := p.NodePrice(aksNode(s, l))
+		if !ok || price <= 0 {
+			t.Errorf("eastus %s: no price (%v %v)", s, price, ok)
+		}
 	}
 }

@@ -23,3 +23,21 @@
   > or near-example domain before an example project, the project id bounds,
   > a name starting with a digit or `_`) make `test-checks.sh` fail on each
   > (re-run below).
+
+> **Corrected 2026-11-10 (gaps).** T4 to T6 implement R5 to R10 (design D2).
+
+- [x] T4. `content.sh`: narrow `gke_ok`, `gce_ok`, `aks_ok`, `resourcegroup_ok`; the `resourcegroup` alternatives and leading characters; the `gcp` pair, also in the full-tree `git grep` alternation; `LC_ALL=C` in `match()`; the full-tree prefilter; header rules and known gaps. Cases in `test-checks.sh` for each acceptance criterion, a full-tree case per R6/R7 form
+  - _Covers: R5, R6, R7, R8, R9, R10 · Depends on: T1 · Verified by: `scripts/checks/test-checks.sh`, `sh scripts/checks/content.sh` on the tree_
+- [x] T5. Docs: the `AGENTS.md` guardrails row names the new forms and `gcp`; `TODO.md` drops the two items done and keeps the forms left (the requirements' out-of-scope note), adds the subscription id outside `subscriptions/`
+  - _Covers: R5, R6, R7, R8 · Depends on: T4 · Verified by: review_
+- [x] T6. Verify: `scripts/verify.sh`, `scripts/checks/test-checks.sh`, `shellcheck` and `make lint` green, with the result as a dated note; no cluster run (repository tooling only)
+  - _Covers: R5, R6, R7, R8, R9, R10 · Depends on: T4, T5 · Verified by: command output, recorded here as a dated note_
+
+  > **Verified 2026-11-10 (gaps).** `scripts/checks/test-checks.sh`: 308
+  > passed, 0 failed on macOS (BSD grep and sed); 299 passed, 0 failed, 4
+  > skipped (gofmt, gitleaks, jq missing) under dash with GNU grep 3.8 and sed
+  > 4.9 (Debian bookworm, no network). `sh scripts/checks/content.sh` on the
+  > whole tree: clean on both, with no new `content-check: allow` line;
+  > `shellcheck` clean on `scripts/checks/*.sh`; `scripts/verify.sh` green;
+  > `make lint` 0 issues. Two spec-refuter reviews (spec, then diff with 69
+  > mutants) applied. No cluster run: repository tooling only.

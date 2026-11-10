@@ -46,6 +46,11 @@ unusable value (`0`, `soon`, `-5`, `+120`, `1.5`, a past date) counts as
 none. Any other failure, or none usable, keeps the retry delay (1
 minute).
 
+> **Corrected 2026-11-10 ([fix-azure-price-batch](../fix-azure-price-batch/bugfix.md) R3).**
+> A `400` is no longer "any other failure": the cap's refusal (`Invalid
+> OData parameters supplied`) is never retried, and any other `400` waits
+> 10 minutes.
+
 Tests: `// fix-azure-retry R1` on `TestRetryDelay` (pure, table, fixed
 time), `TestRetryAfterDelaysTheRegion` and `TestRetryAfterOnALaterPage`.
 
@@ -118,6 +123,9 @@ Tests: `// fix-azure-retry R4` on `TestLastLine`.
   (`TestNoRequestBeforeTheRetryDelay`, retry delay 1 hour).
 - One request per region per pass; sizes the API does not list are not
   asked again; the 20-page cap and its once-per-region log.
+
+  > **Corrected 2026-11-10 ([fix-azure-price-batch](../fix-azure-price-batch/bugfix.md) R1).**
+  > One request per batch of at most 17 sizes of a region per pass.
 - The 20-second request timeout.
 - Any other logged error stays in the header for `issueWindow` (2
   minutes); klog lines are shown as before (`TestLastLine`,

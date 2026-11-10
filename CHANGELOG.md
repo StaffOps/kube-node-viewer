@@ -34,6 +34,12 @@ All notable changes to this project are documented here. Format:
   with the informers' updates on every render. A node that registered from a Karpenter
   NodeClaim and went Ready now stops showing the NodeClaim's age as soon as the
   update arrives, also when it goes NotReady again before the next render.
+- AKS clusters with 18 or more VM sizes in one region showed no price for any
+  node of that region: the Azure Retail Prices API refuses a request for that
+  many sizes, and the refused request was sent again every minute. Sizes are
+  now asked for 17 at a time; a request the API refuses as too large is not
+  sent again (its sizes show no price and the region is logged once), any
+  other `400` waits 10 minutes, and the API's error message ends the log line.
 
 ### Changed
 
