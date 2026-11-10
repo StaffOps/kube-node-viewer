@@ -17,7 +17,9 @@ package main
 import (
 	"context"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/staffops/kube-node-viewer/pkg/aws"
 	"github.com/staffops/kube-node-viewer/pkg/azure"
@@ -83,7 +85,7 @@ func TestSessionPricingPerServer(t *testing.T) {
 					t.Errorf("pricing off, but %T can reach the Azure prices API", p)
 				}
 			}
-			adv, ok := newAdvisor(p, tt.disable).(model.AdvisorsByCloud)
+			adv, ok := newAdvisor(p, tt.disable, nil, nil).(model.AdvisorsByCloud)
 			if !ok || adv["aws"] == nil {
 				t.Error("no Recommendations advisor for this provider")
 			}
@@ -111,5 +113,58 @@ func TestSessionPricingPerServer(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// azure-live-skus R7, D6: with pricing disabled the Azure advisor runs no az
+// and reads no size; with pricing on, the Go option's az and Resource
+// Manager are used (the default is az on PATH and management.azure.com).
+func TestSessionAzureSizesOption(t *testing.T) {
+	var runs atomic.Int32
+	run := func(context.Context, ...string) ([]byte, []byte, error) {
+		runs.Add(1)
+		return []byte("[]"), nil, nil
+	}
+	opt := azureOption{run: run, base: "https://127.0.0.1:1"}
+	pairs := []recommend.Pair{{Subscription: "00000000-0000-0000-0000-000000000000", Region: "eastus"}}
+	off := newAdvisor(aws.NewStaticPricingProvider(), true, opt.sizes(context.Background()), nil).(model.AdvisorsByCloud)
+	off.Begin(pairs)
+	time.Sleep(100 * time.Millisecond)
+	if runs.Load() != 0 {
+		t.Errorf("pricing disabled, yet az ran %d times", runs.Load())
+	}
+	on := newAdvisor(aws.NewStaticPricingProvider(), false, opt.sizes(context.Background()), nil).(model.AdvisorsByCloud)
+	on.Begin(pairs)
+	deadline := time.Now().Add(5 * time.Second)
+	for runs.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if runs.Load() == 0 {
+		t.Error("the option's az was not used")
+	}
+	if (azureOption{}).base != "" || azure.DefaultARM != "https://management.azure.com" {
+		t.Error("the default Resource Manager changed")
+	}
+}
+
+// azure-live-skus D1: closing the sessions cancels a running az, so it is not
+// left behind on exit or on a switch.
+func TestSessionCloseStopsAz(t *testing.T) {
+	started, stopped := make(chan struct{}), make(chan struct{})
+	run := func(ctx context.Context, _ ...string) ([]byte, []byte, error) {
+		close(started)
+		<-ctx.Done()
+		close(stopped)
+		return nil, nil, ctx.Err()
+	}
+	s := &sessions{sizes: azureOption{run: run, base: "https://127.0.0.1:1"}.sizes(context.Background())}
+	a := azure.NewAdvisor(nil, false, s.sizes)
+	a.Begin([]recommend.Pair{{Subscription: "00000000-0000-0000-0000-000000000000", Region: "eastus"}})
+	<-started
+	s.Close()
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		t.Fatal("az still running after Close")
 	}
 }

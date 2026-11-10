@@ -102,13 +102,26 @@ var goldenScenes = []struct {
 		u.advisor = AdvisorsByCloud{"aws": fakeAdvisor{}, "azure": fakePricedAzure{}}
 		pressAll(u, "tab")
 	}},
+	// azure-live-skus R8: the math of an Azure rightsize row names the
+	// source of the sizes
+	{"recommendation-why-aks", 168, 40, func(u *UIModel) {
+		u.advisor = AdvisorsByCloud{"aws": fakeAdvisor{}, "azure": fakePricedAzure{}}
+		pressAll(u, "tab")
+		for i, r := range u.recs.Recs {
+			if r.Kind == recommend.Rightsize {
+				u.recCursor = i
+				break
+			}
+		}
+		pressAll(u, "enter")
+	}},
 	{"help", 168, 60, func(u *UIModel) { press(u, "?") }},
 	{"header-compact", 168, 30, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
 }
 
 // goldenSetup builds the cluster of a scene that is not the README's made-up
 // EKS cluster.
-var goldenSetup = map[string]func(t *testing.T) *UIModel{"recommendations-aks": aksUI, "recommendations-aks-priced": aksPricedUI}
+var goldenSetup = map[string]func(t *testing.T) *UIModel{"recommendations-aks": aksUI, "recommendations-aks-priced": aksPricedUI, "recommendation-why-aks": aksPricedUI}
 
 // TestGoldenScreens compares each screen with testdata/screens/<name>.txt, so
 // a layout change shows in the pull request as a text diff. After a change

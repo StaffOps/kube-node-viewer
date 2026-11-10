@@ -63,8 +63,10 @@ const (
 type Node struct {
 	Name, Type, Zone, Capacity string
 	// Cloud is the provider-ID scheme; empty counts as AWS. Region is the
-	// node's region label (Azure prices are per region)
-	Cloud, Region string
+	// node's region label (Azure prices are per region). Subscription is an
+	// Azure node's subscription, from its provider ID: never shown
+	// (azure-live-skus R1, R8)
+	Cloud, Region, Subscription string
 	// Auto marks EKS Auto Mode nodes
 	Auto bool
 	// Windows marks a Windows node; System an AKS agent pool of mode
@@ -115,6 +117,16 @@ type Spec struct {
 	// Constrained marks an Azure constrained-vCPU size: never a candidate
 	// or a target
 	Constrained bool
+	// TempDiskMB is an Azure size's temp disk (MaxResourceVolumeMB), 0 for
+	// none (azure-live-skus R9)
+	TempDiskMB float64
+}
+
+// Pair is a subscription and region of shown Azure nodes, with their pools,
+// whose VM sizes the Azure advisor reads (azure-live-skus R1, R5).
+type Pair struct {
+	Subscription, Region  string
+	AgentPools, NodePools []string
 }
 
 // Input is everything the rules use.
@@ -133,6 +145,12 @@ type Input struct {
 	Spec     func(instanceType string) (Spec, bool)
 	OnDemand func(n Node, instanceType string) (float64, bool)
 	SpotIn   func(n Node, instanceType string) (float64, bool)
+	// Available tells whether a size can run on node n (azure-live-skus R3);
+	// nil means every size can, as on AWS
+	Available func(n Node, instanceType string) bool
+	// SizesLoaded tells whether n's Azure sizes are read; nil means they are
+	// (azure-live-skus R3: Spot needs none while they are not)
+	SizesLoaded func(n Node) bool
 	// Types lists the catalog's instance types, the rightsize candidates
 	Types []string
 	// Notes, when set, adds the advisor's notes (prices awaited, pricing
@@ -256,6 +274,28 @@ func comparableSpec(in Input, n Node) (Spec, bool) {
 }
 
 func isAzure(n Node) bool { return n.Cloud == CloudAzure }
+
+// available tells whether size t can run on n (azure-live-skus R3).
+func available(in Input, n Node, t string) bool {
+	return in.Available == nil || in.Available(n, t)
+}
+
+// sizesLoaded tells whether n's sizes are read (azure-live-skus R3).
+func sizesLoaded(in Input, n Node) bool {
+	return in.SizesLoaded == nil || in.SizesLoaded(n)
+}
+
+// userSizeOK tells whether an AKS user pool may use the size: at least 2
+// vCPU and 2 GiB (azure-live-skus R11).
+func userSizeOK(s Spec) bool { return s.VCPU >= 2 && s.MemGiB >= 2 }
+
+// keepsTempDisk tells whether a target keeps the node's temp disk, read from
+// the live sizes (azure-live-skus R9).
+func keepsTempDisk(node, target Spec) bool { return node.TempDiskMB <= 0 || target.TempDiskMB > 0 }
+
+// liveSizes is the math line naming the source of Azure sizes
+// (azure-live-skus R8).
+const liveSizes = "sizes: Azure Resource SKUs API"
 
 // groupOf names the pool or group a node belongs to, for targets (R13); the
 // key carries the cloud, so groups never mix clouds (aks-recommendations R14).
@@ -614,6 +654,9 @@ func rightsize(in Input) []Rec {
 			if !ok || s.Arch != spec.Arch || s.Constrained || (s.VCPU >= spec.VCPU && s.MemGiB >= spec.MemGiB) {
 				continue
 			}
+			if azure && (!available(in, n, t) || (!n.System && !userSizeOK(s))) {
+				continue
+			}
 			if p, ok := listPrice(in, n, t); ok && p < cur {
 				cands = append(cands, cand{t, p})
 			}
@@ -678,6 +721,7 @@ func rightsize(in Input) []Rec {
 				fmt.Sprintf("after the move: cpu %.0f%%, memory %.0f%% ≤ %.0f%%; %s", cpu*100, mem*100, in.Headroom*100, podsNote),
 			}
 			if azure {
+				lines = append(lines, liveSizes)
 				lines = append(lines, rejected...)
 				lines = append(lines, poolNote(n, c.typ))
 			}
@@ -792,8 +836,12 @@ func swapFamily(in Input, kind Kind) []Rec {
 		if cand == "" {
 			continue
 		}
-		if isAzure(n) && n.System {
-			if s, _ := in.Spec(cand); !systemSizeOK(s, n.Allocatable.Pods) {
+		if isAzure(n) {
+			s, _ := in.Spec(cand)
+			if !available(in, n, cand) || !keepsTempDisk(spec, s) {
+				continue
+			}
+			if n.System && !systemSizeOK(s, n.Allocatable.Pods) || !n.System && !userSizeOK(s) {
 				continue
 			}
 		}
@@ -818,6 +866,7 @@ func swapFamily(in Input, kind Kind) []Rec {
 			order = append(order, key)
 			g.rec.Math = append(g.rec.Math, fmt.Sprintf("%s list %s/h → %s list %s/h", n.Type, money4(curList), cand, money4(newList)))
 			if isAzure(n) {
+				g.rec.Math = append(g.rec.Math, liveSizes)
 				if kind == Graviton {
 					g.rec.Math = append(g.rec.Math, "the architecture can't change in place: a new pool of that size")
 				} else {
@@ -882,10 +931,19 @@ func spot(in Input) []Rec {
 	groups := map[string]*acc{}
 	var order []string
 	for _, n := range in.Nodes {
-		if _, ok := comparableSpec(in, n); !ok || n.Capacity != OnDemand {
+		azure := isAzure(n)
+		if n.Capacity != OnDemand {
 			continue
 		}
-		azure := isAzure(n)
+		if azure && !sizesLoaded(in, n) {
+			// sizes loading or not readable: Spot needs only the type and
+			// prices (azure-live-skus R3); the other guards stay
+			if n.Auto || n.Virtual || n.Type == "" {
+				continue
+			}
+		} else if _, ok := comparableSpec(in, n); !ok || (azure && !available(in, n, n.Type)) {
+			continue
+		}
 		if azure && n.System {
 			// a Spot pool is only ever a secondary pool (R11)
 			continue

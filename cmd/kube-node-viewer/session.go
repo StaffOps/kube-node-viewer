@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -49,6 +50,32 @@ type sessions struct {
 	// apply to the cluster the run started on (R2)
 	explicit map[string]string
 	starts   *startViews
+	// azure replaces az and Resource Manager in tests only; no flag,
+	// environment variable or config key sets it (azure-live-skus D6)
+	azure azureOption
+	// sizes reads the current connection's Azure VM sizes; closed with it
+	sizes *azure.Sizes
+}
+
+// azureOption is the Go option of azure-live-skus D6: zero is production
+// (az on PATH, https://management.azure.com).
+type azureOption struct {
+	run       azure.AzRunner
+	base      string
+	transport http.RoundTripper
+	// lister replaces the Azure candidate prices
+	lister azure.PriceLister
+}
+
+func (o azureOption) sizes(ctx context.Context) *azure.Sizes {
+	run, base := o.run, o.base
+	if run == nil {
+		run = azure.RunAz
+	}
+	if base == "" {
+		base = azure.DefaultARM
+	}
+	return azure.NewSizes(ctx, run, base, o.transport)
 }
 
 // startViews picks, per connection, the start view of config.yaml
@@ -170,12 +197,20 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 		s.program.Send(model.ChangedMsg{Gen: gen})
 	}))
 
+	var sizes *azure.Sizes
+	if !s.flags.DisablePricing {
+		sizes = s.azure.sizes(ctx)
+	}
 	s.mu.Lock()
 	if s.cancel != nil {
 		s.cancel()
 	}
-	s.cancel = cancel
+	old := s.sizes
+	s.cancel, s.sizes = cancel, sizes
 	s.mu.Unlock()
+	if old != nil {
+		old.Close() // a running az of the previous connection is killed
+	}
 	// Start makes a blocking API call
 	go controller.Start(ctx)
 
@@ -188,7 +223,7 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 			s.starts.changed(key, v)
 			s.saver.Save(key, v)
 		},
-		Advisor: newAdvisor(prices, s.flags.DisablePricing),
+		Advisor: newAdvisor(prices, s.flags.DisablePricing, sizes, s.azure.lister),
 	}, nil
 }
 
@@ -226,12 +261,17 @@ func (s *sessions) pricing(ctx context.Context, server string) (pricing.Provider
 	}, region, nil
 }
 
-// Close stops the current connection.
+// Close stops the current connection, and kills a running az.
 func (s *sessions) Close() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.cancel != nil {
 		s.cancel()
+	}
+	sizes := s.sizes
+	s.sizes = nil
+	s.mu.Unlock()
+	if sizes != nil {
+		sizes.Close()
 	}
 }
 
@@ -246,9 +286,10 @@ type awsAdvisor struct {
 
 // newAdvisor gives Recommendations an advisor per cloud
 // (aks-recommendations D2): AWS when the provider answers list prices, and
-// Azure from the size catalog with the Azure provider's candidate prices.
-// With --disable-pricing the Azure advisor asks for no price (R3).
-func newAdvisor(p pricing.Provider, disablePricing bool) model.Advisor {
+// Azure from the live VM sizes (azure-live-skus) with the Azure provider's
+// candidate prices. With --disable-pricing the Azure advisor asks for no
+// price and reads no size (aks-recommendations R3, azure-live-skus R7).
+func newAdvisor(p pricing.Provider, disablePricing bool, sizes *azure.Sizes, lister azure.PriceLister) model.Advisor {
 	advisors := model.AdvisorsByCloud{}
 	awsP, azureP := p, pricing.Provider(nil)
 	if b, ok := p.(pricing.ByCloud); ok {
@@ -263,8 +304,10 @@ func newAdvisor(p pricing.Provider, disablePricing bool) model.Advisor {
 	// the Azure provider lists candidate prices (aks-recommendations R3);
 	// TestSessionPricingPerServer checks the session's provider is one and
 	// that a candidate is queued with it
-	lister, _ := azureP.(azure.PriceLister)
-	advisors[recommend.CloudAzure] = azure.NewAdvisor(lister, disablePricing)
+	if lister == nil {
+		lister, _ = azureP.(azure.PriceLister)
+	}
+	advisors[recommend.CloudAzure] = azure.NewAdvisor(lister, disablePricing, sizes)
 	return advisors
 }
 

@@ -33,7 +33,7 @@ files you change carry the line
 | `pkg/state/` | per-cluster view state file, debounced atomic writer |
 | `pkg/pricing/` | `Provider` interface (`NodePrice`, `OnUpdate`); `ByCloud` picks the provider by the node's provider-ID cloud |
 | `pkg/aws/` | AWS pricing provider and instance catalog; `zz_generated_*.go` are static price tables copied from Karpenter by `make prices` — never hand-edit |
-| `pkg/azure/` | AKS prices from the public Azure Retail Prices API (no credentials) |
+| `pkg/azure/` | AKS prices from the public Azure Retail Prices API (no credentials); VM sizes for Recommendations from the Resource SKUs API with the machine's `az login` (`azcli*.go`, `skus.go`, `sizes.go`) |
 | `pkg/recommend/` | Recommendations rules (idle, consolidation, rightsizing, Graviton, Spot…); pure functions over a snapshot |
 | `pkg/text/` | color-aware tabwriter |
 | `hack/` | helper programs (boilerplate, licenses, `catalog` for the AWS instance catalog); several `main` packages share the dir, so `go build ./...` fails there — build `./cmd/... ./pkg/...` |

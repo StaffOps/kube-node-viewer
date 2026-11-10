@@ -88,7 +88,7 @@ type fakeAzureAdvisor struct {
 	price  float64 // when set, every Azure size costs this
 }
 
-func (a fakeAzureAdvisor) Begin() {
+func (a fakeAzureAdvisor) Begin([]recommend.Pair) {
 	if a.begins != nil {
 		*a.begins++
 	}

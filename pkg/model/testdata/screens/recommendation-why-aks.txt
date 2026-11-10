@@ -1,0 +1,29 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer · Recommendations                                                                                                                                   │
+│ Context:  aks                                                                                                                             f filters     g group by   │
+│ Cluster:  https://example-aks.hcp.eastus2.azmk8s.io:443                                                                                   s sort        o columns    │
+│ Region:   eastus2                                                                                                                         / search      r resources  │
+│ Nodes:    2 of 2 shown · 0 pods · $280.320/month (global cluster)                                                                         c context     v views      │
+│ View:     Filters: none │ Group: none │ Sort: creation ↓ │ cpu                                                                            ? help       ^e compact    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  0/7720m 0.0% cpu ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.384/hour | $280.320/month
+
+  Savings: $140.16/month  best non-Spot option per node; estimates from requests and list prices, by requests only
+  ⚠ waiting for the ╭─ Why: rightsize ───────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+                    │ rightsize: aks-workers-vmss000001 (Standard_D4s_v3)                                                                            │
+  KIND        TARGET│ → Standard_D2s_v3 (≈0% cpu, 0% mem)                                                                                            │
+  idle        agent │                                                                                                                                │
+  idle        agent │ aks-workers-vmss000001: Standard_D4s_v3 → Standard_D2s_v3                                                                      │
+  rightsize   aks-wo│ requests 0.00 vCPU / 0.00 GiB (DaemonSets 0.00 / 0.00 included)                                                                │
+  rightsize   aks-sy│ Standard_D2s_v3 allocatable ≈ 1.86 vCPU / 3.90 GiB (catalog capacity minus this node's reservation; may understate)            │
+  generation  agent │ after the move: cpu 0%, memory 0% ≤ 80%; pods 0 of 250 (this node's max-pods)                                                  │
+  generation  agent │ sizes: Azure Resource SKUs API                                                                                                 │
+  arm         agent │ the pool has one VM size: resize it in place (preview) only if every node fits, else move the workloads to a pool of that size │
+  arm         agent │ saving: ($0.1920 − $0.0960) × 730 h = $70.08                                                                                   │
+                    │                                                                                                                                │
+                    │ requests fit a smaller size at the headroom                                                                                    │
+                    ├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+                    │ esc: close                                                                                                                     │
+                    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+

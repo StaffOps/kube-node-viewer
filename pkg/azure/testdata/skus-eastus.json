@@ -1,0 +1,850 @@
+{
+ "value": [
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D2s_v3",
+   "tier": "Standard",
+   "size": "D2s_v3",
+   "family": "standardDSv3Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "2"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "8"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "16384"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D4s_v3",
+   "tier": "Standard",
+   "size": "D4s_v3",
+   "family": "standardDSv3Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "4"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "16"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "32768"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D2s_v5",
+   "tier": "Standard",
+   "size": "D2s_v5",
+   "family": "standardDSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "2"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "8"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "0"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D4s_v5",
+   "tier": "Standard",
+   "size": "D4s_v5",
+   "family": "standardDSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "4"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "16"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "0"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D8s_v5",
+   "tier": "Standard",
+   "size": "D8s_v5",
+   "family": "standardDSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "8"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "32"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "0"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D16s_v5",
+   "tier": "Standard",
+   "size": "D16s_v5",
+   "family": "standardDSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "16"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "64"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "0"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": [
+    {
+     "type": "Location",
+     "values": [
+      "eastus"
+     ],
+     "restrictionInfo": {
+      "locations": [
+       "eastus"
+      ]
+     },
+     "reasonCode": "NotAvailableForSubscription"
+    }
+   ]
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D2ds_v5",
+   "tier": "Standard",
+   "size": "D2ds_v5",
+   "family": "standardDDSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "2"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "8"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "76800"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D4ds_v5",
+   "tier": "Standard",
+   "size": "D4ds_v5",
+   "family": "standardDDSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "4"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "16"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "153600"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D8ds_v5",
+   "tier": "Standard",
+   "size": "D8ds_v5",
+   "family": "standardDDSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "8"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "32"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "307200"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": [
+    {
+     "type": "Zone",
+     "values": [
+      "eastus"
+     ],
+     "restrictionInfo": {
+      "locations": [
+       "eastus"
+      ],
+      "zones": [
+       "3"
+      ]
+     },
+     "reasonCode": "NotAvailableForSubscription"
+    }
+   ]
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D4ps_v5",
+   "tier": "Standard",
+   "size": "D4ps_v5",
+   "family": "standardDPSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "4"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "16"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "Arm64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "0"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D8ps_v5",
+   "tier": "Standard",
+   "size": "D8ps_v5",
+   "family": "standardDPSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "8"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "32"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "Arm64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "0"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D64ps_v5",
+   "tier": "Standard",
+   "size": "D64ps_v5",
+   "family": "standardDPSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "64"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "208"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "Arm64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "0"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_D4pds_v5",
+   "tier": "Standard",
+   "size": "D4pds_v5",
+   "family": "standardDPDSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "4"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "16"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "Arm64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "153600"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_DS1_v2",
+   "tier": "Standard",
+   "size": "DS1_v2",
+   "family": "standardDSv2Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "1"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "3.5"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "7168"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_B1ls",
+   "tier": "Standard",
+   "size": "B1ls",
+   "family": "standardBSFamily",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "1"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "0.5"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "4096"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_B2s",
+   "tier": "Standard",
+   "size": "B2s",
+   "family": "standardBSFamily",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "2"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "4"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "8192"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_E8-4ds_v5",
+   "tier": "Standard",
+   "size": "E8-4ds_v5",
+   "family": "standardEDSv5Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "8"
+    },
+    {
+     "name": "MemoryGB",
+     "value": "64"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "307200"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    },
+    {
+     "name": "vCPUsAvailable",
+     "value": "4"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "virtualMachines",
+   "name": "Standard_Made_up_v9",
+   "tier": "Standard",
+   "size": "Made_up_v9",
+   "family": "standardMadeUpv9Family",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ],
+     "zoneDetails": []
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "vCPUs",
+     "value": "2"
+    },
+    {
+     "name": "CpuArchitectureType",
+     "value": "x64"
+    },
+    {
+     "name": "MaxResourceVolumeMB",
+     "value": "0"
+    },
+    {
+     "name": "HyperVGenerations",
+     "value": "V1,V2"
+    }
+   ],
+   "restrictions": []
+  },
+  {
+   "resourceType": "disks",
+   "name": "Premium_LRS",
+   "tier": "Premium",
+   "kind": "Disks",
+   "locations": [
+    "eastus"
+   ],
+   "locationInfo": [
+    {
+     "location": "eastus",
+     "zones": [
+      "1",
+      "2",
+      "3"
+     ]
+    }
+   ],
+   "capabilities": [
+    {
+     "name": "MaxSizeGiB",
+     "value": "4"
+    }
+   ],
+   "restrictions": []
+  }
+ ]
+}

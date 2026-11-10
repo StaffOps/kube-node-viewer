@@ -21,11 +21,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -364,4 +367,230 @@ func lineWith(s, sub string) string {
 		}
 	}
 	return ""
+}
+
+// azureNodeNames are the made-up AKS nodes TestKindClusterAzureSizes creates.
+var azureNodeNames = []string{"aks-userpool-12345678-vmss000000", "aks-userpool-12345678-vmss000001"}
+
+const kindSub = "00000000-0000-0000-0000-000000000000"
+
+// TestKindClusterAzureSizes creates made-up AKS Nodes through the API of the
+// scripts/kind-it.sh cluster and runs the sessions with the fake az,
+// Resource Manager and candidate prices of the Go option (azure-live-skus T6,
+// D6): the Recommendations screen says why the sizes can't be read (a 403),
+// and once the role is granted the same screen, after its one-minute retry
+// (R6), reads them with the node's subscription and region and shows the
+// arm row they make possible.
+func TestKindClusterAzureSizes(t *testing.T) {
+	kubeconfig, kubeContext := os.Getenv("KNV_IT_KUBECONFIG"), os.Getenv("KNV_IT_CONTEXT")
+	if kubeconfig == "" || kubeContext == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("KNV_IT_KUBECONFIG and KNV_IT_CONTEXT are not set (scripts/kind-it.sh sets them)")
+		}
+		t.Skip("set KNV_IT_KUBECONFIG and KNV_IT_CONTEXT (scripts/kind-it.sh does)")
+	}
+	cs, err := client.NewKubernetes(kubeconfig, kubeContext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	for i, name := range azureNodeNames {
+		n := &v1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Labels: map[string]string{
+				"kubernetes.azure.com/agentpool": "userpool",
+				"kubernetes.azure.com/mode":      "user",
+				v1.LabelTopologyRegion:           "eastus",
+				v1.LabelTopologyZone:             fmt.Sprintf("eastus-%d", i+1),
+				v1.LabelInstanceTypeStable:       "Standard_D8s_v5",
+				v1.LabelOSStable:                 "linux",
+			}},
+			Spec: v1.NodeSpec{ProviderID: "azure:///subscriptions/" + kindSub +
+				"/resourceGroups/MC_example-rg_example_eastus/providers/Microsoft.Compute/virtualMachineScaleSets/aks-userpool-12345678-vmss/virtualMachines/" + fmt.Sprint(i)},
+		}
+		// a reused cluster may still have them from an earlier run
+		_ = cs.CoreV1().Nodes().Delete(ctx, name, metav1.DeleteOptions{})
+		created, err := cs.CoreV1().Nodes().Create(ctx, n, metav1.CreateOptions{})
+		if apierrors.IsAlreadyExists(err) {
+			created, err = cs.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = cs.CoreV1().Nodes().Delete(context.Background(), name, metav1.DeleteOptions{}) })
+		// the node controller may change the object meanwhile: retry on a
+		// conflict with the latest version
+		for try := 0; ; try++ {
+			created.Status.Capacity = v1.ResourceList{v1.ResourceCPU: resource.MustParse("8"), v1.ResourceMemory: resource.MustParse("32Gi"), v1.ResourcePods: resource.MustParse("250")}
+			created.Status.Allocatable = v1.ResourceList{v1.ResourceCPU: resource.MustParse("7820m"), v1.ResourceMemory: resource.MustParse("27Gi"), v1.ResourcePods: resource.MustParse("250")}
+			_, err := cs.CoreV1().Nodes().UpdateStatus(ctx, created, metav1.UpdateOptions{})
+			if err == nil {
+				break
+			}
+			if !apierrors.IsConflict(err) || try == 10 {
+				t.Fatal(err)
+			}
+			if created, err = cs.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	raw, err := os.ReadFile(filepath.Join("..", "..", "pkg", "azure", "testdata", "skus-eastus.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var forbid atomic.Bool
+	forbid.Store(true)
+	var asked atomic.Value
+	var answered atomic.Int32
+	arm := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked.Store(r.URL.Path + "?" + r.URL.Query().Get("$filter") + " " + r.Header.Get("Authorization"))
+		if forbid.Load() {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":{"code":"AuthorizationFailed"}}`))
+			return
+		}
+		_, _ = w.Write(raw)
+		answered.Add(1)
+	}))
+	defer arm.Close()
+	az := func(_ context.Context, args ...string) ([]byte, []byte, error) {
+		if args[1] == "list" {
+			return []byte(`[{"cloudName":"AzureCloud","id":"` + kindSub + `","state":"Enabled","tenantId":"t","user":{"name":"u"}}]`), nil, nil
+		}
+		return []byte(fmt.Sprintf(`{"accessToken":"kind-token","expires_on":%d}`, time.Now().Add(time.Hour).Unix())), nil, nil
+	}
+	prices := kindPrices{"Standard_D8s_v5": 0.384, "Standard_D8ps_v5": 0.308}
+	opt := azureOption{run: az, base: arm.URL, transport: arm.Client().Transport, lister: prices}
+
+	u := connectAzure(t, kubeconfig, kubeContext, opt)
+	drive(u, tea.KeyMsg{Type: tea.KeyTab})
+	until := func(what string, limit time.Duration, done func(string) bool) string {
+		t.Helper()
+		deadline := time.Now().Add(limit)
+		var out string
+		for time.Now().Before(deadline) {
+			drive(u, tea.WindowSizeMsg{Width: 200, Height: 60})
+			if out = u.View(); done(out) {
+				return out
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+		t.Fatalf("no %s on the Recommendations screen:\n%s", what, out)
+		return ""
+	}
+	const denied = "Azure VM sizes: no permission to read VM sizes (Microsoft.Compute/skus/read on the subscription, e.g. the Reader role)"
+	out := until("permission line", time.Minute, func(s string) bool { return strings.Contains(s, denied) })
+	if strings.Contains(out, kindSub) {
+		t.Errorf("the subscription is on screen:\n%s", out)
+	}
+	if got, _ := asked.Load().(string); got != "/subscriptions/"+kindSub+"/providers/Microsoft.Compute/skus?location eq 'eastus' Bearer kind-token" {
+		t.Errorf("request %q", got)
+	}
+	// the role is granted: the same screen retries within a minute (R6)
+	forbid.Store(false)
+	out = until("arm row after the retry", 90*time.Second, func(s string) bool {
+		return answered.Load() > 0 && !strings.Contains(s, "Azure VM sizes") && strings.Contains(s, "add a Standard_D8ps_v5 agent pool")
+	})
+	if answered.Load() != 1 || strings.Contains(out, kindSub) {
+		t.Errorf("%d good answers for one pair, want 1; or the subscription is on screen", answered.Load())
+	}
+	t.Logf("screen:\n%s", out)
+}
+
+// kindPrices is the Go option's fixed candidate prices.
+type kindPrices map[string]float64
+
+func (k kindPrices) ListPrice(_, size string, _, spot bool) (float64, bool, bool) {
+	if spot {
+		return 0, false, false
+	}
+	p, ok := k[size]
+	return p, ok, false
+}
+func (kindPrices) Generation() uint64 { return 0 }
+
+// connectAzure is connect with pricing on and the Azure Go option, for the
+// made-up AKS nodes plus kind's own.
+func connectAzure(t *testing.T, kubeconfig, kubeContext string, opt azureOption) *model.UIModel {
+	t.Helper()
+	style, err := model.ParseStyle("#04B575,#FFFF00,#FF0000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := model.NewUIModel(style)
+	program := tea.NewProgram(m, tea.WithInput(nil), tea.WithOutput(io.Discard),
+		tea.WithoutRenderer(), tea.WithoutSignalHandler())
+	states := state.Load(filepath.Join(t.TempDir(), "state.json"), io.Discard)
+	saver := state.NewSaver(states, time.Millisecond, func(err error) { t.Error(err) })
+	t.Cleanup(saver.Close)
+	conn := &sessions{
+		flags:        Flags{Kubeconfig: kubeconfig, Context: kubeContext},
+		nodeSelector: labels.Everything(),
+		states:       states,
+		saver:        saver,
+		program:      program,
+		starts:       newStartViews(nil, false),
+		azure:        opt,
+	}
+	t.Cleanup(conn.Close)
+	first, err := conn.Switch(kubeContext)
+	if err != nil {
+		t.Fatalf("connecting: %v", err)
+	}
+	m.Connect(first)
+	done := make(chan tea.Model, 1)
+	go func() {
+		final, err := program.Run()
+		if err != nil {
+			t.Error(err)
+		}
+		done <- final
+	}()
+	program.Send(tea.WindowSizeMsg{Width: 200, Height: 60})
+	deadline := time.Now().Add(time.Minute)
+	for first.Cluster.Stats().NumNodes < 3+len(azureNodeNames) {
+		if time.Now().After(deadline) {
+			program.Quit()
+			t.Fatalf("store has %d nodes", first.Cluster.Stats().NumNodes)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	program.Quit()
+	u, ok := (<-done).(*model.UIModel)
+	if !ok {
+		t.Fatal("the program did not return the *model.UIModel it ran")
+	}
+	u.Update(model.ChangedMsg{Gen: first.Cluster.Generation()})
+	return u
+}
+
+// drive sends the model msg and runs the commands it returns, for at most a
+// second each (ticks are left behind), so an analysis completes.
+func drive(u *model.UIModel, msg tea.Msg) {
+	var run func(cmd tea.Cmd)
+	run = func(cmd tea.Cmd) {
+		if cmd == nil {
+			return
+		}
+		ch := make(chan tea.Msg, 1)
+		go func() { ch <- cmd() }()
+		select {
+		case msg := <-ch:
+			if b, ok := msg.(tea.BatchMsg); ok {
+				for _, c := range b {
+					run(c)
+				}
+				return
+			}
+			if msg != nil {
+				_, next := u.Update(msg)
+				run(next)
+			}
+		case <-time.After(time.Second):
+		}
+	}
+	_, cmd := u.Update(msg)
+	run(cmd)
 }

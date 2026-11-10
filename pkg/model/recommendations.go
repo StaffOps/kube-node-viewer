@@ -16,6 +16,7 @@ package model
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -97,13 +98,31 @@ func (b AdvisorsByCloud) Notes() []string {
 	return out
 }
 
-// Begin tells each advisor an analysis starts (aks-recommendations R3).
-func (b AdvisorsByCloud) Begin() {
+// Begin tells each advisor an analysis starts, with the Azure pairs whose
+// sizes it needs (aks-recommendations R3, azure-live-skus R1).
+func (b AdvisorsByCloud) Begin(pairs []recommend.Pair) {
 	for _, a := range b {
 		if a, ok := a.(beginner); ok {
-			a.Begin()
+			a.Begin(pairs)
 		}
 	}
+}
+
+// Available routes by the node's cloud; AWS sizes are always available
+// (azure-live-skus R3, D2).
+func (b AdvisorsByCloud) Available(n recommend.Node, t string) bool {
+	if a, ok := b.forNode(n).(availabler); ok && n.Cloud == recommend.CloudAzure {
+		return a.Available(n, t)
+	}
+	return true
+}
+
+// SizesLoaded routes by the node's cloud; AWS's catalog is always there.
+func (b AdvisorsByCloud) SizesLoaded(n recommend.Node) bool {
+	if a, ok := b.forNode(n).(availabler); ok && n.Cloud == recommend.CloudAzure {
+		return a.SizesLoaded(n)
+	}
+	return true
 }
 
 // Generation changes when any advisor learns new prices.
@@ -121,7 +140,13 @@ func (b AdvisorsByCloud) Generation() uint64 {
 // prices arrive later, so a new generation means a new analysis
 // (aks-recommendations R3).
 type noter interface{ Notes() []string }
-type beginner interface{ Begin() }
+type beginner interface{ Begin(pairs []recommend.Pair) }
+
+// availabler is an advisor whose sizes depend on the node (azure-live-skus R3).
+type availabler interface {
+	Available(n recommend.Node, t string) bool
+	SizesLoaded(n recommend.Node) bool
+}
 type generationer interface{ Generation() uint64 }
 
 // RecommendOptions are the config-file settings of the rules (R12).
@@ -173,23 +198,32 @@ func (u *UIModel) recommendInput() recommend.Input {
 	in := recommend.Input{
 		Now: timeNow(), Headroom: u.recOpts.Headroom, OldAge: u.recOpts.OldAge,
 		PendingPods: u.stats.Unscheduled,
-		Spec:        a.Spec, OnDemand: a.OnDemand, SpotIn: a.SpotIn, Types: a.Types(),
-	}
-	if b, ok := a.(beginner); ok {
-		b.Begin()
+		Spec:        a.Spec, OnDemand: a.OnDemand, SpotIn: a.SpotIn,
 	}
 	azure := false
+	var pairs []recommend.Pair
+	at := map[string]int{}
 	for _, n := range u.view.Select(u.stats.Nodes) {
 		rn := recommendNode(n)
 		switch rn.Cloud {
 		case recommend.CloudAWS, "":
 		case recommend.CloudAzure:
 			azure = true
+			pairs = addPair(pairs, at, rn)
 		default:
 			// nodes of other clouds get no rule's advice (aks-recommendations R1)
 			continue
 		}
 		in.Nodes = append(in.Nodes, rn)
+	}
+	// the sizes snapshot is taken before the input reads the types
+	// (azure-live-skus R1, D2)
+	if b, ok := a.(beginner); ok {
+		b.Begin(pairs)
+	}
+	in.Types = a.Types()
+	if av, ok := a.(availabler); ok {
+		in.Available, in.SizesLoaded = av.Available, av.SizesLoaded
 	}
 	// the notes are about Azure prices: only with Azure nodes shown
 	if nt, ok := a.(noter); ok && azure {
@@ -206,7 +240,7 @@ func recommendNode(n *Node) recommend.Node {
 	obj := n.Object()
 	rn := recommend.Node{
 		Name: n.Name(), Type: n.InstanceType(), Zone: n.Zone(), Capacity: string(n.CapacityType()),
-		Cloud: n.Cloud(), Region: n.Region(),
+		Cloud: n.Cloud(), Region: strings.ToLower(n.Region()), Subscription: subscriptionOf(obj.Spec.ProviderID),
 		Auto:         n.LabelValue("eks.amazonaws.com/compute-type") == "auto",
 		Windows:      n.LabelValue(v1.LabelOSStable) == "windows",
 		System:       n.LabelValue("kubernetes.azure.com/mode") == "system", // no label: a user pool (R4)
@@ -381,4 +415,45 @@ func (u *UIModel) recMathPanel() panelView {
 		rows = append(rows, "", helpStyle(rec.Reason))
 	}
 	return panelView{title: "Why: " + strings.TrimSpace(rec.Label()), rows: rows, cursor: -1}
+}
+
+// subscriptionOf is the subscription of an Azure provider ID, never shown
+// (azure-live-skus R1, R8).
+func subscriptionOf(providerID string) string {
+	rest, ok := strings.CutPrefix(strings.ToLower(providerID), "azure://")
+	if !ok {
+		return ""
+	}
+	parts := strings.Split(strings.TrimLeft(rest, "/"), "/")
+	if len(parts) < 2 || parts[0] != "subscriptions" {
+		return ""
+	}
+	return parts[1]
+}
+
+// addPair adds an Azure node a size rule could compare to its (subscription,
+// region) pair: not a virtual node, with a type (azure-live-skus R1, R5).
+func addPair(pairs []recommend.Pair, at map[string]int, n recommend.Node) []recommend.Pair {
+	if n.Virtual || n.Type == "" {
+		return pairs
+	}
+	k := n.Subscription + "/" + n.Region
+	i, ok := at[k]
+	if !ok {
+		i = len(pairs)
+		at[k] = i
+		pairs = append(pairs, recommend.Pair{Subscription: n.Subscription, Region: n.Region})
+	}
+	p := &pairs[i]
+	switch {
+	case n.NodePool != "":
+		if !slices.Contains(p.NodePools, n.NodePool) {
+			p.NodePools = append(p.NodePools, n.NodePool)
+		}
+	case n.ManagedGroup != "":
+		if !slices.Contains(p.AgentPools, n.ManagedGroup) {
+			p.AgentPools = append(p.AgentPools, n.ManagedGroup)
+		}
+	}
+	return pairs
 }

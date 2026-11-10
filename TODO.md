@@ -95,10 +95,6 @@ memory. Listed by impact.
       review, out of scope). _Why:_ a Ready node can show NotReady, with no
       addresses, until the node's next update event (no informer
       resync is configured).
-- [ ] The monthly `refresh-data.yaml` doesn't refresh the Azure size table:
-      running `make azure-catalog` there widens its two `pkg/aws` guards
-      ([aks-recommendations deferred](specs/aks-recommendations/tasks.md#deferred)).
-      _Why:_ until then the table is copied by hand and goes stale.
 - [ ] `NOTICE` is not in the release archives: `.goreleaser.yaml` lists no
       `files`. _Why:_ the Apache 2.0 license asks that the NOTICE travel
       with the binaries.
