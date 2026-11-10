@@ -15,6 +15,7 @@ limitations under the License.
 package aws
 
 import (
+	"math"
 	"sync"
 	"testing"
 	"time"
@@ -57,4 +58,15 @@ func TestFargatePriceReadsThePodsOnce(t *testing.T) {
 		}
 	}()
 	wg.Wait()
+}
+
+// fix-ready-lock-fargate-panic R3
+func TestFargatePriceMalformed(t *testing.T) {
+	p := &pricingProvider{fargateVCPUPricePerHour: 0.04, fargateGBPricePerHour: 0.004}
+	n := model.NewNode(&v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "f", Labels: map[string]string{"eks.amazonaws.com/compute-type": "fargate"}}})
+	n.BindPod(model.NewPod(&v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "p",
+		Annotations: map[string]string{"CapacityProvisioned": "2vCPU"}}}))
+	if price, ok := p.NodePrice(n); ok || !math.IsNaN(price) {
+		t.Errorf("malformed annotation: price %v %v, want NaN false", price, ok)
+	}
 }

@@ -283,10 +283,17 @@ func (n *Node) Labels() map[string]string {
 	return n.node.Labels
 }
 
+// Update replaces the node object. Once the node is Ready, its NodeClaim's
+// creation time no longer stands for its age, so it is cleared here, under the
+// write lock Update holds anyway, and not by the readers
+// (fix-ready-lock-fargate-panic R2).
 func (n *Node) Update(node *v1.Node) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.node = *node
+	if n.isReady() {
+		n.nodeclaimCreationTime = time.Time{}
+	}
 }
 
 func (n *Node) Name() string {
@@ -443,23 +450,22 @@ func (n *Node) Cordoned() bool {
 	return false
 }
 
+// Ready tells whether the node's Ready condition is True. It only reads: the
+// view calls it for every row on every render (fix-ready-lock-fargate-panic R1).
 func (n *Node) Ready() bool {
-	ready := false
 	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.isReady()
+}
+
+// isReady is Ready for a caller that holds the lock.
+func (n *Node) isReady() bool {
 	for _, c := range n.node.Status.Conditions {
 		if c.Status == v1.ConditionTrue && c.Type == v1.NodeReady {
-			ready = true
-			break
+			return true
 		}
 	}
-	n.mu.RUnlock()
-	// when the node goes ready, remove the nodeclaim creation ts, if any
-	if ready {
-		n.mu.Lock()
-		n.nodeclaimCreationTime = time.Time{}
-		n.mu.Unlock()
-	}
-	return ready
+	return false
 }
 
 func (n *Node) Created() time.Time {
