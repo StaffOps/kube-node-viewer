@@ -550,11 +550,18 @@ accepts:
   rows. They never go below two nodes, and their sizes keep at least 4 vCPU,
   4 GiB and 30 pods, never the B series.
 
-Sizes come from the cluster autoscaler's Azure table, copied into the binary
-(`make azure-catalog`, no credentials). Candidate prices come from the
-public Retail Prices API, so rows that need them appear a moment after the
-screen opens. With `--disable-pricing`, only the consolidation and old-node
-rows show.
+VM sizes (vCPU, memory, architecture, family, temp disk, and where each
+size is offered) are read live from the Azure Resource SKUs API when
+Recommendations opens, once per subscription and region, with the Azure CLI
+sign-in already on the machine (`az login`; nothing is stored and no
+browser opens). It needs `Microsoft.Compute/skus/read` on the nodes'
+subscription, which the Reader role has; the AKS cluster roles don't. Until
+the sizes arrive the screen says `Azure VM sizes: loading`; when they can't
+be read it says why, and rightsize, generation and Arm rows don't show
+(idle, consolidation, old-node and Spot rows still do). Candidate prices
+come from the public Retail Prices API, with no credential, so rows that
+need them appear a moment after the screen opens. With `--disable-pricing`,
+no size is read and only the consolidation and old-node rows show.
 
 Settings in `~/.kube-node-viewer`:
 
@@ -876,6 +883,13 @@ win over the defaults; adjust them with `o` (`space`, `K`/`J`). A cluster
 opened before `PRICE/M` and `IDLE/M` existed shows them only once added
 there.
 
+**`Azure VM sizes: …` on the Recommendations screen.** The AKS rows that
+need VM sizes read them with your Azure CLI sign-in. The line says what is
+missing: install the Azure CLI and run `az login`; sign in with an account
+that sees the nodes' subscription; or get `Microsoft.Compute/skus/read` on
+it (the Reader role). The screen tries again each minute while it is open,
+so it recovers without a restart.
+
 **NoCredentialProviders: no valid providers in chain.** Pricing needs AWS
 credentials unless you use `--disable-pricing`. Configure them through
 `~/.aws/credentials`, `~/.aws/config`, environment variables or another
@@ -934,10 +948,11 @@ Thanks to its authors and contributors, whose code this project starts from.
 This project is not affiliated with or endorsed by AWS.
 
 The AWS price tables are copied from
-[Karpenter](https://github.com/aws/karpenter-provider-aws) and the Azure size
-table from the Kubernetes
-[cluster autoscaler](https://github.com/kubernetes/autoscaler), both under the
-Apache License 2.0.
+[Karpenter](https://github.com/aws/karpenter-provider-aws), under the Apache
+License 2.0. A test-only extract of the Kubernetes
+[cluster autoscaler](https://github.com/kubernetes/autoscaler)'s Azure size
+table, also Apache-2.0, checks the fixed Azure tables; it is not in the
+binary.
 
 ## License
 

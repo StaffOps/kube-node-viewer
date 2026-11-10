@@ -452,8 +452,9 @@ data-refresh workflow SHALL run it with the price tables.
 > upstream (commit `c1239b4`), with no credentials._
 
 > **Corrected 2026-11-10 (azure-live-skus).** Superseded by [azure-live-skus](../azure-live-skus/requirements.md)
-> R9: the copied table and `make azure-catalog` are removed, and so is the deferred
+> R12: the copied table and `make azure-catalog` are removed, and so is the deferred
 > workflow clause; nothing is refreshed by hand.
+> _Test: withdrawn (R16) — superseded by azure-live-skus R12, 2026-11-10._
 
 ## Counter-examples
 

@@ -9,9 +9,13 @@ All notable changes to this project are documented here. Format:
 ### Added
 
 - Recommendations on AKS nodes: idle cost, consolidation, rightsizing, newer
-  generations, Arm (`arm` rows) and Spot, per agent pool, from an Azure size
-  table copied from the Kubernetes cluster autoscaler (`make azure-catalog`;
-  no Azure credentials). Targets keep the node's temp disk, Arm targets are
+  generations, Arm (`arm` rows) and Spot, per agent pool, from VM sizes read
+  live from the Azure Resource SKUs API with the machine's `az login` (it
+  needs `Microsoft.Compute/skus/read` on the subscription, e.g. Reader; the
+  screen says when there is no sign-in or no permission, and retries each
+  minute). Sizes not offered in the node's region or zone are never
+  suggested, user pools keep AKS's 2 vCPU / 2 GiB minimum, and generation
+  and Arm targets keep the temp disk the live sizes report. Targets keep the node's temp disk, Arm targets are
   the v5 families AKS documents, system pools keep AKS's limits (no Spot or
   Arm, at least two nodes, 4 vCPU / 4 GiB / 30 pods, no B series), and
   Azure Spot is priced per region. AWS and Azure nodes on one screen are each

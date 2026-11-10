@@ -1,6 +1,6 @@
 # Requirements: azure-live-skus
 
-> Status: draft · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 3 HIGH, 12 MEDIUM, 10 LOW; applied); second pass 2026-11-10 (2 HIGH, 8 MEDIUM, 9 LOW; applied)
+> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 3 HIGH, 12 MEDIUM, 10 LOW; applied); second pass 2026-11-10 (2 HIGH, 8 MEDIUM, 9 LOW; applied)
 
 ## Context
 
@@ -200,7 +200,7 @@ header issue log, as price failures):
 | # | Cause | Line (after `Azure VM sizes: `) |
 |---|---|---|
 | 1 | `az` not on `PATH` | `the Azure CLI (az) was not found; install it and run az login` |
-| 2 | `az account list --all` empty, or `get-access-token` fails with `AADSTS` or `authenticate interactively` in its stderr (az 2.88.0 wording, design D1) | `not signed in to Azure; run az login` |
+| 2 | `az account list --all` empty, or `get-access-token` fails with `AADSTS`, `authenticate interactively` or `az login` in its stderr (az 2.88.0 wording, design D1) | `not signed in to Azure; run az login` |
 | 3 | no account in that list has the node's subscription id | `the signed-in account can't see the nodes' subscription; az login with an account that can` |
 | 4 | that account's `state` is `Disabled` or `Deleted` (`Warned` and `PastDue` stay readable) | `the nodes' subscription was not found or is disabled` |
 | 5 | `az` fails otherwise, or times out | `the Azure CLI failed to give a token; run az account get-access-token to see why` |

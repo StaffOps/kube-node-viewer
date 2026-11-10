@@ -168,7 +168,6 @@ tests, so spec-trace passes.
 
 | Task | Promotion trigger |
 |------|-------------------|
-| The monthly `refresh-data.yaml` runs `make azure-catalog`. This widens the guards at `refresh-data.yaml:55` and `:100` to `pkg/azure/zz_generated_instance_types.go`, and pulls autoscaler `master` as `make prices` pulls Karpenter `main` (was T6, deferred 2026-11-10) | its own reviewed PR |
 | Arm v6 (Cobalt 100) targets (deferred by the owner, 2026-11-10) | AKS's Arm64 page names them, or the owner asks |
 | Arm system pools | AKS documents Arm64 system pools |
 | Non-temp-disk targets for nodes that don't use their temp disk | owner asks |
@@ -181,5 +180,5 @@ tests, so spec-trace passes.
 
 > **Corrected 2026-11-10 (azure-live-skus).** The deferred refresh-data.yaml row
 > (was T6) is dropped: with the live catalog there is no table to refresh
-> ([azure-live-skus](../azure-live-skus/requirements.md) R12). Its removal lands with that
-> spec's T4.
+> ([azure-live-skus](../azure-live-skus/requirements.md) R12); removed with that spec's
+> T4.
