@@ -67,9 +67,16 @@ memory. Listed by impact.
       group) and node names when a cloud puts one in them
       ([hide-cloud-ids](specs/hide-cloud-ids/requirements.md), out of scope).
       _Why:_ a screenshot of node details shares them.
-- [ ] gcloud's `edgecontainer_{project_id}_{location}_{cluster_id}` context
-      form, for Distributed Cloud clusters, still shows the project.
-      _Why:_ the same leak as the other gcloud forms.
+- [ ] gcloud context names with a project number in place of the project id
+      (`gke_<number>_…`, `connectgateway_<number>_…`, `edgecontainer_<number>_…`)
+      are refused by the short-name patterns and show whole
+      ([short-edge-context](specs/short-edge-context/requirements.md), out of
+      scope). _Why:_ a project number identifies the project too; unknown
+      whether gcloud ever writes one.
+- [ ] `content.sh`'s `gke_ok` lets any name starting `example` through
+      (`example[a-z0-9_-]*`), so `gke_`, `connectgateway_` and `edgecontainer_`
+      names whose project starts with `examplecorp…` pass. _Why:_ a real
+      project id with that prefix would reach a commit.
 - [ ] `content.sh` has no rule for a real `gce://<project>/…` provider ID or an
       Azure resource group name outside `MC_…`.
       _Why:_ hide-cloud-ids treats them as sensitive on screen; the guard

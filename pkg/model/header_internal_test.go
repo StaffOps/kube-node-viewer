@@ -202,6 +202,7 @@ func TestShortGKEContextName(t *testing.T) {
 		{"gke_" + "a.example.com:example-project_us-central1-a_demo", "demo"},
 		// R2: anything else is shown as it is
 		{gke("abcde"), ""},                       // project of 5
+		{gke("example:example-project"), ""},     // a domain without a dot
 		{gke("a" + strings.Repeat("b", 30)), ""}, // project of 31
 		{gke("1example-project"), ""},
 		{gke("example-project-"), ""},
@@ -599,5 +600,118 @@ func TestDisplayServer(t *testing.T) {
 		if got := displayServer(tc.in); got != want {
 			t.Errorf("displayServer(%q) = %q, want %q", tc.in, got, want)
 		}
+	}
+}
+
+// short-edge-context R1 R2 R3
+func TestShortEdgeContextName(t *testing.T) {
+	// names content.sh would flag are built by concatenation
+	edge := func(project, location, cluster string) string {
+		return "edgecontainer_" + project + "_" + location + "_" + cluster
+	}
+	at := func(cluster string) string { return edge("example-project", "us-central1", cluster) }
+	label63 := "a" + strings.Repeat("b", 62)
+	for _, tc := range []struct{ in, want string }{
+		// R1: a region and a zone, a domain-scoped project, label bounds
+		{at("demo-edge"), "demo-edge"},
+		{edge("example-project", "us-central1-a", "demo"), "demo"},
+		{edge("example.com:example-project", "us-central1", "demo"), "demo"},
+		{at("a"), "a"},
+		{at("1demo"), "1demo"},
+		{at(label63), label63},
+		// R2: the offline credential suffix, a user id with _ @ and .
+		{at("demo") + "_ops_user@example.com_offline", "demo"},
+		{at("demo") + "_u_offline", "demo"},
+		{at("demo") + "_a_b_offline_offline", "demo"},
+		// R3: anything else is shown as it is
+		{edge("123456789012", "us-central1", "demo"), ""},
+		{edge("abcde", "us-central1", "demo"), ""},
+		{edge("a"+strings.Repeat("b", 30), "us-central1", "demo"), ""},
+		{edge("example-project-", "us-central1", "demo"), ""},
+		{edge("example-project", "us-central", "demo"), ""},
+		{edge("example:example-project", "us-central1", "demo"), ""},
+		{edge("Example-project", "us-central1", "demo"), ""},
+		{edge("example-project", "global", "demo"), ""},
+		{edge("example-project", "us-central1-edge-operator-a", "demo"), ""},
+		{edge("example-project", "uscentral1", "demo"), ""},
+		{at(label63 + "c"), ""},
+		{at(""), ""},
+		{at("demo-"), ""},
+		{at("-demo"), ""},
+		{at("Demo"), ""},
+		{at("d\u0435mo"), ""},
+		{"edgecontainer_" + "example-project_us-central1", ""},
+		{at("demo") + "_extra", ""},
+		{at("demo") + "_user", ""},
+		{at("demo") + "__offline", ""},
+		{at("demo") + "_us er_offline", ""},
+		{at("demo") + "_user_OFFLINE", ""},
+		{at("demo") + "_user_offline\n", ""},
+		{at("demo") + "\n", ""},
+		{at("demo") + " ", ""},
+		{"x " + at("demo"), ""},
+		{"EDGECONTAINER_" + "example-project_us-central1_demo", ""},
+		{"example-project_us-central1_demo", ""},
+		{"edge_" + "example-project_us-central1_demo", ""},
+		// the other patterns keep their results
+		{gkeDemo, "demo-prod"},
+		{demoARN, "demo-prod"},
+		{"connectgateway_example-project_global_demo", "demo"},
+		{"gke_" + "aws_example-project_us-west1_demo", "demo"},
+		{"kind-knv", ""},
+	} {
+		want := tc.want
+		if want == "" {
+			want = tc.in
+		}
+		if got := shortContext(tc.in); got != want {
+			t.Errorf("shortContext(%q) = %q, want %q", tc.in, got, want)
+		}
+	}
+}
+
+func edgeContexts() []string {
+	return []string{
+		"edgecontainer_example-project_us-central1_demo-prod",
+		"edgecontainer_example.com:example-project_us-central1_demo-prod",
+		"edgecontainer_example-project_us-central1_demo-prod_ops_user@example.org_offline",
+	}
+}
+
+// short-edge-context R1 R2
+func TestHeadersHideTheEdgeProject(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		height int
+		ctrlE  bool
+		size   headerSize
+	}{
+		{"full panel", 40, false, headerFull},
+		{"compact box", 40, true, headerCompact},
+		{"one line", 10, false, headerLine},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, context := range edgeContexts() {
+				u := capacityUI(t, 2)
+				// the server gcloud writes: an endpoint and a port, no project
+				u.SetClusterInfo(ClusterInfo{Context: context, Server: "https://edge.example:443"})
+				u.Update(tea.WindowSizeMsg{Width: 200, Height: tc.height})
+				if tc.ctrlE {
+					u.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
+				}
+				if u.headerSize() != tc.size {
+					t.Fatalf("header size %v, want %v", u.headerSize(), tc.size)
+				}
+				got := u.View()
+				if !strings.Contains(got, "demo-prod") {
+					t.Errorf("%s: no short name:\n%s", context, got)
+				}
+				for _, secret := range []string{"example-project", "example.com", "ops_user", "example.org", "_offline", "edgecontainer_"} {
+					if strings.Contains(got, secret) {
+						t.Errorf("%s: header holds %q:\n%s", context, secret, got)
+					}
+				}
+			}
+		})
 	}
 }
