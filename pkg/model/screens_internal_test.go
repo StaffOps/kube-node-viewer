@@ -37,9 +37,12 @@ var fakePrices = map[string]float64{
 	"t3.large": 0.0832, "t4g.large": 0.0672,
 }
 
-func (fakeAdvisor) Spec(t string) (recommend.Spec, bool)  { s, ok := fakeSpecs[t]; return s, ok }
-func (fakeAdvisor) OnDemand(t string) (float64, bool)     { p, ok := fakePrices[t]; return p, ok }
-func (fakeAdvisor) SpotIn(string, string) (float64, bool) { return 0, false }
+func (fakeAdvisor) Spec(t string) (recommend.Spec, bool) { s, ok := fakeSpecs[t]; return s, ok }
+func (fakeAdvisor) OnDemand(_ recommend.Node, t string) (float64, bool) {
+	p, ok := fakePrices[t]
+	return p, ok
+}
+func (fakeAdvisor) SpotIn(recommend.Node, string) (float64, bool) { return 0, false }
 func (fakeAdvisor) Types() []string {
 	var out []string
 	for t := range fakeSpecs {

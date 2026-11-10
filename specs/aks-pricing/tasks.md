@@ -14,5 +14,5 @@
 
 | Task | Promotion trigger |
 |------|-------------------|
-| Azure catalog and recommendations | owner runs AKS clusters in production |
+| Azure catalog and recommendations (promoted 2026-11-10 at the owner's request: [aks-recommendations](../aks-recommendations/tasks.md)) | owner runs AKS clusters in production |
 | Reservations / Savings Plans prices | someone needs effective rather than list cost |

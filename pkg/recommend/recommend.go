@@ -13,8 +13,9 @@ limitations under the License.
 */
 
 // Package recommend works out cost recommendations for a set of nodes with
-// fixed rules and arithmetic (specs/recommendations): no AI, no I/O, no
-// Kubernetes or AWS types. The same input always gives the same result.
+// fixed rules and arithmetic (specs/recommendations, specs/aks-recommendations):
+// no AI, no I/O, no Kubernetes, AWS or Azure types. The same input always
+// gives the same result.
 package recommend
 
 import (
@@ -52,14 +53,30 @@ const (
 	Fargate  = "Fargate"
 )
 
+// Clouds, as the provider-ID scheme names them.
+const (
+	CloudAWS   = "aws"
+	CloudAzure = "azure"
+)
+
 // Node is what the rules know about a node.
 type Node struct {
 	Name, Type, Zone, Capacity string
+	// Cloud is the provider-ID scheme; empty counts as AWS. Region is the
+	// node's region label (Azure prices are per region)
+	Cloud, Region string
 	// Auto marks EKS Auto Mode nodes
 	Auto bool
-	// NodePool is the Karpenter NodePool; ManagedGroup the EKS managed node group
+	// Windows marks a Windows node; System an AKS agent pool of mode
+	// system; VMPool an AKS Virtual Machines pool (several sizes); Virtual an
+	// ACI virtual node (type=virtual-kubelet)
+	Windows, System, VMPool, Virtual bool
+	// NodePool is the Karpenter NodePool; ManagedGroup the EKS managed node
+	// group or the AKS agent pool
 	NodePool, ManagedGroup string
 	Allocatable            Resources
+	// NodeCapacity is the node's status.capacity (aks-recommendations D4)
+	NodeCapacity Resources
 	// Price is the node's hourly price when PriceKnown; Equivalent marks a
 	// reserved node's on-demand equivalent; Override a price from the
 	// instance-price label
@@ -92,6 +109,12 @@ type Spec struct {
 	VCPU, MemGiB float64
 	Arch, Class  string
 	Current      bool
+	// Family is the Azure family (normalised SkuFamily); empty for AWS,
+	// whose family is the part of the type before the dot
+	Family string
+	// Constrained marks an Azure constrained-vCPU size: never a candidate
+	// or a target
+	Constrained bool
 }
 
 // Input is everything the rules use.
@@ -104,13 +127,17 @@ type Input struct {
 	Headroom float64
 	// OldAge is the age past which a node should be recycled
 	OldAge time.Duration
-	// Spec, OnDemand and SpotIn answer from the catalog and prices; SpotIn is
-	// the price in that very zone
+	// Spec, OnDemand and SpotIn answer from the catalog and prices, for a
+	// size in the market of node n: SpotIn is the price in n's zone on AWS,
+	// in n's region on Azure; both follow n's region and OS
 	Spec     func(instanceType string) (Spec, bool)
-	OnDemand func(instanceType string) (float64, bool)
-	SpotIn   func(instanceType, zone string) (float64, bool)
+	OnDemand func(n Node, instanceType string) (float64, bool)
+	SpotIn   func(n Node, instanceType string) (float64, bool)
 	// Types lists the catalog's instance types, the rightsize candidates
 	Types []string
+	// Notes, when set, adds the advisor's notes (prices awaited, pricing
+	// disabled) to the result
+	Notes func() []string
 }
 
 // Kind is a kind of recommendation, in the order the screen lists them.
@@ -142,8 +169,19 @@ type Rec struct {
 	Info    bool
 	Reason  string
 	Math    []string
+	// Cloud is the cloud of the nodes the row is about
+	Cloud string
 	// perNode is each node's share of the saving, for the total
 	perNode map[string]float64
+}
+
+// Label is the kind's word on the screen: the arm64 swap is "graviton" on
+// AWS rows and "arm" on Azure rows (aks-recommendations D6).
+func (r Rec) Label() string {
+	if r.Kind == Graviton && r.Cloud == CloudAzure {
+		return "arm"
+	}
+	return r.Kind.String()
 }
 
 // Result is the recommendations, ordered, and the total saving (R14).
@@ -173,6 +211,9 @@ func Analyze(in Input) Result {
 	res.Recs = append(res.Recs, swapFamily(in, Graviton)...)
 	res.Recs = append(res.Recs, oldNodes(in)...)
 	res.Recs = append(res.Recs, spot(in)...)
+	if in.Notes != nil {
+		res.Notes = append(res.Notes, in.Notes()...)
+	}
 	sort.SliceStable(res.Recs, func(a, b int) bool {
 		ra, rb := res.Recs[a], res.Recs[b]
 		if ra.Kind != rb.Kind {
@@ -205,28 +246,91 @@ func total(recs []Rec) float64 {
 	return math.Round(sum*100) / 100
 }
 
-// comparable tells whether catalog-based advice applies to the node (R15).
+// comparable tells whether catalog-based advice applies to the node
+// (recommendations R15, aks-recommendations R12).
 func comparableSpec(in Input, n Node) (Spec, bool) {
-	if n.Capacity == Fargate || n.Auto || n.Type == "" {
+	if n.Capacity == Fargate || n.Auto || n.Virtual || n.Type == "" {
 		return Spec{}, false
 	}
 	return in.Spec(n.Type)
 }
 
-// groupOf names the pool or group a node belongs to, for targets (R13).
+func isAzure(n Node) bool { return n.Cloud == CloudAzure }
+
+// groupOf names the pool or group a node belongs to, for targets (R13); the
+// key carries the cloud, so groups never mix clouds (aks-recommendations R14).
 func groupOf(n Node) (key, label string) {
 	switch {
 	case n.NodePool != "":
-		return "np/" + n.NodePool, "NodePool " + n.NodePool
+		return n.Cloud + "/np/" + n.NodePool, "NodePool " + n.NodePool
+	case n.ManagedGroup != "" && isAzure(n):
+		return n.Cloud + "/ng/" + n.ManagedGroup, "agent pool " + n.ManagedGroup
 	case n.ManagedGroup != "":
-		return "ng/" + n.ManagedGroup, "node group " + n.ManagedGroup
+		return n.Cloud + "/ng/" + n.ManagedGroup, "node group " + n.ManagedGroup
 	}
-	return "node/" + n.Name, n.Name
+	return n.Cloud + "/node/" + n.Name, n.Name
 }
 
 func splitType(t string) (family, size string) {
 	family, size, _ = strings.Cut(t, ".")
 	return family, size
+}
+
+// azureType tells an Azure size name; AWS types never start this way.
+func azureType(t string) bool { return strings.HasPrefix(t, "Standard_") }
+
+// familyKey is the family a type belongs to, keyed per cloud.
+func familyKey(t string, s Spec) string {
+	if azureType(t) {
+		return "azure/" + s.Family
+	}
+	f, _ := splitType(t)
+	return f
+}
+
+// byFamily indexes the catalog's types by family once per analysis.
+func byFamily(in Input) map[string][]string {
+	out := map[string][]string{}
+	for _, t := range in.Types {
+		s, ok := in.Spec(t)
+		if !ok {
+			continue
+		}
+		k := familyKey(t, s)
+		out[k] = append(out[k], t)
+	}
+	return out
+}
+
+// counterpart is the Azure size of family with the same vCPU count and no
+// less memory, the smallest such, or "" (aks-recommendations R8, R9).
+func counterpart(in Input, idx map[string][]string, family string, spec Spec) string {
+	best, bestMem := "", math.Inf(1)
+	for _, t := range idx["azure/"+family] {
+		s, _ := in.Spec(t)
+		if s.Constrained || s.VCPU != spec.VCPU || s.MemGiB < spec.MemGiB {
+			continue
+		}
+		if s.MemGiB < bestMem || (s.MemGiB == bestMem && t < best) {
+			best, bestMem = t, s.MemGiB
+		}
+	}
+	return best
+}
+
+// systemSizeOK tells whether an AKS system pool may use the size: at least 4
+// vCPU and 4 GiB, not the B series, room for 30 pods (aks-recommendations R15).
+func systemSizeOK(s Spec, pods float64) bool {
+	return s.VCPU >= 4 && s.MemGiB >= 4 && !azureBSeries[s.Family] && pods >= 30
+}
+
+// poolNote says how an agent pool takes a new size of the same architecture
+// (aks-recommendations R7, D7).
+func poolNote(n Node, size string) string {
+	if n.VMPool {
+		return "the pool is a Virtual Machines pool: add " + size + " to its sizes"
+	}
+	return "the pool has one VM size: resize it in place (preview) only if every node fits, else move the workloads to a pool of that size"
 }
 
 func money(v float64) string { return fmt.Sprintf("$%.2f", v) }
@@ -286,11 +390,11 @@ func consolidate(in Input) []Rec {
 	groups := map[string]*group{}
 	var order []string
 	for _, n := range in.Nodes {
-		if n.Capacity == Fargate || n.Auto || (n.ManagedGroup == "" && n.NodePool == "") {
+		if n.Capacity == Fargate || n.Auto || n.Virtual || (n.ManagedGroup == "" && n.NodePool == "") {
 			continue
 		}
-		_, label := groupOf(n)
-		key := label + "|" + n.Type
+		gk, label := groupOf(n)
+		key := gk + "|" + n.Type
 		if _, ok := groups[key]; !ok {
 			groups[key] = &group{label: label, karpenter: n.NodePool != ""}
 			order = append(order, key)
@@ -304,15 +408,25 @@ func consolidate(in Input) []Rec {
 			continue
 		}
 		need, steps := pack(g.nodes, in.Headroom)
+		first := g.nodes[0]
+		system := isAzure(first) && first.System
+		if system && need < 2 {
+			// AKS requires at least two nodes in a system pool (R6)
+			need = 2
+			steps = append(steps, "a system pool keeps at least 2 nodes; AKS recommends three")
+		}
 		if need >= len(g.nodes) {
 			continue
 		}
 		removed := len(g.nodes) - need
-		typ := g.nodes[0].Type
+		typ := first.Type
 		r := Rec{Kind: Consolidate, Target: fmt.Sprintf("%s (%s ×%d)", g.label, typ, len(g.nodes)),
 			Action: fmt.Sprintf("%d nodes → %d (pods fit at ≤%.0f%%)", len(g.nodes), need, in.Headroom*100),
 			Reason: "first-fit decreasing by requests only (affinity, taints, spread, budgets and volumes not considered)",
-			Math:   steps}
+			Math:   steps, Cloud: first.Cloud}
+		if isAzure(first) && !g.karpenter {
+			r.Action = fmt.Sprintf("scale %s to %d nodes (or lower its autoscaler minimum)", g.label, need)
+		}
 		if g.karpenter {
 			r.Info = true
 			r.Action = fmt.Sprintf("Karpenter consolidation should reach %d nodes; check the NodePool's consolidationPolicy", need)
@@ -429,14 +543,31 @@ func allocatableFor(in Input, typ string, spec Spec) (Resources, string) {
 	return Resources{CPU: spec.VCPU * 0.90, Mem: spec.MemGiB * 0.85}, "capacity × 0.90 cpu / 0.85 memory (no " + family + " node to measure)"
 }
 
+// azureAllocatable estimates an Azure candidate's allocatable
+// (aks-recommendations R7, D4): a node of that size in the cluster, else the
+// candidate's catalog capacity minus node n's reservation, the larger of
+// catalog − allocatable and status.capacity − allocatable. The estimate may
+// understate; ok is false when it is 0 or less in any resource.
+func azureAllocatable(in Input, n Node, nspec Spec, typ string, spec Spec) (alloc Resources, how string, ok bool) {
+	for _, o := range in.Nodes {
+		if o.Type == typ {
+			return o.Allocatable, "allocatable of this cluster's " + typ + " nodes", true
+		}
+	}
+	resCPU := math.Max(nspec.VCPU-n.Allocatable.CPU, n.NodeCapacity.CPU-n.Allocatable.CPU)
+	resMem := math.Max(nspec.MemGiB-n.Allocatable.Mem, n.NodeCapacity.Mem-n.Allocatable.Mem)
+	alloc = Resources{CPU: spec.VCPU - resCPU, Mem: spec.MemGiB - resMem}
+	return alloc, "catalog capacity minus this node's reservation; may understate", alloc.CPU > 0 && alloc.Mem > 0
+}
+
 // listPrice is the price a node of the type would pay in its market: the
-// on-demand list price, or the spot price in its zone.
+// on-demand list price, or the spot price in its zone (its region on Azure).
 func listPrice(in Input, n Node, typ string) (float64, bool) {
 	switch n.Capacity {
 	case OnDemand:
-		return in.OnDemand(typ)
+		return in.OnDemand(n, typ)
 	case Spot:
-		return in.SpotIn(typ, n.Zone)
+		return in.SpotIn(n, typ)
 	}
 	return 0, false
 }
@@ -453,14 +584,11 @@ func currentPrice(n Node) (float64, bool, string) {
 }
 
 // rightsize recommends the cheapest smaller size of the same family and
-// architecture the node's requests fit at the headroom (R7).
+// architecture the node's requests fit at the headroom (recommendations R7,
+// aks-recommendations R7).
 func rightsize(in Input) []Rec {
 	// candidates come from the node's family only: index the catalog once
-	byFamily := map[string][]string{}
-	for _, t := range in.Types {
-		f, _ := splitType(t)
-		byFamily[f] = append(byFamily[f], t)
-	}
+	idx := byFamily(in)
 	var out []Rec
 	for _, n := range in.Nodes {
 		spec, ok := comparableSpec(in, n)
@@ -471,53 +599,93 @@ func rightsize(in Input) []Rec {
 		if !ok {
 			continue
 		}
-		family, _ := splitType(n.Type)
+		azure := isAzure(n)
 		req := n.requested()
 		type cand struct {
 			typ   string
 			price float64
 		}
 		var cands []cand
-		for _, t := range byFamily[family] {
+		for _, t := range idx[familyKey(n.Type, spec)] {
 			if t == n.Type {
 				continue
 			}
 			s, ok := in.Spec(t)
-			if !ok || s.Arch != spec.Arch || (s.VCPU >= spec.VCPU && s.MemGiB >= spec.MemGiB) {
+			if !ok || s.Arch != spec.Arch || s.Constrained || (s.VCPU >= spec.VCPU && s.MemGiB >= spec.MemGiB) {
 				continue
 			}
 			if p, ok := listPrice(in, n, t); ok && p < cur {
 				cands = append(cands, cand{t, p})
 			}
 		}
-		sort.Slice(cands, func(a, b int) bool { return cands[a].price < cands[b].price })
+		sort.Slice(cands, func(a, b int) bool {
+			if cands[a].price != cands[b].price {
+				return cands[a].price < cands[b].price
+			}
+			return cands[a].typ < cands[b].typ
+		})
+		var rejected []string
 		for _, c := range cands {
 			s, _ := in.Spec(c.typ)
-			alloc, how := allocatableFor(in, c.typ, s)
-			cpu, mem := req.CPU/alloc.CPU, req.Mem/alloc.Mem
+			var alloc Resources
+			var how string
+			fits := true
+			if azure {
+				alloc, how, fits = azureAllocatable(in, n, spec, c.typ, s)
+			} else {
+				alloc, how = allocatableFor(in, c.typ, s)
+			}
 			podsNote := "pod capacity not checked (no node of this type)"
 			podsOK := true
+			podCap := math.NaN()
+			if azure {
+				// the pool's max-pods setting (R7)
+				podCap, podsNote = n.Allocatable.Pods, fmt.Sprintf("pods %0.f of %0.f (this node's max-pods)", req.Pods, n.Allocatable.Pods)
+			}
 			for _, o := range in.Nodes {
 				if o.Type == c.typ {
-					podsOK, podsNote = req.Pods <= o.Allocatable.Pods, fmt.Sprintf("pods %0.f of %0.f", req.Pods, o.Allocatable.Pods)
+					podCap = o.Allocatable.Pods
+					podsNote = fmt.Sprintf("pods %0.f of %0.f", req.Pods, o.Allocatable.Pods)
+					if azure {
+						podsNote += " (a " + c.typ + " node's)"
+					}
 					break
 				}
 			}
-			if cpu > in.Headroom || mem > in.Headroom || !podsOK {
+			if !math.IsNaN(podCap) {
+				podsOK = req.Pods <= podCap
+			}
+			cpu, mem := math.Inf(1), math.Inf(1)
+			if fits {
+				cpu, mem = req.CPU/alloc.CPU, req.Mem/alloc.Mem
+			}
+			system := azure && n.System && !systemSizeOK(s, podCap)
+			if !fits || cpu > in.Headroom || mem > in.Headroom || !podsOK || system {
+				if azure {
+					why := fmt.Sprintf("≈ %.2f vCPU / %.2f GiB (%s)", alloc.CPU, alloc.Mem, how)
+					if system {
+						why = "below a system pool's limits (4 vCPU, 4 GiB, no B series, 30 pods)"
+					}
+					rejected = append(rejected, fmt.Sprintf("%s doesn't fit: %s", c.typ, why))
+				}
 				continue
 			}
 			saving := (cur - c.price) * HoursPerMonth
+			lines := []string{
+				fmt.Sprintf("%s: %s → %s", n.Name, n.Type, c.typ),
+				fmt.Sprintf("requests %.2f vCPU / %.2f GiB (DaemonSets %.2f / %.2f included)", req.CPU, req.Mem, n.fixed().CPU, n.fixed().Mem),
+				fmt.Sprintf("%s allocatable ≈ %.2f vCPU / %.2f GiB (%s)", c.typ, alloc.CPU, alloc.Mem, how),
+				fmt.Sprintf("after the move: cpu %.0f%%, memory %.0f%% ≤ %.0f%%; %s", cpu*100, mem*100, in.Headroom*100, podsNote),
+			}
+			if azure {
+				lines = append(lines, rejected...)
+				lines = append(lines, poolNote(n, c.typ))
+			}
+			lines = append(lines, fmt.Sprintf("saving: (%s%s − %s) × %d h = %s", money4(cur), note, money4(c.price), HoursPerMonth, money(saving)))
 			out = append(out, Rec{Kind: Rightsize, Target: fmt.Sprintf("%s (%s)", n.Name, n.Type),
 				Action:  fmt.Sprintf("→ %s (≈%.0f%% cpu, %.0f%% mem)", c.typ, cpu*100, mem*100),
-				Monthly: saving, Priced: true, perNode: map[string]float64{n.Name: saving},
-				Reason: "requests fit a smaller size at the headroom",
-				Math: []string{
-					fmt.Sprintf("%s: %s → %s", n.Name, n.Type, c.typ),
-					fmt.Sprintf("requests %.2f vCPU / %.2f GiB (DaemonSets %.2f / %.2f included)", req.CPU, req.Mem, n.fixed().CPU, n.fixed().Mem),
-					fmt.Sprintf("%s allocatable ≈ %.2f vCPU / %.2f GiB (%s)", c.typ, alloc.CPU, alloc.Mem, how),
-					fmt.Sprintf("after the move: cpu %.0f%%, memory %.0f%% ≤ %.0f%%; %s", cpu*100, mem*100, in.Headroom*100, podsNote),
-					fmt.Sprintf("saving: (%s%s − %s) × %d h = %s", money4(cur), note, money4(c.price), HoursPerMonth, money(saving)),
-				}})
+				Monthly: saving, Priced: true, perNode: map[string]float64{n.Name: saving}, Cloud: n.Cloud,
+				Reason: "requests fit a smaller size at the headroom", Math: lines})
 			break
 		}
 	}
@@ -526,13 +694,93 @@ func rightsize(in Input) []Rec {
 
 func money4(v float64) string { return fmt.Sprintf("$%.4f", v) }
 
-// swapFamily recommends a newer generation or the Graviton counterpart in
-// the same size, per pool or group and type (R8, R9).
+// sameAzurePrice is the tolerance under which two Azure prices are the same
+// (aks-recommendations R8).
+const sameAzurePrice = 0.0001
+
+// swapTarget is the family swap for a node: the type, or "" for none.
+func swapTarget(in Input, idx map[string][]string, n Node, spec Spec, kind Kind) string {
+	if isAzure(n) {
+		switch kind {
+		case Generation:
+			if t := azureGeneration[spec.Family]; t != "" {
+				return counterpart(in, idx, t, spec)
+			}
+		case Graviton:
+			// Linux, not a system pool (R9, R15)
+			if spec.Arch == "x86_64" && !n.Windows && !n.System {
+				if t := azureArm[spec.Family]; t != "" {
+					return counterpart(in, idx, t, spec)
+				}
+			}
+		}
+		return ""
+	}
+	family, size := splitType(n.Type)
+	var target string
+	switch kind {
+	case Generation:
+		if !spec.Current || xenFamilies[family] {
+			target = generationTarget[family]
+		}
+	case Graviton:
+		if spec.Arch == "x86_64" {
+			target = gravitonTarget[family]
+		}
+	}
+	if target == "" {
+		return ""
+	}
+	cand := target + "." + size
+	if _, ok := in.Spec(cand); !ok {
+		return ""
+	}
+	return cand
+}
+
+// swapAction is the action and reason of a swap row.
+func swapAction(n Node, kind Kind, cand string, info bool) (action, reason string) {
+	if !isAzure(n) {
+		action = "→ " + cand
+		if n.NodePool != "" {
+			action = "allow " + cand + " in the NodePool"
+		}
+		reason = "newer generation, Nitro, same class and size"
+		if kind == Graviton {
+			reason = "Graviton (arm64): images must run on arm64"
+			action += " (arm64 images!)"
+		}
+		return action, reason
+	}
+	if kind == Graviton {
+		action = "add a " + cand + " agent pool (arm64 images!)"
+		if n.NodePool != "" {
+			action = "allow " + cand + " in the NodePool (arm64 images!)"
+		}
+		return action, "Arm64: images must run on arm64"
+	}
+	switch {
+	case n.NodePool != "":
+		action = "allow " + cand + " in the NodePool"
+	case n.System:
+		action = "add a system-mode pool of " + cand
+	default:
+		action = "→ " + cand
+	}
+	if info {
+		action += ": same price, newer hardware"
+	}
+	return action, "newer generation, same class, features and temp disk"
+}
+
+// swapFamily recommends a newer generation or the arm64 counterpart, per
+// pool or group and type (recommendations R8, R9; aks-recommendations R8, R9).
 func swapFamily(in Input, kind Kind) []Rec {
 	type acc struct {
 		rec   Rec
 		nodes int
 	}
+	idx := byFamily(in)
 	groups := map[string]*acc{}
 	var order []string
 	for _, n := range in.Nodes {
@@ -540,82 +788,91 @@ func swapFamily(in Input, kind Kind) []Rec {
 		if !ok || n.Capacity == Reserved {
 			continue
 		}
-		family, size := splitType(n.Type)
-		var target string
-		switch kind {
-		case Generation:
-			if !spec.Current || xenFamilies[family] {
-				target = generationTarget[family]
-			}
-		case Graviton:
-			if spec.Arch == "x86_64" {
-				target = gravitonTarget[family]
-			}
-		}
-		if target == "" {
+		cand := swapTarget(in, idx, n, spec, kind)
+		if cand == "" {
 			continue
 		}
-		cand := target + "." + size
-		if _, ok := in.Spec(cand); !ok {
-			continue
+		if isAzure(n) && n.System {
+			if s, _ := in.Spec(cand); !systemSizeOK(s, n.Allocatable.Pods) {
+				continue
+			}
 		}
 		curList, ok1 := listPrice(in, n, n.Type)
 		newList, ok2 := listPrice(in, n, cand)
-		if !ok1 || !ok2 || newList >= curList {
+		if !ok1 || !ok2 {
+			continue
+		}
+		// on Azure a generation at the same price is information (R8)
+		info := isAzure(n) && kind == Generation && math.Abs(newList-curList) <= sameAzurePrice
+		if !info && newList >= curList {
 			continue
 		}
 		saving := (curList - newList) * HoursPerMonth
-		_, label := groupOf(n)
-		key := label + "|" + n.Type
+		gk, label := groupOf(n)
+		key := gk + "|" + n.Type
 		g, ok := groups[key]
 		if !ok {
-			action := "→ " + cand
-			if n.NodePool != "" {
-				action = "allow " + cand + " in the NodePool"
-			}
-			reason := "newer generation, Nitro, same class and size"
-			if kind == Graviton {
-				reason = "Graviton (arm64): images must run on arm64"
-				action += " (arm64 images!)"
-			}
-			g = &acc{rec: Rec{Kind: kind, Action: action, Priced: true, Reason: reason, perNode: map[string]float64{}}}
+			action, reason := swapAction(n, kind, cand, info)
+			g = &acc{rec: Rec{Kind: kind, Action: action, Priced: true, Info: info, Reason: reason, Cloud: n.Cloud, perNode: map[string]float64{}}}
 			groups[key] = g
 			order = append(order, key)
 			g.rec.Math = append(g.rec.Math, fmt.Sprintf("%s list %s/h → %s list %s/h", n.Type, money4(curList), cand, money4(newList)))
+			if isAzure(n) {
+				if kind == Graviton {
+					g.rec.Math = append(g.rec.Math, "the architecture can't change in place: a new pool of that size")
+				} else {
+					g.rec.Math = append(g.rec.Math, poolNote(n, cand))
+				}
+			}
 		}
 		g.nodes++
 		g.rec.Target = fmt.Sprintf("%s (%s ×%d)", label, n.Type, g.nodes)
+		if info {
+			continue
+		}
 		g.rec.Monthly += saving
 		g.rec.perNode[n.Name] = saving
 	}
 	var out []Rec
 	for _, k := range order {
 		g := groups[k]
-		g.rec.Math = append(g.rec.Math, fmt.Sprintf("saving: %d nodes × difference × %d h = %s", g.nodes, HoursPerMonth, money(g.rec.Monthly)))
+		if g.rec.Info {
+			g.rec.perNode = nil
+			g.rec.Math = append(g.rec.Math, "same price within $0.0001/h: newer hardware for nothing; not in the total")
+		} else {
+			g.rec.Math = append(g.rec.Math, fmt.Sprintf("saving: %d nodes × difference × %d h = %s", g.nodes, HoursPerMonth, money(g.rec.Monthly)))
+		}
 		out = append(out, g.rec)
 	}
 	return out
 }
 
-// oldNodes recommends recycling nodes past the age limit (R10).
+// oldNodes recommends recycling nodes past the age limit (recommendations
+// R10, aks-recommendations R10).
 func oldNodes(in Input) []Rec {
 	var out []Rec
 	for _, n := range in.Nodes {
-		if n.Created.IsZero() || n.Capacity == Fargate {
+		if n.Created.IsZero() || n.Capacity == Fargate || n.Virtual {
 			continue
 		}
 		age := in.Now.Sub(n.Created)
 		if age <= in.OldAge {
 			continue
 		}
-		out = append(out, Rec{Kind: OldNode, Target: fmt.Sprintf("%s (%d days)", n.Name, int(age.Hours()/24)),
-			Action: "recycle for a fresh AMI and patches", Reason: fmt.Sprintf("older than %d days", int(in.OldAge.Hours()/24))})
+		r := Rec{Kind: OldNode, Target: fmt.Sprintf("%s (%d days)", n.Name, int(age.Hours()/24)), Cloud: n.Cloud,
+			Action: "recycle for a fresh AMI and patches", Reason: fmt.Sprintf("older than %d days", int(in.OldAge.Hours()/24))}
+		if isAzure(n) {
+			r.Action = "upgrade the node image"
+			r.Math = []string{"az aks nodepool upgrade --node-image-only recycles the pool's nodes"}
+		}
+		out = append(out, r)
 	}
 	return out
 }
 
 // spot recommends moving On-Demand groups to Spot, priced in each node's own
-// zone (R11). The screen lists it last.
+// zone, or region on Azure (recommendations R11, aks-recommendations R11).
+// The screen lists it last.
 func spot(in Input) []Rec {
 	type acc struct {
 		rec    Rec
@@ -628,36 +885,59 @@ func spot(in Input) []Rec {
 		if _, ok := comparableSpec(in, n); !ok || n.Capacity != OnDemand {
 			continue
 		}
-		_, label := groupOf(n)
-		key := label + "|" + n.Type
+		azure := isAzure(n)
+		if azure && n.System {
+			// a Spot pool is only ever a secondary pool (R11)
+			continue
+		}
+		gk, label := groupOf(n)
+		key := gk + "|" + n.Type
 		g, ok := groups[key]
 		if !ok {
-			action := "use Spot"
+			action, warn, reason := "use Spot", " (interruptions!)", "workloads must tolerate interruptions"
 			switch {
 			case n.NodePool != "":
 				action = "allow spot in the NodePool"
+			case n.ManagedGroup != "" && azure:
+				action = "add a Spot agent pool alongside it"
 			case n.ManagedGroup != "":
 				action = "add a Spot node group alongside it"
 			}
-			g = &acc{rec: Rec{Kind: SpotMove, Action: action + " (interruptions!)", Reason: "workloads must tolerate interruptions"}, priced: true}
+			if azure {
+				warn, reason = " (evictions!)", "workloads must tolerate evictions"
+			}
+			g = &acc{rec: Rec{Kind: SpotMove, Action: action + warn, Reason: reason, Cloud: n.Cloud}, priced: true}
 			groups[key] = g
 			order = append(order, key)
 		}
 		g.nodes++
 		g.rec.Target = fmt.Sprintf("%s (On-Demand %s ×%d)", label, n.Type, g.nodes)
-		od, ok1 := in.OnDemand(n.Type)
-		sp, ok2 := in.SpotIn(n.Type, n.Zone)
+		where := n.Zone
+		if azure {
+			where = n.Region + " (regional price)"
+		}
+		od, ok1 := in.OnDemand(n, n.Type)
+		sp, ok2 := in.SpotIn(n, n.Type)
 		if !ok1 || !ok2 || sp >= od {
 			g.priced = false
-			g.rec.Math = append(g.rec.Math, fmt.Sprintf("%s in %s: no spot price for this zone", n.Name, n.Zone))
+			if azure {
+				g.rec.Math = append(g.rec.Math, fmt.Sprintf("%s in %s: no spot price", n.Name, where))
+			} else {
+				g.rec.Math = append(g.rec.Math, fmt.Sprintf("%s in %s: no spot price for this zone", n.Name, where))
+			}
 			continue
 		}
 		g.rec.Monthly += (od - sp) * HoursPerMonth
-		g.rec.Math = append(g.rec.Math, fmt.Sprintf("%s in %s: %s → %s/h", n.Name, n.Zone, money4(od), money4(sp)))
+		g.rec.Math = append(g.rec.Math, fmt.Sprintf("%s in %s: %s → %s/h", n.Name, where, money4(od), money4(sp)))
 	}
 	var out []Rec
 	for _, k := range order {
 		g := groups[k]
+		if !g.priced && g.rec.Cloud == CloudAzure {
+			// an Azure row needs every node's price, else it is absent
+			// (aks-recommendations R3, R11)
+			continue
+		}
 		g.rec.Priced = g.priced
 		if !g.priced {
 			g.rec.Monthly = 0

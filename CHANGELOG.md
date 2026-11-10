@@ -6,6 +6,19 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- Recommendations on AKS nodes: idle cost, consolidation, rightsizing, newer
+  generations, Arm (`arm` rows) and Spot, per agent pool, from an Azure size
+  table copied from the Kubernetes cluster autoscaler (`make azure-catalog`;
+  no Azure credentials). Targets keep the node's temp disk, Arm targets are
+  the v5 families AKS documents, system pools keep AKS's limits (no Spot or
+  Arm, at least two nodes, 4 vCPU / 4 GiB / 30 pods, no B series), and
+  Azure Spot is priced per region. AWS and Azure nodes on one screen are each
+  advised from their own cloud. Prices for sizes no node runs come from the
+  public Retail Prices API in the background, batched like node prices; the
+  screen says how many it is waiting for.
+
 ### Fixed
 
 - The screen could freeze for good while a Karpenter NodeClaim had no node yet:

@@ -207,6 +207,10 @@ the math.
 - SHALL NOT change anything in the cluster or in AWS; advice only.
 - SHALL NOT call an AI model or any service beyond the AWS Price List and
   EC2 spot-price APIs the tool already uses; no new AWS permission.
+
+  > **Corrected 2026-11-10.** For Azure nodes the rules also use the public
+  > Azure Retail Prices API, which aks-pricing already uses, with no
+  > credentials ([aks-recommendations](../aks-recommendations/requirements.md)).
 - SHALL NOT recommend Spot for Reserved, Fargate, Auto Mode or Spot nodes,
   nor put it anywhere but last.
 - SHALL NOT present a saving as certain; the header says they are estimates
@@ -217,6 +221,10 @@ the math.
 ## Out of scope
 
 - GCP and Azure catalogs and families (stage 2).
+
+  > **Corrected 2026-11-10.** Azure is now covered by
+  > [aks-recommendations](../aks-recommendations/requirements.md); GCP stays
+  > out of scope.
 - Savings Plans, Reserved Instances, commitments.
 - Pod-level rightsizing (requests that are too high).
 - Applying a recommendation.

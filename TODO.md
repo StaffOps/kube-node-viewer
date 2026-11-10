@@ -95,6 +95,13 @@ memory. Listed by impact.
       review, out of scope). _Why:_ a Ready node can show NotReady, with no
       addresses, until the node's next update event (no informer
       resync is configured).
+- [ ] The monthly `refresh-data.yaml` doesn't refresh the Azure size table:
+      running `make azure-catalog` there widens its two `pkg/aws` guards
+      ([aks-recommendations deferred](specs/aks-recommendations/tasks.md#deferred)).
+      _Why:_ until then the table is copied by hand and goes stale.
+- [ ] `NOTICE` is not in the release archives: `.goreleaser.yaml` lists no
+      `files`. _Why:_ the Apache 2.0 license asks that the NOTICE travel
+      with the binaries.
 
 - [ ] `c` on the current context only closes the popup
       (`pkg/model/contexts.go:135-138`); make it reconnect, building new
@@ -105,10 +112,6 @@ memory. Listed by impact.
 
 ## Ideas
 
-- [ ] Recommendations for AKS: Azure VM catalog and family tables, so the
-      Recommendations screen works on Azure nodes
-      ([aks-pricing deferred](specs/aks-pricing/tasks.md#deferred),
-      [recommendations deferred](specs/recommendations/tasks.md#deferred)).
 - [ ] GKE: node pool labels and prices (stage 2, multi-cloud;
       [interactive-tui deferred](specs/interactive-tui/tasks.md#deferred)).
 - [ ] GPU resource and columns (stage 3;

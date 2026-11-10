@@ -143,7 +143,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     batches of at most 17 sizes; a request refused as over the API's cap is not sent again, another
     `400` waits 10 minutes.
     [bugfix](fix-azure-price-batch/bugfix.md) · [design](fix-azure-price-batch/design.md) · [tasks](fix-azure-price-batch/tasks.md)
-35. [`decisions/`](decisions/) — decision records (index below).
+35. [`aks-recommendations/`](aks-recommendations/) — **active**. The Recommendations screen on
+    AKS nodes: the cluster autoscaler's Azure size table, candidate prices from the Retail Prices
+    API, agent pools, Arm v5 counterparts, regional Spot, system-pool limits.
+    [requirements](aks-recommendations/requirements.md) · [design](aks-recommendations/design.md) · [tasks](aks-recommendations/tasks.md)
+36. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>

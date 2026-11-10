@@ -29,6 +29,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mattn/go-runewidth"
 	"github.com/muesli/termenv"
+
+	"github.com/staffops/kube-node-viewer/pkg/recommend"
 )
 
 var updateGolden = flag.Bool("update", false, "rewrite the golden screens in testdata/screens")
@@ -64,13 +66,49 @@ var goldenScenes = []struct {
 		pressAll(u, "tab")
 	}},
 	{"recommendations", 168, 40, func(u *UIModel) {
-		u.advisor = fakeAdvisor{}
+		// as production builds it (aks-recommendations R1): an Azure advisor
+		// whose note must not show on an EKS-only screen
+		u.advisor = AdvisorsByCloud{"aws": fakeAdvisor{}, "azure": fakeAzureAdvisor{notes: []string{"pricing disabled: Azure rows that need a price are not shown"}}}
 		u.SetRecommendOptions(RecommendOptions{Headroom: 0.8, OldAge: 30 * 24 * time.Hour})
+		pressAll(u, "tab")
+	}},
+	// aks-recommendations R1: the Recommendations screen of a made-up AKS
+	// cluster, with agent-pool rows
+	{"recommendations-aks", 168, 30, func(u *UIModel) {
+		u.advisor = AdvisorsByCloud{"aws": fakeAdvisor{}, "azure": fakeAzureAdvisor{}}
+		for _, n := range u.stats.Nodes {
+			n.SetPrice(0.0918)
+		}
+		u.Refresh()
+		pressAll(u, "tab")
+	}},
+	// recommendations R9: the math of an AWS Graviton row, unchanged by the
+	// Azure rules (the made-up cluster has no rightsize row)
+	{"recommendation-why", 168, 40, func(u *UIModel) {
+		u.advisor = AdvisorsByCloud{"aws": fakeAdvisor{}, "azure": fakeAzureAdvisor{}}
+		u.SetRecommendOptions(RecommendOptions{Headroom: 0.8, OldAge: 30 * 24 * time.Hour})
+		pressAll(u, "tab")
+		for i, r := range u.recs.Recs {
+			if r.Kind == recommend.Graviton {
+				u.recCursor = i
+				break
+			}
+		}
+		pressAll(u, "enter")
+	}},
+	// aks-recommendations R7, R8, R9, R3: priced Azure rows (rightsize, an
+	// info generation row, arm) and the waiting note
+	{"recommendations-aks-priced", 168, 30, func(u *UIModel) {
+		u.advisor = AdvisorsByCloud{"aws": fakeAdvisor{}, "azure": fakePricedAzure{}}
 		pressAll(u, "tab")
 	}},
 	{"help", 168, 60, func(u *UIModel) { press(u, "?") }},
 	{"header-compact", 168, 30, func(u *UIModel) { u.Update(tea.KeyMsg{Type: tea.KeyCtrlE}) }},
 }
+
+// goldenSetup builds the cluster of a scene that is not the README's made-up
+// EKS cluster.
+var goldenSetup = map[string]func(t *testing.T) *UIModel{"recommendations-aks": aksUI, "recommendations-aks-priced": aksPricedUI}
 
 // TestGoldenScreens compares each screen with testdata/screens/<name>.txt, so
 // a layout change shows in the pull request as a text diff. After a change
@@ -123,7 +161,11 @@ func TestGoldenScreens(t *testing.T) {
 	}
 	for _, s := range goldenScenes {
 		t.Run(s.name, func(t *testing.T) {
-			u := demoUI(t)
+			setup := goldenSetup[s.name]
+			if setup == nil {
+				setup = demoUI
+			}
+			u := setup(t)
 			// plain text: no colour codes in the bars either
 			u.progress = newProgress(u.style, progress.WithColorProfile(termenv.Ascii))
 			u.Update(tea.WindowSizeMsg{Width: s.width, Height: s.height})

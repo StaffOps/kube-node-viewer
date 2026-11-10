@@ -528,17 +528,33 @@ AWS permission beyond pricing — and `enter` shows its math:
 | `consolidate` | a managed node group's pods fit on fewer nodes of its type at the headroom (first-fit decreasing; DaemonSet and static pods stay on every node). For a Karpenter NodePool it is information: Karpenter consolidates on its own |
 | `rightsize` | a node's requests fit a smaller size of the same family at the headroom |
 | `generation` | a previous-generation or Xen family (`t2`, `m4`, `c4`, `r4`, …) has a cheaper current, Nitro counterpart in the same size |
-| `graviton` | an x86 family has a cheaper arm64 counterpart in the same size (images must run on arm64) |
-| `old node` | a node is older than the age limit: recycle it for a fresh AMI |
-| `spot` | an On-Demand group would cost less on Spot, priced in each node's zone; always last, workloads must tolerate interruptions |
+| `graviton` (AWS) / `arm` (Azure) | an x86 family has a cheaper arm64 counterpart in the same size (images must run on arm64) |
+| `old node` | a node is older than the age limit: recycle it for a fresh AMI (on AKS: upgrade the node image) |
+| `spot` | an On-Demand group would cost less on Spot, priced in each node's zone (Azure: its region); always last, workloads must tolerate interruptions |
 
 The **Savings** line counts each node once, with its best non-Spot saving;
 idle, Karpenter consolidation and Spot stay out of it. Savings are estimates
 from requests and list prices; affinity, taints, spread constraints,
 disruption budgets and volumes are not considered. Nothing is recommended
-for Fargate, EKS Auto Mode, nodes of an unknown instance type or nodes on
-other clouds; with pods waiting for a node, consolidation and rightsizing
-wait.
+for Fargate, EKS Auto Mode, ACI virtual nodes, nodes of an unknown instance
+type or nodes on clouds other than AWS and Azure; with pods waiting for a
+node, consolidation and rightsizing wait.
+
+On AKS the same rules read agent pools as node groups and keep to what AKS
+accepts:
+- **Generation and Arm targets keep the node's temp disk.** `Dsv3` moves to
+  `Ddsv5`, not `Dsv5`.
+- **Arm targets are only the v5 families AKS documents for Arm64 pools:**
+  Dpsv5, Dplsv5, Epsv5 and their `d` variants.
+- **System pools** (`kubernetes.azure.com/mode=system`) get no Spot or Arm
+  rows. They never go below two nodes, and their sizes keep at least 4 vCPU,
+  4 GiB and 30 pods, never the B series.
+
+Sizes come from the cluster autoscaler's Azure table, copied into the binary
+(`make azure-catalog`, no credentials). Candidate prices come from the
+public Retail Prices API, so rows that need them appear a moment after the
+screen opens. With `--disable-pricing`, only the consolidation and old-node
+rows show.
 
 Settings in `~/.kube-node-viewer`:
 
@@ -916,6 +932,12 @@ licensed under the Apache License 2.0, which was originally developed at AWS
 for demonstrating consolidation with [Karpenter](https://karpenter.sh/).
 Thanks to its authors and contributors, whose code this project starts from.
 This project is not affiliated with or endorsed by AWS.
+
+The AWS price tables are copied from
+[Karpenter](https://github.com/aws/karpenter-provider-aws) and the Azure size
+table from the Kubernetes
+[cluster autoscaler](https://github.com/kubernetes/autoscaler), both under the
+Apache License 2.0.
 
 ## License
 
