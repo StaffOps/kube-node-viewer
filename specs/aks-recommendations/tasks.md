@@ -26,6 +26,10 @@ tests, so spec-trace passes.
   > `eadsv7`, `fasv7`…) and no Intel v7 family; none of them is a key or a
   > target of the D5 tables. The counterpart lookup lives in
   > `pkg/recommend` (it needs only the advisor's `Types` and `Spec`).
+> **Corrected 2026-11-10 (azure-live-skus).** T1's copied table and `make
+> azure-catalog` are removed by [azure-live-skus](../azure-live-skus/tasks.md) T4; the
+> catalog then comes live from the Resource SKUs API.
+
 - [x] T2. Prices:
   - `azure.Provider.ListPrice` through the fetch loop's split (the constant of [fix-azure-price-batch](../fix-azure-price-batch/bugfix.md), not redefined);
   - the generation counter;
@@ -174,3 +178,8 @@ tests, so spec-trace passes.
 | Catalog-only Azure advice with `--disable-pricing` (rank by size, not money) | owner asks |
 | Fetch a family's prices by product name in one request (D3) | many families make many requests at screen open |
 | Azure Reservations and Savings Plans | someone needs effective rather than list cost |
+
+> **Corrected 2026-11-10 (azure-live-skus).** The deferred refresh-data.yaml row
+> (was T6) is dropped: with the live catalog there is no table to refresh
+> ([azure-live-skus](../azure-live-skus/requirements.md) R9). Its removal lands with that
+> spec's T4.

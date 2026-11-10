@@ -195,6 +195,11 @@ math popup SHALL show them.
   - `Standard_DS1_v2` reads 3 GiB;
   - `Standard_B1ls` is missing.
 
+> **Corrected 2026-11-10 (azure-live-skus).** Superseded once azure-live-skus ships: the
+> family, vCPU, memory and architecture come live from the Azure Resource SKUs
+> API ([azure-live-skus](../azure-live-skus/requirements.md) R1, R2), with fractional
+> memory and usable vCPUs of constrained sizes; the copied table goes (R9).
+
 **R3** WHEN a rule needs the list price of an Azure size in a region THEN the
 system SHALL take it from the Retail Prices API, as aks-pricing R1 prices a
 node:
@@ -385,6 +390,11 @@ R15. That covers:
   - the made-up virtual node gets no row except idle when priced;
   - a made-up size absent from the table gets idle and old-node rows only.
 
+> **Corrected 2026-11-10 (azure-live-skus).** Once azure-live-skus ships, a size the
+> live answer lacks or restricts for the node also counts here
+> ([azure-live-skus](../azure-live-skus/requirements.md) R2, R3), and when the sizes
+> can't be read at all the screen says why (its R5).
+
 **R13** WHEN the total saving is shown THEN it SHALL count each Azure node
 once, as recommendations R14. These rows stay out of it:
 - `info` rows: idle, NodePool consolidation, and same-price generation;
@@ -435,6 +445,10 @@ data-refresh workflow SHALL run it with the price tables.
 > (tasks, Deferred). R16 now holds for `make azure-catalog` run by hand.
 > _Test: manual — `make azure-catalog` by hand: the table is identical to
 > upstream (commit `c1239b4`), with no credentials._
+
+> **Corrected 2026-11-10 (azure-live-skus).** Superseded by [azure-live-skus](../azure-live-skus/requirements.md)
+> R9: the copied table and `make azure-catalog` are removed, and so is the deferred
+> workflow clause; nothing is refreshed by hand.
 
 ## Counter-examples
 

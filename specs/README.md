@@ -147,7 +147,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     AKS nodes: the cluster autoscaler's Azure size table, candidate prices from the Retail Prices
     API, agent pools, Arm v5 counterparts, regional Spot, system-pool limits.
     [requirements](aks-recommendations/requirements.md) · [design](aks-recommendations/design.md) · [tasks](aks-recommendations/tasks.md)
-36. [`decisions/`](decisions/) — decision records (index below).
+36. [`azure-live-skus/`](azure-live-skus/) — **draft**. Azure VM sizes read live from the
+    Resource SKUs API with the machine's `az login`; no permission or no sign-in is said on the
+    Recommendations screen; the copied autoscaler table goes.
+    [requirements](azure-live-skus/requirements.md) · [design](azure-live-skus/design.md) · [tasks](azure-live-skus/tasks.md)
+37. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>

@@ -136,6 +136,11 @@ then show no rows on Azure.
 - **E: the nodes' own capacity only.** Rightsize and the swaps need sizes
   the cluster doesn't run.
 
+> **Corrected 2026-11-10 (azure-live-skus).** D1 is superseded by [azure-live-skus](../azure-live-skus/design.md)
+> D1–D2: the sizes come live from the Resource SKUs API with the machine's
+> `az login`; the owner chose that over a copied table on 2026-11-10 so that
+> an idle repo or an old binary can't advise from stale data.
+
 ### D2: An advisor per cloud; the rules see the node's cloud, region, OS, pool mode and capacity
 
 **Choice**:
