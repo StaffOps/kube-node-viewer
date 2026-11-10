@@ -44,7 +44,7 @@ func aksUI(t *testing.T) *UIModel {
 					"kubernetes.azure.com/agentpool": pool,
 				},
 			},
-			Spec: v1.NodeSpec{ProviderID: "azure:///subscriptions/s/resourceGroups/rg/providers/Microsoft.Compute/virtualMachineScaleSets/aks-" + pool + "-vmss/virtualMachines/0"},
+			Spec: v1.NodeSpec{ProviderID: "azure:///subscriptions/s/resourceGroups/example-rg/providers/Microsoft.Compute/virtualMachineScaleSets/aks-" + pool + "-vmss/virtualMachines/0"},
 			Status: v1.NodeStatus{
 				Allocatable: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1900m"), v1.ResourceMemory: resource.MustParse("6Gi"), v1.ResourcePods: resource.MustParse("30")},
 				Conditions:  []v1.NodeCondition{{Type: v1.NodeReady, Status: v1.ConditionTrue}},

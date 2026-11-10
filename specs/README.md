@@ -133,7 +133,10 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 31. [`fix-node-name-lock/`](fix-node-name-lock/) — **active**. `Node` takes its lock once per
     call: no recursive read lock, no read outside the lock.
     [bugfix](fix-node-name-lock/bugfix.md) · [tasks](fix-node-name-lock/tasks.md)
-32. [`decisions/`](decisions/) — decision records (index below).
+32. [`content-cloud-ids/`](content-cloud-ids/) — **active**. The content check blocks real GCE
+    projects and Azure resource groups in provider IDs.
+    [requirements](content-cloud-ids/requirements.md) · [design](content-cloud-ids/design.md) · [tasks](content-cloud-ids/tasks.md)
+33. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>

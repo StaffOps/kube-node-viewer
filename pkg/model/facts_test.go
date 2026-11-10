@@ -55,7 +55,7 @@ func TestCapacityType(t *testing.T) {
 
 func aksNode(labels map[string]string) *model.Node {
 	n := testNode("aks-pool-1-vmss000000")
-	n.Spec.ProviderID = "azure:///subscriptions/s/resourceGroups/mc_rg/providers/Microsoft.Compute/virtualMachineScaleSets/aks-pool-1-vmss/virtualMachines/0"
+	n.Spec.ProviderID = "azure:///subscriptions/s/resourceGroups/example-rg/providers/Microsoft.Compute/virtualMachineScaleSets/aks-pool-1-vmss/virtualMachines/0"
 	n.Labels = labels
 	return model.NewNode(n)
 }

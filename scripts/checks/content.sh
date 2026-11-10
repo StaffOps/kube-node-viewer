@@ -45,6 +45,12 @@
 #   account    AWS account ids in ARNs, ECR hosts or "account id"
 #              (111122223333, 123456789012, 000000000000)
 #   azure      Azure subscription ids (00000000-0000-0000-0000-000000000000)
+#   gce        GCE provider IDs, gce://<project>/…, a project id after the
+#              scheme, optionally after a domain and a colon
+#              (gce://example…/, gce://example.com:example…/)
+#   resourcegroup  Azure resource group names in resource ids,
+#              resourceGroups/<name>, any case (resourceGroups/example…,
+#              resourceGroups/MC_example…)
 #   domain     internal host names: *.corp, *.intra(net), *.lan, *.internal,
 #              a.b.local (ec2/compute/docker.internal, cluster.local pass)
 #   email      e-mail addresses in files (example.com/org/net, GitHub noreply,
@@ -56,7 +62,12 @@
 #              separated by newlines). The list itself is never committed.
 #              Also matched against author and committer names and e-mails.
 # Known gaps: public IPs and bare 12-digit numbers are not flagged (too many
-# false positives); names nobody put in the deny list pass; --commits does
+# false positives); names nobody put in the deny list pass; resource groups
+# spelled other than resourceGroups/<name> (--resource-group, "resourceGroup":,
+# resource_group =, %2F- or \/-escaped ids), names that start with a
+# character other than a letter, a digit or _ (a leading - or (, Unicode
+# letters: Azure allows them), and GCP project ids or numbers outside a
+# gce:// id (projects/<id>/zones/…, the GKE PD CSI node id) pass; --commits does
 # not diff merge commits (lines added while resolving a conflict are only
 # seen by the full-tree check).
 # A line that must keep such a value says `content-check: allow` (reviewed in
@@ -88,6 +99,10 @@ account='arn:aws[a-z-]*:[a-z0-9-]*:[a-z0-9-]*:[0-9]{12}|(^|[^0-9])[0-9]{12}\.dkr
 account_ok='111122223333|123456789012|000000000000'
 azure='subscriptions/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 azure_ok='subscriptions/0{8}-0{4}-0{4}-0{4}-0{12}'
+gce='gce://([a-z0-9.-]+:)?[a-z][a-z0-9-]{4,28}[a-z0-9]/'
+gce_ok='gce://(example\.com:)?example[a-z0-9-]*/'
+resourcegroup='resourcegroups/[a-z0-9_][a-z0-9._()-]*'
+resourcegroup_ok='resourcegroups/(mc_)?example[a-z0-9._()-]*'
 # case-sensitive: host names are written in lower case, and Go code such as
 # addr.Internal() must not match
 domain='[a-z0-9-]+\.(corp|intra|intranet|lan|internal)([^A-Za-z0-9(-]|$)|[a-z0-9-]+\.[a-z0-9-]+\.local([^A-Za-z0-9(-]|$)'
@@ -167,7 +182,7 @@ committer: $(git var GIT_COMMITTER_IDENT 2>/dev/null | sed 's/ [0-9]* [-+][0-9]*
 $diffs"
     idents=$(git log --format='commit %h: author: %an <%ae>%ncommit %h: committer: %cn <%ce>' "$2") ;;
   all)
-    text=$(git -c core.quotePath=false grep -n -I -E -i "$eks|$aks|$server|$gke|$ip|$instance|$account|$azure|$domain|$email|$credential${deny:+|$deny}" -- . 2>/dev/null)
+    text=$(git -c core.quotePath=false grep -n -I -E -i "$eks|$aks|$server|$gke|$ip|$instance|$account|$azure|$gce|$resourcegroup|$domain|$email|$credential${deny:+|$deny}" -- . 2>/dev/null)
     rc=$?
     [ "$rc" -gt 1 ] && { echo "content check: git grep failed (rc=$rc)" >&2; exit 2; } ;;
   *) echo "usage: $0 [--staged | --message FILE | --commits RANGE]" >&2; exit 2 ;;
@@ -224,6 +239,8 @@ hits=$(
   match instance "$instance" "$instance_ok"
   match account "$account" "$account_ok"
   match azure "$azure" "$azure_ok"
+  match gce "$gce" "$gce_ok"
+  match resourcegroup "$resourcegroup" "$resourcegroup_ok"
   match domain "$domain" "$domain_ok" cs
   # e-mails only in content: commit trailers (Signed-off-by, Co-authored-by,
   # cherry-picked upstream commits) carry them by design

@@ -75,12 +75,18 @@ memory. Listed by impact.
       whether gcloud ever writes one.
 - [ ] `content.sh`'s `gke_ok` lets any name starting `example` through
       (`example[a-z0-9_-]*`), so `gke_`, `connectgateway_` and `edgecontainer_`
-      names whose project starts with `examplecorp…` pass. _Why:_ a real
-      project id with that prefix would reach a commit.
-- [ ] `content.sh` has no rule for a real `gce://<project>/…` provider ID or an
-      Azure resource group name outside `MC_…`.
-      _Why:_ hide-cloud-ids treats them as sensitive on screen; the guard
-      does not stop them in a commit.
+      names whose project starts with `examplecorp…` pass, and it accepts any
+      project after `example.com:` (`gke_example.com:<real project>_…`), unlike
+      `gce_ok`. _Why:_ a real project id with that prefix, or behind an example
+      domain, would reach a commit.
+- [ ] `content.sh` blocks `gce://<project>/` and `resourceGroups/<name>`
+      ([content-cloud-ids](specs/content-cloud-ids/requirements.md)), not the
+      other spellings: `--resource-group <name>`, `"resourceGroup": "…"`,
+      `resource_group = …`, `%2F`- and `\/`-escaped resource ids, names that
+      start with `-`, `(` or a Unicode letter (Azure allows them), and GCP
+      project ids or numbers outside a `gce://` id (`projects/<id>/zones/…`,
+      the GKE PD CSI node id). _Why:_ a pasted CLI output or Terraform file
+      still carries them.
 - [ ] `Node.Ready` takes the write lock on every call for a Ready node, to clear
       the NodeClaim creation time, and the view calls it on every render
       (`pkg/model/node.go`). _Why:_ needless contention with the informers;
