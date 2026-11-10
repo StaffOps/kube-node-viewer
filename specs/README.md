@@ -130,7 +130,10 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 30. [`short-edge-context/`](short-edge-context/) — **active**. The headers and the export file
     name show a Distributed Cloud (`edgecontainer_`) context as its cluster name.
     [requirements](short-edge-context/requirements.md) · [design](short-edge-context/design.md) · [tasks](short-edge-context/tasks.md)
-31. [`decisions/`](decisions/) — decision records (index below).
+31. [`fix-node-name-lock/`](fix-node-name-lock/) — **active**. `Node` takes its lock once per
+    call: no recursive read lock, no read outside the lock.
+    [bugfix](fix-node-name-lock/bugfix.md) · [tasks](fix-node-name-lock/tasks.md)
+32. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>

@@ -92,21 +92,40 @@ func NewNodeFromNodeClaim(nc *karpv1.NodeClaim) *Node {
 	return node
 }
 
+// Locking rule (fix-node-name-lock): no exported Node method calls another
+// exported Node method while it holds n.mu. Exported methods take the lock once
+// and use the unexported helpers below, which expect the caller to hold it:
+// sync.RWMutex read locks are not reentrant, so a second RLock behind a waiting
+// writer deadlocks.
+
 func (n *Node) IsOnDemand() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
 	return n.node.Labels["karpenter.sh/capacity-type"] == "on-demand" ||
 		n.node.Labels["eks.amazonaws.com/capacityType"] == "ON_DEMAND"
 }
 
 func (n *Node) IsSpot() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
 	return n.node.Labels["karpenter.sh/capacity-type"] == "spot" ||
 		n.node.Labels["eks.amazonaws.com/capacityType"] == "SPOT"
 }
 
 func (n *Node) IsFargate() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.isFargate()
+}
+
+// isFargate is IsFargate for a caller that holds the lock.
+func (n *Node) isFargate() bool {
 	return n.node.Labels["eks.amazonaws.com/compute-type"] == "fargate"
 }
 
 func (n *Node) IsAuto() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
 	return n.node.Labels["eks.amazonaws.com/compute-type"] == "auto"
 }
 
@@ -256,7 +275,11 @@ func (n *Node) StatusFlags() []string {
 	return flags
 }
 
+// Labels is the node's label map itself, read-only: Update replaces the node
+// whole and nothing writes into the map, which the informer cache also holds.
 func (n *Node) Labels() map[string]string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
 	return n.node.Labels
 }
 
@@ -270,7 +293,7 @@ func (n *Node) Name() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	if n.node.Name == "" {
-		return n.InstanceID()
+		return instanceID(n.node.Spec.ProviderID)
 	}
 	return n.node.Name
 }
@@ -304,7 +327,12 @@ func displayProviderID(id string) string {
 }
 
 func (n *Node) InstanceID() string {
-	providerID := n.ProviderID()
+	return instanceID(n.ProviderID())
+}
+
+// instanceID is the EC2 instance id of an aws:/// provider ID, any other
+// provider ID as the screen shows it.
+func instanceID(providerID string) string {
 	matches := instanceIDRegex.FindStringSubmatch(providerID)
 	if matches == nil {
 		return displayProviderID(providerID)
@@ -437,6 +465,11 @@ func (n *Node) Ready() bool {
 func (n *Node) Created() time.Time {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
+	return n.created()
+}
+
+// created is Created for a caller that holds the lock.
+func (n *Node) created() time.Time {
 	if !n.nodeclaimCreationTime.IsZero() {
 		return n.nodeclaimCreationTime
 	}
@@ -448,9 +481,9 @@ func (n *Node) Created() time.Time {
 func (n *Node) InstanceType() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	if n.IsFargate() {
-		if len(n.Pods()) == 1 {
-			cpu, mem, ok := n.Pods()[0].FargateCapacityProvisioned()
+	if n.isFargate() {
+		if pods := n.podList(); len(pods) == 1 {
+			cpu, mem, ok := pods[0].FargateCapacityProvisioned()
 			if ok {
 				return fmt.Sprintf("%gvCPU-%gGB", cpu, mem)
 			}
@@ -512,12 +545,18 @@ func (n *Node) Deleting() bool {
 func (n *Node) PodsCopy() []*Pod {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	return n.Pods()
+	return n.podList()
 }
 
-// Pods lists the pods bound to the node. Callers hold no lock: InstanceType
-// reads it under the node's read lock.
+// Pods lists the pods bound to the node.
 func (n *Node) Pods() []*Pod {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.podList()
+}
+
+// podList is Pods for a caller that holds the lock.
+func (n *Node) podList() []*Pod {
 	var pods []*Pod
 	for _, p := range n.pods {
 		pods = append(pods, p)
@@ -597,22 +636,20 @@ func (n *Node) ComputeLabel(labelName string) string {
 // NotReadyTime is the time that the node went NotReady, or when it was created if it hasn't been marked as NotReady.
 func (n *Node) NotReadyTime() time.Time {
 	n.mu.RLock()
-	var notReadyTransitionTime time.Time
+	defer n.mu.RUnlock()
 	for _, c := range n.node.Status.Conditions {
 		if c.Type == v1.NodeReady && (c.Status == v1.ConditionFalse || c.Status == v1.ConditionUnknown) {
-			notReadyTransitionTime = c.LastTransitionTime.Time
+			// if there's a nodeclaim creation ts, use it if the node has never been Ready before
+			if !n.nodeclaimCreationTime.IsZero() {
+				return n.nodeclaimCreationTime
+			}
+			if !c.LastTransitionTime.IsZero() {
+				return c.LastTransitionTime.Time
+			}
 			break
 		}
 	}
-	n.mu.RUnlock()
-	if !notReadyTransitionTime.IsZero() {
-		// if there's a nodeclaim creation ts, use it if the node has never been Ready before
-		if !n.nodeclaimCreationTime.IsZero() {
-			return n.nodeclaimCreationTime
-		}
-		return notReadyTransitionTime
-	}
-	return n.Created()
+	return n.created()
 }
 
 // SetPrice sets the hourly price, NaN for unknown. Prices are refreshed from
