@@ -61,7 +61,7 @@ func TestReadyReadsUnderTheLock(t *testing.T) {
 	n := namelessNode("aws:///us-east-1a/i-0abc", nil)
 	ready := withReady(n, v1.ConditionTrue, time.Unix(1700000700, 0))
 	notReady := withReady(n, v1.ConditionFalse, time.Unix(1700000800, 0))
-	if !loop(100*time.Millisecond, 10*time.Second,
+	if !loop(100*time.Millisecond, 5*time.Second,
 		func() { _ = n.Ready() },
 		func() { n.Update(ready); n.Update(notReady) },
 	) {
