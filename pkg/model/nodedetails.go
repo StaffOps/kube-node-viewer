@@ -122,7 +122,7 @@ func (u *UIModel) nodeDetailsRows(n *Node, now time.Time) []string {
 		field("Zone", where),
 		field("Status", u.cell(n, FieldStatus, now)+" · age "+u.cell(n, FieldAge, now)+" · created "+n.Created().Local().Format("2006-01-02 15:04")),
 		field("Internal IP", n.InternalIP()),
-		field("Provider ID", orDash(obj.Spec.ProviderID)),
+		field("Provider ID", orDash(displayProviderID(obj.Spec.ProviderID))),
 	}
 	if info := obj.Status.NodeInfo; info.KubeletVersion != "" {
 		rows = append(rows,

@@ -289,3 +289,88 @@ func TestDetailsAreLiveSortedAndEnterCloses(t *testing.T) {
 		t.Errorf("enter did not close the details (panel %v)", u.panel)
 	}
 }
+
+// hide-cloud-ids R5 R6 R7
+func TestDisplayProviderID(t *testing.T) {
+	const azure = "subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Compute/"
+	for _, tc := range []struct{ in, want string }{
+		// R5
+		{"gce://example-project/us-central1-a/gke-demo-1", "gce://…/us-central1-a/gke-demo-1"},
+		{"gce://example.com:example-project/us-central1-a/gke-demo-1", "gce://…/us-central1-a/gke-demo-1"},
+		// R6
+		{"azure:///" + azure + "virtualMachineScaleSets/aks-demo-vmss/virtualMachines/3", "azure:///…/virtualMachineScaleSets/aks-demo-vmss/virtualMachines/3"},
+		{"azure:///" + azure + "virtualMachines/demo-vm", "azure:///…/virtualMachines/demo-vm"},
+		{"azure://" + azure + "virtualMachines/demo-vm", "azure:///…/virtualMachines/demo-vm"},
+		{"azure:/" + azure + "virtualMachines/demo-vm", "azure:///…/virtualMachines/demo-vm"},
+		{"azure:///subscriptions/s/resourcegroups/g/providers/Microsoft.Compute/virtualMachines/v", "azure:///…/virtualMachines/v"},
+		{"azure:///SUBSCRIPTIONS/s/RESOURCEGROUPS/g/PROVIDERS/Microsoft.Compute/virtualMachines/v", "azure:///…/virtualMachines/v"},
+		// R7: anything else is shown as it is
+		{"aws:///us-east-1a/i-0abc", ""},
+		{"kind://docker/kind/kind-worker", ""},
+		{"", ""},
+		{"gce://p/zone", ""},
+		{"gce://p/zone/i/extra", ""},
+		{"gce:///zone/i", ""},
+		{"gce://p//i", ""},
+		{"gce://p/zone/", ""},
+		{"gce://p/zo ne/i", ""},
+		{"gce://p q/zone/i", ""},
+		{"GCE://p/zone/i", ""},
+		{"x gce://p/zone/i", ""},
+		{"gce://p/zone/i\n", ""},
+		{"azure:subscriptions/s/resourceGroups/g/providers/n/v", ""},
+		{"azure:///subscriptions//resourceGroups/g/providers/n/v", ""},
+		{"azure:///subscriptions/s/resourceGroups//providers/n/v", ""},
+		{"azure:///subscriptions/s/resourceGroups/g/providers//v", ""},
+		{"azure:///subscriptions/s/resourceGroups/g/providers/n", ""},
+		{"azure:///subscriptions/s/resourceGroups/g/providers/n/", ""},
+		{"azure:///subscriptions/s/resourceGroups/g/providers/n/a b", ""},
+		{"azure:///subscriptions/s/providers/n/v", ""},
+		{"AZURE:///subscriptions/s/resourceGroups/g/providers/n/v", ""},
+		{"x azure:///subscriptions/s/resourceGroups/g/providers/n/v", ""},
+		{"azure:///subscriptions/s t/resourceGroups/g/providers/n/v", ""},
+		{"azure:///subscriptions/s/resourceGroups/g h/providers/n/v", ""},
+		{"azure:///subscriptions/s/resourceGroups/g/providers/n o/v", ""},
+	} {
+		want := tc.want
+		if want == "" {
+			want = tc.in
+		}
+		if got := displayProviderID(tc.in); got != want {
+			t.Errorf("displayProviderID(%q) = %q, want %q", tc.in, got, want)
+		}
+	}
+}
+
+// hide-cloud-ids R5 R6 R7
+func TestNodeDetailsHideTheCloudIDs(t *testing.T) {
+	for _, tc := range []struct {
+		id, want string
+		secrets  []string
+	}{
+		{"gce://example-project/us-central1-a/gke-demo-1", "Provider ID  gce://…/us-central1-a/gke-demo-1", []string{"example-project"}},
+		{
+			"azure:///subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Compute/virtualMachineScaleSets/aks-demo-vmss/virtualMachines/3",
+			"Provider ID  azure:///…/virtualMachineScaleSets/aks-demo-vmss/virtualMachines/3",
+			[]string{"00000000-0000", "example-rg"},
+		},
+		{"", "Provider ID  -", nil},
+	} {
+		u := detailsUI(t)
+		n, ok := u.cluster.GetNode("aws:///us-east-1b/i-0gpu")
+		if !ok {
+			t.Fatal("no aaa-gpu-node")
+		}
+		n.Update(&v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "aaa-gpu-node"}, Spec: v1.NodeSpec{ProviderID: tc.id}})
+		press(u, "enter")
+		out := u.View()
+		if !strings.Contains(out, tc.want) {
+			t.Errorf("%q: no row %q in:\n%s", tc.id, tc.want, out)
+		}
+		for _, secret := range tc.secrets {
+			if strings.Contains(out, secret) {
+				t.Errorf("%q: details hold %q:\n%s", tc.id, secret, out)
+			}
+		}
+	}
+}

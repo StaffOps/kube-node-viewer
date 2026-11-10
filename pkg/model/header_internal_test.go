@@ -241,8 +241,6 @@ func TestShortGKEContextName(t *testing.T) {
 		{"gke_example-project-us-central1-a_demo", ""},
 		{"gke_example-project_us-central1-a-demo", ""},
 		{"gke_" + "example.comexample-project_us-central1-a_demo", ""}, // no colon after the domain
-		{"gke_" + "aws_example-project_us-west1_demo", ""},             // GKE multicloud
-		{"connectgateway_" + "example-project_us-central1_demo", ""},
 		{gkeDemo + "\n", ""},
 		{gkeDemo + " ", ""},
 		{"x " + gkeDemo, ""},
@@ -429,6 +427,177 @@ func TestARNRegionIsNotThePricingRegion(t *testing.T) {
 		}
 		if !ctrlE && !strings.Contains(h, "Region:   -") {
 			t.Errorf("full panel Region row is not -:\n%s", h)
+		}
+	}
+}
+
+// hide-cloud-ids R1 R2 R3
+func TestShortFleetContextName(t *testing.T) {
+	// names content.sh would flag are built by concatenation
+	fleet := func(kind, project, location, cluster string) string {
+		return "gke_" + kind + "_" + project + "_" + location + "_" + cluster
+	}
+	gateway := func(project, location, membership string) string {
+		return "connectgateway_" + project + "_" + location + "_" + membership
+	}
+	aws := func(cluster string) string { return fleet("aws", "example-project", "us-west1", cluster) }
+	hub := func(membership string) string { return gateway("example-project", "global", membership) }
+	label63 := "a" + strings.Repeat("b", 62)
+	label64 := "a" + strings.Repeat("b", 63)
+	for _, tc := range []struct{ in, want string }{
+		// R1: each kind, a region and a zone, a domain-scoped project, label bounds
+		{aws("demo"), "demo"},
+		{fleet("azure", "example-project", "us-west1", "demo"), "demo"},
+		{fleet("attached", "example-project", "us-west1", "demo"), "demo"},
+		{fleet("aws", "example-project", "us-west1-a", "demo"), "demo"},
+		{fleet("aws", "example.com:example-project", "us-west1", "demo"), "demo"},
+		{aws("a"), "a"},
+		{aws("1demo"), "1demo"},
+		{aws(label63), label63},
+		// the project can be called like a kind: three fields are the GKE form
+		{"gke_" + "attached_us-central1-a_demo", "demo"},
+		{fleet("attached", "attached", "us-west1", "demo"), "demo"},
+		// R2: global and a region, the namespace, label bounds
+		{hub("demo"), "demo"},
+		{gateway("example-project", "us-central1", "demo"), "demo"},
+		{gateway("example.com:example-project", "global", "demo"), "demo"},
+		{hub("demo") + "_ns-team-a", "demo"},
+		{hub("1demo"), "1demo"},
+		{hub("a"), "a"},
+		{hub(label63), label63},
+		{hub("demo") + "_ns-" + label63, "demo"},
+		// R3: anything else is shown as it is
+		{fleet("gcp", "example-project", "us-west1", "demo"), ""},
+		{fleet("AWS", "example-project", "us-west1", "demo"), ""},
+		{fleet("aws", "abcde", "us-west1", "demo"), ""},
+		{fleet("aws", "1example-project", "us-west1", "demo"), ""},
+		{fleet("aws", "example-project", "global", "demo"), ""},
+		{fleet("aws", "example-project", "uswest1", "demo"), ""},
+		{aws(label64), ""},
+		{aws(""), ""},
+		{aws("demo-"), ""},
+		{aws("-demo"), ""},
+		{aws("Demo"), ""},
+		{aws("d\u0435mo"), ""},
+		{aws("de_mo"), ""},
+		{aws("demo") + "\n", ""},
+		{aws("demo") + " ", ""},
+		{"x " + aws("demo"), ""},
+		{gateway("abcde", "global", "demo"), ""},
+		{gateway("example-project", "Global", "demo"), ""},
+		{gateway("example-project", "nowhere", "demo"), ""},
+		{"connectgateway_" + "example-project_global", ""},
+		{hub(label64), ""},
+		{hub(""), ""},
+		{hub("demo-"), ""},
+		{hub("-demo"), ""},
+		{hub("Demo"), ""},
+		{hub("d\u0435mo"), ""},
+		{hub("demo") + "_extra", ""},
+		{hub("demo") + "_ns-", ""},
+		{hub("demo") + "_ns-Team", ""},
+		{hub("demo") + "_ns-" + label64, ""},
+		{hub("demo") + "\n", ""},
+		{"x " + hub("demo"), ""},
+	} {
+		want := tc.want
+		if want == "" {
+			want = tc.in
+		}
+		if got := shortContext(tc.in); got != want {
+			t.Errorf("shortContext(%q) = %q, want %q", tc.in, got, want)
+		}
+	}
+}
+
+// fleetServers are made-up API server URLs of R10's shape, one with a project
+// number and one with a project id.
+var fleetServers = []struct{ server, project string }{
+	{"https://connectgateway.googleapis.com/v1/projects/123456789/locations/global/gkeMemberships/other", "123456789"},
+	{"https://us-west1-gkemulticloud.googleapis.com/v1/projects/example-project/locations/global/memberships/other", "example-project"},
+}
+
+func fleetContexts() []string {
+	return []string{
+		"gke_" + "aws_example-project_us-west1_demo-prod",
+		"gke_" + "attached_example.com:example-project_us-west1_demo-prod",
+		"connectgateway_example-project_global_demo-prod",
+		"connectgateway_example-project_us-central1_demo-prod_ns-team-a",
+	}
+}
+
+// hide-cloud-ids R1 R2 R10
+func TestHeadersHideTheFleetProject(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		height int
+		ctrlE  bool
+		size   headerSize
+	}{
+		{"full panel", 40, false, headerFull},
+		{"compact box", 40, true, headerCompact},
+		{"one line", 10, false, headerLine},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, context := range fleetContexts() {
+				for _, s := range fleetServers {
+					u := capacityUI(t, 2)
+					u.SetClusterInfo(ClusterInfo{Context: context, Server: s.server})
+					u.Update(tea.WindowSizeMsg{Width: 200, Height: tc.height})
+					if tc.ctrlE {
+						u.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
+					}
+					if u.headerSize() != tc.size {
+						t.Fatalf("header size %v, want %v", u.headerSize(), tc.size)
+					}
+					got := u.View()
+					if !strings.Contains(got, "demo-prod") {
+						t.Errorf("%s: no short name:\n%s", context, got)
+					}
+					for _, secret := range []string{"example-project", "example.com", s.project, "gke_", "connectgateway_"} {
+						if strings.Contains(got, secret) {
+							t.Errorf("%s: header holds %q:\n%s", context, secret, got)
+						}
+					}
+					if tc.size == headerFull && !strings.Contains(got, "/projects/…/locations/global/") {
+						t.Errorf("%s: Cluster row without the masked URL:\n%s", context, got)
+					}
+				}
+			}
+		})
+	}
+}
+
+// hide-cloud-ids R10
+func TestDisplayServer(t *testing.T) {
+	const host = "https://connectgateway.googleapis.com"
+	for _, tc := range []struct{ in, want string }{
+		{host + "/v1/projects/123456789/locations/global/gkeMemberships/demo", host + "/v1/projects/…/locations/global/gkeMemberships/demo"},
+		{host + "/v1beta1/projects/example-project/locations/us-central1/memberships/demo", host + "/v1beta1/projects/…/locations/us-central1/memberships/demo"},
+		// anything else is shown as it is
+		{"https://example.eks.amazonaws.com", ""},
+		{"https://example.hcp.eastus.azmk8s.io:443", ""},
+		{"https://203.0.113.10", ""},
+		{"", ""},
+		{host + "/projects/123456789/locations/global/x", ""},
+		{host + "/v1/projects//locations/global/x", ""},
+		{host + "/v1/projects/123456789/locations/", ""},
+		{host + "/v1/projects/123456789/zones/x", ""},
+		{host + "/v1/projects/12/34/locations/x", ""},
+		{"http://a.example/v1/projects/123456789/locations/x", ""},
+		{"x " + host + "/v1/projects/123456789/locations/x", ""},
+		{host + "/v1/projects/123456789/locations/x\n", ""},
+		{host + "/apis/projects/1/locations/x", ""},
+		{host + "/vx/projects/1/locations/x", ""},
+		{host + "/a/v1/projects/1/locations/x", ""},
+		{"https://a b/v1/projects/1/locations/x", ""},
+	} {
+		want := tc.want
+		if want == "" {
+			want = tc.in
+		}
+		if got := displayServer(tc.in); got != want {
+			t.Errorf("displayServer(%q) = %q, want %q", tc.in, got, want)
 		}
 	}
 }

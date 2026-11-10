@@ -177,3 +177,62 @@ func TestZoneFallsBackToTheProviderID(t *testing.T) {
 		}
 	}
 }
+
+// hide-cloud-ids R8
+func TestNamelessNodeHidesTheCloudIDs(t *testing.T) {
+	for _, tc := range []struct{ id, want string }{
+		{"gce://example-project/us-central1-a/gke-demo-1", "gce://…/us-central1-a/gke-demo-1"},
+		{
+			"azure:///subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Compute/virtualMachines/demo-vm",
+			"azure:///…/virtualMachines/demo-vm",
+		},
+		{"aws:///us-east-1a/i-0abc", "i-0abc"},
+		{"kind://docker/kind/kind-worker", "kind://docker/kind/kind-worker"},
+	} {
+		n := model.NewNodeFromNodeClaim(&karpv1.NodeClaim{Status: karpv1.NodeClaimStatus{ProviderID: tc.id}})
+		if got := n.Name(); got != tc.want {
+			t.Errorf("Name() of %q = %q, want %q", tc.id, got, tc.want)
+		}
+	}
+}
+
+// hide-cloud-ids R9
+func TestProviderIDStaysWholeInTheStore(t *testing.T) {
+	const (
+		first  = "gce://example-project-a/us-central1-a/gke-demo-1"
+		second = "gce://example-project-b/us-central1-a/gke-demo-1"
+	)
+	c := model.NewCluster()
+	for _, id := range []string{first, second} {
+		n := testNode("n-" + id[len(id)-20:])
+		n.Spec.ProviderID = id
+		c.AddNode(model.NewNode(n))
+	}
+	for _, id := range []string{first, second} {
+		n, ok := c.GetNode(id)
+		if !ok {
+			t.Fatalf("no node for %q", id)
+		}
+		if got := n.ProviderID(); got != id {
+			t.Errorf("ProviderID() = %q, want %q", got, id)
+		}
+	}
+
+	gce := testNode("gce")
+	gce.Spec.ProviderID = first
+	if got := model.NewNode(gce).Cloud(); got != "gce" {
+		t.Errorf("GCE cloud %q", got)
+	}
+	azure := aksNode(map[string]string{"kubernetes.azure.com/agentpool": "system"})
+	if got := azure.Cloud(); got != "azure" {
+		t.Errorf("Azure cloud %q", got)
+	}
+	if got := azure.CapacityType(); got != model.CapacityOnDemand {
+		t.Errorf("Azure capacity %s, want OnDemand", got)
+	}
+	ec2 := testNode("ec2")
+	ec2.Spec.ProviderID = "aws:///us-east-1a/i-0abc"
+	if got := model.NewNode(ec2).Zone(); got != "us-east-1a" {
+		t.Errorf("EC2 zone %q", got)
+	}
+}

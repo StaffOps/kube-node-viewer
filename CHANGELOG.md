@@ -6,6 +6,18 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Changed
+
+- The headers and the export file name shorten two more gcloud context forms to
+  the cluster name: `gke_<kind>_<project>_<location>_<cluster>` (multi-cloud and
+  attached clusters) and `connectgateway_<project>_<location>_<membership>`,
+  with or without `_ns-<namespace>`. The full panel's `Cluster:` row hides the
+  project of a Connect gateway or multi-cloud API URL; the JSON export keeps the
+  full context and URL.
+- Node details show a GCE provider ID without the project and an Azure one
+  without the subscription and resource group. A node with no name yet is listed
+  by that same short form on those clouds. Node labels are still shown whole.
+
 ## [0.15.0] - 2026-11-09
 
 ### Changed

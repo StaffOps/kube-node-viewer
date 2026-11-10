@@ -69,6 +69,11 @@ heading still folds it.
   a node that goes away says so instead of closing.
 - [x] `↑/↓` (`k/j`) scroll, `home` goes to the top, `esc` or `enter` closes.
 
+> **Corrected 2026-11-09 (hide-cloud-ids).** The provider ID shows without the
+> project of a GCE id or the subscription and resource group of an Azure one
+> ([hide-cloud-ids](../hide-cloud-ids/requirements.md) R5, R6); any other id is
+> unchanged.
+
 ## Counter-examples
 
 - MUST NOT list pods or annotations (annotations are noise, often large).

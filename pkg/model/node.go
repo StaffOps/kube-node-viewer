@@ -36,6 +36,10 @@ var (
 	// (aws:///us-east-1a/i-0abc, aws:///us-east-1-bos-1a/i-…, Fargate's
 	// aws:///us-east-1b/<id>/fargate-ip-…)
 	providerIDZone = regexp.MustCompile(`^aws:///([a-z0-9-]+)/`)
+	// providerIDGCE and providerIDAzure are the provider IDs that name a
+	// project or a subscription (hide-cloud-ids R5, R6)
+	providerIDGCE   = regexp.MustCompile(`^gce://[^/\s]+/([^/\s]+/[^/\s]+)$`)
+	providerIDAzure = regexp.MustCompile(`^azure:/+(?i:subscriptions/[^/\s]+/resourcegroups/[^/\s]+/providers/[^/\s]+)/(\S+)$`)
 )
 
 type objectKey struct {
@@ -285,11 +289,25 @@ func (n *Node) ProviderID() string {
 	return n.node.Spec.ProviderID
 }
 
+// displayProviderID is a provider ID as the screen shows it: without the
+// project of a GCE id or the subscription and resource group of an Azure one,
+// any other id as it is (hide-cloud-ids R5, R6, R7). Keys and pricing use the
+// whole id (R9).
+func displayProviderID(id string) string {
+	if m := providerIDGCE.FindStringSubmatch(id); m != nil {
+		return "gce://…/" + m[1]
+	}
+	if m := providerIDAzure.FindStringSubmatch(id); m != nil {
+		return "azure:///…/" + m[1]
+	}
+	return id
+}
+
 func (n *Node) InstanceID() string {
 	providerID := n.ProviderID()
 	matches := instanceIDRegex.FindStringSubmatch(providerID)
 	if matches == nil {
-		return providerID
+		return displayProviderID(providerID)
 	}
 	for i, name := range instanceIDRegex.SubexpNames() {
 		if name == "InstanceID" {

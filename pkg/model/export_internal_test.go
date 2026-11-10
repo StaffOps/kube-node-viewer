@@ -105,6 +105,48 @@ func TestExportFileNameIsShort(t *testing.T) {
 	}
 }
 
+// hide-cloud-ids R4 R10
+func TestFleetNameInExportAndPopup(t *testing.T) {
+	for _, context := range fleetContexts() {
+		dir := t.TempDir()
+		t.Chdir(dir)
+		server := fleetServers[0].server
+		u := demoUI(t)
+		u.SetClusterInfo(ClusterInfo{Context: context, Server: server})
+		msg := writeExport(u.exportDoc(time.Now()), dir, "")
+		if msg.err != nil {
+			t.Fatal(msg.err)
+		}
+		u.exported(msg)
+		for _, name := range []string{msg.csv, msg.json, u.currentNotice()} {
+			if strings.Contains(name, "example-project") || !strings.Contains(name, "kube-node-viewer-demo-prod-") {
+				t.Errorf("%q: name or notice %q", context, name)
+			}
+		}
+		var got exportDoc
+		data, err := os.ReadFile(msg.json)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(data, &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.Context != context || got.Server != server {
+			t.Errorf("JSON context %q server %q, want the full %q and %q", got.Context, got.Server, context, server)
+		}
+
+		u.panel = panelContexts
+		u.contextsLoaded(contextsMsg{names: []string{context, "staging"}, current: context})
+		if rows := strings.Join(u.contextsPanel().rows, "\n"); !strings.Contains(rows, context) {
+			t.Errorf("contexts popup rows:\n%s", rows)
+		}
+		u.contexts.switching = context
+		if rows := strings.Join(u.contextsPanel().rows, "\n"); !strings.Contains(rows, "connecting to "+context) {
+			t.Errorf("switching row:\n%s", rows)
+		}
+	}
+}
+
 // short-gke-context R3: the fallback directory gets the short name too
 func TestExportFallbackUsesTheShortName(t *testing.T) {
 	ro := t.TempDir()

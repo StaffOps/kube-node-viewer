@@ -124,9 +124,11 @@ left it, unless `config.yaml` sets a `default-view`
 ![The main screen: header box, cluster summary and the node list](.static/main.png)
 
 **Header box.** The context (an EKS context named by its ARN,
-`arn:aws:eks:<region>:<account>:cluster/<name>`, or a GKE context,
-`gke_<project>_<location>_<cluster>`, shows as its cluster name; `c`, the
-JSON export and `--context` keep the full name), API server URL and
+`arn:aws:eks:<region>:<account>:cluster/<name>`, or one gcloud writes,
+`gke_<project>_<location>_<cluster>`, `gke_<kind>_<project>_<location>_<cluster>`
+or `connectgateway_<project>_<location>_<membership>`, shows as its cluster
+name; `c`, the JSON export and `--context` keep the full name), API server URL
+(without the project, when it is a Connect gateway or GKE multi-cloud URL) and
 pricing region; how many nodes the filters and search keep out of all
 watched nodes, with their pod count
 (and pending pods, when there are any); the cost of the whole cluster, which
@@ -187,7 +189,7 @@ says how many are hidden. Lines never run past the window edge.
 
 With `ctrl+e` (or on a window 14 to 27 rows high) the header shrinks to two
 lines, plus a third when there is a warning: the context (the cluster name
-for an EKS ARN or GKE context), the region and the counts with the cost, then the
+for an EKS ARN or gcloud context), the region and the counts with the cost, then the
 view. The API server URL is only in the full panel:
 
 ![Compact header](.static/header-compact.png)
@@ -317,7 +319,8 @@ while focused; Recommendations ignore the focus.
 Select a node with `↑`/`↓` and press `enter`: a popup shows what
 `kubectl describe node` would, minus events: instance type,
 capacity and price per hour and per month, node group, zone, status and age, kubelet and OS,
-provider ID, resources as requested / allocatable / capacity (GPUs and other
+provider ID (without the project of a GCE id or the subscription and resource
+group of an Azure one: `kubectl get node -o yaml` has them), resources as requested / allocatable / capacity (GPUs and other
 extended resources included), conditions (bad ones in red), taints and every
 label. It follows the live node; `↑`/`↓` scroll, `esc` closes.
 
@@ -483,8 +486,8 @@ saving under their name are refused: edit the file instead.
 
 `e` writes every node the filters and search keep (all pages, folded groups
 included) to `kube-node-viewer-<context>-<YYYYMMDD-HHMMSS>.csv` and `.json`
-(`<context>` is the cluster name for an EKS ARN or GKE context; the JSON's
-`context` keeps the full name) in the current directory, or next to the state file when the current
+(`<context>` is the cluster name for an EKS ARN or gcloud context; the JSON's
+`context` and `server` keep the full values) in the current directory, or next to the state file when the current
 directory is not writable; the footer says where. The CSV has one row per
 node: name, group path, instance type, capacity, node group, zone, region,
 IP, status, age, pods, requested / allocatable / percent per resource, price
