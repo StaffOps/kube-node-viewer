@@ -23,7 +23,7 @@
 
 | Task | Promotion trigger |
 |------|-------------------|
-| GCP / Azure catalogs and family tables | stage 2 (multi-cloud) |
+| GCP / Azure catalogs and family tables (Azure promoted 2026-11-10 to [aks-recommendations](../aks-recommendations/tasks.md); GCP stays) | stage 2 (multi-cloud) |
 | Pod-level rightsizing (requests too high) | owner asks |
 | Commitments (Savings Plans, RIs) | owner asks |
 | A second total including Spot | owner asks |

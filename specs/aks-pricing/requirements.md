@@ -80,6 +80,11 @@ up in the background and re-price the nodes when the answer arrives.
 **R3** WHEN only Azure nodes are shown THEN the Recommendations screen SHALL
 keep saying it covers EKS nodes only (no Azure catalog yet).
 
+> **Corrected 2026-11-10.** Superseded by
+> [aks-recommendations](../aks-recommendations/requirements.md) R1: Azure
+> nodes are analysed.
+> _Test: withdrawn (R3) — superseded by aks-recommendations R1, 2026-11-10._
+
 ## Counter-examples
 
 - MUST NOT ask for Azure credentials or read `~/.azure`.

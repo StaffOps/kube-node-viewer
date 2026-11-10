@@ -75,13 +75,25 @@ tests, so spec-trace passes.
   > `TestAdvisorPricingDisabled`, `TestSessionPricingPerServer`.
 - [ ] T6. `refresh-data.yaml` runs `make azure-catalog` with `make prices`
   - _Covers: R16 · Depends on: T1 · Verified by: a workflow_dispatch run's PR_
-- [ ] T7. Docs:
+
+  > **Not done, 2026-11-10: not a one-line change.** `refresh-data.yaml`
+  > guards its patch to `pkg/aws` in two places: the `Patch` step refuses a
+  > diff outside `pkg/aws`, and the PR job refuses any file but
+  > `pkg/aws/zz_generated*.go`. Running `make azure-catalog` there means
+  > widening both guards to `pkg/azure/zz_generated_instance_types.go`, and
+  > changing the PR title and body. That is a change to a write-capable
+  > workflow, so it gets its own review. Until then the table is refreshed
+  > by hand with `make azure-catalog`, as a separate commit.
+- [x] T7. Docs:
   - README: Recommendations on AKS, and credit for the cluster autoscaler table;
   - CHANGELOG `### Added`;
   - aks-pricing R3 marked `_Test: withdrawn (R3) — <dated note>._` with a dated note pointing here;
   - recommendations dated notes (Azure out of scope, the services counter-example);
   - the Ideas item removed from TODO, and the deferred rows in aks-pricing and recommendations.
   - _Covers: — · Depends on: T1–T6 · Verified by: review, `scripts/spec-trace.py`_
+
+  > **Done 2026-11-10**, except what T2 and T6 bring. The CHANGELOG says
+  > candidate prices come later. T2's merge changes that line.
 - [ ] T8. Verify: `scripts/verify.sh` and `make lint` green; run on a cluster: note what was checked, never the cluster's name
   - _Covers: all · Depends on: T1–T7 · Verified by: command output and the cluster run (kind with made-up `azure://` nodes, priced through the public API), recorded here as a dated note_
 

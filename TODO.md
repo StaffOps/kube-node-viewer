@@ -101,10 +101,6 @@ memory. Listed by impact.
 
 ## Ideas
 
-- [ ] Recommendations for AKS: Azure VM catalog and family tables, so the
-      Recommendations screen works on Azure nodes
-      ([aks-pricing deferred](specs/aks-pricing/tasks.md#deferred),
-      [recommendations deferred](specs/recommendations/tasks.md#deferred)).
 - [ ] GKE: node pool labels and prices (stage 2, multi-cloud;
       [interactive-tui deferred](specs/interactive-tui/tasks.md#deferred)).
 - [ ] GPU resource and columns (stage 3;
