@@ -260,8 +260,8 @@ func newAdvisor(p pricing.Provider, disablePricing bool) model.Advisor {
 	}); ok {
 		advisors[recommend.CloudAWS] = awsAdvisor{prices: ap}
 	}
-	// the Azure provider lists candidate prices once T2 lands; until then
-	// the rows that need them are absent
+	// the Azure provider lists candidate prices (aks-recommendations R3);
+	// TestSessionPricingPerServer checks it still does
 	lister, _ := azureP.(azure.PriceLister)
 	advisors[recommend.CloudAzure] = azure.NewAdvisor(lister, disablePricing)
 	return advisors

@@ -98,7 +98,14 @@ func TestSessionPricingPerServer(t *testing.T) {
 				t.Errorf("pricing off %v, notes %q", tt.disable, notes)
 			}
 			if _, ok := az.OnDemand(recommend.Node{Cloud: "azure", Region: "eastus"}, "Standard_D4s_v5"); ok {
-				t.Error("an Azure price without T2's candidate prices")
+				t.Error("a candidate price before any answer")
+			}
+			// aks-recommendations T2: the seam can't fail silently: the
+			// ByCloud Azure provider lists candidate prices
+			if b, ok := p.(pricing.ByCloud); ok {
+				if _, ok := b.Clouds["azure"].(azure.PriceLister); !ok {
+					t.Errorf("the Azure provider %T doesn't list candidate prices", b.Clouds["azure"])
+				}
 			}
 		})
 	}

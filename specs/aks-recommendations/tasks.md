@@ -26,12 +26,25 @@ tests, so spec-trace passes.
   > `eadsv7`, `fasv7`…) and no Intel v7 family; none of them is a key or a
   > target of the D5 tables. The counterpart lookup lives in
   > `pkg/recommend` (it needs only the advisor's `Types` and `Spec`).
-- [ ] T2. Prices:
+- [x] T2. Prices:
   - `azure.Provider.ListPrice` through the fetch loop's split (the constant of [fix-azure-price-batch](../fix-azure-price-batch/bugfix.md), not redefined);
   - the generation counter;
   - a disabled mode that never queues;
   - `var _ PriceLister = (*Provider)(nil)` in `pkg/azure`, and a session test asserting that the `ByCloud` Azure provider satisfies `azure.PriceLister`, so the seam can't fail silently.
   - _Covers: R3 · Depends on: fix-azure-price-batch merged · Verified by: pricing tests (candidate sizes beyond 17 → two requests; unknown size not asked again; disabled → no request)_
+
+  > **Done 2026-11-10**, after fix-azure-price-batch merged. The work is
+  > `pkg/azure/listprice.go`, a new file; `pricing.go` is unchanged.
+  > - `ListPrice` uses the same cache, queue and fetch loop as `NodePrice`,
+  >   with the batch fix's `maxSizesPerRequest`.
+  > - `Generation` is the size of the cache, which only grows.
+  > - `var _ PriceLister = (*Provider)(nil)` makes the seam a build check.
+  >
+  > Tests: `TestListPriceQueuesAndAnswers`, `TestListPriceBatches`
+  > (18 sizes → 2 requests), and `TestSessionPricingPerServer`, which asserts
+  > that the ByCloud Azure provider is a `PriceLister`. The disabled mode is
+  > the advisor's, not the provider's: with `--disable-pricing` the session
+  > builds no Azure provider.
 - [x] T3. `pkg/recommend`:
   - `Node` fields: `Cloud`, `Region`, `Windows`, `System`, `Capacity`, `VMPool`;
   - price functions take the node; `Rec.Cloud` and `Label()`; family per cloud;
@@ -48,7 +61,7 @@ tests, so spec-trace passes.
   > candidate), and the AWS fixture unchanged ($242.94). The model and
   > session advisors take the new price signatures in the same commit, so
   > every commit builds; their Azure wiring is T4 and T5.
-- [-] T4. `pkg/model`:
+- [x] T4. `pkg/model`:
   - advisor per cloud; the gate (GCP message, empty cluster);
   - labels and `status.capacity` into `recommend.Node`;
   - `Label()` in the row, math title and popup;
@@ -66,7 +79,7 @@ tests, so spec-trace passes.
   > `TestAzureNotesGenerationAndNoWait`, `TestRecommendNodeFromAKSLabels`,
   > and the `recommendations-aks` golden screen. The AWS golden files are
   > unchanged.
-- [-] T5. `cmd/kube-node-viewer/session.go`: `awsAdvisor` signatures; `azureAdvisor` from the `ByCloud` Azure provider, and over the catalog with pricing disabled when `--disable-pricing` (`session.go:205-206`)
+- [x] T5. `cmd/kube-node-viewer/session.go`: `awsAdvisor` signatures; `azureAdvisor` from the `ByCloud` Azure provider, and over the catalog with pricing disabled when `--disable-pricing` (`session.go:205-206`)
   - _Covers: R1, R3 · Depends on: T2, T4 · Verified by: session tests with and without `--disable-pricing`_
 
   > **Done 2026-11-10**, ahead of T2. The Azure advisor is
@@ -87,7 +100,7 @@ tests, so spec-trace passes.
   > changing the PR title and body. That is a change to a write-capable
   > workflow, so it gets its own review. Until then the table is refreshed
   > by hand with `make azure-catalog`, as a separate commit.
-- [-] T7. Docs:
+- [x] T7. Docs:
   - README: Recommendations on AKS, and credit for the cluster autoscaler table;
   - CHANGELOG `### Added`;
   - aks-pricing R3 marked `_Test: withdrawn (R3) — <dated note>._` with a dated note pointing here;
@@ -100,6 +113,10 @@ tests, so spec-trace passes.
   > changes that line. T4 and T5 also stay `[-]` until T2: without candidate
   > prices, no rightsize, generation, Arm or Spot row appears on Azure. The
   > note `Azure candidate prices not available yet` says so on screen.
+  >
+  > **Done 2026-11-10** with T2: the CHANGELOG line now describes the
+  > candidate prices, and T4 and T5 are closed with it. T6 stays its own
+  > task.
 - [ ] T8. Verify: `scripts/verify.sh` and `make lint` green; run on a cluster: note what was checked, never the cluster's name
   - _Covers: all · Depends on: T1–T7 · Verified by: command output and the cluster run (kind with made-up `azure://` nodes, priced through the public API), recorded here as a dated note_
 

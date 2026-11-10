@@ -230,6 +230,10 @@ node:
 > requests" and "a size the API doesn't know is not asked again". Until T2,
 > spec-trace sees R3 cited by the advisor and model tests only. The same goes
 > for R16's `Test: ci` marker: it waits for T6 (`refresh-data.yaml`).
+>
+> **Corrected 2026-11-10 (T2).** Both R3 checks now exist:
+> `TestListPriceBatches` and `TestListPriceQueuesAndAnswers`. R16 still
+> waits for T6.
 
 **R4** WHEN an Azure node has `kubernetes.azure.com/agentpool` and no
 `karpenter.sh/nodepool` THEN the rules SHALL treat its agent pool as a

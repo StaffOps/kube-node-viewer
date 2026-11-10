@@ -15,8 +15,9 @@ All notable changes to this project are documented here. Format:
   the v5 families AKS documents, system pools keep AKS's limits (no Spot or
   Arm, at least two nodes, 4 vCPU / 4 GiB / 30 pods, no B series), and
   Azure Spot is priced per region. AWS and Azure nodes on one screen are each
-  advised from their own cloud. Candidate prices for sizes no node runs
-  arrive with a later change; until then the rows that need them are absent.
+  advised from their own cloud. Prices for sizes no node runs come from the
+  public Retail Prices API in the background, batched like node prices; the
+  screen says how many it is waiting for.
 
 ### Fixed
 
