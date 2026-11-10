@@ -136,7 +136,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 32. [`content-cloud-ids/`](content-cloud-ids/) — **active**. The content check blocks real GCE
     projects and Azure resource groups in provider IDs.
     [requirements](content-cloud-ids/requirements.md) · [design](content-cloud-ids/design.md) · [tasks](content-cloud-ids/tasks.md)
-33. [`decisions/`](decisions/) — decision records (index below).
+33. [`aks-recommendations/`](aks-recommendations/) — **draft**. The Recommendations screen on
+    AKS nodes: an Azure size catalog from public data, candidate prices from the Retail Prices
+    API, agent pools, Arm (Cobalt) counterparts, regional Spot.
+    [requirements](aks-recommendations/requirements.md) · [design](aks-recommendations/design.md) · [tasks](aks-recommendations/tasks.md)
+34. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>
