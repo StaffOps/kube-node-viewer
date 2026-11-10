@@ -116,8 +116,45 @@ tests, so spec-trace passes.
   >
   > **Done 2026-11-10** with T2: the CHANGELOG line now describes the
   > candidate prices, and T4 and T5 are closed with it. T6 is deferred.
-- [ ] T8. Verify: `scripts/verify.sh` and `make lint` green; run on a cluster: note what was checked, never the cluster's name
+- [x] T8. Verify: `scripts/verify.sh` and `make lint` green; run on a cluster: note what was checked, never the cluster's name
   - _Covers: all · Depends on: T1–T7 · Verified by: command output and the cluster run (kind with made-up `azure://` nodes, priced through the public API), recorded here as a dated note_
+
+  > **Verified 2026-11-10.** `scripts/verify.sh` and `make lint` are green.
+  > The run was on a throwaway kind cluster with its own kubeconfig, deleted
+  > afterwards. The binary was driven through a pty, priced live from the
+  > public Retail Prices API with no credentials.
+  >
+  > **AKS nodes:** made-up `azure://` nodes (`aks-<pool>-12345678-vmss…`,
+  > resource group `MC_example…`, `eastus`):
+  > - a `system` pool of 2 × Standard_D4s_v5, mode `system`;
+  > - a `userpool` of 2 × Standard_D8s_v5, one lightly loaded;
+  > - a `legacy` pool of 1 × Standard_D4s_v3;
+  > - pods bound to the nodes.
+  >
+  > What the screen showed:
+  > - Recommendations analysed the nodes, with no EKS-only message.
+  > - The rows read `agent pool <name>`.
+  > - The light node was rightsized to Standard_D4s_v5 ($140.16).
+  > - The `arm` rows targeted Standard_D8ps_v5 and Standard_D4pds_v5: v5,
+  >   temp disk kept.
+  > - There was no Spot or Arm row for the system pool.
+  > - The Spot rows said `evictions!`.
+  > - The waiting note cleared once the prices arrived.
+  > - `enter` on the rightsize row showed the math: the cluster's D4s_v5
+  >   allocatable, `pods 3 of 250`, the D2s_v5 estimate that doesn't fit
+  >   (1.82 vCPU / 3.20 GiB, "may understate"), the one-VM-size line and the
+  >   saving.
+  >
+  > **`--disable-pricing`:** the `pricing disabled` note, and no rightsize,
+  > Arm or Spot row.
+  >
+  > **EKS-only:** made-up `aws://` nodes in a node group, with
+  > `--disable-pricing`. The rows read `node group`, `graviton`
+  > (`interruptions!`), and no Azure note showed.
+  >
+  > **A fixture fault found and fixed:** two fake nodes that shared a
+  > provider ID showed as one. That was a fault in the made-up data, not in
+  > the code.
 
 > A code change with open tasks here cannot merge, and so cannot release:
 > `scripts/spec-tasks-check.py` fails CI and the `pr-guard` hook blocks
