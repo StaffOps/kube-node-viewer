@@ -12,11 +12,18 @@ The spec goes active in the PR that brings its tests. That PR updates the
 status line and the `specs/README.md` index entry, and cites each R in the
 tests, so spec-trace passes.
 
-- [ ] T1. Catalog:
+- [x] T1. Catalog:
   - `make azure-catalog` copies the cluster autoscaler's Azure table verbatim into `pkg/azure/zz_generated_instance_types.go`;
   - `pkg/azure/catalog.go`: lookups, family normalisation, `amd64` → `x86_64`, 0 vCPU or memory counts as missing, the constrained flag, the counterpart lookup;
   - record which recent families the copy lacks.
   - _Covers: R2, R16 · Depends on: — · Verified by: catalog tests (D64ps_v5 208 GiB, DS1_v2 3 GiB, B1ls missing)_
+
+  > **Done 2026-11-10.** `pkg/azure/catalog.go` with `TestSizeCatalog` and
+  > `TestNormalizeFamily`. The copy (upstream last changed 2026-03-17) holds
+  > the AMD v7 families (`dasv7`, `dadsv7`, `dalsv7`, `daldsv7`, `easv7`,
+  > `eadsv7`, `fasv7`…) and no Intel v7 family; none of them is a key or a
+  > target of the D5 tables. The counterpart lookup lives in
+  > `pkg/recommend` (it needs only the advisor's `Types` and `Spec`).
 - [ ] T2. Prices:
   - `azure.Provider.ListPrice` through the fetch loop's split (the constant of [fix-azure-price-batch](../fix-azure-price-batch/bugfix.md), not redefined);
   - the generation counter;
