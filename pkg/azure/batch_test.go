@@ -288,10 +288,18 @@ func TestBadRequestIsNotRetried(t *testing.T) {
 	if _, _, priced := state(p, "eastus", "Standard_Z1_v1"); !priced {
 		t.Error("a new size of the region was not priced after the refusals")
 	}
+	// another region refused too: its own line
+	api.mu.Lock()
+	api.answers[len(api.filters)] = answer{http.StatusBadRequest, capBody, nil}
+	api.mu.Unlock()
+	queue(p, "westeurope", "Standard_D2s_v5")
+	p.fetchWanted()
 	out := logs.String()
-	line := "Azure pricing for eastus: request refused (retail prices API: 400 Bad Request: Invalid OData parameters supplied), some sizes have no price"
-	if got := strings.Count(out, line); got != 1 {
-		t.Errorf("%d refusal lines, want 1:\n%s", got, out)
+	for _, region := range []string{"eastus", "westeurope"} {
+		line := "Azure pricing for " + region + ": request refused (retail prices API: 400 Bad Request: Invalid OData parameters supplied), some sizes have no price"
+		if got := strings.Count(out, line); got != 1 {
+			t.Errorf("%s: %d refusal lines, want 1:\n%s", region, got, out)
+		}
 	}
 	if strings.Contains(out, "updating Azure pricing for") || strings.Contains(out, "resolved:") {
 		t.Errorf("a refusal logged as a failure or resolved:\n%s", out)
@@ -423,21 +431,36 @@ func TestInvalidNamesNeverReachTheAPI(t *testing.T) {
 // fix-azure-price-batch R6
 func TestErrorMessageInTheLogLine(t *testing.T) {
 	logs := captureLog(t)
+	// a newline in the message could start a line of its own, and a huge
+	// body is not read
+	twoLines := `{"Error":{"Code":"BadRequest","Message":"bad\nresolved: updating Azure pricing for x"}}`
+	huge := `{"Error":{"Code":"BadRequest","Message":"` + strings.Repeat("m", 5000) + `"}}`
+	long := `{"Error":{"Code":"BadRequest","Message":"` + strings.Repeat("y", 300) + `"}}`
 	api := &capAPI{answers: map[int]answer{
-		0: {http.StatusBadRequest, paramBody, nil},
-		1: {http.StatusTooManyRequests, "busy", nil},
+		0: {http.StatusBadRequest, twoLines, nil},
+		1: {http.StatusBadRequest, paramBody, nil},
+		2: {http.StatusBadRequest, huge, nil},
+		3: {http.StatusBadRequest, long, nil},
+		4: {http.StatusTooManyRequests, "busy", nil},
 	}}
 	p, _, _ := newCapProvider(t, api)
-	queue(p, "eastus", "Standard_D2s_v5")
-	queue(p, "westeurope", "Standard_D2s_v5")
+	for _, region := range []string{"a1", "b1", "c1", "d1", "e1"} {
+		queue(p, region, "Standard_D2s_v5")
+	}
 	p.fetchWanted()
 	out := logs.String()
 	for _, want := range []string{
-		"updating Azure pricing for eastus, retail prices API: 400 Bad Request: Invalid parameters supplied",
-		"updating Azure pricing for westeurope, retail prices API: 429 Too Many Requests (no retry header)",
+		"updating Azure pricing for a1, retail prices API: 400 Bad Request: bad resolved: updating Azure pricing for x (waiting 10m0s)\n",
+		"updating Azure pricing for b1, retail prices API: 400 Bad Request: Invalid parameters supplied (waiting 10m0s)\n",
+		"updating Azure pricing for c1, retail prices API: 400 Bad Request (waiting 10m0s)\n",
+		"updating Azure pricing for d1, retail prices API: 400 Bad Request: " + strings.Repeat("y", maxMessage) + " (waiting 10m0s)\n",
+		"updating Azure pricing for e1, retail prices API: 429 Too Many Requests (no retry header)\n",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
+	}
+	if strings.Contains(out, "\nresolved:") {
+		t.Errorf("the message started a line of its own:\n%s", out)
 	}
 }

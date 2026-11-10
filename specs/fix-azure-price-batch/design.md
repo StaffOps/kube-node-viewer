@@ -48,6 +48,11 @@ their sizes show no price for the rest of the session (until a restart or
 `c` builds a new provider); the refusal line names the region but leaves the
 header after `issueWindow` (2 minutes, `pkg/model/header.go:51`).
 
+> **Corrected 2026-11-10 (diff review).** `c` on the current context only
+> closes the popup (`pkg/model/contexts.go:135-138`); a new provider is built
+> by a switch (`cmd/kube-node-viewer/session.go`), so the sizes stay without
+> a price until a restart, or `c` to another context and back (`TODO.md`).
+
 **Reversal action**: lower `maxFilterComparisons`; the R1 test follows.
 
 Alternatives: probing the cap at run time (more requests, more `429`s);

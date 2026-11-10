@@ -24,3 +24,9 @@
 > parameters supplied`. `scripts/kind-it.sh` passed on a throwaway kind
 > cluster, deleted after; kind has no Azure nodes, so it only shows nothing
 > else broke. Not run on an AKS cluster.
+
+> **Verified 2026-11-10 (diff review fixes).** A second region refused in
+> `TestBadRequestIsNotRetried` gets its own line; `TestErrorMessageInTheLogLine`
+> now sends a message with a newline, one of 300 characters and a body over
+> 4096 bytes, and fails with the size limit or the control-character
+> replacement removed. `go test -race ./pkg/azure/` passes.

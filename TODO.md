@@ -96,6 +96,13 @@ memory. Listed by impact.
       addresses, until the node's next update event (no informer
       resync is configured).
 
+- [ ] `c` on the current context only closes the popup
+      (`pkg/model/contexts.go:135-138`); make it reconnect, building new
+      clients and pricing providers. _Why:_ an Azure batch refused as over the
+      API's cap ([fix-azure-price-batch](specs/fix-azure-price-batch/design.md)
+      D1) leaves its sizes without a price until a restart or a switch to
+      another context and back.
+
 ## Ideas
 
 - [ ] Recommendations for AKS: Azure VM catalog and family tables, so the

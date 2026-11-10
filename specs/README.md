@@ -140,7 +140,8 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     reads (`Update` clears the NodeClaim time); a malformed Fargate annotation no longer panics.
     [bugfix](fix-ready-lock-fargate-panic/bugfix.md) · [tasks](fix-ready-lock-fargate-panic/tasks.md)
 34. [`fix-azure-price-batch/`](fix-azure-price-batch/) — **active**. Azure prices are asked in
-    batches of at most 17 sizes, and a refused (`400`) request is not sent again.
+    batches of at most 17 sizes; a request refused as over the API's cap is not sent again, another
+    `400` waits 10 minutes.
     [bugfix](fix-azure-price-batch/bugfix.md) · [design](fix-azure-price-batch/design.md) · [tasks](fix-azure-price-batch/tasks.md)
 35. [`decisions/`](decisions/) — decision records (index below).
 

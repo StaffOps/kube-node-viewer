@@ -30,6 +30,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/staffops/kube-node-viewer/pkg/model"
 )
@@ -454,9 +455,14 @@ func (p *Provider) get(u string) (retailPage, error) {
 	return page, nil
 }
 
+// maxMessage caps the API's error message in a log line.
+const maxMessage = 200
+
 // apiMessage is the Message of the API's error body
-// ({"Error":{"Code":…,"Message":…}}), empty when the body is not that
-// (fix-azure-price-batch R6).
+// ({"Error":{"Code":…,"Message":…}}), empty when the body is not that or is
+// over 4096 bytes; control characters become spaces and it is cut to
+// maxMessage characters, so it stays one header line (fix-azure-price-batch
+// R6).
 func apiMessage(body io.Reader) string {
 	var e struct {
 		Error struct {
@@ -466,5 +472,14 @@ func apiMessage(body io.Reader) string {
 	if json.NewDecoder(io.LimitReader(body, 4096)).Decode(&e) != nil {
 		return ""
 	}
-	return e.Error.Message
+	msg := []rune(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, e.Error.Message))
+	if len(msg) > maxMessage {
+		msg = msg[:maxMessage]
+	}
+	return strings.TrimSpace(string(msg))
 }

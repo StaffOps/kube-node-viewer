@@ -67,13 +67,6 @@ up in the background and re-price the nodes when the answer arrives.
   and retried no sooner than 1 minute later; a size the API doesn't know is
   not asked again in the session.
 - [x] Timeout 20 s per request.
-
-> **Corrected 2026-11-10 ([fix-azure-price-batch](../fix-azure-price-batch/bugfix.md) R1, R3).**
-> A region's unknown sizes go out in batches of at most 17, one request
-> each (the API refuses a filter with more than 20 comparisons). A request
-> the API refuses as over its cap (`400`, `Invalid OData parameters
-> supplied`) is not retried, and its sizes have no price; any other `400`
-> is retried no sooner than 10 minutes later.
 - [x] With `--disable-pricing` nothing is fetched.
 
 > **Corrected 2026-11-05.** These boxes were ticked "by unit tests" that did
@@ -86,6 +79,13 @@ up in the background and re-price the nodes when the answer arrives.
 > override label on an Azure node (`TestUpdatePriceOverrideOnAKSNode`).
 > "A failed request is logged (it shows in the header)" is still checked
 > only by reading the code.
+
+> **Corrected 2026-11-10 ([fix-azure-price-batch](../fix-azure-price-batch/bugfix.md) R1, R3).**
+> A region's unknown sizes go out in batches of at most 17, one request
+> each (the API refuses a filter with more than 20 comparisons). A request
+> the API refuses as over its cap (`400`, `Invalid OData parameters
+> supplied`) is not retried, and its sizes have no price; any other `400`
+> is retried no sooner than 10 minutes later.
 
 **R3** WHEN only Azure nodes are shown THEN the Recommendations screen SHALL
 keep saying it covers EKS nodes only (no Azure catalog yet).

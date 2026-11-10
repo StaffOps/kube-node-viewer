@@ -1,6 +1,6 @@
 # Bugfix: azure-price-batch
 
-> Status: active · Reported: 2026-11-10 UTC (spec-refuter review of the AKS Recommendations draft; measured against the public API) · Reviewed: 2026-11-10 (spec-refuter; 2 HIGH, 4 MEDIUM, 4 LOW; applied)
+> Status: active · Reported: 2026-11-10 UTC (spec-refuter review of the AKS Recommendations draft; measured against the public API) · Reviewed: 2026-11-10 (spec-refuter; 2 HIGH, 4 MEDIUM, 4 LOW; applied); diff 2026-11-10 (spec-refuter; 2 MEDIUM, 4 LOW; applied)
 
 Decisions: [design](design.md).
 
@@ -132,6 +132,13 @@ Tests: `// fix-azure-price-batch R6` on `TestErrorMessageInTheLogLine`.
       Invalid OData parameters supplied`
 - [x] `429` with the body `busy` → `retail prices API: 429 Too Many
       Requests` (as today)
+
+> **Corrected 2026-11-10 (diff review).** The message is made safe for the
+> one-line header: control characters become spaces and it is cut to 200
+> characters (a newline could otherwise start a `resolved: …` line that
+> clears an unrelated error, `cmd/kube-node-viewer/errlog.go`); a body over
+> 4096 bytes is not read, so the line ends at the status.
+> `TestErrorMessageInTheLogLine` checks both.
 
 **R7** WHEN a request fails with any retried status or a network error THEN
 the region SHALL get a retry time and its sizes SHALL stay wanted, as
