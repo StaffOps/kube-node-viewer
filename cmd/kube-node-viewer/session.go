@@ -267,12 +267,12 @@ func (a awsAdvisor) Spec(t string) (recommend.Spec, bool) {
 	return recommend.Spec{VCPU: s.VCPU, MemGiB: s.MemoryGiB, Arch: s.Arch, Class: s.Class, Current: s.CurrentGeneration}, true
 }
 
-func (a awsAdvisor) OnDemand(t string) (float64, bool) {
+func (a awsAdvisor) OnDemand(_ recommend.Node, t string) (float64, bool) {
 	return a.prices.OnDemandPrice(ec2types.InstanceType(t))
 }
 
-func (a awsAdvisor) SpotIn(t, zone string) (float64, bool) {
-	return a.prices.SpotPriceInZone(ec2types.InstanceType(t), zone)
+func (a awsAdvisor) SpotIn(n recommend.Node, t string) (float64, bool) {
+	return a.prices.SpotPriceInZone(ec2types.InstanceType(t), n.Zone)
 }
 
 func (a awsAdvisor) Types() []string { return aws.InstanceTypes() }

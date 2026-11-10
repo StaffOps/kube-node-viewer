@@ -29,7 +29,7 @@ tests, so spec-trace passes.
   - the generation counter;
   - a disabled mode that never queues.
   - _Covers: R3 · Depends on: fix-azure-price-batch merged · Verified by: pricing tests (candidate sizes beyond 17 → two requests; unknown size not asked again; disabled → no request)_
-- [ ] T3. `pkg/recommend`:
+- [x] T3. `pkg/recommend`:
   - `Node` fields: `Cloud`, `Region`, `Windows`, `System`, `Capacity`, `VMPool`;
   - price functions take the node; `Rec.Cloud` and `Label()`; family per cloud;
   - `tables_azure.go`: the temp-disk set, the generation and Arm tables, the coverage rule;
@@ -38,6 +38,13 @@ tests, so spec-trace passes.
   - the virtual node excluded from catalog advice and old node;
   - `fixture_test.go` signatures; `aks_fixture_test.go` with the full fixture and the made-up virtual node.
   - _Covers: R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14, R15 · Depends on: T1 · Verified by: the AKS fixture ($322.66), the mixed fixture ($565.60), the AWS fixture unchanged ($242.94), per-rule tests, the table coverage and temp-disk tests_
+
+  > **Done 2026-11-10.** `aks_fixture_test.go` (the usage example: rows,
+  > order, `arm` label, $322.66; R4–R15 cases), `tables_azure_ext_test.go`
+  > (tables against the copied catalog, Arm coverage, B1ls never a
+  > candidate), and the AWS fixture unchanged ($242.94). The model and
+  > session advisors take the new price signatures in the same commit, so
+  > every commit builds; their Azure wiring is T4 and T5.
 - [ ] T4. `pkg/model`:
   - advisor per cloud; the gate (GCP message, empty cluster);
   - labels and `status.capacity` into `recommend.Node`;

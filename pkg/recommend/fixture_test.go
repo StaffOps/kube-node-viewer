@@ -29,14 +29,14 @@ var fixturePrices = map[string]float64{
 }
 
 var fixtureSpecs = map[string]Spec{
-	"m6i.large": {2, 8, "x86_64", "General purpose", true}, "m6i.xlarge": {4, 16, "x86_64", "General purpose", true},
-	"m6i.2xlarge": {8, 32, "x86_64", "General purpose", true},
-	"m7g.large":   {2, 8, "arm64", "General purpose", true}, "m7g.xlarge": {4, 16, "arm64", "General purpose", true},
-	"t3.large": {2, 8, "x86_64", "General purpose", true}, "t3.medium": {2, 4, "x86_64", "General purpose", true},
-	"t3.small":  {2, 2, "x86_64", "General purpose", true},
-	"t4g.large": {2, 8, "arm64", "General purpose", true}, "t4g.medium": {2, 4, "arm64", "General purpose", true},
-	"t2.large": {2, 8, "x86_64", "General purpose", true}, "t2.medium": {2, 4, "x86_64", "General purpose", true},
-	"t2.small": {1, 2, "x86_64", "General purpose", true},
+	"m6i.large": {VCPU: 2, MemGiB: 8, Arch: "x86_64", Class: "General purpose", Current: true}, "m6i.xlarge": {VCPU: 4, MemGiB: 16, Arch: "x86_64", Class: "General purpose", Current: true},
+	"m6i.2xlarge": {VCPU: 8, MemGiB: 32, Arch: "x86_64", Class: "General purpose", Current: true},
+	"m7g.large":   {VCPU: 2, MemGiB: 8, Arch: "arm64", Class: "General purpose", Current: true}, "m7g.xlarge": {VCPU: 4, MemGiB: 16, Arch: "arm64", Class: "General purpose", Current: true},
+	"t3.large": {VCPU: 2, MemGiB: 8, Arch: "x86_64", Class: "General purpose", Current: true}, "t3.medium": {VCPU: 2, MemGiB: 4, Arch: "x86_64", Class: "General purpose", Current: true},
+	"t3.small":  {VCPU: 2, MemGiB: 2, Arch: "x86_64", Class: "General purpose", Current: true},
+	"t4g.large": {VCPU: 2, MemGiB: 8, Arch: "arm64", Class: "General purpose", Current: true}, "t4g.medium": {VCPU: 2, MemGiB: 4, Arch: "arm64", Class: "General purpose", Current: true},
+	"t2.large": {VCPU: 2, MemGiB: 8, Arch: "x86_64", Class: "General purpose", Current: true}, "t2.medium": {VCPU: 2, MemGiB: 4, Arch: "x86_64", Class: "General purpose", Current: true},
+	"t2.small": {VCPU: 1, MemGiB: 2, Arch: "x86_64", Class: "General purpose", Current: true},
 }
 
 func fixtureInput(nodes []Node) Input {
@@ -47,8 +47,8 @@ func fixtureInput(nodes []Node) Input {
 	return Input{
 		Nodes: nodes, Now: now, Headroom: 0.8, OldAge: 30 * 24 * time.Hour, Types: types,
 		Spec:     func(t string) (Spec, bool) { s, ok := fixtureSpecs[t]; return s, ok },
-		OnDemand: func(t string) (float64, bool) { p, ok := fixturePrices[t]; return p, ok },
-		SpotIn: func(t, zone string) (float64, bool) {
+		OnDemand: func(_ Node, t string) (float64, bool) { p, ok := fixturePrices[t]; return p, ok },
+		SpotIn: func(_ Node, t string) (float64, bool) {
 			if t == "m6i.xlarge" {
 				return 0.0768, true
 			}

@@ -29,8 +29,10 @@ import (
 // instance catalog and prices (recommendations D2).
 type Advisor interface {
 	Spec(instanceType string) (recommend.Spec, bool)
-	OnDemand(instanceType string) (float64, bool)
-	SpotIn(instanceType, zone string) (float64, bool)
+	// OnDemand and SpotIn price a size in the market of node n (its zone
+	// or region, its OS)
+	OnDemand(n recommend.Node, instanceType string) (float64, bool)
+	SpotIn(n recommend.Node, instanceType string) (float64, bool)
 	Types() []string
 }
 
