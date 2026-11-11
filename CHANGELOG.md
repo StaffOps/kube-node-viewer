@@ -62,6 +62,10 @@ All notable changes to this project are documented here. Format:
   without the subscription and resource group. A node with no name yet is listed
   by that same short form on those clouds. Node labels are still shown whole.
 
+### Security
+
+- Built with Go 1.26.11, which fixes GO-2026-6859 in `net/http`.
+
 ## [0.15.0] - 2026-11-09
 
 ### Changed
