@@ -29,18 +29,23 @@ download: ## Download dependencies
 CHECK_GOOS=linux darwin windows
 
 # Pinned tools, built for this machine (GOOS below applies to the analysis,
-# not to the tool) into the git-ignored bin/.
+# not to the tool) into the git-ignored bin/. The file name carries the Go
+# that built it: go-licenses reads the standard library of that Go, so a
+# tool left from an older Go fails once Go is upgraded.
 TOOLS=$(CURDIR)/bin/tools
+TOOLS_GO:=$(shell go env GOVERSION)
+GO_LICENSES=$(TOOLS)/go-licenses-$(GO_LICENSES_VERSION)-$(TOOLS_GO)
+GOVULNCHECK=$(TOOLS)/govulncheck-$(GOVULNCHECK_VERSION)-$(TOOLS_GO)
 
-$(TOOLS)/go-licenses-$(GO_LICENSES_VERSION):
+$(GO_LICENSES):
 	GOBIN=$(TOOLS) GOOS= GOARCH= go install github.com/google/go-licenses/v2@$(GO_LICENSES_VERSION)
 	mv $(TOOLS)/go-licenses $@
 
-$(TOOLS)/govulncheck-$(GOVULNCHECK_VERSION):
+$(GOVULNCHECK):
 	GOBIN=$(TOOLS) GOOS= GOARCH= go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 	mv $(TOOLS)/govulncheck $@
 
-licenses: $(TOOLS)/go-licenses-$(GO_LICENSES_VERSION) ## Check dependency licenses against the allowlist, every release OS (pinned go-licenses)
+licenses: $(GO_LICENSES) ## Check dependency licenses against the allowlist, every release OS (pinned go-licenses)
 	@echo "go-licenses $(GO_LICENSES_VERSION): $(CHECK_GOOS)"
 	@for os in $(CHECK_GOOS); do \
 		out=$$(GOOS=$$os $< check ./cmd/... ./pkg/... \
@@ -49,7 +54,7 @@ licenses: $(TOOLS)/go-licenses-$(GO_LICENSES_VERSION) ## Check dependency licens
 	done # go-localereader: MIT
 	@echo "licenses: ok"
 
-vuln: $(TOOLS)/govulncheck-$(GOVULNCHECK_VERSION) ## Known vulnerabilities reachable from our code, every release OS (pinned govulncheck)
+vuln: $(GOVULNCHECK) ## Known vulnerabilities reachable from our code, every release OS (pinned govulncheck)
 	@for os in $(CHECK_GOOS); do \
 		echo "== govulncheck $(GOVULNCHECK_VERSION) GOOS=$$os"; \
 		GOOS=$$os $< ./cmd/... ./pkg/... || exit 1; \
