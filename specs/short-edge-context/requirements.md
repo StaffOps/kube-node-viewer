@@ -1,6 +1,6 @@
 # Requirements: short-edge-context
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 1 HIGH, 2 MEDIUM, 5 LOW, applied)
+> Status: shipped (v0.16.0, 2026-11-11) · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 1 HIGH, 2 MEDIUM, 5 LOW, applied)
 
 ## Context
 

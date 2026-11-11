@@ -1,6 +1,6 @@
 # Bugfix: node-name-lock
 
-> Status: active · Reported: 2026-11-10 UTC ([hide-cloud-ids](../hide-cloud-ids/requirements.md) review, `TODO.md`) · Reviewed: 2026-11-10 (spec-refuter; 2 HIGH, 5 MEDIUM, 6 LOW, applied)
+> Status: shipped (v0.16.0, 2026-11-11) · Reported: 2026-11-10 UTC ([hide-cloud-ids](../hide-cloud-ids/requirements.md) review, `TODO.md`) · Reviewed: 2026-11-10 (spec-refuter; 2 HIGH, 5 MEDIUM, 6 LOW, applied)
 
 ## Current behavior
 

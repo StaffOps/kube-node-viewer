@@ -124,30 +124,30 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
 28. [`short-gke-context/`](short-gke-context/) — **shipped** in v0.15.0. The headers show a
     GKE context as its cluster name, and export file names use the short name.
     [requirements](short-gke-context/requirements.md) · [design](short-gke-context/design.md) · [tasks](short-gke-context/tasks.md)
-29. [`hide-cloud-ids/`](hide-cloud-ids/) — **active**. The headers shorten gcloud's multi-cloud
+29. [`hide-cloud-ids/`](hide-cloud-ids/) — **shipped** in v0.16.0. The headers shorten gcloud's multi-cloud
     and Connect gateway contexts, and node details stop showing the project or subscription.
     [requirements](hide-cloud-ids/requirements.md) · [design](hide-cloud-ids/design.md) · [tasks](hide-cloud-ids/tasks.md)
-30. [`short-edge-context/`](short-edge-context/) — **active**. The headers and the export file
+30. [`short-edge-context/`](short-edge-context/) — **shipped** in v0.16.0. The headers and the export file
     name show a Distributed Cloud (`edgecontainer_`) context as its cluster name.
     [requirements](short-edge-context/requirements.md) · [design](short-edge-context/design.md) · [tasks](short-edge-context/tasks.md)
-31. [`fix-node-name-lock/`](fix-node-name-lock/) — **active**. `Node` takes its lock once per
+31. [`fix-node-name-lock/`](fix-node-name-lock/) — **shipped** in v0.16.0. `Node` takes its lock once per
     call: no recursive read lock, no read outside the lock.
     [bugfix](fix-node-name-lock/bugfix.md) · [tasks](fix-node-name-lock/tasks.md)
-32. [`content-cloud-ids/`](content-cloud-ids/) — **active**. The content check blocks real GCE
+32. [`content-cloud-ids/`](content-cloud-ids/) — **shipped** in v0.16.0. The content check blocks real GCE
     projects and Azure resource groups in provider IDs.
     [requirements](content-cloud-ids/requirements.md) · [design](content-cloud-ids/design.md) · [tasks](content-cloud-ids/tasks.md)
-33. [`fix-ready-lock-fargate-panic/`](fix-ready-lock-fargate-panic/) — **active**. `Ready` only
+33. [`fix-ready-lock-fargate-panic/`](fix-ready-lock-fargate-panic/) — **shipped** in v0.16.0. `Ready` only
     reads (`Update` clears the NodeClaim time); a malformed Fargate annotation no longer panics.
     [bugfix](fix-ready-lock-fargate-panic/bugfix.md) · [tasks](fix-ready-lock-fargate-panic/tasks.md)
-34. [`fix-azure-price-batch/`](fix-azure-price-batch/) — **active**. Azure prices are asked in
+34. [`fix-azure-price-batch/`](fix-azure-price-batch/) — **shipped** in v0.16.0. Azure prices are asked in
     batches of at most 17 sizes; a request refused as over the API's cap is not sent again, another
     `400` waits 10 minutes.
     [bugfix](fix-azure-price-batch/bugfix.md) · [design](fix-azure-price-batch/design.md) · [tasks](fix-azure-price-batch/tasks.md)
-35. [`aks-recommendations/`](aks-recommendations/) — **active**. The Recommendations screen on
+35. [`aks-recommendations/`](aks-recommendations/) — **shipped** in v0.16.0. The Recommendations screen on
     AKS nodes: the cluster autoscaler's Azure size table, candidate prices from the Retail Prices
     API, agent pools, Arm v5 counterparts, regional Spot, system-pool limits.
     [requirements](aks-recommendations/requirements.md) · [design](aks-recommendations/design.md) · [tasks](aks-recommendations/tasks.md)
-36. [`azure-live-skus/`](azure-live-skus/) — **active**. Azure VM sizes read live from the
+36. [`azure-live-skus/`](azure-live-skus/) — **shipped** in v0.16.0. Azure VM sizes read live from the
     Resource SKUs API with the machine's `az login`; no permission or no sign-in is said on the
     Recommendations screen; the copied autoscaler table goes.
     [requirements](azure-live-skus/requirements.md) · [design](azure-live-skus/design.md) · [tasks](azure-live-skus/tasks.md)

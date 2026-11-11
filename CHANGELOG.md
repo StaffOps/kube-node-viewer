@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-11
+
 ### Added
 
 - Recommendations on AKS nodes: idle cost, consolidation, rightsizing, newer
@@ -443,7 +445,8 @@ All notable changes to this project are documented here. Format:
 - A node's price is read and written under its lock; a pod seen before its
   node is counted once the node appears.
 
-[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/StaffOps/kube-node-viewer/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/StaffOps/kube-node-viewer/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/StaffOps/kube-node-viewer/compare/v0.13.0...v0.13.1

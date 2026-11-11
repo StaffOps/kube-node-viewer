@@ -1,6 +1,6 @@
 # Bugfix: ready-lock-fargate-panic
 
-> Status: active · Reported: 2026-11-10 UTC ([fix-node-name-lock](../fix-node-name-lock/bugfix.md) review, `TODO.md`) · Reviewed: 2026-11-10 (spec-refuter; 1 HIGH, 3 MEDIUM, 4 LOW, applied)
+> Status: shipped (v0.16.0, 2026-11-11) · Reported: 2026-11-10 UTC ([fix-node-name-lock](../fix-node-name-lock/bugfix.md) review, `TODO.md`) · Reviewed: 2026-11-10 (spec-refuter; 1 HIGH, 3 MEDIUM, 4 LOW, applied)
 
 ## Current behavior
 

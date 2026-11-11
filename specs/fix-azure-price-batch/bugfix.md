@@ -1,6 +1,6 @@
 # Bugfix: azure-price-batch
 
-> Status: active · Reported: 2026-11-10 UTC (spec-refuter review of the AKS Recommendations draft; measured against the public API) · Reviewed: 2026-11-10 (spec-refuter; 2 HIGH, 4 MEDIUM, 4 LOW; applied); diff 2026-11-10 (spec-refuter; 2 MEDIUM, 4 LOW; applied)
+> Status: shipped (v0.16.0, 2026-11-11) · Reported: 2026-11-10 UTC (spec-refuter review of the AKS Recommendations draft; measured against the public API) · Reviewed: 2026-11-10 (spec-refuter; 2 HIGH, 4 MEDIUM, 4 LOW; applied); diff 2026-11-10 (spec-refuter; 2 MEDIUM, 4 LOW; applied)
 
 Decisions: [design](design.md).
 

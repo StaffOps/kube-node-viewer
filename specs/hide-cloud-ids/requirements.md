@@ -1,6 +1,6 @@
 # Requirements: hide-cloud-ids
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-09 (spec-refuter; 1 HIGH, 7 MEDIUM, 9 LOW, applied)
+> Status: shipped (v0.16.0, 2026-11-11) · Owner: Carlos Gomes · Reviewed: 2026-11-09 (spec-refuter; 1 HIGH, 7 MEDIUM, 9 LOW, applied)
 
 ## Context
 

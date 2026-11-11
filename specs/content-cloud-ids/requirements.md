@@ -1,6 +1,6 @@
 # Requirements: content-cloud-ids
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 1 HIGH, 4 MEDIUM, 6 LOW, applied; gaps R5-R10: 2 HIGH, 6 MEDIUM, 7 LOW, applied)
+> Status: shipped (v0.16.0, 2026-11-11) · Owner: Carlos Gomes · Reviewed: 2026-11-10 (spec-refuter; 1 HIGH, 4 MEDIUM, 6 LOW, applied; gaps R5-R10: 2 HIGH, 6 MEDIUM, 7 LOW, applied)
 
 > **Corrected 2026-11-10 (gaps).** R5 to R10 close the gaps this spec left
 > out of scope: the example allowance of `gke_ok`, `gce_ok` and
