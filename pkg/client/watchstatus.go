@@ -199,7 +199,7 @@ var (
 	hostPortPattern = regexp.MustCompile(`\b[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+:[0-9]+\b`)
 	// x509 errors list the names a certificate is valid for, and quote
 	// names of authorities
-	x509ValidFor = regexp.MustCompile(`(?i)(x509: certificate is valid for).*$`)
+	x509ValidFor = regexp.MustCompile(`(?i)(x509: certificate is (?:not )?valid for).*$`)
 	quoted       = regexp.MustCompile(`"[^"]*"`)
 	dnsName      = regexp.MustCompile(`(?i)\b[a-z0-9-]+(\.[a-z0-9-]+)+\b`)
 )

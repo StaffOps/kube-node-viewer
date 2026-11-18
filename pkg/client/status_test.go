@@ -515,6 +515,7 @@ func TestSanitize(t *testing.T) {
 		{"IP and port", errors.New("dial tcp 192.0.2.10:443: connect: connection refused"), "connection refused"},
 		{"host and port", errors.New("tls: handshake with example.com:443 failed"), "handshake"},
 		{"x509 names", errors.New("tls: failed to verify certificate: x509: certificate is valid for example.com, kubernetes.default, not other.example.com"), "x509: certificate is valid for"},
+		{"x509 no names", errors.New("x509: certificate is not valid for any names, but wanted to match kube-example"), "x509: certificate is not valid for"},
 		{"x509 mixed case", errors.New("x509: certificate is valid for API.Example.COM, kube-apiserver-example, not Other.Example.com"), "x509: certificate is valid for"},
 		{"x509 authority", errors.New(`x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "Example Corp Root CA")`), "unknown authority"},
 	}
@@ -604,9 +605,8 @@ func TestEventWatchStopReleasesPendingEvent(t *testing.T) {
 		w := newEventWatch(inner, &watchStatus{})
 		inner.Add(&v1.Node{})
 		time.Sleep(time.Millisecond) // the loop takes the event and waits to send it
+		// a reflector stops without reading the pending event
 		w.Stop()
-		for range w.ResultChan() {
-		}
 	}
 	eventually(t, "the wrappers' goroutines gone", func() bool { return goruntime.NumGoroutine() <= before+2 })
 }
