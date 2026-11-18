@@ -1,6 +1,6 @@
 # Requirements: clusters-screen
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-18 (spec-refuter: first pass 5 blocking, 6 high; second pass 3 blocking, 5 high; third pass 2026-11-18 1 blocking, 6 high, 7 medium, 7 low; fourth pass 2026-11-18 0 blocking, 2 high, 7 medium, 6 low; re-checks 2026-11-18, ready for active)
+> Status: shipped (v0.17.0, 2026-11-18) · Owner: Carlos Gomes · Reviewed: 2026-11-18 (spec-refuter: first pass 5 blocking, 6 high; second pass 3 blocking, 5 high; third pass 2026-11-18 1 blocking, 6 high, 7 medium, 7 low; fourth pass 2026-11-18 0 blocking, 2 high, 7 medium, 6 low; re-checks 2026-11-18, ready for active)
 
 > **Revised 2026-11-18.** The owner asked to see the cost of one cloud's
 > clusters at once and to keep clouds apart. Changes: clusters are grouped by

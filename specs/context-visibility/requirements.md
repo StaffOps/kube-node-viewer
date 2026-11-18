@@ -1,6 +1,6 @@
 # Requirements: context-visibility
 
-> Status: active · Owner: Carlos Gomes · Reviewed: 2026-11-18 (spec-refuter: first pass 2 high, 4 medium, 5 low; second pass ready for active, 1 medium and 3 low fixed after it)
+> Status: shipped (v0.17.0, 2026-11-18) · Owner: Carlos Gomes · Reviewed: 2026-11-18 (spec-refuter: first pass 2 high, 4 medium, 5 low; second pass ready for active, 1 medium and 3 low fixed after it)
 
 ## Context
 
