@@ -62,10 +62,6 @@ memory. Listed by impact.
 
 ## Follow-ups
 
-- [ ] Clusters screen on EKS: the T12 run on two or more EKS clusters
-      ([clusters-screen tasks](specs/clusters-screen/tasks.md)): cloud totals
-      with real prices, the `fargate-scheduler` field selector, memory and
-      sync time on a large fleet. _Why:_ the PR stays draft until it is done.
 - [ ] `scripts/kind-it.sh` cannot reach the kind API server when a host route
       (a VPN) covers the range of Docker's default networks; it passes with
       `KIND_EXPERIMENTAL_DOCKER_NETWORK` set to a network outside it. Say so
