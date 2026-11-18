@@ -1,0 +1,12 @@
+site_name: kube-node-viewer
+site_description: Terminal UI for watching node usage and cost in a Kubernetes cluster
+repo_url: https://github.com/StaffOps/kube-node-viewer
+edit_uri: edit/main/docs/
+
+nav:
+  - Home: index.md
+  - Views: views.md
+  - Kiro validation: kiro-validation.md
+
+plugins:
+  - techdocs-core
