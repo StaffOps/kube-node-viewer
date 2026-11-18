@@ -60,9 +60,12 @@ type fleet struct {
 	// prices builds a visit's price set
 	prices func(ctx context.Context) priceFunc
 
-	mu       sync.Mutex
-	epoch    int
-	scope    string
+	mu     sync.Mutex
+	epoch  int
+	serial uint64
+	scope  string
+	// guesses are the kubeconfig's guessed clouds, read once per visit
+	guesses  map[string]string
 	members  map[string]*member
 	queue    []*member
 	starting int
@@ -77,6 +80,7 @@ type fleet struct {
 
 type member struct {
 	name     string
+	serial   uint64
 	guess    string
 	epoch    int
 	c        *memberConn
@@ -117,10 +121,14 @@ func (f *fleet) SetWanted(contexts []string, scope string) {
 			f.closeLocked(m)
 		}
 	}
-	guesses := map[string]string{}
-	if infos, err := f.contexts(); err == nil {
-		for _, i := range infos {
-			guesses[i.Name] = i.Cloud
+	if f.guesses == nil {
+		// the model read the kubeconfig as it entered the screen; this is
+		// once per visit too
+		f.guesses = map[string]string{}
+		if infos, err := f.contexts(); err == nil {
+			for _, i := range infos {
+				f.guesses[i.Name] = i.Cloud
+			}
 		}
 	}
 	for _, name := range contexts {
@@ -131,11 +139,20 @@ func (f *fleet) SetWanted(contexts []string, scope string) {
 			}
 			continue
 		}
-		m := &member{name: name, guess: guesses[name], epoch: f.epoch}
+		f.serial++
+		m := &member{name: name, serial: f.serial, guess: f.guesses[name], epoch: f.epoch}
 		f.members[name] = m
 		f.queue = append(f.queue, m)
 	}
 	f.startLocked()
+}
+
+// Live tells whether serial is the member the fleet runs for the context.
+func (f *fleet) Live(name string, serial uint64) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	m, ok := f.members[name]
+	return ok && m.serial == serial
 }
 
 // WatchPods starts a member's full pod watch, now or once it is connected.
@@ -173,7 +190,7 @@ func (f *fleet) closeAllLocked() {
 	if f.stopVisit != nil {
 		f.stopVisit()
 	}
-	f.visit, f.stopVisit, f.visitPrices, f.notifier, f.changed = nil, nil, nil, nil, nil
+	f.visit, f.stopVisit, f.visitPrices, f.notifier, f.changed, f.guesses = nil, nil, nil, nil, nil, nil
 }
 
 func (f *fleet) closeLocked(m *member) {
@@ -221,14 +238,14 @@ func (f *fleet) run(m *member, prices priceFunc) {
 	}
 	if err != nil {
 		f.mu.Unlock()
-		f.send(model.MemberReadyMsg{Context: m.name, Err: client.Sanitize(err)})
+		f.send(model.MemberReadyMsg{Context: m.name, Serial: m.serial, Err: client.Sanitize(err)})
 		return
 	}
 	m.c = c
 	f.podsLocked(m)
 	f.mu.Unlock()
 	go c.startNodes()
-	f.send(model.MemberReadyMsg{Context: m.name, Gen: c.store.Generation(), Cluster: c.store, Status: c.status})
+	f.send(model.MemberReadyMsg{Context: m.name, Serial: m.serial, Gen: c.store.Generation(), Cluster: c.store, Status: c.status})
 
 	ticker := time.NewTicker(statusPoll)
 	defer ticker.Stop()

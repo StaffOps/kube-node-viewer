@@ -32,7 +32,8 @@ func (f *fakeFleet) SetWanted(c []string, scope string) {
 	f.wanted = append(f.wanted, slices.Clone(c))
 	f.scopes = append(f.scopes, scope)
 }
-func (f *fakeFleet) WatchPods(name string) { f.pods = append(f.pods, name) }
+func (f *fakeFleet) WatchPods(name string)    { f.pods = append(f.pods, name) }
+func (f *fakeFleet) Live(string, uint64) bool { return true }
 
 // last is the last set of wanted members.
 func (f *fakeFleet) last() []string {

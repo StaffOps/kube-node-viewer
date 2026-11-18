@@ -19,6 +19,7 @@ package client
 import (
 	"context"
 	"math"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -59,7 +60,8 @@ type Controller struct {
 	podsStarted bool
 	fargate     bool
 	ctx         context.Context
-	status      watchStatus
+	// statuses holds one per informer started
+	statuses []*watchStatus
 }
 
 // NewController watches one cluster into its own store. A context switch
@@ -108,7 +110,16 @@ func (m *Controller) Status() Status {
 	m.mu.Lock()
 	nodes, pods := m.nodeSynced, m.podSynced
 	m.mu.Unlock()
-	s := Status{Err: m.status.get()}
+	m.mu.Lock()
+	statuses := slices.Clone(m.statuses)
+	m.mu.Unlock()
+	var s Status
+	for _, st := range statuses {
+		if err := st.get(); err != "" {
+			s.Err = err
+			break
+		}
+	}
 	s.Synced = nodes != nil && nodes()
 	s.PodsSynced = pods != nil && pods()
 	return s
@@ -187,15 +198,24 @@ func (m *Controller) startFargateWatch() {
 // ([ASSUMPTION] in clusters-screen R16, checked in T12).
 const FargateScheduler = "fargate-scheduler"
 
+// newStatus is the error slot of an informer about to start.
+func (m *Controller) newStatus() *watchStatus {
+	st := &watchStatus{}
+	m.mu.Lock()
+	m.statuses = append(m.statuses, st)
+	m.mu.Unlock()
+	return st
+}
+
 // listWatch builds the list/watch of a typed client call, wrapped to record
-// its errors (clusters-screen D7).
-func (m *Controller) listWatch(cancel context.CancelFunc,
+// its errors in st (clusters-screen D7).
+func (m *Controller) listWatch(cancel context.CancelFunc, st *watchStatus,
 	list func(context.Context, metav1.ListOptions) (runtime.Object, error),
 	watchFn func(context.Context, metav1.ListOptions) (watch.Interface, error)) cache.ListerWatcher {
 	return &statusLW{
 		list:        list,
 		watch:       watchFn,
-		status:      &m.status,
+		status:      st,
 		stop:        m.stopper(cancel),
 		unsupported: watchlist.DoesClientNotSupportWatchListSemantics(m.kubeClient),
 	}
@@ -211,6 +231,7 @@ func (m *Controller) stopper(cancel context.CancelFunc) context.CancelFunc {
 
 func (m *Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Cluster) {
 	ctx, cancel := context.WithCancel(ctx)
+	st := m.newStatus()
 	inner := cache.NewFilteredListWatchFromClient(m.nodeClaimClient, "nodeclaims",
 		v1.NamespaceAll, func(options *metav1.ListOptions) {
 			options.LabelSelector = m.nodeSelector.String()
@@ -222,7 +243,7 @@ func (m *Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clu
 		watch: func(ctx context.Context, o metav1.ListOptions) (watch.Interface, error) {
 			return inner.WatchWithContext(ctx, o)
 		},
-		status: &m.status,
+		status: st,
 		stop:   m.stopper(cancel),
 	}
 	_, nodeClaimController := cache.NewInformerWithOptions(cache.InformerOptions{
@@ -232,7 +253,7 @@ func (m *Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clu
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
-				m.status.event()
+				st.event()
 				nc := obj.(*karpv1.NodeClaim)
 				if nc.Status.ProviderID == "" {
 					return
@@ -247,12 +268,12 @@ func (m *Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clu
 			},
 			DeleteFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
-				m.status.event()
+				st.event()
 				cluster.DeleteNode(ignoreDeletedFinalStateUnknown(obj).(*karpv1.NodeClaim).Status.ProviderID)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				defer m.notifier.Changed()
-				m.status.event()
+				st.event()
 				nc := newObj.(*karpv1.NodeClaim)
 				if nc.Status.ProviderID == "" {
 					return
@@ -272,12 +293,13 @@ func (m *Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clu
 
 func (m *Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) cache.InformerSynced {
 	ctx, cancel := context.WithCancel(ctx)
+	st := m.newStatus()
 	selector := func(o metav1.ListOptions) metav1.ListOptions {
 		o.LabelSelector = m.nodeSelector.String()
 		return o
 	}
 	nodes := m.kubeClient.CoreV1().Nodes()
-	nodeWatchList := m.listWatch(cancel,
+	nodeWatchList := m.listWatch(cancel, st,
 		func(ctx context.Context, o metav1.ListOptions) (runtime.Object, error) {
 			return nodes.List(ctx, selector(o))
 		},
@@ -291,7 +313,7 @@ func (m *Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster)
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
-				m.status.event()
+				st.event()
 				node := model.NewNode(obj.(*v1.Node))
 				if node.ProviderID() == "" {
 					return
@@ -305,12 +327,12 @@ func (m *Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster)
 			},
 			DeleteFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
-				m.status.event()
+				st.event()
 				cluster.DeleteNode(ignoreDeletedFinalStateUnknown(obj).(*v1.Node).Spec.ProviderID)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				defer m.notifier.Changed()
-				m.status.event()
+				st.event()
 				n := newObj.(*v1.Node)
 				if !n.DeletionTimestamp.IsZero() && len(n.Finalizers) == 0 {
 					cluster.DeleteNode(n.Spec.ProviderID)
@@ -330,12 +352,13 @@ func (m *Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster)
 
 func (m *Controller) startPodWatch(ctx context.Context, cluster *model.Cluster, selector fields.Selector) cache.InformerSynced {
 	ctx, cancel := context.WithCancel(ctx)
+	st := m.newStatus()
 	pods := m.kubeClient.CoreV1().Pods(v1.NamespaceAll)
 	withSelector := func(o metav1.ListOptions) metav1.ListOptions {
 		o.FieldSelector = selector.String()
 		return o
 	}
-	podWatchList := m.listWatch(cancel,
+	podWatchList := m.listWatch(cancel, st,
 		func(ctx context.Context, o metav1.ListOptions) (runtime.Object, error) {
 			return pods.List(ctx, withSelector(o))
 		},
@@ -350,7 +373,7 @@ func (m *Controller) startPodWatch(ctx context.Context, cluster *model.Cluster, 
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
-				m.status.event()
+				st.event()
 				p := obj.(*v1.Pod)
 				if !isTerminalPod(p) {
 					cluster.AddPod(model.NewPod(p))
@@ -363,13 +386,13 @@ func (m *Controller) startPodWatch(ctx context.Context, cluster *model.Cluster, 
 			},
 			DeleteFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
-				m.status.event()
+				st.event()
 				p := ignoreDeletedFinalStateUnknown(obj).(*v1.Pod)
 				cluster.DeletePod(p.Namespace, p.Name)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				defer m.notifier.Changed()
-				m.status.event()
+				st.event()
 				p := newObj.(*v1.Pod)
 				if isTerminalPod(p) {
 					cluster.DeletePod(p.Namespace, p.Name)

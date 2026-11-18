@@ -225,7 +225,7 @@ func TestClustersHeaderSizes(t *testing.T) {
 	command(u, "cl")
 	u.View()
 
-	full := screenText(u.clustersHeader())
+	full := screenText(u.clustersHeader(u.clustersOverview()))
 	if u.headerSize() != headerFull {
 		t.Fatalf("header size %v, want full", u.headerSize())
 	}
@@ -244,8 +244,8 @@ func TestClustersHeaderSizes(t *testing.T) {
 	if u.headerSize() != headerCompact {
 		t.Fatalf("ctrl+e: header size %v, want compact", u.headerSize())
 	}
-	compact := screenText(u.clustersHeader())
-	if !strings.Contains(compact, "Clusters · 1 cluster · 10 nodes · $728.102/month") || strings.Contains(compact, "pods") || strings.Contains(compact, "https://") {
+	compact := screenText(u.clustersHeader(u.clustersOverview()))
+	if !strings.Contains(compact, "Clusters · aws · 1 cluster · 10 nodes · $728.102/month") || strings.Contains(compact, "pods") || strings.Contains(compact, "https://") {
 		t.Errorf("compact header:\n%s", compact)
 	}
 
@@ -253,8 +253,8 @@ func TestClustersHeaderSizes(t *testing.T) {
 	if u.headerSize() != headerLine {
 		t.Fatalf("header size %v, want line", u.headerSize())
 	}
-	line := screenText(u.clustersHeader())
-	if !strings.HasPrefix(strings.TrimSpace(line), "Clusters · 1 cluster · 10 nodes · $728.102/month") || strings.Contains(line, "pods") {
+	line := screenText(u.clustersHeader(u.clustersOverview()))
+	if !strings.HasPrefix(strings.TrimSpace(line), "Clusters · aws · 1 cluster · 10 nodes · $728.102/month") || strings.Contains(line, "pods") {
 		t.Errorf("one-line header: %q", line)
 	}
 }
@@ -468,7 +468,7 @@ func TestClustersCloudTotals(t *testing.T) {
 	connect(u, "odd", memberCluster(mnode{name: "odd-a", provider: otherID("odd-a"), price: 1}), synced)
 
 	out := fscreen(u)
-	header := screenText(u.clustersHeader())
+	header := screenText(u.clustersHeader(u.clustersOverview()))
 	if strings.Contains(header, "$") || strings.Contains(header, "Cost:") {
 		t.Errorf("header with two clouds shows a cost:\n%s", header)
 	}
@@ -519,7 +519,7 @@ func TestClustersOneCloudCostInHeader(t *testing.T) {
 	u := e.u
 	command(u, "clusters aws")
 	out := fscreen(u)
-	header := screenText(u.clustersHeader())
+	header := screenText(u.clustersHeader(u.clustersOverview()))
 	if !strings.Contains(header, "Cost:") || !strings.Contains(header, "$728.102/month") {
 		t.Errorf("one cloud: the header has no cost:\n%s", header)
 	}
@@ -650,7 +650,7 @@ func TestClustersEnterOnNodeRowOpensItsCluster(t *testing.T) {
 	connect(u, "other-aws", c, &ConnStatus{Synced: true})
 	unfold(u, "other-aws")
 	u.View()
-	u.cursorKey = "n:other-aws/mem-a"
+	u.cursorKey = sectionRowKey("n", "other-aws", "mem-a")
 	cmd := press(u, "enter")
 	if cmd == nil {
 		t.Fatal("enter on a node row returned no command")
@@ -658,6 +658,30 @@ func TestClustersEnterOnNodeRowOpensItsCluster(t *testing.T) {
 	run(u, cmd())
 	if u.info.Context != "other-aws" || u.view.Screen != ScreenOverview {
 		t.Errorf("after enter on a node row: context %q screen %q", u.info.Context, u.view.Screen)
+	}
+}
+
+// An EKS ARN context holds "/" and ":": enter on its node row still opens it.
+// clusters-screen R6
+func TestClustersEnterOnNodeRowOfARNContext(t *testing.T) {
+	const arn = "arn:aws:eks:us-east-1:111122223333:cluster/prod"
+	e := newFleetEnv(t, 50, []ContextInfo{{Name: arn, Server: "https://example-prod.example.com", Cloud: "aws"}}, []string{"demo-prod", arn})
+	u := e.u
+	sw := &clusterSwitcher{}
+	u.SetSwitcher(sw)
+	command(u, "cl")
+	c := memberCluster(mnode{name: "mem-a", provider: awsID("mem-a"), price: 0.1})
+	connect(u, arn, c, &ConnStatus{Synced: true})
+	unfold(u, arn)
+	u.View()
+	u.cursorKey = sectionRowKey("n", arn, "mem-a")
+	cmd := press(u, "enter")
+	if cmd == nil {
+		t.Fatal("enter on a node row returned no command")
+	}
+	run(u, cmd())
+	if u.info.Context != arn {
+		t.Errorf("opened %q, want the ARN context", u.info.Context)
 	}
 }
 
@@ -860,7 +884,7 @@ func TestClustersSpaceFoldsSections(t *testing.T) {
 	// space on a node row does nothing
 	node := u.fl.slots["aks"].stats.Nodes[0].Name()
 	u.View()
-	u.cursorKey = "n:aks/" + node
+	u.cursorKey = sectionRowKey("n", "aks", node)
 	press(u, " ")
 	if !u.fl.unfolded["aks"] || !u.fl.unfolded["demo-prod"] || len(f.pods) != 1 {
 		t.Errorf("space on a node row changed the folds: %v pods %v", u.fl.unfolded, f.pods)
@@ -1009,7 +1033,7 @@ func TestClustersCloudScope(t *testing.T) {
 	if e.store.cloud != "aws" {
 		t.Errorf("scope not saved: %q", e.store.cloud)
 	}
-	if h := screenText(u.clustersHeader()); !strings.Contains(h, "Scope:    aws") {
+	if h := screenText(u.clustersHeader(u.clustersOverview())); !strings.Contains(h, "Scope:    aws") {
 		t.Errorf("header does not name the scope:\n%s", h)
 	}
 
@@ -1157,10 +1181,16 @@ func TestClustersContextOnScreenGatedByItsPods(t *testing.T) {
 	command(u, "cl")
 	st := ConnStatus{Synced: true}
 	u.fl.overview = func() ConnStatus { return st }
+	// the status is read with Overview's snapshot (clusters-screen D10)
+	run(u, u.snapshotCmd()())
 	if l := lineWith(fscreen(u), "▸ demo-prod"); !strings.Contains(l, "idle …") {
 		t.Errorf("context on screen before its pods synced: %q", l)
 	}
 	st.PodsSynced = true
+	if l := lineWith(fscreen(u), "▸ demo-prod"); !strings.Contains(l, "idle …") {
+		t.Errorf("pods synced shown before a snapshot: %q", l)
+	}
+	run(u, u.snapshotCmd()())
 	if l := lineWith(fscreen(u), "▸ demo-prod"); !strings.Contains(l, "idle $174.051/month") {
 		t.Errorf("context on screen after its pods synced: %q", l)
 	}

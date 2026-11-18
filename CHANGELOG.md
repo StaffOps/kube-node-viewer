@@ -17,6 +17,11 @@ All notable changes to this project are documented here. Format:
   their nodes only until a section is unfolded, at most four connecting at a
   time, and leaving the screen closes them.
 
+### Fixed
+
+- GKE nodes are no longer priced with AWS prices: GCE has no price source
+  yet, so they show no price.
+
 ## [0.16.0] - 2026-11-11
 
 ### Added

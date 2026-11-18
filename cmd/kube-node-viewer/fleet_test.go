@@ -852,7 +852,7 @@ func TestByCloudGCENotPricedByFallback(t *testing.T) {
 	}
 }
 
-// clusters-screen R4, R16, D4, D8: a visit's price set routes gce to
+// clusters-screen R4, D4, D8: a visit's price set routes gce to
 // nothing, shares one Azure provider and one AWS provider per region across
 // its members, and builds no AWS lookup for an AKS server.
 func TestVisitPricing(t *testing.T) {

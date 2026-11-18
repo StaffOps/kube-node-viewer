@@ -281,9 +281,10 @@ func TestStatusErrorThenRecovery(t *testing.T) {
 	}
 }
 
-// An event from another watch clears the error a stopped watch left.
+// Each informer keeps its own error: another watch's events do not hide the
+// error of a stopped one (clusters-screen D7).
 // clusters-screen R7
-func TestStatusEventClearsErr(t *testing.T) {
+func TestStatusOtherWatchKeepsErr(t *testing.T) {
 	cs := fake.NewClientset()
 	onList(cs, "pods", always(apierrors.NewForbidden(podsGR, "", errors.New("no list"))))
 	ctl, _, ctx := newTestController(t, cs)
@@ -298,8 +299,43 @@ func TestStatusEventClearsErr(t *testing.T) {
 	if _, err := cs.CoreV1().Nodes().Create(ctx, testNode("n1", nil), metav1.CreateOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "Err cleared by the node event", func() bool { return ctl.Status().Err == "" })
+	time.Sleep(300 * time.Millisecond)
+	if !strings.Contains(ctl.Status().Err, "forbidden") {
+		t.Errorf("Err = %q after a node event, want the pod watch's 403 kept", ctl.Status().Err)
+	}
 }
+
+// A Fargate node is priced from its pod by the Fargate-only watch, before
+// the full pod watch.
+// clusters-screen R16
+func TestFargateNodePricedBeforeStartPods(t *testing.T) {
+	fargateNode := testNode("fargate-ip-192-0-2-38", map[string]string{"eks.amazonaws.com/compute-type": "fargate"})
+	cs := fake.NewClientset(fargateNode, testPod("fp", fargateNode.Name, FargateScheduler))
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	cluster := model.NewCluster()
+	ctl := NewController(cs, nil, cluster, labels.Everything(), podPricing{})
+	ctl.SetMember(true)
+	ctl.StartNodes(ctx)
+	eventually(t, "the Fargate node priced", func() bool {
+		n, ok := cluster.GetNodeByName(fargateNode.Name)
+		return ok && n.HasPrice()
+	})
+	if ctl.Status().PodsSynced {
+		t.Error("PodsSynced without StartPods")
+	}
+}
+
+// podPricing prices a node only once a pod is bound to it, as Fargate is.
+type podPricing struct{}
+
+func (podPricing) NodePrice(n *model.Node) (float64, bool) {
+	if n.NumPods() == 0 {
+		return 0, false
+	}
+	return 0.05, true
+}
+func (podPricing) OnUpdate(func()) {}
 
 // A member's watch refused with 403 stops; the other watches go on.
 // clusters-screen R7
@@ -447,6 +483,9 @@ func TestSanitize(t *testing.T) {
 		{"http URL", errors.New(`Get "http://example.com:8080/api": EOF`), "EOF"},
 		{"url.Error", &url.Error{Op: "Get", URL: "https://example.com:443/api/v1/nodes", Err: errors.New("dial tcp: i/o timeout")}, "i/o timeout"},
 		{"wrapped url.Error", fmt.Errorf("listing: %w", &url.Error{Op: "Get", URL: "https://example.com/x", Err: errors.New("EOF")}), "EOF"},
+		{"DNS lookup", errors.New("dial tcp: lookup example.com on 192.0.2.53:53: no such host"), "no such host"},
+		{"IP and port", errors.New("dial tcp 192.0.2.10:443: connect: connection refused"), "connection refused"},
+		{"host and port", errors.New("tls: handshake with example.com:443 failed"), "handshake"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -457,7 +496,7 @@ func TestSanitize(t *testing.T) {
 				}
 				return
 			}
-			if strings.Contains(got, "://") || strings.Contains(got, "example.com") {
+			if strings.Contains(got, "://") || strings.Contains(got, "example.com") || strings.Contains(got, "192.0.2.") {
 				t.Errorf("Sanitize = %q, still has the URL", got)
 			}
 			if !strings.Contains(got, c.keep) {

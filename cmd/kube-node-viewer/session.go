@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"sync"
 
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	tea "github.com/charmbracelet/bubbletea"
@@ -237,6 +238,12 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 		s.program.Send(model.ChangedMsg{Gen: gen})
 	})
 	if err != nil {
+		// the flags still apply to the next connection (R2)
+		s.mu.Lock()
+		if s.explicit == nil {
+			s.explicit = explicit
+		}
+		s.mu.Unlock()
 		return model.Session{}, err
 	}
 
@@ -323,11 +330,18 @@ func (s *sessions) visitPricing(ctx context.Context) priceFunc {
 	var mu sync.Mutex
 	byRegion := map[string]pricing.Provider{}
 	var azureP pricing.Provider
-	cfg, cfgErr := config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile(""))
+	// loaded by the first member that needs it, off the UI goroutine
+	var cfg awssdk.Config
+	var cfgErr error
+	var loaded bool
 	return func(_ context.Context, server string) (pricing.Provider, string, error) {
 		region := client.RegionFromServer(server)
 		mu.Lock()
 		defer mu.Unlock()
+		if !loaded && !client.IsAKSServer(server) {
+			loaded = true
+			cfg, cfgErr = config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile(""))
+		}
 		if azureP == nil {
 			azureP = azure.NewProvider(ctx, azure.Endpoint)
 		}

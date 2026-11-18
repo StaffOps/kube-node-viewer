@@ -282,8 +282,7 @@ func (u *UIModel) clustersOverview() clustersOverview {
 
 // clustersHeader is the header of the Clusters screen in its three sizes
 // (clusters-screen R1): no pod count, a cost only with one cloud on screen.
-func (u *UIModel) clustersHeader() string {
-	o := u.clustersOverview()
+func (u *UIModel) clustersHeader(o clustersOverview) string {
 	scope := "all clouds"
 	if u.fl.scope != "" {
 		scope = u.fl.scope
@@ -303,8 +302,11 @@ func (u *UIModel) clustersHeader() string {
 		}
 	}
 	parts := []string{headerContext("Clusters")}
-	if u.fl.scope != "" {
+	switch {
+	case u.fl.scope != "":
 		parts = append(parts, headerValue(u.fl.scope))
+	case len(o.clouds) == 1:
+		parts = append(parts, headerValue(o.clouds[0]))
 	}
 	parts = append(parts, countsValue(clusters), countsValue(nodes))
 	if cost != "" {
@@ -484,6 +486,10 @@ func (u *UIModel) clustersBody(o clustersOverview, height int) (lines []string, 
 	}
 	pages := paginateClusters(blocks, height)
 	u.page = min(u.page, len(pages)-1)
+	// the cursor follows its cluster as the order changes, unless a page
+	// key moved the page (clusters-screen R12)
+	u.cursorFind = !u.fl.paged && u.cursorDelta == 0
+	u.fl.paged = false
 	asBlocks := make([][]block, len(pages))
 	for i, pg := range pages {
 		for _, b := range pg {
@@ -529,7 +535,7 @@ func (u *UIModel) sectionBlocks(c *clusterSection) []cblock {
 		for i := range lines {
 			lines[i] = indent + lines[i]
 		}
-		return cblock{lines: lines, key: "n:" + c.s.name + "/" + n.Name(), title: title}
+		return cblock{lines: lines, key: sectionRowKey("n", c.s.name, n.Name()), title: title}
 	}
 	var out []cblock
 	if groups == nil {
@@ -546,7 +552,7 @@ func (u *UIModel) sectionBlocks(c *clusterSection) []cblock {
 	var walk func([]*Group)
 	walk = func(gs []*Group) {
 		for _, g := range gs {
-			out = append(out, cblock{lines: []string{indent + u.groupLine(g, tree[g], cols)}, key: "g:" + c.s.name + "/" + strings.Join(g.Path, pathSeparator), title: title})
+			out = append(out, cblock{lines: []string{indent + u.groupLine(g, tree[g], cols)}, key: sectionRowKey("g", c.s.name, strings.Join(g.Path, pathSeparator)), title: title})
 			walk(g.Groups)
 			for _, n := range g.Nodes {
 				out = append(out, node(n))

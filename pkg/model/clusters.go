@@ -19,6 +19,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -55,6 +56,9 @@ type Fleet interface {
 	// WatchPods starts the full pod watch of a member, now or once it is
 	// connected (clusters-screen D10)
 	WatchPods(context string)
+	// Live tells whether serial is the member the fleet runs for the
+	// context now, so a late message of a closed one is dropped
+	Live(context string, serial uint64) bool
 }
 
 // FleetStore keeps the Clusters screen's choice (clusters-screen R8, R14).
@@ -66,6 +70,8 @@ type FleetStore interface {
 // MemberReadyMsg tells that a member connected, or failed to (Err).
 type MemberReadyMsg struct {
 	Context string
+	// Serial names the member among those the fleet ran for the context
+	Serial  uint64
 	Gen     uint64
 	Cluster *Cluster
 	Status  func() ConnStatus
@@ -92,6 +98,10 @@ type memberSnapshotMsg struct {
 	st      ConnStatus
 	stats   Stats
 }
+
+// membersSnapshotMsg carries the snapshots of every member that changed,
+// so one frame shows them all (clusters-screen D3).
+type membersSnapshotMsg []memberSnapshotMsg
 
 // slot is one section's cluster: a member, or Overview's own store, borrowed.
 type slot struct {
@@ -128,9 +138,18 @@ type fleetState struct {
 	podsAsked map[string]bool
 	// switching is the context `enter` is opening (clusters-screen R6)
 	switching string
-	// overview reads the connection of the context on screen
+	// overview reads the connection of the context on screen; ovStatus is
+	// what it said with Overview's last snapshot (clusters-screen D10)
 	overview func() ConnStatus
+	ovStatus ConnStatus
 	picker   clusterPicker
+	// frame is the layout of the frame being drawn, computed once
+	frame *clustersOverview
+	// paged is set by a page key: the cursor does not follow its row
+	paged bool
+	// issuesBefore hides, on Overview, the log lines of the members of the
+	// last visit (clusters-screen R7)
+	issuesBefore time.Time
 }
 
 // SetFleet enables the Clusters screen; call it before the program runs.
@@ -154,8 +173,11 @@ func (u *UIModel) fleetSync() {
 		return
 	}
 	if !u.onClusters() {
+		if u.fl.slots != nil {
+			u.fl.issuesBefore = time.Now()
+		}
 		u.fl.infos, u.fl.slots, u.fl.left, u.fl.unfolded, u.fl.podsAsked = nil, nil, nil, nil, nil
-		u.fl.asked, u.fl.switching = false, ""
+		u.fl.asked = false
 		f.SetWanted(nil, "")
 		return
 	}
@@ -232,7 +254,8 @@ func (u *UIModel) wantedMembers() []string {
 	}
 	chosen := slices.Clone(u.fl.chosen)
 	sort.Strings(chosen)
-	var out []string
+	// never nil on the screen: nil is "off the screen" to the fleet
+	out := []string{}
 	for _, name := range chosen {
 		info, ok := u.knownContext(name)
 		if !ok || name == cur {
@@ -297,7 +320,7 @@ func (u *UIModel) refreshBorrowed() {
 	s.cluster, s.gen, s.stats = u.cluster, u.gen, u.stats
 	s.st = ConnStatus{Synced: true, PodsSynced: true}
 	if u.fl.overview != nil {
-		s.st = u.fl.overview()
+		s.st = u.fl.ovStatus
 	}
 }
 
@@ -335,7 +358,7 @@ func (s *slot) podsReady() bool {
 // memberReady fills a member's slot (clusters-screen R2, R7).
 func (u *UIModel) memberReady(msg MemberReadyMsg) tea.Cmd {
 	s, ok := u.fl.slots[msg.Context]
-	if !ok || s.borrowed {
+	if !ok || s.borrowed || !u.fl.fleet.Live(msg.Context, msg.Serial) {
 		return nil
 	}
 	s.ready, s.err = true, msg.Err
@@ -354,25 +377,45 @@ func (u *UIModel) memberSnapshot(s *slot) tea.Cmd {
 		return nil
 	}
 	return func() tea.Msg {
-		st := ConnStatus{Synced: true, PodsSynced: true}
-		if status != nil {
-			st = status()
-		}
-		return memberSnapshotMsg{context: name, gen: gen, st: st, stats: cluster.Stats()}
+		return takeSnapshot(name, gen, cluster, status)
 	}
 }
 
+func takeSnapshot(name string, gen uint64, cluster *Cluster, status func() ConnStatus) memberSnapshotMsg {
+	st := ConnStatus{Synced: true, PodsSynced: true}
+	if status != nil {
+		st = status()
+	}
+	return memberSnapshotMsg{context: name, gen: gen, st: st, stats: cluster.Stats()}
+}
+
+// membersChanged takes the changed members' snapshots in one command.
 func (u *UIModel) membersChanged(msg MembersChangedMsg) tea.Cmd {
-	var cmds []tea.Cmd
+	type src struct {
+		name    string
+		gen     uint64
+		cluster *Cluster
+		status  func() ConnStatus
+	}
+	var todo []src
 	for _, s := range u.fl.slots {
 		if s.borrowed || !s.ready || s.cluster == nil {
 			continue
 		}
 		if slices.Contains(msg.Gens, s.gen) {
-			cmds = append(cmds, u.memberSnapshot(s))
+			todo = append(todo, src{s.name, s.gen, s.cluster, s.status})
 		}
 	}
-	return tea.Batch(cmds...)
+	if len(todo) == 0 {
+		return nil
+	}
+	return func() tea.Msg {
+		out := make(membersSnapshotMsg, 0, len(todo))
+		for _, s := range todo {
+			out = append(out, takeSnapshot(s.name, s.gen, s.cluster, s.status))
+		}
+		return out
+	}
 }
 
 func (u *UIModel) memberSnapshotDone(msg memberSnapshotMsg) {
@@ -395,14 +438,29 @@ func (u *UIModel) memberLeft(msg MemberLeftMsg) {
 	}
 }
 
-// fleetTick refreshes the members' status, as errors fire no change
-// (clusters-screen R7).
-func (u *UIModel) fleetTick() {
+// fleetTick refreshes the members' errors and node sync, as errors fire no
+// change (clusters-screen R7). The pods' sync is taken only with a snapshot,
+// so it never pairs with stats from before the pods (D10).
+func (u *UIModel) fleetTick() tea.Cmd {
+	var cmds []tea.Cmd
 	for _, s := range u.fl.slots {
-		if !s.borrowed && s.ready && s.status != nil {
-			s.st = s.status()
+		if s.borrowed || !s.ready || s.status == nil {
+			continue
+		}
+		live := s.status()
+		s.st.Err, s.st.Synced = live.Err, live.Synced
+		if live.PodsSynced && !s.st.PodsSynced {
+			cmds = append(cmds, u.memberSnapshot(s))
 		}
 	}
+	if u.fl.overview != nil {
+		live := u.fl.overview()
+		u.fl.ovStatus.Err, u.fl.ovStatus.Synced = live.Err, live.Synced
+		if live.PodsSynced && !u.fl.ovStatus.PodsSynced {
+			cmds = append(cmds, u.snapshotCmd())
+		}
+	}
+	return tea.Batch(cmds...)
 }
 
 // toggleSection unfolds or folds a section; the first unfold starts the
@@ -427,18 +485,23 @@ func (u *UIModel) setScope(cloud string) {
 	}
 }
 
+// keySep parts a row key's context from the rest: a context name may hold
+// "/" and ":" (EKS ARNs), never a control character.
+const keySep = "\x1f"
+
+// sectionRowKey names a node ("n") or group ("g") row of a section.
+func sectionRowKey(kind, context, rest string) string {
+	return kind + ":" + context + keySep + rest
+}
+
 // clusterCursorContext is the context of the cursor's row on the screen.
 func clusterCursorContext(key string) (string, bool) {
 	switch {
 	case strings.HasPrefix(key, "c:"):
 		return key[2:], true
 	case strings.HasPrefix(key, "n:"), strings.HasPrefix(key, "g:"):
-		rest := key[2:]
-		i := strings.Index(rest, "/")
-		if i < 0 {
-			return "", false
-		}
-		return rest[:i], true
+		context, _, ok := strings.Cut(key[2:], keySep)
+		return context, ok
 	}
 	return "", false
 }
@@ -453,12 +516,15 @@ func (u *UIModel) clustersKey(key string) (cmd tea.Cmd, handled bool) {
 		u.cursorDelta++
 	case "right", "l", "pgdown":
 		u.page++
+		u.fl.paged = true
 	case "left", "h", "pgup":
 		if u.page > 0 {
 			u.page--
 		}
+		u.fl.paged = true
 	case "home":
 		u.page = 0
+		u.fl.paged = true
 	case "tab":
 		u.setScreen(ScreenOverview)
 	case "c":

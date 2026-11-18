@@ -166,10 +166,12 @@ type ChangedMsg struct {
 	Gen uint64
 }
 
-// snapshotMsg carries a snapshot taken off the UI goroutine.
+// snapshotMsg carries a snapshot taken off the UI goroutine, and the
+// connection's status read just before it when the session has one.
 type snapshotMsg struct {
 	gen   uint64
 	stats Stats
+	st    *ConnStatus
 }
 
 type barKey struct {
@@ -402,9 +404,14 @@ func (u *UIModel) Refresh() {
 // snapshotCmd takes the snapshot off the UI goroutine, which may wait for the
 // cluster lock while events are applied.
 func (u *UIModel) snapshotCmd() tea.Cmd {
-	cluster, gen := u.cluster, u.gen
+	cluster, gen, status := u.cluster, u.gen, u.fl.overview
 	return func() tea.Msg {
-		return snapshotMsg{gen: gen, stats: cluster.Stats()}
+		var st *ConnStatus
+		if status != nil {
+			s := status()
+			st = &s
+		}
+		return snapshotMsg{gen: gen, stats: cluster.Stats(), st: st}
 	}
 }
 
@@ -556,6 +563,9 @@ func (u *UIModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.gen == u.gen {
 			u.stats = msg.stats
 			u.snapSeq++
+			if msg.st != nil {
+				u.fl.ovStatus = *msg.st
+			}
 		}
 		return u, nil
 	case recsMsg:
@@ -581,12 +591,17 @@ func (u *UIModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case memberSnapshotMsg:
 		u.memberSnapshotDone(msg)
 		return u, nil
+	case membersSnapshotMsg:
+		for _, m := range msg {
+			u.memberSnapshotDone(m)
+		}
+		return u, nil
 	case MemberLeftMsg:
 		u.memberLeft(msg)
 		return u, nil
 	case tickMsg:
 		if u.onClusters() {
-			u.fleetTick()
+			return u, tea.Batch(tickCmd(), u.fleetTick())
 		}
 		return u, tickCmd()
 	}

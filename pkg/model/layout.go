@@ -78,7 +78,11 @@ func (u *UIModel) render() string {
 	}
 	var header string
 	if u.onClusters() {
-		header = u.fit(u.clustersHeader())
+		// one layout of every section per frame (clusters-screen D3)
+		o := u.clustersOverview()
+		u.fl.frame = &o
+		defer func() { u.fl.frame = nil }()
+		header = u.fit(u.clustersHeader(o))
 	} else {
 		header = u.fit(u.header(stats, nodes))
 	}
@@ -113,7 +117,11 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, selected, headerLine
 	var fleet clustersOverview
 	if u.onClusters() {
 		// the cloud totals take the summary's place (clusters-screen R4)
-		fleet = u.clustersOverview()
+		if u.fl.frame != nil {
+			fleet = *u.fl.frame
+		} else {
+			fleet = u.clustersOverview()
+		}
 		for _, line := range u.cloudLines(fleet) {
 			b.WriteString(u.fit(line))
 			b.WriteString("\n")
