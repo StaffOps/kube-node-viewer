@@ -205,7 +205,10 @@ func (u *UIModel) fleetSync() {
 		}
 	}
 	if u.fl.slots == nil {
-		u.fl.issuesFrom = time.Now()
+		// a line of an earlier visit may still be recent: keep its start
+		if u.fl.issuesTo.IsZero() || time.Since(u.fl.issuesTo) > issueWindow {
+			u.fl.issuesFrom = time.Now()
+		}
 		u.fl.slots, u.fl.left, u.fl.unfolded, u.fl.podsAsked = map[string]*slot{}, map[string]string{}, map[string]bool{}, map[string]bool{}
 	}
 	if !u.fl.saved && !u.fl.asked {

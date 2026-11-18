@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	goruntime "runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -514,6 +515,8 @@ func TestSanitize(t *testing.T) {
 		{"IP and port", errors.New("dial tcp 192.0.2.10:443: connect: connection refused"), "connection refused"},
 		{"host and port", errors.New("tls: handshake with example.com:443 failed"), "handshake"},
 		{"x509 names", errors.New("tls: failed to verify certificate: x509: certificate is valid for example.com, kubernetes.default, not other.example.com"), "x509: certificate is valid for"},
+		{"x509 mixed case", errors.New("x509: certificate is valid for API.Example.COM, kube-apiserver-example, not Other.Example.com"), "x509: certificate is valid for"},
+		{"x509 authority", errors.New(`x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "Example Corp Root CA")`), "unknown authority"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -524,7 +527,7 @@ func TestSanitize(t *testing.T) {
 				}
 				return
 			}
-			if strings.Contains(got, "://") || strings.Contains(got, "example.com") || strings.Contains(got, "192.0.2.") {
+			if strings.Contains(got, "://") || strings.Contains(strings.ToLower(got), "example") || strings.Contains(got, "192.0.2.") {
 				t.Errorf("Sanitize = %q, still has the URL", got)
 			}
 			if !strings.Contains(got, c.keep) {
@@ -589,4 +592,21 @@ func TestNoPodWatchBeforeStartPods(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Stopping the stream wrapper with an event waiting to be read ends its
+// goroutine (a reflector stops reading without draining).
+// clusters-screen R9
+func TestEventWatchStopReleasesPendingEvent(t *testing.T) {
+	before := goruntime.NumGoroutine()
+	for range 50 {
+		inner := watch.NewFakeWithChanSize(1, false)
+		w := newEventWatch(inner, &watchStatus{})
+		inner.Add(&v1.Node{})
+		time.Sleep(time.Millisecond) // the loop takes the event and waits to send it
+		w.Stop()
+		for range w.ResultChan() {
+		}
+	}
+	eventually(t, "the wrappers' goroutines gone", func() bool { return goruntime.NumGoroutine() <= before+2 })
 }

@@ -105,13 +105,58 @@ func (l *statusLW) WatchWithContext(ctx context.Context, o metav1.ListOptions) (
 	}
 	// any event of the stream, a bookmark included, shows it works: a quiet
 	// informer whose watch was refused once must not keep that error
-	status := l.status
-	return watch.Filter(w, func(e watch.Event) (watch.Event, bool) {
-		if e.Type != watch.Error {
-			status.event()
+	return newEventWatch(w, l.status), nil
+}
+
+// eventWatch passes a watch's events on unchanged and clears status on each
+// that is not an error. Unlike watch.Filter, Stop also releases an event
+// waiting to be read, so a reflector that stops reading leaks nothing.
+type eventWatch struct {
+	inner  watch.Interface
+	out    chan watch.Event
+	done   chan struct{}
+	stop   sync.Once
+	status *watchStatus
+}
+
+func newEventWatch(inner watch.Interface, status *watchStatus) *eventWatch {
+	w := &eventWatch{inner: inner, out: make(chan watch.Event), done: make(chan struct{}), status: status}
+	go w.loop()
+	return w
+}
+
+func (w *eventWatch) loop() {
+	defer close(w.out)
+	in := w.inner.ResultChan()
+	for {
+		var e watch.Event
+		var ok bool
+		select {
+		case e, ok = <-in:
+			if !ok {
+				return
+			}
+		case <-w.done:
+			return
 		}
-		return e, true
-	}), nil
+		if e.Type != watch.Error {
+			w.status.event()
+		}
+		select {
+		case w.out <- e:
+		case <-w.done:
+			return
+		}
+	}
+}
+
+func (w *eventWatch) ResultChan() <-chan watch.Event { return w.out }
+
+func (w *eventWatch) Stop() {
+	w.stop.Do(func() {
+		close(w.done)
+		w.inner.Stop()
+	})
 }
 
 // IsWatchListSemanticsUnSupported passes on what the client says
@@ -152,8 +197,11 @@ var (
 	lookupPattern   = regexp.MustCompile(`lookup [^\s:]+`)
 	ipPattern       = regexp.MustCompile(`\[[0-9A-Fa-f:]+\](:[0-9]+)?|\b[0-9]{1,3}(\.[0-9]{1,3}){3}(:[0-9]+)?\b`)
 	hostPortPattern = regexp.MustCompile(`\b[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+:[0-9]+\b`)
-	// x509 errors list the names a certificate is valid for
-	dnsNamePattern = regexp.MustCompile(`\b[a-z0-9-]+(\.[a-z0-9-]+)+\b`)
+	// x509 errors list the names a certificate is valid for, and quote
+	// names of authorities
+	x509ValidFor = regexp.MustCompile(`(?i)(x509: certificate is valid for).*$`)
+	quoted       = regexp.MustCompile(`"[^"]*"`)
+	dnsName      = regexp.MustCompile(`(?i)\b[a-z0-9-]+(\.[a-z0-9-]+)+\b`)
 )
 
 // Sanitize gives an error's text without any URL, host or address, so a
@@ -172,7 +220,9 @@ func Sanitize(err error) string {
 	msg = ipPattern.ReplaceAllString(msg, "an address")
 	msg = hostPortPattern.ReplaceAllString(msg, "the API server")
 	if strings.Contains(msg, "x509:") {
-		msg = dnsNamePattern.ReplaceAllString(msg, "a name")
+		msg = x509ValidFor.ReplaceAllString(msg, "${1} other names")
+		msg = quoted.ReplaceAllString(msg, "a name")
+		msg = dnsName.ReplaceAllString(msg, "a name")
 	}
 	return strings.TrimSpace(msg)
 }
