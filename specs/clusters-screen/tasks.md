@@ -38,6 +38,17 @@
 - [-] T12. Verify: `scripts/verify.sh` and `make lint` green; run on two or more EKS clusters from a scratch directory: note what was checked and the memory and time of the chosen clusters' node-only watches, of unfolded sections' pod watches and of the price fetch, the CPU and redraw time with every member connected, and whether Fargate pods have `spec.schedulerName=fargate-scheduler`, never the clusters' names
   - _Covers: all · Depends on: T1–T11 · Verified by: command output and the cluster run, recorded here as a dated note_
 
+> **2026-11-18, T12 in progress.** Checked: `scripts/verify.sh` green but
+> for this task, `make lint` 0 issues, `go test -race` on every package, the
+> golden screens (Overview's unchanged but help; four new Clusters scenes),
+> `scripts/build.sh`. Three spec-refuter passes on the diff; their findings
+> are fixed in the branch (row keys of ARN contexts, an error per informer,
+> a leak-free stream wrapper, the status read with its snapshot, hosts out of
+> errors). `scripts/kind-it.sh` fails on this machine with a TLS handshake
+> timeout to the kind API server, on `main` too, so it says nothing of this
+> branch. Not done: the run on two or more EKS clusters (memory, CPU, sync
+> time, the Fargate scheduler name), which needs clusters the owner allows.
+
 > A code change with open tasks here cannot merge, and so cannot release:
 > `scripts/spec-tasks-check.py` fails CI and the `pr-guard` hook blocks
 > `gh pr create` (use `--draft` until the tasks are done).
