@@ -18,7 +18,8 @@ Start it with no flags and drive it from inside: filter, group and sort the
 nodes, pick columns and resources, search, fold groups and switch cluster
 without restarting. A second screen, Recommendations, says what to do about
 the cost: consolidate, rightsize, move to a newer generation or Graviton,
-recycle old nodes and, last, Spot. The last view used on each cluster comes
+recycle old nodes and, last, Spot. A third screen, Clusters, shows the cost
+of several clusters at once, each cloud with its own total. The last view used on each cluster comes
 back the next time, or, if you prefer, a view written in `config.yaml`
 (see [Config views](#config-views)).
 
@@ -35,6 +36,7 @@ with `scripts/screenshots.sh`.
 - [Keys](#keys)
 - [Panels](#panels)
 - [Recommendations](#recommendations)
+- [Clusters](#clusters)
 - [Saved view per cluster](#saved-view-per-cluster)
 - [Flags and config file](#flags-and-config-file)
 - [Label visibility](#label-visibility)
@@ -216,7 +218,7 @@ view. The API server URL is only in the full panel:
 | `tab` | Switch between Overview and Recommendations |
 | `tab` in node details | Switch between the Details and Pods tabs (see [Node details](#node-details)) |
 | `d` in the Pods tab | Switch between all pods and the DaemonSets view (a Total line, then one row per DaemonSet) |
-| `:` | Command line: `overview` (`ov`), `recommendations` (`rec`); `tab` completes |
+| `:` | Command line: `overview` (`ov`), `recommendations` (`rec`), `clusters` (`cl`) with an optional `aws`, `azure` or `gce`; `tab` completes |
 | `c` | Switch to another kubeconfig context |
 | `v` | Named views: apply one, save the current view under a name, delete |
 | `e` | Export the nodes on screen to CSV and JSON |
@@ -576,11 +578,54 @@ Instance sizes come from a catalog generated from the AWS Price List and
 embedded in the binary, refreshed at run time from the products the pricing
 lookup already reads.
 
+## Clusters
+
+`:clusters` (or `:cl`) opens the Clusters screen: several kubeconfig contexts
+connected at once, one section per cluster with its cloud, node count, cost
+and idle cost per month, and a total per cloud. AWS and Azure prices come from
+different sources, so costs of two clouds are never added into one figure:
+with clusters of more than one cloud the screen shows one line per cloud, and
+the header only the cluster and node counts. `:clusters aws` (also `azure`,
+`gce`) shows one cloud alone, its total in the header, and leaves the other
+clouds' clusters unconnected; a bare `:clusters` shows every cloud again. The
+scope is saved.
+
+```text
+:clusters aws
+ Clusters · aws · 3 clusters · 117 nodes · $15,990.000/month
+ ▸ eks-prod-us   aws    64 nodes  $9,810.000/month  idle …  ok
+ ▸ eks-prod-eu   aws    41 nodes  $5,200.000/month  idle …  ok
+ ▸ eks-stg       aws    12 nodes    $980.000/month  idle …  ok
+```
+
+| Key | On the Clusters screen |
+|-----|------------------------|
+| `c` | Pick the clusters: contexts under the cloud guessed from the kubeconfig; `space` ticks one, or every context of a cloud on its line; `enter` saves and applies, `esc` drops the ticks |
+| `space` | On a cluster: unfold its nodes (grouped by the view's group-by) or fold it |
+| `enter` | Open the cluster in Overview, as `c` would there |
+| `tab` | Back to Overview |
+| `f g s I o r /` | As on Overview, applied inside every section |
+| `n d e` | Nothing (they are Overview's) |
+
+The first time, the picker opens with the context on screen and the contexts
+of its cloud ticked. A context whose API server is the same as another's is
+one cluster, shown once. The filters, search, sort and group-by of the
+current view apply inside each section, and the totals count the nodes kept.
+
+To stay light on a large fleet, a cluster is first watched for its nodes
+only: the cost needs nothing else (Fargate nodes are priced from a watch of
+Fargate pods only). Its pods are watched once you unfold its section; until
+then idle cost, pod counts and requests read `…`. Leaving the screen closes
+every connection it opened; at most four connect at the same time. A section
+that cannot connect says why in its heading, and its cloud's total reads
+`>=` with the number of clusters not connected. GKE clusters show their nodes
+and no cost (there is no GCE price source yet).
+
 ## Saved view per cluster
 
 Filters, group-by, sort, resources, columns, folding depth, details, folded
-groups, the screen and the header size are saved per cluster, and named views (`v`) for
-all of them, (context name plus API server URL, since
+groups, the screen and the header size are saved per cluster, and named views (`v`) and the
+Clusters screen's choice and scope for all of them, (context name plus API server URL, since
 merged kubeconfigs can repeat context names) in
 `$XDG_STATE_HOME/kube-node-viewer/state.json`, by default
 `~/.local/state/kube-node-viewer/state.json`. Writes are batched and atomic,
