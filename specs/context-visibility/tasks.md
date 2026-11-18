@@ -1,5 +1,7 @@
 # Tasks: context-visibility
 
+> **Corrected 2026-11-18.** `readContextLists` is `readPatternLists`, shared with the label lists.
+
 > Implements [design](design.md). Status: `[ ]` todo · `[-]` in progress · `[x]` done
 > (Kiro's task-list format — the Kiro spec panel tracks these checkboxes).
 

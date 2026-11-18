@@ -87,3 +87,20 @@ func TestHiddenTwinLeavesNoSameClusterMark(t *testing.T) {
 		t.Errorf("a context shown as missing:\n%s", out)
 	}
 }
+
+// The control of the test above: the same context sharing a server, when it
+// does reach the model (lists off), is marked; so the mark's absence above
+// comes from the context not being handed over (context-visibility R7).
+// context-visibility R6, R7
+func TestHiddenTwinMarkedWhenListed(t *testing.T) {
+	e := newFleetEnv(t, 40, []ContextInfo{
+		{Name: "prod-us", Server: "https://example-a.example.com", Cloud: "aws"},
+		{Name: "hidden-twin", Server: "https://example-a.example.com", Cloud: "aws"},
+	}, []string{"demo-prod", "prod-us", "hidden-twin"})
+	u := e.u
+	command(u, "cl")
+	apply(u, press(u, "c"))
+	if out := u.View(); !strings.Contains(out, "same cluster as prod-us") {
+		t.Errorf("no same cluster mark for a context that shares a server:\n%s", out)
+	}
+}

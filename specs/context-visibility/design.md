@@ -1,5 +1,7 @@
 # Design: context-visibility
 
+> **Corrected 2026-11-18.** `readContextLists` became `readPatternLists`, one function for the label and the context lists. The R6 notice text and the `main` wiring order are checked by the T6 run, not by a unit test.
+
 > Implements [requirements](requirements.md).
 
 ## Current state

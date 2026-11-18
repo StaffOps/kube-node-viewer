@@ -112,7 +112,7 @@ func TestLoadSettingsContextsInvalid(t *testing.T) {
 			if !strings.HasPrefix(msg, "config file "+path+": ") {
 				t.Errorf("message %q does not name the file", msg)
 			}
-			if !strings.Contains(msg, "contexts") {
+			if rest := strings.TrimPrefix(msg, "config file "+path+": "); !strings.HasPrefix(rest, "contexts") {
 				t.Errorf("message %q does not name contexts…", msg)
 			}
 		})

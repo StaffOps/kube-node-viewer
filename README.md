@@ -860,7 +860,8 @@ contexts:
   kubeconfig's current one), whatever the lists say. When that context is
   hidden by them, they are not applied in that run: every context is
   listed, the footer says so, and both pickers' titles say `lists off`.
-  `deny: ["*"]` therefore always turns them off.
+  `deny: ["*"]` therefore turns them off, unless the run has no context name
+  (no `--context`, no current context), which then lists none.
 - A context the lists hide is never connected by the Clusters screen, and
   stays in its saved choice, so it comes back ticked if the lists change.
 
