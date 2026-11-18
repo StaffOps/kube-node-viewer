@@ -282,7 +282,7 @@ func normalizeServer(server string) string {
 		return strings.TrimRight(strings.ToLower(server), "/")
 	}
 	host := strings.ToLower(p.Hostname())
-	if port := p.Port(); port != "" && !(port == "443" && p.Scheme == "https") {
+	if port := p.Port(); port != "" && (port != "443" || p.Scheme != "https") {
 		host += ":" + port
 	}
 	return p.Scheme + "://" + host + strings.TrimRight(p.Path, "/")

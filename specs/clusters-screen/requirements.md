@@ -232,6 +232,8 @@ context of a cloud on that cloud's line, and apply the ticks on `enter`.
   listed unticked. A context on screen of unknown cloud ticks only itself.
   WHEN the first visit is `:clusters <cloud>` THEN that cloud's contexts are
   the ones ticked.
+  > **Corrected 2026-11-18.** The context on screen stays ticked too, as on
+  > any first use; the other contexts of its cloud are not.
 - [ ] `space` on a cloud's line ticks all its contexts when any is unticked,
   and unticks them all otherwise.
 - [ ] Ticks are pending: nothing connects or closes until `enter`.

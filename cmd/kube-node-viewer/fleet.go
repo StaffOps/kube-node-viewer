@@ -242,7 +242,10 @@ func (f *fleet) run(m *member, prices priceFunc) {
 			return
 		}
 		if st.Err != "" {
-			return
+			// the start place goes back on the first error, but the member
+			// is still judged against the scope once it recovers and syncs
+			// (clusters-screen R14)
+			f.release(m)
 		}
 		select {
 		case <-c.ctx.Done():

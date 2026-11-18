@@ -387,7 +387,7 @@ func TestStatusMemberUnauthorizedOnceRecovers(t *testing.T) {
 // keeps retrying.
 // clusters-screen R7
 func TestStatusExecFailure(t *testing.T) {
-	execErr := fmt.Errorf("getting credentials: %v", errors.New("exec: executable aws failed with exit code 255"))
+	execErr := fmt.Errorf("getting credentials: %v", errors.New("exec: executable aws failed with exit code 255")) //nolint:errorlint // %v as client-go's exec.go writes it
 	t.Run("member stops", func(t *testing.T) {
 		cs := fake.NewClientset()
 		nodes := onList(cs, "nodes", always(execErr))
@@ -418,7 +418,7 @@ func TestStatusExecFailure(t *testing.T) {
 // recognise that text, also wrapped again.
 // clusters-screen R7
 func TestExecFailurePrefix(t *testing.T) {
-	err := fmt.Errorf("getting credentials: %v", errors.New("x"))
+	err := fmt.Errorf("getting credentials: %v", errors.New("x")) //nolint:errorlint // %v as client-go's exec.go writes it
 	if !IsExecFailure(err) {
 		t.Errorf("IsExecFailure(%q) = false", err)
 	}

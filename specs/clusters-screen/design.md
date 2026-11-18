@@ -529,6 +529,12 @@ cloud, so a repeated `fleetSync` does not connect it again; a scope that
 includes that cloud (or none) connects it again. A first visit given a scope ticks the
 scope's cloud by default (D5).
 
+> **Corrected 2026-11-18.** The learned clouds are kept by the model
+> (`fleetState.left`, read by `wantedMembers` in `fleetSync`), not by the cmd
+> fleet: the fleet judges a synced member against the scope it is given and
+> closes it with `MemberLeftMsg`, and the model leaves it out of the wanted
+> list while the scope excludes that cloud. The behaviour is the one above.
+
 ### D12: One section per API server
 
 **Choice**: `fleetSync` drops, before `SetWanted`, every selected context

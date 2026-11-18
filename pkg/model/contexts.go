@@ -42,7 +42,7 @@ type Session struct {
 	// when not available
 	Advisor Advisor
 	// Status reads the connection's watches (clusters-screen D7); nil reads
-	// as synced, for sessions built in tests
+	// as synced, as sessions built in tests have none
 	Status func() ConnStatus
 }
 
@@ -55,14 +55,6 @@ type ConnStatus struct {
 	PodsSynced bool
 	// Err is the last watch error, without the API server URL
 	Err string
-}
-
-// status reads s.Status, or a synced state when it is nil.
-func (s Session) status() ConnStatus {
-	if s.Status == nil {
-		return ConnStatus{Synced: true, PodsSynced: true}
-	}
-	return s.Status()
 }
 
 type contextsMsg struct {
