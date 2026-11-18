@@ -1,0 +1,32 @@
+# Backstage catalog: Domain (GitHub org) -> System (this repo) -> Component(s).
+# Names aligned with Dependency-Track (StaffOps/homelab-gitops helm-charts/argo-events/image-scan/catalog.yaml).
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: kube-node-viewer
+  title: kube-node-viewer
+  description: "kube-node-viewer (StaffOps)"
+  annotations:
+    github.com/project-slug: StaffOps/kube-node-viewer
+  links:
+    - url: https://github.com/StaffOps/kube-node-viewer
+      title: Repository
+      icon: github
+spec:
+  owner: group:staffops
+  domain: staffops
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: kube-node-viewer
+  title: kube-node-viewer
+  description: "kube-node-viewer (StaffOps)"
+  annotations:
+    github.com/project-slug: StaffOps/kube-node-viewer
+  tags: [go]
+spec:
+  type: tool
+  lifecycle: production
+  owner: group:staffops
+  system: kube-node-viewer
