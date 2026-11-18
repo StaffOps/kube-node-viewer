@@ -104,6 +104,8 @@ func (f Field) Value(n *Node) string {
 		v = n.Name()
 	case FieldIP:
 		v = n.InternalIP()
+	case fieldPodsPending:
+		return pendingValue
 	default:
 		if key := f.Label(); key != "" {
 			return n.LabelValue(key)

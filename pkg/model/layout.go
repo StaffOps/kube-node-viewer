@@ -68,7 +68,7 @@ func (u *UIModel) render() string {
 	stats := u.stats
 	nodes := u.view.Select(stats.Nodes)
 	selected := len(nodes)
-	if u.focused() && !u.onRecommendations() {
+	if u.focused() && !u.onRecommendations() && !u.onClusters() {
 		// the focused group's nodes, drawn from a copy of the view that
 		// lists them; u.view is back before any key is handled (D5)
 		nodes = u.focusNodes(nodes)
@@ -76,7 +76,12 @@ func (u *UIModel) render() string {
 		u.view = u.displayView()
 		defer func() { u.view = saved }()
 	}
-	header := u.fit(u.header(stats, nodes))
+	var header string
+	if u.onClusters() {
+		header = u.fit(u.clustersHeader())
+	} else {
+		header = u.fit(u.header(stats, nodes))
+	}
 
 	// below the box, lay out for the width left after the margin
 	full := u.width
@@ -105,14 +110,24 @@ func (u *UIModel) render() string {
 // selected is how many nodes the filters and search left, before the focus.
 func (u *UIModel) renderContent(stats Stats, nodes []*Node, selected, headerLines int) string {
 	var b strings.Builder
-	b.WriteString(u.fit(u.clusterSummary(stats, nodes)))
+	var fleet clustersOverview
+	if u.onClusters() {
+		// the cloud totals take the summary's place (clusters-screen R4)
+		fleet = u.clustersOverview()
+		for _, line := range u.cloudLines(fleet) {
+			b.WriteString(u.fit(line))
+			b.WriteString("\n")
+		}
+	} else {
+		b.WriteString(u.fit(u.clusterSummary(stats, nodes)))
+	}
 	b.WriteString("\n")
 
 	// what is left between the summary and the footer lines: two, plus
 	// one always reserved on Overview with nodes on screen for the
 	// DaemonSets line, so pages don't change as the cursor moves (node-pods
 	// R10)
-	dsLine := !u.onRecommendations() && stats.NumNodes > 0 && len(nodes) > 0
+	dsLine := !u.onRecommendations() && !u.onClusters() && stats.NumNodes > 0 && len(nodes) > 0
 	footer := 2
 	if dsLine {
 		footer = 3
@@ -139,6 +154,16 @@ func (u *UIModel) renderContent(stats Stats, nodes []*Node, selected, headerLine
 		var from, to int
 		body, from, to = u.recommendationsBody(avail)
 		u.selFrom, u.selTo = from, to
+	case u.onClusters():
+		var from, to, pageCount int
+		body, from, to, pageCount = u.clustersBody(fleet, avail)
+		u.selFrom, u.selTo = from, to
+		u.paginator.PerPage = 1
+		u.paginator.SetTotalPages(pageCount)
+		u.paginator.Page = u.page
+		if pageCount > 1 {
+			status = u.paginator.View()
+		}
 	case stats.NumNodes == 0:
 		body = []string{"Waiting for update or no nodes found..."}
 	case len(nodes) == 0 && selected > 0:
@@ -259,6 +284,8 @@ func (u *UIModel) helpText() string {
 		return u.contexts.hint()
 	case panelViews:
 		return u.viewsPanel.hint()
+	case panelClusters:
+		return "↑/↓: move • space: tick (a cloud's line: all of it) • enter: apply • esc: cancel"
 	case panelRecMath:
 		return "esc: close"
 	case panelNode:
@@ -271,7 +298,10 @@ func (u *UIModel) helpText() string {
 		return "↑/↓: scroll • home: top • tab: pods • esc: close"
 	}
 	if u.commanding {
-		return "overview (ov) • recommendations (rec) • tab: complete • enter: run • esc: cancel"
+		return "overview (ov) • recommendations (rec) • clusters (cl) [aws|azure|gce] • tab: complete • enter: run • esc: cancel"
+	}
+	if u.onClusters() {
+		return "↑/↓: select • space: unfold • enter: open in Overview • c: clusters • f: filter • g: group • s: sort • /: search • r: resources • :cl aws: one cloud • tab: Overview • ?: help • q: quit"
 	}
 	if u.onRecommendations() {
 		return "↑/↓: select • enter: why • tab/:ov: Overview • f: filter • /: search • c: context • v: views • e: export • ?: help • q: quit"
@@ -522,7 +552,18 @@ func (u *UIModel) groupLine(g *Group, t groupTree, w groupLineWidths) string {
 	b.WriteString(pad(treeStyle(t.branch)+u.groupName(g), w.name))
 	b.WriteString("  " + pad(u.printer.Sprintf("%d nodes", s.NumNodes), w.nodes))
 	b.WriteString("  " + pad(u.printer.Sprintf("%d pods", s.NumPods), w.pods))
+	if u.podsBlind {
+		// pod, usage and idle parts wait for the pods (clusters-screen R15)
+		b.Reset()
+		b.WriteString(pad(treeStyle(t.branch)+u.groupName(g), w.name))
+		b.WriteString("  " + pad(u.printer.Sprintf("%d nodes", s.NumNodes), w.nodes))
+		b.WriteString("  " + pad(pendingValue+" pods", w.pods))
+	}
 	for _, res := range u.cluster.resources {
+		if u.podsBlind {
+			fmt.Fprintf(&b, "  %s %s", res, helpStyle(pendingValue))
+			continue
+		}
 		pct := s.PercentUsed(res)
 		fmt.Fprintf(&b, "  %s %s", res, u.colorizeUsage(pct, fmt.Sprintf("%0.0f%%", pct)))
 	}
@@ -538,7 +579,10 @@ func (u *UIModel) groupLine(g *Group, t groupTree, w groupLineWidths) string {
 		if s.ReservedNodes > 0 {
 			u.printer.Fprintf(&b, " (+%d reserved, not priced)", s.ReservedNodes)
 		}
-		if s.IdlePrice >= 0.0005 {
+		switch {
+		case u.podsBlind:
+			b.WriteString(helpStyle("  idle " + pendingValue))
+		case s.IdlePrice >= 0.0005:
 			b.WriteString(helpStyle(u.printer.Sprintf("  idle $%0.3f/month", s.IdlePrice*avgHoursPerMonth)))
 		}
 	}
@@ -779,7 +823,14 @@ func (u *UIModel) newNodeTable(nodes []*Node, indent int) *nodeTable {
 		allocatable, used := n.Allocatable(), n.Used()
 		maxPods, _ := allocatable.Pods().AsInt64()
 		r := &tableRow{name: n.Name(), pods: fmt.Sprintf("%d/%d", n.NumPods(), maxPods), cells: make(map[Field]string, len(columns))}
+		if u.podsBlind {
+			r.pods = pendingValue
+		}
 		for _, res := range u.cluster.resources {
+			if u.podsBlind {
+				r.fills = append(r.fills, math.Inf(-1))
+				continue
+			}
 			pct := 0.0
 			a, used := allocatable[res], used[res]
 			if a.AsApproximateFloat64() != 0 {
@@ -831,7 +882,12 @@ func (t *nodeTable) render(n *Node) []string {
 
 	lines := make([]string, 0, len(r.fills))
 	for j, res := range u.cluster.resources {
-		bar := pad(u.usageBar(r.fills[j], t.barW, barRune(j)), t.barW)
+		var bar string
+		if isPending(r.fills[j]) {
+			bar = pad(u.pendingBar(t.barW, barRune(j)), t.barW)
+		} else {
+			bar = pad(u.usageBar(r.fills[j], t.barW, barRune(j)), t.barW)
+		}
 		if j == 0 {
 			lines = append(lines, t.indent+pad(r.name, t.nameW)+" "+pad(string(res), t.resW)+" "+bar+" "+pad(r.pods, t.podsW)+t.tail(r.cells))
 		} else {
@@ -853,6 +909,9 @@ func isPriceColumn(f Field) bool {
 
 // cell is the node's value in a column.
 func (u *UIModel) cell(n *Node, f Field, now time.Time) string {
+	if u.podsBlind && podField(f) {
+		return pendingValue
+	}
 	switch f {
 	case FieldPrice:
 		switch {

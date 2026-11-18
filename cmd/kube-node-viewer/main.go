@@ -116,6 +116,8 @@ func main() {
 	}
 	m.Connect(first)
 	m.SetSwitcher(conn)
+	conn.fleet = newFleet(conn.memberConnect, program.Send, conn.fleetContexts, conn.visitPricing)
+	m.SetFleet(conn.fleet, fleetStore{states, saver})
 	m.SetViews(combinedViews{config: settings.views, state: namedViews{states, saver}})
 	m.SetExportFallback(filepath.Dir(state.DefaultPath(homeDir)))
 
@@ -170,3 +172,13 @@ func (v namedViews) ViewNames() []string                      { return v.store.V
 func (v namedViews) View(name string) (model.ViewState, bool) { return v.store.View(name) }
 func (v namedViews) SaveView(name string, s model.ViewState)  { v.saver.SaveView(name, s) }
 func (v namedViews) DeleteView(name string)                   { v.saver.DeleteView(name) }
+
+// fleetStore keeps the Clusters screen's choice in the state file
+// (clusters-screen R8, R14).
+type fleetStore struct {
+	store *state.Store
+	saver *state.Saver
+}
+
+func (f fleetStore) Fleet() ([]string, string, bool)           { return f.store.Fleet() }
+func (f fleetStore) SaveFleet(contexts []string, cloud string) { f.saver.SaveFleet(contexts, cloud) }

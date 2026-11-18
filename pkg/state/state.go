@@ -38,6 +38,14 @@ type file struct {
 	Clusters map[string]model.ViewState `json:"clusters"`
 	// Views are the named views, shared by every cluster
 	Views map[string]model.ViewState `json:"views,omitempty"`
+	// Fleet is the Clusters screen's chosen contexts and cloud scope
+	// (clusters-screen R8, R14); missing in older files
+	Fleet *fleet `json:"fleet,omitempty"`
+}
+
+type fleet struct {
+	Contexts []string `json:"contexts"`
+	Cloud    string   `json:"cloud,omitempty"`
 }
 
 // DefaultPath is $XDG_STATE_HOME/kube-node-viewer/state.json, falling back to
@@ -57,6 +65,7 @@ type Store struct {
 	mu       sync.Mutex
 	clusters map[string]model.ViewState
 	views    map[string]model.ViewState
+	fleet    *fleet
 }
 
 // Load reads the state file. A missing file is an empty store; a corrupt or
@@ -78,6 +87,7 @@ func Load(path string, w io.Writer) *Store {
 			if f.Views != nil {
 				s.views = f.Views
 			}
+			s.fleet = f.Fleet
 		}
 	}
 	if err != nil {
@@ -99,6 +109,24 @@ func (s *Store) Put(cluster string, v model.ViewState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.clusters[cluster] = v
+}
+
+// Fleet is the Clusters screen's saved contexts and scope; ok is false when
+// none was ever chosen (clusters-screen R2, R8).
+func (s *Store) Fleet() (contexts []string, cloud string, ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.fleet == nil {
+		return nil, "", false
+	}
+	return append([]string(nil), s.fleet.Contexts...), s.fleet.Cloud, true
+}
+
+// PutFleet records the Clusters screen's choice; Flush writes it.
+func (s *Store) PutFleet(contexts []string, cloud string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.fleet = &fleet{Contexts: append([]string{}, contexts...), Cloud: cloud}
 }
 
 // ViewNames lists the named views, sorted.
@@ -141,7 +169,7 @@ func (s *Store) DeleteView(name string) {
 // file behind.
 func (s *Store) Flush() error {
 	s.mu.Lock()
-	data, err := json.MarshalIndent(file{Version: fileVersion, Clusters: s.clusters, Views: s.views}, "", "  ")
+	data, err := json.MarshalIndent(file{Version: fileVersion, Clusters: s.clusters, Views: s.views, Fleet: s.fleet}, "", "  ")
 	s.mu.Unlock()
 	if err != nil {
 		return err
@@ -203,6 +231,12 @@ func (s *Saver) Save(cluster string, v model.ViewState) {
 // SaveView records a named view and schedules a write.
 func (s *Saver) SaveView(name string, v model.ViewState) {
 	s.store.PutView(name, v)
+	s.schedule()
+}
+
+// SaveFleet records the Clusters screen's choice and schedules a write.
+func (s *Saver) SaveFleet(contexts []string, cloud string) {
+	s.store.PutFleet(contexts, cloud)
 	s.schedule()
 }
 

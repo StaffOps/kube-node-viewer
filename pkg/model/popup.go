@@ -81,6 +81,8 @@ func (u *UIModel) panelContent() (panelView, bool) {
 		return u.recMathPanel(), true
 	case panelNode:
 		return u.nodeDetailsPanel(), true
+	case panelClusters:
+		return u.clusterPickerPanel(), true
 	}
 	return panelView{}, false
 }

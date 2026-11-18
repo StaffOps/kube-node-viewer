@@ -1,0 +1,22 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer · Clusters                                                                                                                                          │
+│ Scope:    all clouds                                                                                                                      f filters     g group by   │
+│ Clusters: 2 clusters                                                                                                                      s sort        o columns    │
+│ Nodes:    12 nodes                                                                                                                        / search      r resources  │
+│ View:     Filters: none │ Group: none │ Sort: creation ↓ │ cpu+memory                                                                     c clusters    v views      │
+│                                                                                                                                           ? help       ^e compact    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    aws    1 cluster  10 nodes  $728.102/month (+1 reserved, not priced)
+    azure  1 cluster  2 nodes   prices unknown
+
+  aws
+  ▸ demo-prod  aws    10 nodes  $728.102/mo╭─ Clusters ───────────────────────────────────────────────────────────────────────╮
+                                           │ aws                                                                              │
+  azure                                    │   [x] demo-prod  (on screen)                                                     │
+  ▸ aks        azure  2 nodes   prices unkn│ azure                                                                            │
+                                           │   [x] aks                                                                        │
+                                           ├──────────────────────────────────────────────────────────────────────────────────┤
+                                           │ ↑/↓: move • space: tick (a cloud's line: all of it) • enter: apply • esc: cancel │
+                                           ╰──────────────────────────────────────────────────────────────────────────────────╯
+
+

@@ -1,0 +1,25 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ kube-node-viewer · Clusters                                                                                                                                          │
+│ Scope:    all clouds                                                                                                                      f filters     g group by   │
+│ Clusters: 2 clusters                                                                                                                      s sort        o columns    │
+│ Nodes:    12 nodes                                                                                                                        / search      r resources  │
+│ View:     Filters: none │ Group: nodegroup │ Sort: creation ↓ │ cpu+memory                                                                c clusters    v views      │
+│                                                                                                                                           ? help       ^e compact    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    aws    1 cluster  10 nodes  $728.102/month (+1 reserved, not priced)
+    azure  1 cluster  2 nodes   prices unknown
+
+  aws
+  ▸ demo-prod  aws    10 nodes  $728.102/month (+1 reserved, not priced)  idle $174.051/month  ok
+
+  azure
+▌ ▾ aks        azure  2 nodes   prices unknown                            idle …  ok
+      NAME                                                                          PODS  INSTANCE           PRICE/H  PRICE/M  IDLE/M  CAPACITY  NODEGROUP  ZONE  STATUS
+    system   1 nodes  … pods  cpu …  memory …  idle …
+      aks-system-vmss000000  cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇    … …     Standard_D2pds_v6  -        -        …       OnDemand  system     -     Ready
+                             memory ██████████████████████████████████████████    …
+    workers  1 nodes  … pods  cpu …  memory …  idle …
+      aks-workers-vmss000001 cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇    … …     Standard_D2pds_v6  -        -        …       OnDemand  workers    -     Ready
+                             memory ██████████████████████████████████████████    …
+
+  ↑/↓: select • space: unfold • enter: open in Overview • c: clusters • f: filter • g: group • s: sort • /: search • r: resources • :cl aws: one cloud • tab: Overview …
