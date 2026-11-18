@@ -48,6 +48,28 @@
 > timeout to the kind API server, on `main` too, so it says nothing of this
 > branch. Not done: the run on two or more EKS clusters (memory, CPU, sync
 > time, the Fargate scheduler name), which needs clusters the owner allows.
+>
+> **2026-11-18, cluster run on throwaway kind clusters.** The kind failure
+> above was this machine: a VPN route covers the range of Docker's default networks, so the
+> host could not reach the kind API servers. On a Docker network outside it
+> (`KIND_EXPERIMENTAL_DOCKER_NETWORK`), `scripts/kind-it.sh` passes. Then the
+> binary ran, from a scratch directory with its own HOME, on two kind
+> clusters with the integration workload and a price label on every node.
+> Checked: `:cl` opens the first-use picker with the context on screen ticked
+> (R2, R8); after `enter` both sections show their nodes and cost, the member
+> `idle …` (R3, R15); the choice is saved in the state file and comes back
+> with no question (R8); unfolding the member adds exactly one cluster-scoped
+> pod watch on its API server, 9 → 10 (R11, R15, D10); `enter` opens it in
+> Overview and the other cluster's watches end (R6, R9); `tab` leaves the
+> screen and closes the member's node and pod watches (R9); after `q`, no
+> watch of the tool is left on either cluster (R9); a context whose API
+> server does not answer shows `Get: dial tcp an address: …` in its heading,
+> no address, the others `ok`, and the header counts it not connected (R7,
+> R3, R4). Memory with both clusters connected and one unfolded: 42.8 MB RSS
+> (kind clusters of 3 nodes and 19 pods each). kind nodes are `kind://`, so
+> this run shows the `other` bucket, not a cloud total. Still open: the same
+> run on EKS clusters (cloud totals with real prices, the `fargate-scheduler`
+> field selector, memory and sync time on a large fleet).
 
 > A code change with open tasks here cannot merge, and so cannot release:
 > `scripts/spec-tasks-check.py` fails CI and the `pr-guard` hook blocks
