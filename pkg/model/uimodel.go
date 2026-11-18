@@ -154,6 +154,9 @@ type UIModel struct {
 	dirty bool
 	// fl is the Clusters screen's state (clusters-screen)
 	fl fleetState
+	// contextListsOff: contexts.allow/deny are off for the run
+	// (context-visibility R6)
+	contextListsOff bool
 	// podsBlind, while a Clusters section whose pods are not synced is laid
 	// out, shows every figure made from pods as … (clusters-screen R15)
 	podsBlind bool

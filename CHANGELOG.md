@@ -18,6 +18,10 @@ All notable changes to this project are documented here. Format:
   At most four connect at a time, and leaving the screen closes them;
   `clusters.pods: unfolded` in `config.yaml` watches a cluster's pods only
   once its section is unfolded.
+- `contexts.allow` and `contexts.deny` in `config.yaml`: patterns with `*`
+  over the full context name that decide which contexts the context picker
+  and the Clusters picker list. The tool still opens on the context it
+  starts on; when the lists hide that one, they are off for the run.
 
 ### Fixed
 

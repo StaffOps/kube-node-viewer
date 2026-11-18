@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -115,10 +116,19 @@ func main() {
 		log.Fatalf("connecting: %s", err)
 	}
 	m.Connect(first)
+	// the context lists in effect, before SetFleet reads the saved choice
+	// (context-visibility D3)
+	contexts, listsOff := effectivePolicy(first.Info.Context, settings.contexts)
+	conn.contexts = contexts
+	if listsOff {
+		m.SetContextListsOff()
+		// Send blocks until the program runs
+		go program.Send(model.NoticeMsg{Text: "contexts.allow/deny not applied: the context on screen is hidden by them"})
+	}
 	m.SetSwitcher(conn)
 	conn.fleet = newFleet(conn.memberConnect, program.Send, conn.fleetContexts, conn.visitPricing)
 	conn.fleet.podsOnConnect = settings.clusterPods != clusterPodsUnfolded
-	m.SetFleet(conn.fleet, fleetStore{states, saver})
+	m.SetFleet(conn.fleet, fleetStore{states, saver, contexts})
 	m.SetViews(combinedViews{config: settings.views, state: namedViews{states, saver}})
 	m.SetExportFallback(filepath.Dir(state.DefaultPath(homeDir)))
 
@@ -176,10 +186,32 @@ func (v namedViews) DeleteView(name string)                   { v.saver.DeleteVi
 
 // fleetStore keeps the Clusters screen's choice in the state file
 // (clusters-screen R8, R14).
+// The contexts the lists hide are left out of what the model gets and kept
+// in the file on save (context-visibility R7, D4).
 type fleetStore struct {
-	store *state.Store
-	saver *state.Saver
+	store    *state.Store
+	saver    *state.Saver
+	contexts model.LabelPolicy
 }
 
-func (f fleetStore) Fleet() ([]string, string, bool)           { return f.store.Fleet() }
-func (f fleetStore) SaveFleet(contexts []string, cloud string) { f.saver.SaveFleet(contexts, cloud) }
+func (f fleetStore) Fleet() ([]string, string, bool) {
+	chosen, cloud, ok := f.store.Fleet()
+	shown := chosen[:0]
+	for _, c := range chosen {
+		if f.contexts.Shows(c) {
+			shown = append(shown, c)
+		}
+	}
+	return shown, cloud, ok
+}
+
+func (f fleetStore) SaveFleet(contexts []string, cloud string) {
+	saved, _, _ := f.store.Fleet()
+	out := slices.Clone(contexts)
+	for _, c := range saved {
+		if !f.contexts.Shows(c) && !slices.Contains(out, c) {
+			out = append(out, c)
+		}
+	}
+	f.saver.SaveFleet(out, cloud)
+}

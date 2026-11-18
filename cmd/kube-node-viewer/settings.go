@@ -64,6 +64,9 @@ type settings struct {
 	// clusterPods is clusters.pods: when the Clusters screen's members watch
 	// their pods (clusters-screen R18)
 	clusterPods string
+	// contexts is contexts.allow and contexts.deny, the same rules as the
+	// label lists (context-visibility D1); zero lists every context
+	contexts model.LabelPolicy
 }
 
 // Values of clusters.pods (clusters-screen R18).
@@ -129,7 +132,11 @@ func loadSettings(path string, explicit map[string]string) (settings, error) {
 	if err != nil {
 		return settings{}, fmt.Errorf("label lists: %w", err)
 	}
-	return settings{policy: policy, views: file.views, defaultView: file.defaultView, lastView: file.lastView, clusterPods: file.clusterPods}, nil
+	contexts, err := model.NewLabelPolicy(file.contextAllow, file.contextDeny)
+	if err != nil {
+		return settings{}, fmt.Errorf("contexts: %w", err)
+	}
+	return settings{policy: policy, views: file.views, defaultView: file.defaultView, lastView: file.lastView, clusterPods: file.clusterPods, contexts: contexts}, nil
 }
 
 // settingsFile is config.yaml as written, checked but before the label flags.
@@ -139,6 +146,8 @@ type settingsFile struct {
 	defaultView *model.ViewState
 	lastView    bool
 	clusterPods string
+	// contextAllow and contextDeny are contexts.allow and contexts.deny
+	contextAllow, contextDeny []string
 }
 
 // readSettingsFile decodes the file into plain values and walks them by hand
@@ -163,12 +172,15 @@ func readSettingsFile(path string) (settingsFile, error) {
 	if err := yaml.UnmarshalStrict(data, &doc); err != nil {
 		return settingsFile{}, errors.New(yamlError(err))
 	}
-	top, err := mapping("", doc, "labels", "views", "default-view", "start-with", "clusters")
+	top, err := mapping("", doc, "labels", "views", "default-view", "start-with", "clusters", "contexts")
 	if err != nil {
 		return settingsFile{}, err
 	}
 	var file settingsFile
-	if file.allow, file.deny, err = readLabelLists(top["labels"]); err != nil {
+	if file.allow, file.deny, err = readPatternLists("labels", top["labels"]); err != nil {
+		return settingsFile{}, err
+	}
+	if file.contextAllow, file.contextDeny, err = readPatternLists("contexts", top["contexts"]); err != nil {
 		return settingsFile{}, err
 	}
 	if file.views, err = readViews(top["views"]); err != nil {
@@ -204,10 +216,10 @@ func readClusters(value any) (string, error) {
 	return pods, nil
 }
 
-// readLabelLists checks labels.allow and labels.deny: lists of non-empty
-// strings, either may be missing or null.
-func readLabelLists(value any) (allow, deny []string, err error) {
-	labels, err := mapping("labels", value, "allow", "deny")
+// readPatternLists checks <key>.allow and <key>.deny, for labels and
+// contexts: lists of non-empty strings, either may be missing or null.
+func readPatternLists(key string, value any) (allow, deny []string, err error) {
+	labels, err := mapping(key, value, "allow", "deny")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -215,11 +227,11 @@ func readLabelLists(value any) (allow, deny []string, err error) {
 		key string
 		out *[]string
 	}{{"allow", &allow}, {"deny", &deny}} {
-		items, err := list("labels."+l.key, labels[l.key])
+		items, err := list(key+"."+l.key, labels[l.key])
 		if err != nil {
 			return nil, nil, err
 		}
-		if *l.out, err = patternList("labels."+l.key, items); err != nil {
+		if *l.out, err = patternList(key+"."+l.key, items); err != nil {
 			return nil, nil, err
 		}
 	}

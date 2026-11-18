@@ -58,6 +58,9 @@ type sessions struct {
 	sizes *azure.Sizes
 	// fleet is the Clusters screen's members (clusters-screen D3)
 	fleet *fleet
+	// contexts is the context lists in effect for the run; zero lists every
+	// context (context-visibility D2, D3)
+	contexts model.LabelPolicy
 }
 
 // azureOption is the Go option of azure-live-skus D6: zero is production
@@ -150,8 +153,30 @@ func (p *startViews) changed(key string, view model.ViewState) {
 	}
 }
 
+// Contexts lists the kubeconfig's contexts the lists show, and the current
+// one (context-visibility R1, R2).
 func (s *sessions) Contexts() ([]string, string, error) {
-	return client.Contexts(s.flags.Kubeconfig)
+	names, current, err := client.Contexts(s.flags.Kubeconfig)
+	if err != nil {
+		return nil, "", err
+	}
+	shown := names[:0]
+	for _, n := range names {
+		if s.contexts.Shows(n) {
+			shown = append(shown, n)
+		}
+	}
+	return shown, current, nil
+}
+
+// effectivePolicy is the context lists for the run: off (zero, every context
+// listed) when they hide the context the run opens on; a run with no context
+// name is never hidden (context-visibility R5, R6, D3).
+func effectivePolicy(start string, p model.LabelPolicy) (model.LabelPolicy, bool) {
+	if start == "" || p.Shows(start) {
+		return p, false
+	}
+	return model.LabelPolicy{}, true
 }
 
 // conn is one connection to a context, built but not started

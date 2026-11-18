@@ -40,6 +40,7 @@ with `scripts/screenshots.sh`.
 - [Saved view per cluster](#saved-view-per-cluster)
 - [Flags and config file](#flags-and-config-file)
 - [Label visibility](#label-visibility)
+- [Context visibility](#context-visibility)
 - [Config views](#config-views)
 - [Pricing](#pricing)
 - [Computed labels](#computed-labels)
@@ -833,6 +834,39 @@ $ kube-node-viewer
 $ echo $?
 1
 ```
+
+## Context visibility
+
+The same allow and deny lists, for kubeconfig contexts, decide which contexts
+the context picker (`c`) and the Clusters screen's picker list:
+
+```yaml
+# ~/.config/kube-node-viewer/config.yaml
+contexts:
+  allow:
+    - "prod-*"
+    - "arn:aws:eks:*:111122223333:cluster/*"
+  deny:
+    - "*-sandbox"
+```
+
+- A pattern is compared with the context's full name, as the kubeconfig
+  writes it (an alias, an EKS ARN, a gcloud name), not with the short name
+  the header shows. `*` matches any run of characters, `:` and `/`
+  included; everything else matches only itself, case-sensitively.
+- With an allow list, only contexts that match one of its patterns are
+  listed; without one (or with `allow: []`), every context is. Deny wins.
+- The tool still opens on the context it starts on (`--context`, else the
+  kubeconfig's current one), whatever the lists say. When that context is
+  hidden by them, they are not applied in that run: every context is
+  listed, the footer says so, and both pickers' titles say `lists off`.
+  `deny: ["*"]` therefore turns them off, unless the run has no context name
+  (no `--context`, no current context), which then lists none.
+- A context the lists hide is never connected by the Clusters screen, and
+  stays in its saved choice, so it comes back ticked if the lists change.
+
+This only decides what the tool shows: the kubeconfig still reaches every
+cluster with `kubectl` or any other tool.
 
 ## Config views
 
