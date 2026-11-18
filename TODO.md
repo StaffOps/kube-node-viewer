@@ -110,6 +110,8 @@ memory. Listed by impact.
 
 - [ ] GKE: node pool labels and prices (stage 2, multi-cloud;
       [interactive-tui deferred](specs/interactive-tui/tasks.md#deferred)).
+      The [Clusters screen](specs/clusters-screen/requirements.md) shows GKE
+      clusters without cost until this exists.
 - [ ] GPU resource and columns (stage 3;
       [interactive-tui deferred](specs/interactive-tui/tasks.md#deferred)).
 
