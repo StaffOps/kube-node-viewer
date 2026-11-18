@@ -100,7 +100,7 @@ func TestHiddenTwinMarkedWhenListed(t *testing.T) {
 	u := e.u
 	command(u, "cl")
 	apply(u, press(u, "c"))
-	if out := u.View(); !strings.Contains(out, "same cluster as prod-us") {
+	if out := u.View(); !strings.Contains(out, "prod-us  same cluster as hidden-twin") {
 		t.Errorf("no same cluster mark for a context that shares a server:\n%s", out)
 	}
 }
