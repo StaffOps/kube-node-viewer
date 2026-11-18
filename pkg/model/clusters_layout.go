@@ -399,9 +399,9 @@ type cblock struct {
 }
 
 // sectionHeading is a section's line (clusters-screen R3).
-type headingWidths struct{ name, cloud, nodes, cost int }
+type headingWidths struct{ name, cloud, nodes int }
 
-func (u *UIModel) sectionParts(c *clusterSection) (name, cloud, nodes, cost, rest string) {
+func (u *UIModel) sectionParts(c *clusterSection) (name, cloud, nodes, rest string) {
 	mark := "▸ "
 	if u.fl.unfolded[c.s.name] {
 		mark = "▾ "
@@ -429,7 +429,7 @@ func (u *UIModel) sectionParts(c *clusterSection) (name, cloud, nodes, cost, res
 		status = helpStyle("connecting…")
 	}
 	rest += status
-	return name, cloud, nodes, cost, rest
+	return name, cloud, nodes, rest
 }
 
 // sectionSummaries are, per connected section, Overview's summary lines for
@@ -463,7 +463,14 @@ func (u *UIModel) sectionSummaries(sections []*clusterSection) map[*clusterSecti
 			}
 			cost := ""
 			if i == 0 && !u.DisablePricing {
-				cost = u.printer.Sprintf("$%0.3f/hour | %s", s.TotalPrice, u.monthly(s, false))
+				// as Overview's summary writes it (uimodel.go writeClusterSummary)
+				cost = u.printer.Sprintf("$%0.3f/hour | $%0.3f/month", s.TotalPrice, s.TotalPrice*avgHoursPerMonth)
+				if !s.FullyPriced() {
+					cost = ">= " + cost
+				}
+				if s.ReservedNodes > 0 {
+					cost += u.printer.Sprintf(" (+%d reserved, not priced)", s.ReservedNodes)
+				}
 				if s.NumNodes > 0 && s.PricedNodes == 0 && s.ReservedNodes == 0 {
 					cost = helpStyle("prices unknown")
 				}
@@ -478,13 +485,27 @@ func (u *UIModel) sectionSummaries(sections []*clusterSection) map[*clusterSecti
 	}
 	ctw.Flush()
 	lines := strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
-	out := make(map[*clusterSection][]string, len(order))
 	n := len(u.cluster.resources)
-	for i, c := range order {
-		if (i+1)*n <= len(lines) {
-			for _, l := range lines[i*n : (i+1)*n] {
-				out[c] = append(out[c], strings.TrimRight(l, " "))
+	if len(order) == 0 || n == 0 {
+		return map[*clusterSection][]string{}
+	}
+	if len(lines) != len(order)*n {
+		// a value broke a line: lay each section out on its own rather than
+		// hand one section's lines to another
+		out := map[*clusterSection][]string{}
+		for _, c := range order {
+			for k, v := range u.sectionSummaries([]*clusterSection{c}) {
+				if len(v) == n {
+					out[k] = v
+				}
 			}
+		}
+		return out
+	}
+	out := make(map[*clusterSection][]string, len(order))
+	for i, c := range order {
+		for _, l := range lines[i*n : (i+1)*n] {
+			out[c] = append(out[c], strings.TrimRight(l, " "))
 		}
 	}
 	return out
@@ -498,12 +519,12 @@ func (u *UIModel) clustersBody(o clustersOverview, height int) (lines []string, 
 		return []string{"No clusters: c picks them."}, from, to, 1
 	}
 	var w headingWidths
-	parts := make(map[*clusterSection][5]string, len(o.sections))
+	parts := make(map[*clusterSection][4]string, len(o.sections))
 	for _, c := range o.sections {
-		name, cloud, nodes, cost, rest := u.sectionParts(c)
-		parts[c] = [5]string{name, cloud, nodes, cost, rest}
+		name, cloud, nodes, rest := u.sectionParts(c)
+		parts[c] = [4]string{name, cloud, nodes, rest}
 		w.name, w.cloud = max(w.name, textWidth(name)), max(w.cloud, textWidth(cloud))
-		w.nodes, w.cost = max(w.nodes, textWidth(nodes)), max(w.cost, textWidth(cost))
+		w.nodes = max(w.nodes, textWidth(nodes))
 	}
 	summaries := u.sectionSummaries(o.sections)
 	buckets := 0
@@ -523,7 +544,7 @@ func (u *UIModel) clustersBody(o clustersOverview, height int) (lines []string, 
 			blocks = append(blocks, cblock{lines: lines})
 		}
 		p := parts[c]
-		head := strings.TrimRight(pad(groupStyle(p[0]), w.name)+"  "+pad(p[1], w.cloud)+"  "+pad(p[2], w.nodes)+"  "+p[4], " ")
+		head := strings.TrimRight(pad(groupStyle(p[0]), w.name)+"  "+pad(p[1], w.cloud)+"  "+pad(p[2], w.nodes)+"  "+p[3], " ")
 		label := shortContext(c.s.name)
 		lines := append([]string{head}, summaries[c]...)
 		sel := len(lines)

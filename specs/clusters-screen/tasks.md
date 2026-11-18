@@ -75,6 +75,11 @@
 > run on EKS clusters (cloud totals with real prices, the `fargate-scheduler`
 > field selector, memory and sync time on a large fleet).
 
+> **2026-11-18, T12 after T13/T14.** The EKS run measures the default
+> `clusters.pods: all`: memory, CPU and sync time with every member's pods
+> watched (4 pod lists at a time), and the lighter `unfolded` for
+> comparison.
+
 > A code change with open tasks here cannot merge, and so cannot release:
 > `scripts/spec-tasks-check.py` fails CI and the `pr-guard` hook blocks
 > `gh pr create` (use `--draft` until the tasks are done).

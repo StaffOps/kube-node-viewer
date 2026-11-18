@@ -32,6 +32,9 @@
 
 ## Context
 
+> **Corrected 2026-11-18.** The default now watches every member's pods as
+> it connects (R18); "nodes first" below describes `clusters.pods: unfolded`.
+
 The viewer shows one kubeconfig context at a time; `c` switches and the
 previous connection is closed. Someone who runs many clusters of one provider
 (many EKS clusters) cannot see what they cost together without visiting each
@@ -59,6 +62,10 @@ separate spec, in `TODO.md`.
 The tool still only reads: nothing here writes to a cluster.
 
 ## Usage examples
+
+> **Corrected 2026-11-18.** The examples below are the first build's
+> headings: the cost and idle now sit on the summary lines under each
+> heading (R3), as in the golden screen `testdata/screens/clusters.txt`.
 
 ```text
 $ kube-node-viewer
@@ -158,6 +165,17 @@ its status.
   synced (R15); it is never shown as `$0` or as the full price.
 - [ ] Status is `ok`, `connecting…`, or the last error of its watches, without
   the API server URL.
+
+> **Corrected 2026-11-18.** The heading line keeps the name, cloud, node
+> count, filter marks and status; the cost and idle cost move to the lines
+> below it. Below its heading each connected section shows one line per
+> resource of the view (`r`), as Overview's summary does: requested /
+> allocatable, the percentage, the resource and a bar, and on the first line
+> the cost `$…/hour | $…/month` with Overview's marks (`>=`, reserved) and
+> the idle cost. Until the pods have synced the requested amount and the
+> percentage read `…` and the bar is empty (R15); with `--disable-pricing`
+> there is no cost. Folded sections keep these lines; the cursor marks the
+> heading and them.
 
 **R4** WHEN the Clusters screen is shown THEN the system SHALL show, for each
 cloud on screen, the total cost of its clusters' nodes shown, and how many
@@ -264,15 +282,6 @@ SHALL close the connections it opened.
 SHALL show nodes and counts and no cost, and no `>=` marker, as Overview
 does.
 
-> **Corrected 2026-11-18.** Below its heading line each section shows one
-> line per resource of the view (`r`), as Overview's summary does: requested
-> / allocatable, the percentage, the resource and a bar, and on the first
-> line the cost `$…/hour | $…/month` with its marks and the idle cost. The
-> heading line keeps the name, cloud, node count and status. Until the pods
-> have synced the requested, percentage and bar read `…` (R15); with
-> `--disable-pricing` there is no cost. Folded sections keep these lines.
-> _Test: the R3 citations; the golden screens `clusters`, `clusters-pending`._
-
 **R11** WHEN the user presses `space` on a cluster heading THEN the system
 SHALL unfold or fold that cluster's section; on any other row it does
 nothing.
@@ -285,6 +294,10 @@ nothing.
 - [ ] Folded sections keep their heading and their share of the cloud total.
 - [ ] The fold is not saved, and is forgotten when the screen is left or the
   member is closed by a scope change.
+
+> **Corrected 2026-11-18.** The second and third criteria hold with
+> `clusters.pods: unfolded`; with `all` (the default) the pods are watched
+> already and unfolding only lists the nodes.
 
 **R12** WHEN clusters are listed THEN the system SHALL put them under their
 cloud, clouds ordered by total cost, highest first, then clusters inside a
@@ -361,6 +374,13 @@ order nothing.
   shows pod figures once its pods have synced, at once when they already
   have.
 
+> **Corrected 2026-11-18.** With `clusters.pods: all`, the default (R18), a
+> member's pod watch starts as it connects and unfolding starts nothing; the
+> first two criteria above hold only with `clusters.pods: unfolded`. Its
+> start place is held until its pods have synced, so at most 4 full pod
+> lists run at once (D3). The gate of figures made from pods holds in both
+> modes.
+
 **R16** WHEN a connected cluster has Fargate nodes THEN the system SHALL
 price them without watching all of the cluster's pods.
 
@@ -370,11 +390,6 @@ price them without watching all of the cluster's pods.
 - [ ] A cluster with no Fargate node, or `--disable-pricing`, opens no such
   watch.
 
-> **Corrected 2026-11-18.** With `clusters.pods: all` (the default, R18) a
-> member's pod watch starts as it connects, still at most 4 starting at a
-> time; unfolding starts nothing. With `clusters.pods: unfolded` the
-> criteria above hold as written.
-
 **R17** WHEN two selected contexts point at the same API server THEN the
 system SHALL show and count that cluster once.
 
@@ -383,9 +398,10 @@ system SHALL show and count that cluster once.
   no default `:443`.
 - [ ] A cloud total never counts the same API server twice.
 
-**R18** WHEN `config.yaml` sets `clusters.pods` THEN the system SHALL watch
-the Clusters screen members' pods as it says: `all`, the default, as each
-member connects; `unfolded`, only once its section is unfolded (R15).
+**R18** WHEN a Clusters screen member connects THEN the system SHALL watch
+its pods at once, unless `config.yaml` sets `clusters.pods: unfolded`, which
+watches them only once its section is unfolded (R15); `clusters.pods: all` is
+the default written out.
 
 - [ ] With no `clusters` key, or `pods: all`, every connected member's
   section shows its requests and idle once its pods sync, folded or not.
@@ -395,6 +411,8 @@ member connects; `unfolded`, only once its section is unfolded (R15).
   `clusters` that is not a map, is an error naming the place in the file,
   as for the other keys.
 - [ ] The setting changes nothing for Overview's own connection.
+  _Test: manual — only the fleet reads the setting (`main.go` sets
+  `fleet.podsOnConnect`); `sessions.Switch` keeps `Controller.Start`._
 
 ## Counter-examples
 
@@ -406,6 +424,8 @@ member connects; `unfolded`, only once its section is unfolded (R15).
 - Leaving the screen SHALL NOT leave watches running on clusters nobody is
   looking at.
 - Opening the screen on 30 clusters SHALL NOT open 30 full pod watches.
+  > **Corrected 2026-11-18.** With `clusters.pods: unfolded`. With `all`, the
+  > default, it SHALL NOT run more than 4 full pod lists at once (R15).
 - Idle SHALL NOT read as the node's whole price because its pods are not
   watched yet.
 - The same API server SHALL NOT be counted twice in a cloud total.
@@ -436,7 +456,8 @@ member connects; `unfolded`, only once its section is unfolded (R15).
 - [ASSUMPTION] A pod watch, once opened by an unfold, stays until the screen
   is left (R15): folding and unfolding again does not re-list the pods.
   Closing it on fold is one call if memory says so (T12).
-- [ASSUMPTION] Memory, CPU and API load of node-only members and of the
+- [ASSUMPTION] (Corrected 2026-11-18: with `clusters.pods: all` the load
+  to measure is every member's pod watch, 4 lists at a time.) Memory, CPU and API load of node-only members and of the
   unfolded clusters' pod watches are acceptable, and a node watch is small
   next to a pod watch. Unmeasured; T12 measures them and notes the result.
 - [ASSUMPTION] EKS Fargate pods have `spec.schedulerName` set to

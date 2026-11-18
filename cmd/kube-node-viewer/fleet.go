@@ -92,7 +92,10 @@ type member struct {
 	pods     bool
 	// released is set once the member gave its start place back
 	released bool
-	synced   bool
+	// podsAtStart: the pod watch started with the connection, so the start
+	// place is held until the pods synced
+	podsAtStart bool
+	synced      bool
 }
 
 func newFleet(connect connector, send func(tea.Msg), contexts func() ([]model.ContextInfo, error), prices func(context.Context) priceFunc) *fleet {
@@ -256,21 +259,30 @@ func (f *fleet) run(m *member, prices priceFunc) {
 		return
 	}
 	m.c = c
+	m.podsAtStart = m.wantPods
 	f.podsLocked(m)
 	f.mu.Unlock()
 	go c.startNodes()
 	f.send(model.MemberReadyMsg{Context: m.name, Serial: m.serial, Gen: c.store.Generation(), Cluster: c.store, Status: c.status})
 
+	// the start place is held until the node watch synced, or, when the
+	// pods were started with it (clusters.pods: all), until the pods synced
+	// too, so at most 4 full pod lists run at once (clusters-screen D3)
 	ticker := time.NewTicker(statusPoll)
 	defer ticker.Stop()
 	for {
 		st := c.status()
 		if st.Synced {
 			f.mu.Lock()
-			m.synced = true
-			f.decideLocked(m)
+			if !m.synced {
+				m.synced = true
+				f.decideLocked(m)
+			}
+			done := m.closed || !m.podsAtStart || st.PodsSynced
 			f.mu.Unlock()
-			return
+			if done {
+				return
+			}
 		}
 		if st.Err != "" {
 			// the start place goes back on the first error, but the member

@@ -15,6 +15,12 @@
 > figures, a pending unfold. D11: when a member's cloud is final. D12 (new):
 > one section per API server. `tab` no longer reaches the screen (R1).
 >
+> **Corrected 2026-11-18, owner's review of the first build.** D10's default
+> is reversed (every member's pods are watched as it connects,
+> `clusters.pods: unfolded` keeps the old one), D3 holds a start place until
+> the pods synced in that mode, D13 (new) adds the summary lines per
+> section. The notes below mark the places that change.
+>
 > **Revised 2026-11-18, after the fourth review.** D3: a watch stops only on a
 > repeated 401, a 403 or an exec failure, per informer; `SetWanted` takes the
 > scope and remembers learned clouds. D10: the Fargate watch is selected by
@@ -123,7 +129,7 @@ cluster's nodes and pods.
 
 | Cost | Why acceptable |
 |------|----------------|
-| N sets of node informers, and a pod watch per unfolded cluster (D10) | closed on leaving the screen (D3); memory unmeasured, measured in T12 |
+| N sets of node informers, and a pod watch per unfolded cluster (D10); corrected 2026-11-18: per member with `clusters.pods: all` | closed on leaving the screen (D3); memory unmeasured, measured in T12 |
 | The screen sums per slot instead of reading one list | `newGroupStats` already sums any node slice |
 
 **When this would be wrong**: a feature needs one list across clusters (a
@@ -204,7 +210,7 @@ changed: it keeps retrying as today.
 
 | Cost | Why acceptable |
 |------|----------------|
-| The limit is on starting, not on steady state: a list of 30 is 30 node watches | [ASSUMPTION] node lists are small next to pod lists (D10, T12); the list is the user's choice, shown in the picker; first use asks |
+| The limit is on starting, not on steady state: a list of 30 is 30 node watches (corrected 2026-11-18: and 30 pod watches with `clusters.pods: all`; the start place is then held until a member's pods synced, so at most 4 pod lists run at once) | [ASSUMPTION] node lists are small next to pod lists (D10, T12); the list is the user's choice, shown in the picker; first use asks |
 | A stopped watch does not recover by itself after a fixed token or role | leaving and opening the screen again reconnects it (R7) |
 | Matching the exec error by text | pinned by a test to the client-go version |
 | Every visit pays the sync and the price set again | seconds per cluster (unmeasured, T12); sections fill as they arrive |
@@ -617,7 +623,9 @@ format asked for.
 - Error text shown in a heading has no API server URL.
 - No figure adds costs of two clouds.
 - A member's full pod watch exists only after its section was unfolded
-  (the Fargate-only watch aside, R16).
+  (the Fargate-only watch aside, R16). Corrected 2026-11-18: with
+  `clusters.pods: unfolded`; with `all`, at most 4 members are listing their
+  pods at once.
 
 ## Failure modes
 
@@ -664,7 +672,8 @@ format asked for.
   closed, Overview's store not closed (R2, R9), close on leave and on quit
   (R9), one failing member (R7), `gce` node never priced by the AWS provider
   (R4), `Switch` still applies the config default view, a member starts no
-  pod watch until `WatchPods` (R15), scope change closes the other clouds'
+  pod watch until `WatchPods` (R15; with `clusters.pods: unfolded`), pod
+  lists four at a time with `all` (R18), scope change closes the other clouds'
   members (R14); a member synced with another cloud or no nodes is closed
   under a scope, one failing before sync is kept (R14); `:clusters aws` twice gives one
   connect for an excluded unknown context, and `:clusters azure` or a bare

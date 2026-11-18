@@ -989,3 +989,25 @@ func TestFleetPodsOnConnect(t *testing.T) {
 		})
 	}
 }
+
+// With pods watched as members connect (clusters.pods: all), a start place
+// is held until the member's pods synced, not only its nodes: at most four
+// full pod lists run at once.
+// clusters-screen R2, R18
+func TestFleetPodListsFourAtATime(t *testing.T) {
+	f, fc, _ := newTestFleet(t, nil)
+	f.podsOnConnect = true
+	all := names(6)
+	for _, n := range all {
+		fc.status[n] = model.ConnStatus{Synced: true}
+	}
+	f.SetWanted(all, "")
+	waitFor(t, "4 connects", func() bool { return fc.callCount() == maxStarting })
+	settle()
+	if n := fc.callCount(); n != maxStarting {
+		t.Fatalf("%d connects with every node watch synced and no pods, want %d", n, maxStarting)
+	}
+	first := fc.called()[0]
+	fc.member(first).setStatus(model.ConnStatus{Synced: true, PodsSynced: true})
+	waitFor(t, "a fifth connect once one member's pods synced", func() bool { return fc.callCount() == maxStarting+1 })
+}

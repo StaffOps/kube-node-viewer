@@ -592,11 +592,16 @@ scope is saved.
 
 ```text
 :clusters aws
- Clusters · aws · 3 clusters · 117 nodes · $15,990.000/month
- ▸ eks-prod-us   aws    64 nodes  $9,810.000/month  idle …  ok
- ▸ eks-prod-eu   aws    41 nodes  $5,200.000/month  idle …  ok
- ▸ eks-stg       aws    12 nodes    $980.000/month  idle …  ok
+ Clusters · aws · 2 clusters · 76 nodes · $10,790.000/month
+ ▸ eks-prod-us  aws  64 nodes  ok
+     412/768       53.6% cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇      $13.438/hour | $9,810.000/month  idle $2,100.000/month
+     1288Gi/2944Gi 43.8% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+ ▸ eks-stg      aws  12 nodes  ok
+     …/96          …   cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $1.342/hour | $980.000/month  idle …
+     …/384Gi       …   memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
 ```
+
+(`eks-stg`'s pods are still being read.)
 
 | Key | On the Clusters screen |
 |-----|------------------------|

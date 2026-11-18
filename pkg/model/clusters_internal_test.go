@@ -1539,3 +1539,18 @@ func TestClustersCursorMarksHeadingAndSummary(t *testing.T) {
 		})
 	}
 }
+
+// A section with an unpriced node reads its cost as a lower bound, written
+// as Overview's summary writes it: ">= $…/hour | $…/month".
+// clusters-screen R3, R4
+func TestClustersSummaryLowerBound(t *testing.T) {
+	e := newFleetEnv(t, 40, []ContextInfo{{Name: "mem", Server: "https://example-mem.example.com", Cloud: "aws"}}, []string{"demo-prod", "mem"})
+	u := e.u
+	command(u, "cl")
+	c := memberCluster(mnode{name: "mem-a", provider: awsID("mem-a"), price: 0.5}, mnode{name: "mem-b", provider: awsID("mem-b")})
+	connect(u, "mem", c, &ConnStatus{Synced: true, PodsSynced: true})
+	block := sectionWith(fscreen(u), "▸ mem ")
+	if !strings.Contains(block, ">= $0.500/hour | $365.000/month") {
+		t.Errorf("summary of a partly priced cluster:\n%s", block)
+	}
+}
