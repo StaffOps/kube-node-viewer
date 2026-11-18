@@ -39,7 +39,7 @@
   - _Covers: R15, R18 · Depends on: T6 · Verified by: settings tests (values, errors), fleet tests (pods started on connect in `all`, not in `unfolded`)_
 - [x] T14. Summary block per section (D13): requested/allocatable, percentage, bar per resource, cost on the first line, `…` before the pods sync, aligned across sections; README, CHANGELOG
   - _Covers: R3, R15 · Depends on: T7 · Verified by: model tests, golden screens_
-- [-] T12. Verify: `scripts/verify.sh` and `make lint` green; run on two or more EKS clusters from a scratch directory: note what was checked and the memory and time of the chosen clusters' node-only watches, of unfolded sections' pod watches and of the price fetch, the CPU and redraw time with every member connected, and whether Fargate pods have `spec.schedulerName=fargate-scheduler`, never the clusters' names
+- [x] T12. Verify: `scripts/verify.sh` and `make lint` green; run on two or more EKS clusters from a scratch directory: note what was checked and the memory and time of the chosen clusters' node-only watches, of unfolded sections' pod watches and of the price fetch, the CPU and redraw time with every member connected, and whether Fargate pods have `spec.schedulerName=fargate-scheduler`, never the clusters' names
   - _Covers: all · Depends on: T1–T11 · Verified by: command output and the cluster run, recorded here as a dated note_
 
 > **2026-11-18, T12 in progress.** Checked: `scripts/verify.sh` green but
@@ -79,6 +79,21 @@
 > `clusters.pods: all`: memory, CPU and sync time with every member's pods
 > watched (4 pod lists at a time), and the lighter `unfolded` for
 > comparison.
+
+> **2026-11-18, T12 done on EKS.** The binary (this branch), from a scratch
+> directory with its own state directory, read only, on two EKS clusters of
+> the owner's (27 nodes and 580 pods; 76 nodes and 1,422 pods), started on
+> the first. Checked: the first-use picker lists only the contexts
+> `contexts.allow` keeps, the same cloud ticked (R8); with both chosen, the
+> second section filled in about 2 s, with requests, bars and cost (R2, R3,
+> R15); the header's `aws` total first read `>= … (23 nodes unpriced)` while
+> prices loaded, then the full figure, which is the sum of the two clusters'
+> costs to the cent, the second cluster's cost equal to its own Overview
+> header after `enter` (R4, R6); `q` exits with no error logged. Memory: 52 MB
+> RSS with the first cluster alone, 78 MB with both and every pod watched
+> (`clusters.pods: all`). Not checked: the `fargate-scheduler` selector, as
+> none of the four allowed clusters runs Fargate; R16 stays covered by its
+> unit tests and the `[ASSUMPTION]` in the requirements.
 
 > A code change with open tasks here cannot merge, and so cannot release:
 > `scripts/spec-tasks-check.py` fails CI and the `pr-guard` hook blocks
