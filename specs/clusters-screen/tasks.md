@@ -35,6 +35,10 @@
   - _Covers: — · Depends on: T4–T9 · Verified by: `drift-check.py`, review_
 - [x] T11. Tests carry their `// clusters-screen R<n>` comments (spec-trace)
   - _Covers: all · Depends on: T1–T9 · Verified by: `scripts/spec-trace.py`_
+- [x] T13. `clusters.pods` in `config.yaml` (R18): parse and check it, pass it to the fleet; `all` starts each member's pod watch as it connects (D10 corrected)
+  - _Covers: R15, R18 · Depends on: T6 · Verified by: settings tests (values, errors), fleet tests (pods started on connect in `all`, not in `unfolded`)_
+- [x] T14. Summary block per section (D13): requested/allocatable, percentage, bar per resource, cost on the first line, `…` before the pods sync, aligned across sections; README, CHANGELOG
+  - _Covers: R3, R15 · Depends on: T7 · Verified by: model tests, golden screens_
 - [-] T12. Verify: `scripts/verify.sh` and `make lint` green; run on two or more EKS clusters from a scratch directory: note what was checked and the memory and time of the chosen clusters' node-only watches, of unfolded sections' pod watches and of the price fetch, the CPU and redraw time with every member connected, and whether Fargate pods have `spec.schedulerName=fargate-scheduler`, never the clusters' names
   - _Covers: all · Depends on: T1–T11 · Verified by: command output and the cluster run, recorded here as a dated note_
 

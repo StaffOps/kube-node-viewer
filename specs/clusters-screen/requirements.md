@@ -23,6 +23,13 @@
 > and `IDLE/H` gated (R15); Fargate pods by scheduler name (R16); first by
 > name, normalized URLs (R17); default ticks follow a given scope (R8).
 
+> **Corrected 2026-11-18, owner's review of the first build.** Each
+> section shows the requests over allocatable of its nodes, a line and a bar
+> per resource, as Overview's summary does, and its pods are watched as it
+> connects (R3, R15, R18). The lighter mode of watching pods only for
+> unfolded sections stays, set by `clusters.pods: unfolded` in `config.yaml`
+> (R18, D10). Usage examples of the first draft show the light mode.
+
 ## Context
 
 The viewer shows one kubeconfig context at a time; `c` switches and the
@@ -257,6 +264,15 @@ SHALL close the connections it opened.
 SHALL show nodes and counts and no cost, and no `>=` marker, as Overview
 does.
 
+> **Corrected 2026-11-18.** Below its heading line each section shows one
+> line per resource of the view (`r`), as Overview's summary does: requested
+> / allocatable, the percentage, the resource and a bar, and on the first
+> line the cost `$…/hour | $…/month` with its marks and the idle cost. The
+> heading line keeps the name, cloud, node count and status. Until the pods
+> have synced the requested, percentage and bar read `…` (R15); with
+> `--disable-pricing` there is no cost. Folded sections keep these lines.
+> _Test: the R3 citations; the golden screens `clusters`, `clusters-pending`._
+
 **R11** WHEN the user presses `space` on a cluster heading THEN the system
 SHALL unfold or fold that cluster's section; on any other row it does
 nothing.
@@ -354,6 +370,11 @@ price them without watching all of the cluster's pods.
 - [ ] A cluster with no Fargate node, or `--disable-pricing`, opens no such
   watch.
 
+> **Corrected 2026-11-18.** With `clusters.pods: all` (the default, R18) a
+> member's pod watch starts as it connects, still at most 4 starting at a
+> time; unfolding starts nothing. With `clusters.pods: unfolded` the
+> criteria above hold as written.
+
 **R17** WHEN two selected contexts point at the same API server THEN the
 system SHALL show and count that cluster once.
 
@@ -361,6 +382,19 @@ system SHALL show and count that cluster once.
 - [ ] Servers are compared with the host in lower case, no trailing `/` and
   no default `:443`.
 - [ ] A cloud total never counts the same API server twice.
+
+**R18** WHEN `config.yaml` sets `clusters.pods` THEN the system SHALL watch
+the Clusters screen members' pods as it says: `all`, the default, as each
+member connects; `unfolded`, only once its section is unfolded (R15).
+
+- [ ] With no `clusters` key, or `pods: all`, every connected member's
+  section shows its requests and idle once its pods sync, folded or not.
+- [ ] With `pods: unfolded`, a folded section that was never unfolded has
+  no pod watch, and its request lines read `…`.
+- [ ] Any other value, a key other than `pods` under `clusters`, or a
+  `clusters` that is not a map, is an error naming the place in the file,
+  as for the other keys.
+- [ ] The setting changes nothing for Overview's own connection.
 
 ## Counter-examples
 

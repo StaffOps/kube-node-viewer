@@ -13,9 +13,11 @@ All notable changes to this project are documented here. Format:
   month, and a total per cloud; costs of different clouds are never added
   together. `:clusters aws` (or `azure`, `gce`) shows one cloud alone, with
   its total in the header. `c` picks the clusters (a whole cloud at once),
-  `space` unfolds one, `enter` opens it in Overview. Clusters are watched for
-  their nodes only until a section is unfolded, at most four connecting at a
-  time, and leaving the screen closes them.
+  `space` unfolds one, `enter` opens it in Overview. Each cluster shows its
+  requests over allocatable per resource with a bar, as Overview's summary.
+  At most four connect at a time, and leaving the screen closes them;
+  `clusters.pods: unfolded` in `config.yaml` watches a cluster's pods only
+  once its section is unfolded.
 
 ### Fixed
 

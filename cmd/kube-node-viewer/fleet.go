@@ -59,6 +59,9 @@ type fleet struct {
 	contexts func() ([]model.ContextInfo, error)
 	// prices builds a visit's price set
 	prices func(ctx context.Context) priceFunc
+	// podsOnConnect starts every member's pod watch as it connects
+	// (clusters.pods: all, clusters-screen R18)
+	podsOnConnect bool
 
 	mu     sync.Mutex
 	epoch  int
@@ -151,7 +154,7 @@ func (f *fleet) SetWanted(contexts []string, scope string) {
 			continue
 		}
 		f.serial++
-		m := &member{name: name, serial: f.serial, guess: f.guesses[name], epoch: f.epoch}
+		m := &member{name: name, serial: f.serial, guess: f.guesses[name], epoch: f.epoch, wantPods: f.podsOnConnect}
 		f.members[name] = m
 		f.queue = append(f.queue, m)
 	}

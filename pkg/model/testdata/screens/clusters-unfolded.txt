@@ -10,7 +10,9 @@
     azure  1 cluster  2 nodes   prices unknown
 
   aws
-▌ ▾ demo-prod  aws    10 nodes  $728.102/month (+1 reserved, not priced)  idle $174.051/month  ok
+▌ ▾ demo-prod  aws    10 nodes  ok
+▌     25533m/35230m    72.5% cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.997/hour | $728.102/month (+1 reserved, not priced)  idle $174.051/month
+▌     72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
       NAME                                                                           PODS   INSTANCE     PRICE/H   PRICE/M   IDLE/M  CAPACITY  NODEGROUP  STATUS
     default    4 nodes  140 pods  cpu 76%  memory 66%  $0.713/hour | $520.490/month  idle $104.250/month
       ip-192-0-2-31.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  73% 44/58  m6i.2xlarge  $0.1370   $100.01   $27.13  Spot      default    Ready
@@ -34,7 +36,5 @@
     system-ng  2 nodes  29 pods   cpu 53%  memory 48%  $0.166/hour | $121.472/month  idle $53.555/month
       ip-192-0-2-73.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  39% 12/58  t3.large     $0.0832   $60.74    $34.01  OnDemand  system-ng  Ready/Cordoned
                                  memory ███████████████████████████████████████  44%
-      ip-192-0-2-66.ec2.internal cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇  68% 17/58  t3.large     $0.0832   $60.74    $19.54  OnDemand  system-ng  Ready
-                                 memory ███████████████████████████████████████  52%
   ••
   ↑/↓: select • space: unfold • enter: open in Overview • c: clusters • f: filter • g: group • s: sort • /: search • r: resources • :cl aws: one cloud • tab: Overview …

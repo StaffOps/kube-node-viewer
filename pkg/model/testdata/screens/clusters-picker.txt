@@ -10,13 +10,13 @@
     azure  1 cluster  2 nodes   prices unknown
 
   aws
-  ▸ demo-prod  aws    10 nodes  $728.102/mo╭─ Clusters ───────────────────────────────────────────────────────────────────────╮
-                                           │ aws                                                                              │
-  azure                                    │   [x] demo-prod  (on screen)                                                     │
-  ▸ aks        azure  2 nodes   prices unkn│ azure                                                                            │
-                                           │   [x] aks                                                                        │
-                                           ├──────────────────────────────────────────────────────────────────────────────────┤
-                                           │ ↑/↓: move • space: tick (a cloud's line: all of it) • enter: apply • esc: cancel │
-                                           ╰──────────────────────────────────────────────────────────────────────────────────╯
+  ▸ demo-prod  aws    10 nodes  ok         ╭─ Clusters ───────────────────────────────────────────────────────────────────────╮
+      25533m/35230m    72.5% cpu    ▇▇▇▇▇▇▇│ aws                                                                              │ced)  idle $174.051/month
+      72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇│   [x] demo-prod  (on screen)                                                     │
+                                           │ azure                                                                            │
+  azure                                    │   [x] aks                                                                        │
+  ▸ aks        azure  2 nodes   ok         ├──────────────────────────────────────────────────────────────────────────────────┤
+      …/3800m        …   cpu    ▇▇▇▇▇▇▇▇▇▇▇│ ↑/↓: move • space: tick (a cloud's line: all of it) • enter: apply • esc: cancel │
+      …/12288Mi      …   memory ▇▇▇▇▇▇▇▇▇▇▇╰──────────────────────────────────────────────────────────────────────────────────╯
 
 

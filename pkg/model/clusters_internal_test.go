@@ -148,6 +148,31 @@ func lineWith(out, sub string) string {
 	return ""
 }
 
+// sectionWith is a section's heading line and the summary lines below it,
+// joined (clusters-screen R3, D13): every line after the heading that is
+// indented more than it, up to the next heading or the column titles.
+func sectionWith(out, sub string) string {
+	lines := strings.Split(out, "\n")
+	for i, l := range lines {
+		if !strings.Contains(l, sub) {
+			continue
+		}
+		block := []string{l}
+		for _, next := range lines[i+1:] {
+			trimmed := strings.TrimLeft(strings.TrimPrefix(next, "▌"), " ")
+			if trimmed == "" || strings.HasPrefix(trimmed, "▸") || strings.HasPrefix(trimmed, "▾") || strings.HasPrefix(trimmed, "NAME") {
+				break
+			}
+			if !strings.Contains(next, "/") {
+				break
+			}
+			block = append(block, next)
+		}
+		return strings.Join(block, "\n")
+	}
+	return ""
+}
+
 // unfold puts the cursor on a section heading and presses space.
 func unfold(u *UIModel, name string) {
 	u.View()
@@ -344,7 +369,7 @@ func TestClustersPodFiguresPendingUntilPodsSynced(t *testing.T) {
 	connect(u, "mem", c, st)
 
 	out := fscreen(u)
-	head := lineWith(out, "▸ mem ")
+	head := sectionWith(out, "▸ mem ")
 	if !strings.Contains(head, "idle …") || strings.Contains(head, "idle $") {
 		t.Errorf("idle before the pods: %q", head)
 	}
@@ -368,7 +393,7 @@ func TestClustersPodFiguresPendingUntilPodsSynced(t *testing.T) {
 	st.PodsSynced = true
 	changed(u, c)
 	out = fscreen(u)
-	head = lineWith(out, "▾ mem ")
+	head = sectionWith(out, "▾ mem ")
 	if strings.Contains(head, "idle …") || !strings.Contains(head, "idle $") {
 		t.Errorf("idle after the pods: %q", head)
 	}
@@ -703,7 +728,7 @@ func TestClustersMemberErrorsStayInTheirHeading(t *testing.T) {
 	if l := lineWith(out, "▸ bad"); !strings.Contains(l, "Unauthorized: token expired") {
 		t.Errorf("bad heading: %q", l)
 	}
-	if l := lineWith(out, "▸ flaky"); !strings.Contains(l, "pods is forbidden") || !strings.Contains(l, "/month") {
+	if l := sectionWith(out, "▸ flaky"); !strings.Contains(l, "pods is forbidden") || !strings.Contains(l, "/month") {
 		t.Errorf("flaky heading (error, cost kept): %q", l)
 	}
 	for _, name := range []string{"▸ good", "▸ demo-prod"} {
@@ -1183,15 +1208,15 @@ func TestClustersContextOnScreenGatedByItsPods(t *testing.T) {
 	u.fl.overview = func() ConnStatus { return st }
 	// the status is read with Overview's snapshot (clusters-screen D10)
 	run(u, u.snapshotCmd()())
-	if l := lineWith(fscreen(u), "▸ demo-prod"); !strings.Contains(l, "idle …") {
+	if l := sectionWith(fscreen(u), "▸ demo-prod"); !strings.Contains(l, "idle …") {
 		t.Errorf("context on screen before its pods synced: %q", l)
 	}
 	st.PodsSynced = true
-	if l := lineWith(fscreen(u), "▸ demo-prod"); !strings.Contains(l, "idle …") {
+	if l := sectionWith(fscreen(u), "▸ demo-prod"); !strings.Contains(l, "idle …") {
 		t.Errorf("pods synced shown before a snapshot: %q", l)
 	}
 	run(u, u.snapshotCmd()())
-	if l := lineWith(fscreen(u), "▸ demo-prod"); !strings.Contains(l, "idle $174.051/month") {
+	if l := sectionWith(fscreen(u), "▸ demo-prod"); !strings.Contains(l, "idle $174.051/month") {
 		t.Errorf("context on screen after its pods synced: %q", l)
 	}
 }
@@ -1296,5 +1321,221 @@ func TestClustersMemberLinesOffOverviewHeader(t *testing.T) {
 	msg, at = "before the visit", u.fl.issuesFrom.Add(-time.Second)
 	if got := u.recentIssue(); got != msg {
 		t.Errorf("a line before the visit: %q, want %q", got, msg)
+	}
+}
+
+// summaryEnv is the Clusters screen with one more AWS member, mem, of two
+// nodes at $0.5/hour each (clusters-screen R3, D13).
+func summaryEnv(t *testing.T, resources []string) (fleetEnv, *Cluster) {
+	e := newFleetEnv(t, 50, []ContextInfo{
+		{Name: "mem", Server: "https://example-mem.example.com", Cloud: "aws"},
+		{Name: "late", Server: "https://example-late.example.com", Cloud: "aws"},
+	}, []string{"demo-prod", "mem", "late"})
+	if resources != nil {
+		e.u.SetResources(resources)
+	}
+	command(e.u, "cl")
+	c := memberCluster(
+		mnode{name: "mem-a", provider: awsID("mem-a"), price: 0.5, pods: 4},
+		mnode{name: "mem-b", provider: awsID("mem-b"), price: 0.5, pods: 2},
+	)
+	return e, c
+}
+
+// summaryLines are the lines right below the heading containing sub, up to
+// the next blank line, heading or column titles.
+func summaryLines(out, sub string) []string {
+	block := strings.Split(sectionWith(out, sub), "\n")
+	if len(block) == 0 || block[0] == "" {
+		return nil
+	}
+	return block[1:]
+}
+
+var summaryLine = regexp.MustCompile(`^[▌ ]\s+(\S+)/(\S+)\s+(\S+)\s+(\S+)\s`)
+
+// clusters-screen R3, R15
+func TestClustersSummaryBlockPerResource(t *testing.T) {
+	for _, res := range [][]string{{"cpu", "memory"}, {"cpu"}} {
+		t.Run(strings.Join(res, "+"), func(t *testing.T) {
+			e, c := summaryEnv(t, res)
+			u := e.u
+			connect(u, "mem", c, &ConnStatus{Synced: true, PodsSynced: true})
+			out := fscreen(u)
+			lines := summaryLines(out, "▸ mem ")
+			if len(lines) != len(res) {
+				t.Fatalf("summary lines %d, want %d:\n%s", len(lines), len(res), out)
+			}
+			for i, l := range lines {
+				m := summaryLine.FindStringSubmatch(l)
+				if m == nil {
+					t.Fatalf("line %d is not requested/allocatable pct resource: %q", i, l)
+				}
+				if !strings.HasSuffix(m[3], "%") || m[3] == "…" {
+					t.Errorf("line %d percentage %q", i, m[3])
+				}
+				if m[4] != res[i] {
+					t.Errorf("line %d resource %q, want %q", i, m[4], res[i])
+				}
+				if m[1] == "…" {
+					t.Errorf("line %d requested pending after the pods synced: %q", i, l)
+				}
+			}
+			first := lines[0]
+			if !strings.Contains(first, "$1.000/hour | $730.000/month") {
+				t.Errorf("first line cost: %q", first)
+			}
+			if !regexp.MustCompile(`idle \$[\d,.]+/month`).MatchString(first) {
+				t.Errorf("first line idle: %q", first)
+			}
+			if m := summaryLine.FindStringSubmatch(first); m != nil && m[3] != "15.0%" {
+				t.Errorf("cpu percentage %q, want 15.0%% (600m of 4 cores)", m[3])
+			}
+			for _, l := range lines[1:] {
+				if strings.Contains(l, "$") || strings.Contains(l, "idle") {
+					t.Errorf("cost on a line after the first: %q", l)
+				}
+			}
+			head := lineWith(out, "▸ mem ")
+			if strings.Contains(head, "$") || strings.Contains(head, "idle") || !strings.Contains(head, "2 nodes") {
+				t.Errorf("heading keeps name, cloud, nodes and status only: %q", head)
+			}
+		})
+	}
+}
+
+// clusters-screen R3, R15
+func TestClustersSummaryPendingUntilPodsSynced(t *testing.T) {
+	e, c := summaryEnv(t, []string{"cpu", "memory"})
+	u := e.u
+	st := &ConnStatus{Synced: true}
+	connect(u, "mem", c, st)
+	lines := summaryLines(fscreen(u), "▸ mem ")
+	if len(lines) != 2 {
+		t.Fatalf("summary lines before the pods: %q", lines)
+	}
+	for i, l := range lines {
+		m := summaryLine.FindStringSubmatch(l)
+		if m == nil || m[1] != "…" || m[3] != "…" {
+			t.Errorf("line %d before the pods: %q", i, l)
+		}
+		if m != nil && m[2] == "…" {
+			t.Errorf("line %d allocatable pending, it is from the nodes: %q", i, l)
+		}
+	}
+	if !strings.Contains(lines[0], "idle …") || strings.Contains(lines[0], "idle $") {
+		t.Errorf("idle before the pods: %q", lines[0])
+	}
+	if !strings.Contains(lines[0], "$730.000/month") {
+		t.Errorf("cost from the nodes before the pods: %q", lines[0])
+	}
+
+	st.PodsSynced = true
+	changed(u, c)
+	lines = summaryLines(fscreen(u), "▸ mem ")
+	if len(lines) != 2 || strings.Contains(lines[0], "…") || !strings.Contains(lines[0], "idle $") {
+		t.Errorf("summary after the pods: %q", lines)
+	}
+}
+
+// clusters-screen R10, R3
+func TestClustersSummaryPricingDisabled(t *testing.T) {
+	e, c := summaryEnv(t, []string{"cpu", "memory"})
+	u := e.u
+	u.DisablePricing = true
+	connect(u, "mem", c, &ConnStatus{Synced: true, PodsSynced: true})
+	out := fscreen(u)
+	lines := summaryLines(out, "▸ mem ")
+	if len(lines) != 2 {
+		t.Fatalf("summary lines with pricing disabled: %q\n%s", lines, out)
+	}
+	for _, l := range append(lines, summaryLines(out, "▸ demo-prod")...) {
+		if strings.Contains(l, "$") || strings.Contains(l, "idle") || strings.Contains(l, "/hour") {
+			t.Errorf("cost with pricing disabled: %q", l)
+		}
+		if summaryLine.FindStringSubmatch(l) == nil {
+			t.Errorf("requests missing with pricing disabled: %q", l)
+		}
+	}
+}
+
+// clusters-screen R3
+func TestClustersSummaryNotForUnconnectedSections(t *testing.T) {
+	e, c := summaryEnv(t, []string{"cpu", "memory"})
+	u := e.u
+	connect(u, "mem", c, &ConnStatus{Synced: true, PodsSynced: true})
+	out := fscreen(u)
+	head := lineWith(out, "▸ late")
+	if head == "" {
+		t.Fatalf("no section for a member not connected:\n%s", out)
+	}
+	if l := summaryLines(out, "▸ late"); len(l) != 0 {
+		t.Errorf("summary lines for a section not connected: %q", l)
+	}
+	if l := summaryLines(out, "▸ mem "); len(l) != 2 {
+		t.Errorf("connected section beside it: %q", l)
+	}
+}
+
+// clusters-screen R3, R11: folded and unfolded sections keep their summary
+// lines.
+func TestClustersSummaryKeptFoldedAndUnfolded(t *testing.T) {
+	e, c := summaryEnv(t, []string{"cpu", "memory"})
+	u := e.u
+	connect(u, "mem", c, &ConnStatus{Synced: true, PodsSynced: true})
+	folded := summaryLines(fscreen(u), "▸ mem ")
+	unfold(u, "mem")
+	out := fscreen(u)
+	open := summaryLines(out, "▾ mem ")
+	if len(folded) != 2 || len(open) != 2 {
+		t.Fatalf("folded %q, unfolded %q\n%s", folded, open, out)
+	}
+	for i := range open {
+		if strings.TrimPrefix(open[i], "▌") != strings.TrimPrefix(folded[i], "▌") {
+			t.Errorf("line %d changed on unfold: %q -> %q", i, folded[i], open[i])
+		}
+	}
+	unfold(u, "mem")
+	if l := summaryLines(fscreen(u), "▸ mem "); len(l) != 2 {
+		t.Errorf("folded again: %q", l)
+	}
+}
+
+// clusters-screen R3, R13: the cursor on a heading marks the heading and its
+// summary lines, one per resource.
+func TestClustersCursorMarksHeadingAndSummary(t *testing.T) {
+	for _, res := range [][]string{{"cpu", "memory"}, {"cpu"}} {
+		t.Run(strings.Join(res, "+"), func(t *testing.T) {
+			e, c := summaryEnv(t, res)
+			u := e.u
+			connect(u, "mem", c, &ConnStatus{Synced: true, PodsSynced: true})
+			for _, folded := range []bool{true, false} {
+				if !folded {
+					unfold(u, "mem")
+				}
+				u.cursorKey, u.cursorDelta = "c:mem", 0
+				out := fscreen(u)
+				if got, want := u.selTo-u.selFrom, 1+len(res); got != want {
+					t.Errorf("folded=%v: selection spans %d lines, want %d", folded, got, want)
+				}
+				var marked []string
+				for _, l := range strings.Split(out, "\n") {
+					if strings.HasPrefix(l, "▌") {
+						marked = append(marked, l)
+					}
+				}
+				if len(marked) != 1+len(res) {
+					t.Fatalf("folded=%v: %d lines marked, want %d:\n%s", folded, len(marked), 1+len(res), out)
+				}
+				if !strings.Contains(marked[0], " mem ") || !strings.Contains(marked[0], "2 nodes") {
+					t.Errorf("the mark does not start at the heading: %q", marked[0])
+				}
+				for i, l := range marked[1:] {
+					if m := summaryLine.FindStringSubmatch(l); m == nil || m[4] != res[i] {
+						t.Errorf("marked line %d is not the %s summary line: %q", i+1, res[i], l)
+					}
+				}
+			}
+		})
 	}
 }

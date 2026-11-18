@@ -444,3 +444,77 @@ func TestLabelFlagsHelpNamesTheFileTheRunReads(t *testing.T) {
 		})
 	}
 }
+
+// clusters-screen R18: clusters.pods is all when the file does not set it,
+// or sets it to all or null; unfolded when it says so.
+func TestLoadSettingsClusterPods(t *testing.T) {
+	tests := []struct {
+		name, body, want string
+	}{
+		{"no clusters key", "labels:\n  allow: [team]\n", clusterPodsAll},
+		{"empty file", "", clusterPodsAll},
+		{"clusters null", "clusters: ~\n", clusterPodsAll},
+		{"pods missing", "clusters: {}\n", clusterPodsAll},
+		{"pods all", "clusters:\n  pods: all\n", clusterPodsAll},
+		{"pods unfolded", "clusters:\n  pods: unfolded\n", clusterPodsUnfolded},
+		{"pods tilde", "clusters:\n  pods: ~\n", clusterPodsAll},
+		{"pods null", "clusters:\n  pods: null\n", clusterPodsAll},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, err := loadSettings(writeSettings(t, tt.body), nil)
+			if err != nil {
+				t.Fatalf("loadSettings: %v", err)
+			}
+			if s.clusterPods != tt.want {
+				t.Errorf("clusterPods = %q, want %q", s.clusterPods, tt.want)
+			}
+		})
+	}
+}
+
+// clusters-screen R18: with no config file the Clusters screen's members
+// watch their pods as they connect (main reads anything but unfolded as all).
+func TestLoadSettingsClusterPodsNoFile(t *testing.T) {
+	s, err := loadSettings(filepath.Join(t.TempDir(), "absent.yaml"), nil)
+	if err != nil {
+		t.Fatalf("loadSettings: %v", err)
+	}
+	if s.clusterPods == clusterPodsUnfolded {
+		t.Errorf("clusterPods = %q with no file, want all", s.clusterPods)
+	}
+}
+
+// clusters-screen R18: any other value, a key other than pods, or a clusters
+// that is not a map is an error naming the place and the file.
+func TestLoadSettingsClusterPodsInvalid(t *testing.T) {
+	tests := []struct {
+		name, body string
+		want       []string
+	}{
+		{"other value", "clusters:\n  pods: some\n", []string{"clusters.pods", `"some"`, "all", "unfolded"}},
+		{"wrong case", "clusters:\n  pods: All\n", []string{"clusters.pods", `"All"`}},
+		{"number", "clusters:\n  pods: 1\n", []string{"clusters.pods", "not a string"}},
+		{"bool", "clusters:\n  pods: yes\n", []string{"clusters.pods", "not a string"}},
+		{"empty string", "clusters:\n  pods: \"\"\n", []string{"clusters.pods", "empty"}},
+		{"list", "clusters:\n  pods: [all]\n", []string{"clusters.pods", "list"}},
+		{"clusters a list", "clusters: [a]\n", []string{"clusters", "not a map"}},
+		{"clusters a string", "clusters: all\n", []string{"clusters", "not a map"}},
+		{"unknown field", "clusters: {other: x}\n", []string{"clusters", `unknown field "other"`}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := writeSettings(t, tt.body)
+			_, err := loadSettings(path, nil)
+			if err == nil {
+				t.Fatal("loadSettings: no error")
+			}
+			msg := err.Error()
+			for _, w := range append([]string{path}, tt.want...) {
+				if !strings.Contains(msg, w) {
+					t.Errorf("error %q does not contain %q", msg, w)
+				}
+			}
+		})
+	}
+}

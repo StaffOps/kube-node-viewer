@@ -20,6 +20,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/staffops/kube-node-viewer/pkg/text"
 )
 
 // fieldPodsPending stands, in a group-by, for a field made from pods while
@@ -392,6 +394,8 @@ type cblock struct {
 	heading bool
 	title   string
 	label   string
+	// sel is how many lines of a heading block the cursor marks
+	sel int
 }
 
 // sectionHeading is a section's line (clusters-screen R3).
@@ -408,19 +412,12 @@ func (u *UIModel) sectionParts(c *clusterSection) (name, cloud, nodes, cost, res
 	if !c.connected() {
 		nodes = "—"
 	}
-	if !u.DisablePricing && c.connected() {
-		cost = u.monthly(c.sum, false)
-		idle := pendingValue
-		if !c.blind {
-			idle = u.printer.Sprintf("$%0.3f/month", c.sum.IdlePrice*avgHoursPerMonth)
-		}
-		rest = helpStyle("idle " + idle)
-	}
+	// the cost and the requests are in the summary lines below (D13)
 	if c.connected() && len(c.nodes) != c.total && !c.blindFilter {
-		rest += helpStyle(u.printer.Sprintf("  (filtered: %d of %d nodes)", len(c.nodes), c.total))
+		rest += helpStyle(u.printer.Sprintf("(filtered: %d of %d nodes)  ", len(c.nodes), c.total))
 	}
 	if c.blindFilter {
-		rest += helpStyle("  (filtered: … pods not loaded)")
+		rest += helpStyle("(filtered: … pods not loaded)  ")
 	}
 	status := u.style.green("ok")
 	switch {
@@ -431,8 +428,66 @@ func (u *UIModel) sectionParts(c *clusterSection) (name, cloud, nodes, cost, res
 	case !c.s.ready || !c.s.st.Synced:
 		status = helpStyle("connecting…")
 	}
-	rest += "  " + status
+	rest += status
 	return name, cloud, nodes, cost, rest
+}
+
+// sectionSummaries are, per connected section, Overview's summary lines for
+// its nodes (clusters-screen R3, D13): requested/allocatable, percentage,
+// resource and bar per resource, the cost and idle cost on the first line;
+// every figure from pods reads … until they synced (R15). All sections go
+// through one tab writer, so their columns line up.
+func (u *UIModel) sectionSummaries(sections []*clusterSection) map[*clusterSection][]string {
+	var b strings.Builder
+	ctw := text.NewColorTabWriter(&b, 0, 8, 1)
+	defer u.setBarCell(u.progress.Full)
+	u.setBarCell(barCell)
+	u.progress.ShowPercentage = false
+	var order []*clusterSection
+	for _, c := range sections {
+		if !c.connected() {
+			continue
+		}
+		order = append(order, c)
+		s := c.sum
+		for i, res := range u.cluster.resources {
+			allocatable := s.AllocatableResources[res]
+			used := s.UsedResources[res]
+			pct := 0.0
+			if allocatable.AsApproximateFloat64() != 0 {
+				pct = 100 * used.AsApproximateFloat64() / allocatable.AsApproximateFloat64()
+			}
+			usedText, pctText, bar := formatQuantity(res, used), u.colorizeUsage(pct, fmt.Sprintf("%0.1f%%", pct)), u.progressBar(pct/100)
+			if c.blind {
+				usedText, pctText, bar = pendingValue, helpStyle(pendingValue), u.progressBar(0)
+			}
+			cost := ""
+			if i == 0 && !u.DisablePricing {
+				cost = u.printer.Sprintf("$%0.3f/hour | %s", s.TotalPrice, u.monthly(s, false))
+				if s.NumNodes > 0 && s.PricedNodes == 0 && s.ReservedNodes == 0 {
+					cost = helpStyle("prices unknown")
+				}
+				idle := pendingValue
+				if !c.blind {
+					idle = u.printer.Sprintf("$%0.3f/month", s.IdlePrice*avgHoursPerMonth)
+				}
+				cost += helpStyle("  idle " + idle)
+			}
+			u.printer.Fprintf(ctw, "    %s/%s\t%s\t%s\t%s\t%s\n", usedText, formatQuantity(res, allocatable), pctText, res, bar, cost)
+		}
+	}
+	ctw.Flush()
+	lines := strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
+	out := make(map[*clusterSection][]string, len(order))
+	n := len(u.cluster.resources)
+	for i, c := range order {
+		if (i+1)*n <= len(lines) {
+			for _, l := range lines[i*n : (i+1)*n] {
+				out[c] = append(out[c], strings.TrimRight(l, " "))
+			}
+		}
+	}
+	return out
 }
 
 // clustersBody lays the sections out and returns the current page, where the
@@ -450,6 +505,7 @@ func (u *UIModel) clustersBody(o clustersOverview, height int) (lines []string, 
 		w.name, w.cloud = max(w.name, textWidth(name)), max(w.cloud, textWidth(cloud))
 		w.nodes, w.cost = max(w.nodes, textWidth(nodes)), max(w.cost, textWidth(cost))
 	}
+	summaries := u.sectionSummaries(o.sections)
 	buckets := 0
 	for i, c := range o.sections {
 		if i == 0 || c.cloud != o.sections[i-1].cloud {
@@ -467,10 +523,12 @@ func (u *UIModel) clustersBody(o clustersOverview, height int) (lines []string, 
 			blocks = append(blocks, cblock{lines: lines})
 		}
 		p := parts[c]
-		head := pad(groupStyle(p[0]), w.name) + "  " + pad(p[1], w.cloud) + "  " + pad(p[2], w.nodes) + "  " + pad(p[3], w.cost) + "  " + p[4]
+		head := strings.TrimRight(pad(groupStyle(p[0]), w.name)+"  "+pad(p[1], w.cloud)+"  "+pad(p[2], w.nodes)+"  "+p[4], " ")
 		label := shortContext(c.s.name)
+		lines := append([]string{head}, summaries[c]...)
+		sel := len(lines)
 		if !u.fl.unfolded[c.s.name] || len(c.nodes) == 0 {
-			blocks = append(blocks, cblock{lines: []string{strings.TrimRight(head, " ")}, key: "c:" + c.s.name, sec: c.s.name, heading: true, label: label})
+			blocks = append(blocks, cblock{lines: lines, key: "c:" + c.s.name, sec: c.s.name, heading: true, label: label, sel: sel})
 			continue
 		}
 		inner := u.sectionBlocks(c)
@@ -478,7 +536,7 @@ func (u *UIModel) clustersBody(o clustersOverview, height int) (lines []string, 
 		if len(inner) > 0 {
 			title = inner[0].title
 		}
-		blocks = append(blocks, cblock{lines: []string{strings.TrimRight(head, " "), title}, key: "c:" + c.s.name, sec: c.s.name, heading: true, title: title, label: label})
+		blocks = append(blocks, cblock{lines: append(lines, title), key: "c:" + c.s.name, sec: c.s.name, heading: true, title: title, label: label, sel: sel})
 		for _, b := range inner {
 			b.sec, b.label = c.s.name, label
 			blocks = append(blocks, b)
@@ -500,9 +558,9 @@ func (u *UIModel) clustersBody(o clustersOverview, height int) (lines []string, 
 	u.cursorPath = nil
 	for _, b := range pages[u.page] {
 		if b.key != "" && b.key == u.cursorKey {
-			n := 1
-			if !b.heading {
-				n = len(b.lines)
+			n := len(b.lines)
+			if b.heading {
+				n = b.sel
 			}
 			from, to = len(lines), len(lines)+n
 		}

@@ -10,10 +10,14 @@
     azure  1 cluster  2 nodes   prices unknown
 
   aws
-  ▸ demo-prod  aws    10 nodes  $728.102/month (+1 reserved, not priced)  idle $174.051/month  ok
+  ▸ demo-prod  aws    10 nodes  ok
+      25533m/35230m    72.5% cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ $0.997/hour | $728.102/month (+1 reserved, not priced)  idle $174.051/month
+      72745Mi/114688Mi 63.4% memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
 
   azure
-▌ ▾ aks        azure  2 nodes   prices unknown                            idle …  ok
+▌ ▾ aks        azure  2 nodes   ok
+▌     …/3800m        …   cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ prices unknown  idle …
+▌     …/12288Mi      …   memory ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
       NAME                                                                          PODS  INSTANCE           PRICE/H  PRICE/M  IDLE/M  CAPACITY  NODEGROUP  ZONE  STATUS
     system   1 nodes  … pods  cpu …  memory …  idle …
       aks-system-vmss000000  cpu    ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇    … …     Standard_D2pds_v6  -        -        …       OnDemand  system     -     Ready

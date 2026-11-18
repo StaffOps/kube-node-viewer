@@ -949,3 +949,43 @@ func TestFleetLive(t *testing.T) {
 		t.Errorf("serials %d then %d: live %v / %v", first, second, f.Live("a", first), f.Live("a", second))
 	}
 }
+
+// clusters-screen R15, R18: with clusters.pods: all (podsOnConnect) a
+// member's pods are watched once it is connected, with no WatchPods; with
+// unfolded they wait for one.
+func TestFleetPodsOnConnect(t *testing.T) {
+	for _, on := range []bool{true, false} {
+		t.Run(fmt.Sprintf("podsOnConnect=%v", on), func(t *testing.T) {
+			f, fc, rec := newTestFleet(t, nil)
+			f.podsOnConnect = on
+			g := fc.gate("late")
+			f.SetWanted([]string{"a", "late"}, "")
+			waitFor(t, "a ready", func() bool { return len(rec.ready("a")) == 1 })
+			waitFor(t, "late connecting", func() bool { return fc.callsOf("late") == 1 })
+			close(g)
+			waitFor(t, "late ready", func() bool { return len(rec.ready("late")) == 1 })
+			want := 0
+			if on {
+				want = 1
+				for _, name := range []string{"a", "late"} {
+					m := fc.member(name)
+					waitFor(t, name+" pods", func() bool { _, p := m.counts(); return p == 1 })
+				}
+			}
+			settle()
+			for _, name := range []string{"a", "late"} {
+				if _, p := fc.member(name).counts(); p != want {
+					t.Errorf("%s: startPods %d times, want %d", name, p, want)
+				}
+			}
+			if on {
+				// a WatchPods afterwards starts nothing more
+				f.WatchPods("a")
+				settle()
+				if _, p := fc.member("a").counts(); p != 1 {
+					t.Errorf("a after WatchPods: startPods %d times, want 1", p)
+				}
+			}
+		})
+	}
+}

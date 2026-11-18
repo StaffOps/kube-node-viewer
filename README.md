@@ -612,14 +612,26 @@ of its cloud ticked. A context whose API server is the same as another's is
 one cluster, shown once. The filters, search, sort and group-by of the
 current view apply inside each section, and the totals count the nodes kept.
 
-To stay light on a large fleet, a cluster is first watched for its nodes
-only: the cost needs nothing else (Fargate nodes are priced from a watch of
-Fargate pods only). Its pods are watched once you unfold its section; until
-then idle cost, pod counts and requests read `…`. Leaving the screen closes
-every connection it opened; at most four connect at the same time. A section
-that cannot connect says why in its heading, and its cloud's total reads
-`>=` with the number of clusters not connected. GKE clusters show their nodes
-and no cost (there is no GCE price source yet).
+Each section shows, below its heading, Overview's summary lines for its
+nodes: requested / allocatable, the percentage and a bar per resource (`r`
+picks them), and the cost and idle cost on the first line. Every cluster's
+pods are watched as it connects, at most four connecting at the same time;
+until a cluster's pods are in, its requests, idle cost and pod counts read
+`…`. Fargate nodes are priced from a watch of Fargate pods only. Leaving the
+screen closes every connection it opened. A section that cannot connect
+says why in its heading, and its cloud's total reads `>=` with the number of
+clusters not connected. GKE clusters show their nodes and no cost (there is
+no GCE price source yet).
+
+On a large fleet, `config.yaml` can keep the screen lighter: with
+
+```yaml
+clusters:
+  pods: unfolded   # default: all
+```
+
+a cluster is watched for its nodes only (enough for the cost) and its pods
+once you unfold its section.
 
 ## Saved view per cluster
 

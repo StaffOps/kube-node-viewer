@@ -416,6 +416,15 @@ as the scope (D11) with more code.
 
 ### D10: Nodes first, pods when a section is unfolded
 
+> **Corrected 2026-11-18.** The owner chose the requests of every cluster
+> at a glance over the lighter screen, which is this decision's "when this
+> would be wrong". The default is now `clusters.pods: all`: a member starts
+> its pod watch right after its node watch, in its own goroutine, inside the
+> same 4-at-a-time limit. `clusters.pods: unfolded` keeps the choice below.
+> The gate of pod figures (`podsReady`) and the Fargate-only watch apply in
+> both modes; in `all` mode the Fargate watch runs until `StartPods` has
+> started, as before. Memory of `all` on a large fleet is unmeasured (T12).
+
 **Choice**: a member starts its node and nodeclaim watches only
 (`Controller.StartNodes`). Its pod watch starts the first time its section is
 unfolded (`Fleet.WatchPods` → `Controller.StartPods`, idempotent), and stays
@@ -565,6 +574,35 @@ clusters (a local proxy, `127.0.0.1` tunnels) — then key by the cluster's
 
 **Alternatives discarded**: de-duplicate by the node provider IDs once
 connected — needs both connections first.
+
+### D13: A summary block per section, aligned across sections
+
+**Choice**: each section's heading line is followed by Overview's summary
+lines for its nodes (`writeClusterSummary`'s format: requested/allocatable,
+percentage, resource, bar, and the cost on the first line). The lines of
+every section go through one tab writer, so their columns line up down the
+screen, then are split back into each section's heading block.
+
+**Justification, strongest first**:
+1. The owner asked for "the same format as the other": one format to read
+   on both screens.
+2. One tab writer gives aligned columns without a width pass of its own.
+
+**Trade-offs accepted**:
+
+| Cost | Why acceptable |
+|------|----------------|
+| A section takes 1 + resources lines folded, not 1 | the cursor moves by sections; pages hold fewer clusters (`r` to cpu only gives 2 lines each) |
+| A wide cost column on long lines | lines are cut at the window edge as elsewhere |
+
+**When this would be wrong**: owners with 30+ clusters want them on one
+page — then a compact one-line mode with a percentage per resource.
+
+**Reversal action**: drop the block from `clustersBody`; the heading line
+alone is the first build.
+
+**Alternatives discarded**: percentages on the heading line only — not the
+format asked for.
 
 ## Invariants
 

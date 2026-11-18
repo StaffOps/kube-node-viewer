@@ -117,6 +117,7 @@ func main() {
 	m.Connect(first)
 	m.SetSwitcher(conn)
 	conn.fleet = newFleet(conn.memberConnect, program.Send, conn.fleetContexts, conn.visitPricing)
+	conn.fleet.podsOnConnect = settings.clusterPods != clusterPodsUnfolded
 	m.SetFleet(conn.fleet, fleetStore{states, saver})
 	m.SetViews(combinedViews{config: settings.views, state: namedViews{states, saver}})
 	m.SetExportFallback(filepath.Dir(state.DefaultPath(homeDir)))
