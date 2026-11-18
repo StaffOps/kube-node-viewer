@@ -152,6 +152,11 @@ type UIModel struct {
 	// frame is the last rendered view, reused until something changes
 	frame string
 	dirty bool
+	// fl is the Clusters screen's state (clusters-screen)
+	fl fleetState
+	// podsBlind, while a Clusters section whose pods are not synced is laid
+	// out, shows every figure made from pods as … (clusters-screen R15)
+	podsBlind bool
 }
 
 // ChangedMsg tells the UI that cluster data or prices changed. Gen is the
@@ -161,10 +166,12 @@ type ChangedMsg struct {
 	Gen uint64
 }
 
-// snapshotMsg carries a snapshot taken off the UI goroutine.
+// snapshotMsg carries a snapshot taken off the UI goroutine, and the
+// connection's status read just before it when the session has one.
 type snapshotMsg struct {
 	gen   uint64
 	stats Stats
+	st    *ConnStatus
 }
 
 type barKey struct {
@@ -269,6 +276,9 @@ func (u *UIModel) SetLabelPolicy(p LabelPolicy) {
 
 // SetView replaces the view state, as loaded at start or for a new cluster.
 func (u *UIModel) SetView(v ViewState) {
+	if !knownScreen(v.Screen) {
+		v.Screen = ScreenOverview
+	}
 	u.view = v
 	if len(u.view.Resources) == 0 {
 		u.view.Resources = []string{string(v1.ResourceCPU)}
@@ -380,6 +390,8 @@ func (u *UIModel) toggleDetails() {
 }
 
 func (u *UIModel) Init() tea.Cmd {
+	// a saved Clusters screen connects its members (clusters-screen D3)
+	u.fleetSync()
 	return tea.Batch(tickCmd(), u.snapshotCmd())
 }
 
@@ -392,9 +404,14 @@ func (u *UIModel) Refresh() {
 // snapshotCmd takes the snapshot off the UI goroutine, which may wait for the
 // cluster lock while events are applied.
 func (u *UIModel) snapshotCmd() tea.Cmd {
-	cluster, gen := u.cluster, u.gen
+	cluster, gen, status := u.cluster, u.gen, u.fl.overview
 	return func() tea.Msg {
-		return snapshotMsg{gen: gen, stats: cluster.Stats()}
+		var st *ConnStatus
+		if status != nil {
+			s := status()
+			st = &s
+		}
+		return snapshotMsg{gen: gen, stats: cluster.Stats(), st: st}
 	}
 }
 
@@ -546,6 +563,9 @@ func (u *UIModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.gen == u.gen {
 			u.stats = msg.stats
 			u.snapSeq++
+			if msg.st != nil {
+				u.fl.ovStatus = *msg.st
+			}
 		}
 		return u, nil
 	case recsMsg:
@@ -564,7 +584,25 @@ func (u *UIModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return u, nil
 	case switchedMsg:
 		return u, u.switched(msg)
+	case MemberReadyMsg:
+		return u, u.memberReady(msg)
+	case MembersChangedMsg:
+		return u, u.membersChanged(msg)
+	case memberSnapshotMsg:
+		u.memberSnapshotDone(msg)
+		return u, nil
+	case membersSnapshotMsg:
+		for _, m := range msg {
+			u.memberSnapshotDone(m)
+		}
+		return u, nil
+	case MemberLeftMsg:
+		u.memberLeft(msg)
+		return u, nil
 	case tickMsg:
+		if u.onClusters() {
+			return u, tea.Batch(tickCmd(), u.fleetTick())
+		}
 		return u, tickCmd()
 	}
 	return u, nil
@@ -592,6 +630,11 @@ func (u *UIModel) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	if u.panel != panelNone {
 		return u.panelKey(key)
+	}
+	if u.onClusters() {
+		if cmd, handled := u.clustersKey(key); handled {
+			return cmd
+		}
 	}
 	if u.onRecommendations() {
 		switch key {

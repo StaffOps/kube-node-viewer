@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format:
 
 ## [Unreleased]
 
+### Added
+
+- A Clusters screen (`:clusters`, `:cl`): several kubeconfig contexts
+  connected at once, one section per cluster with its cost and idle cost per
+  month, and a total per cloud; costs of different clouds are never added
+  together. `:clusters aws` (or `azure`, `gce`) shows one cloud alone, with
+  its total in the header. `c` picks the clusters (a whole cloud at once),
+  `space` unfolds one, `enter` opens it in Overview. Each cluster shows its
+  requests over allocatable per resource with a bar, as Overview's summary.
+  At most four connect at a time, and leaving the screen closes them;
+  `clusters.pods: unfolded` in `config.yaml` watches a cluster's pods only
+  once its section is unfolded.
+
+### Fixed
+
+- GKE nodes are no longer priced with AWS prices: GCE has no price source
+  yet, so they show no price.
+
 ## [0.16.0] - 2026-11-11
 
 ### Added

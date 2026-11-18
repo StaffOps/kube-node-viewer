@@ -36,6 +36,7 @@ const (
 	panelViews
 	panelRecMath
 	panelNode
+	panelClusters
 )
 
 // panelKey handles a key while a panel is open; esc closes or steps back.
@@ -63,6 +64,8 @@ func (u *UIModel) panelKey(key string) tea.Cmd {
 		}
 	case panelNode:
 		u.nodeDetailsKey(key)
+	case panelClusters:
+		u.clusterPickerKey(key)
 	}
 	return nil
 }
@@ -77,8 +80,11 @@ var helpKeys = [][2]string{
 	{"/", "search name, IP, type, labels (regex, any case; !x: not x; key=value); esc clears"},
 	{"r", "resources: cpu → memory → cpu+memory"},
 	{"c", "switch to another kubeconfig context"},
-	{":", "command: overview (ov), recommendations (rec); tab completes"},
-	{"tab", "switch Overview ⇄ Recommendations"},
+	{":", "command: overview (ov), recommendations (rec), clusters (cl) [aws|azure|gce]; tab completes"},
+	{"tab", "switch Overview ⇄ Recommendations; on Clusters: back to Overview"},
+	{"c", "on Clusters: pick the clusters (space ticks one, or a whole cloud on its line; enter applies)"},
+	{"space", "on Clusters: unfold a cluster (its pods are read then) or fold it"},
+	{"enter", "on Clusters: open the cluster in Overview"},
 	{"v", "named views: apply, save the current view, delete"},
 	{"e", "export the nodes on screen to CSV and JSON in the current directory"},
 	{"d", "folded: list the next group level as one-line rows"},
@@ -164,7 +170,7 @@ func (u *UIModel) filterRows() []filterRow {
 		if f != u.filters.open {
 			continue
 		}
-		values := ValueCounts(u.stats.Nodes, f)
+		values := ValueCounts(u.panelNodes(), f)
 		listed := map[string]bool{}
 		for _, v := range values {
 			listed[v.Value] = true
@@ -388,7 +394,7 @@ func (u *UIModel) labelChoices(lv labelView) ([]Field, int) {
 	for f := range lv.used {
 		inUse[f] = true
 	}
-	return filterFieldChoices(u.stats.Nodes, u.labelPolicy, inUse, lv.showAll)
+	return filterFieldChoices(u.panelNodes(), u.labelPolicy, inUse, lv.showAll)
 }
 
 // toggleShowAll flips show-all for the panel, and reports whether it did:

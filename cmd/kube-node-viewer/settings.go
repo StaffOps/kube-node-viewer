@@ -61,7 +61,16 @@ type settings struct {
 	defaultView *model.ViewState
 	// lastView is start-with: last-view; a saved view wins over defaultView
 	lastView bool
+	// clusterPods is clusters.pods: when the Clusters screen's members watch
+	// their pods (clusters-screen R18)
+	clusterPods string
 }
+
+// Values of clusters.pods (clusters-screen R18).
+const (
+	clusterPodsAll      = "all"
+	clusterPodsUnfolded = "unfolded"
+)
 
 // unmarshalPrefix is what sigs.k8s.io/yaml puts before every decoding error.
 const unmarshalPrefix = "error unmarshaling JSON: while decoding JSON: json: "
@@ -120,7 +129,7 @@ func loadSettings(path string, explicit map[string]string) (settings, error) {
 	if err != nil {
 		return settings{}, fmt.Errorf("label lists: %w", err)
 	}
-	return settings{policy: policy, views: file.views, defaultView: file.defaultView, lastView: file.lastView}, nil
+	return settings{policy: policy, views: file.views, defaultView: file.defaultView, lastView: file.lastView, clusterPods: file.clusterPods}, nil
 }
 
 // settingsFile is config.yaml as written, checked but before the label flags.
@@ -129,6 +138,7 @@ type settingsFile struct {
 	views       []configView
 	defaultView *model.ViewState
 	lastView    bool
+	clusterPods string
 }
 
 // readSettingsFile decodes the file into plain values and walks them by hand
@@ -153,7 +163,7 @@ func readSettingsFile(path string) (settingsFile, error) {
 	if err := yaml.UnmarshalStrict(data, &doc); err != nil {
 		return settingsFile{}, errors.New(yamlError(err))
 	}
-	top, err := mapping("", doc, "labels", "views", "default-view", "start-with")
+	top, err := mapping("", doc, "labels", "views", "default-view", "start-with", "clusters")
 	if err != nil {
 		return settingsFile{}, err
 	}
@@ -167,7 +177,31 @@ func readSettingsFile(path string) (settingsFile, error) {
 	if err := file.readStartView(top); err != nil {
 		return settingsFile{}, err
 	}
+	if file.clusterPods, err = readClusters(top["clusters"]); err != nil {
+		return settingsFile{}, err
+	}
 	return file, nil
+}
+
+// readClusters checks clusters.pods: all (the default) or unfolded
+// (clusters-screen R18).
+func readClusters(value any) (string, error) {
+	clusters, err := mapping("clusters", value, "pods")
+	if err != nil {
+		return "", err
+	}
+	raw, ok := clusters["pods"]
+	if !ok || raw == nil {
+		return clusterPodsAll, nil
+	}
+	pods, err := str("clusters.pods", raw)
+	if err != nil {
+		return "", err
+	}
+	if pods != clusterPodsAll && pods != clusterPodsUnfolded {
+		return "", fmt.Errorf("clusters.pods: %q is not %s or %s", pods, clusterPodsAll, clusterPodsUnfolded)
+	}
+	return pods, nil
 }
 
 // readLabelLists checks labels.allow and labels.deny: lists of non-empty

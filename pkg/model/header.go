@@ -61,7 +61,9 @@ func (u *UIModel) recentIssue() string {
 		return ""
 	}
 	msg, at := u.issues()
-	if msg == "" || time.Since(at) > issueWindow {
+	// the Clusters screen's members log into the same file; their lines are
+	// not Overview's (clusters-screen R7)
+	if msg == "" || time.Since(at) > issueWindow || u.fl.memberLine(at) {
 		return ""
 	}
 	return msg
@@ -358,6 +360,13 @@ func shortContext(name string) string {
 		}
 	}
 	return name
+}
+
+// IsGKEContext tells a gcloud GKE context name, gke_<project>_<location>_<cluster>
+// (clusters-screen T3); the multi-cloud gke_aws_… and gke_azure_… names are
+// not GKE nodes.
+func IsGKEContext(name string) bool {
+	return gkeContext.MatchString(name) && !gkeFleetContext.MatchString(name)
 }
 
 // displayServer is the API server URL the full panel shows: without the

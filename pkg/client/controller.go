@@ -19,15 +19,20 @@ package client
 import (
 	"context"
 	"math"
+	"slices"
 	"strconv"
+	"sync"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/watchlist"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"github.com/staffops/kube-node-viewer/pkg/model"
@@ -35,19 +40,34 @@ import (
 )
 
 type Controller struct {
-	kubeClient      *kubernetes.Clientset
+	kubeClient      kubernetes.Interface
 	cluster         *model.Cluster
 	pricing         pricing.Provider
 	nodeSelector    labels.Selector
 	nodeClaimClient *rest.RESTClient
 	// notifier, when set, hears about every change to the cluster or prices
 	notifier *Notifier
+
+	// member marks a Clusters screen member (clusters-screen D3, D10): its
+	// watches stop on a refused or failing credential, and Fargate nodes
+	// are priced from a Fargate-only pod watch until StartPods
+	member      bool
+	fargatePods bool
+
+	mu          sync.Mutex
+	nodeSynced  cache.InformerSynced
+	podSynced   cache.InformerSynced
+	podsStarted bool
+	fargate     bool
+	ctx         context.Context
+	// statuses holds one per informer started
+	statuses []*watchStatus
 }
 
 // NewController watches one cluster into its own store. A context switch
 // builds a new controller and store, so late events from the old watches can
-// only reach the old store.
-func NewController(kubeClient *kubernetes.Clientset, nodeClaimClient *rest.RESTClient, cluster *model.Cluster, nodeSelector labels.Selector, pricing pricing.Provider) *Controller {
+// only reach the old store. nodeClaimClient may be nil: no nodeclaim watch.
+func NewController(kubeClient kubernetes.Interface, nodeClaimClient *rest.RESTClient, cluster *model.Cluster, nodeSelector labels.Selector, pricing pricing.Provider) *Controller {
 	c := &Controller{
 		kubeClient:      kubeClient,
 		cluster:         cluster,
@@ -64,23 +84,166 @@ func (m *Controller) SetNotifier(n *Notifier) {
 	m.notifier = n
 }
 
-func (m *Controller) Start(ctx context.Context) {
-	cluster := m.cluster
+// SetMember makes the controller a Clusters screen member (clusters-screen
+// D3, D10): a watch refused with 403, a 401 that repeats after the
+// credential refresh, or a failing exec plugin stops that watch; with
+// fargatePods, Fargate nodes seen before StartPods are priced from a watch
+// of Fargate pods only. Set it before StartNodes.
+func (m *Controller) SetMember(fargatePods bool) {
+	m.member, m.fargatePods = true, fargatePods
+}
 
-	m.startPodWatch(ctx, cluster)
-	m.startNodeWatch(ctx, cluster)
+// Status is what the Clusters screen shows of a connection
+// (clusters-screen D7).
+type Status struct {
+	// Synced is the node watch's first list being in the store
+	Synced bool
+	// PodsSynced is the same for the full pod watch; false until StartPods
+	PodsSynced bool
+	// Err is the last error of the watches, without the API server URL;
+	// empty once a list or an event succeeds after it
+	Err string
+}
+
+// Status reads the connection's state; safe from any goroutine.
+func (m *Controller) Status() Status {
+	m.mu.Lock()
+	nodes, pods := m.nodeSynced, m.podSynced
+	statuses := slices.Clone(m.statuses)
+	m.mu.Unlock()
+	var s Status
+	for _, st := range statuses {
+		if err := st.get(); err != "" {
+			s.Err = err
+			break
+		}
+	}
+	s.Synced = nodes != nil && nodes()
+	s.PodsSynced = pods != nil && pods()
+	return s
+}
+
+// Start runs every watch, as Overview needs them.
+func (m *Controller) Start(ctx context.Context) {
+	m.StartPods(ctx)
+	m.StartNodes(ctx)
+}
+
+// StartNodes runs the node watch, and the nodeclaim watch when Karpenter's
+// CRD is there. It makes a blocking API call.
+func (m *Controller) StartNodes(ctx context.Context) {
+	m.mu.Lock()
+	m.ctx = ctx
+	m.mu.Unlock()
+	synced := m.startNodeWatch(ctx, m.cluster)
+	m.mu.Lock()
+	m.nodeSynced = synced
+	m.mu.Unlock()
+	m.notifyOnSync(ctx, synced)
 
 	// If a NodeClaims Get returns an error, then don't startup the nodeclaims controller since the CRD is not registered
+	if m.nodeClaimClient == nil {
+		return
+	}
 	if err := m.nodeClaimClient.Get().Do(ctx).Error(); err == nil {
-		m.startNodeClaimWatch(ctx, cluster)
+		m.startNodeClaimWatch(ctx, m.cluster)
 	}
 }
 
+// StartPods runs the full pod watch, once; later calls do nothing.
+func (m *Controller) StartPods(ctx context.Context) {
+	m.mu.Lock()
+	if m.podsStarted {
+		m.mu.Unlock()
+		return
+	}
+	m.podsStarted = true
+	m.mu.Unlock()
+	synced := m.startPodWatch(ctx, m.cluster, fields.Everything())
+	m.mu.Lock()
+	m.podSynced = synced
+	m.mu.Unlock()
+	m.notifyOnSync(ctx, synced)
+}
+
+// notifyOnSync reports the end of a first list, so an empty cluster leaves
+// "connecting…" (clusters-screen D7).
+func (m *Controller) notifyOnSync(ctx context.Context, synced cache.InformerSynced) {
+	go func() {
+		if cache.WaitForCacheSync(ctx.Done(), synced) {
+			m.notifier.Changed()
+		}
+	}()
+}
+
+// startFargateWatch watches only the pods of the EKS Fargate scheduler, which
+// price their Fargate node (clusters-screen R16). It runs until the member's
+// context ends, also after StartPods: both write the same store by
+// namespace/name, so they converge.
+func (m *Controller) startFargateWatch() {
+	m.mu.Lock()
+	if !m.member || !m.fargatePods || m.fargate || m.podsStarted || m.ctx == nil {
+		m.mu.Unlock()
+		return
+	}
+	m.fargate = true
+	ctx := m.ctx
+	m.mu.Unlock()
+	m.startPodWatch(ctx, m.cluster, fields.OneTermEqualSelector("spec.schedulerName", FargateScheduler))
+}
+
+// FargateScheduler is the scheduler name of EKS Fargate pods
+// ([ASSUMPTION] in clusters-screen R16, checked in T12).
+const FargateScheduler = "fargate-scheduler"
+
+// newStatus is the error slot of an informer about to start.
+func (m *Controller) newStatus() *watchStatus {
+	st := &watchStatus{}
+	m.mu.Lock()
+	m.statuses = append(m.statuses, st)
+	m.mu.Unlock()
+	return st
+}
+
+// listWatch builds the list/watch of a typed client call, wrapped to record
+// its errors in st (clusters-screen D7).
+func (m *Controller) listWatch(cancel context.CancelFunc, st *watchStatus,
+	list func(context.Context, metav1.ListOptions) (runtime.Object, error),
+	watchFn func(context.Context, metav1.ListOptions) (watch.Interface, error)) cache.ListerWatcher {
+	return &statusLW{
+		list:        list,
+		watch:       watchFn,
+		status:      st,
+		stop:        m.stopper(cancel),
+		unsupported: watchlist.DoesClientNotSupportWatchListSemantics(m.kubeClient),
+	}
+}
+
+// stopper is nil for Overview's controller, which keeps retrying as before.
+func (m *Controller) stopper(cancel context.CancelFunc) context.CancelFunc {
+	if !m.member {
+		return nil
+	}
+	return cancel
+}
+
 func (m *Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Cluster) {
-	nodeClaimWatchList := cache.NewFilteredListWatchFromClient(m.nodeClaimClient, "nodeclaims",
+	ctx, cancel := context.WithCancel(ctx)
+	st := m.newStatus()
+	inner := cache.NewFilteredListWatchFromClient(m.nodeClaimClient, "nodeclaims",
 		v1.NamespaceAll, func(options *metav1.ListOptions) {
 			options.LabelSelector = m.nodeSelector.String()
 		})
+	nodeClaimWatchList := &statusLW{
+		list: func(ctx context.Context, o metav1.ListOptions) (runtime.Object, error) {
+			return inner.ListWithContext(ctx, o)
+		},
+		watch: func(ctx context.Context, o metav1.ListOptions) (watch.Interface, error) {
+			return inner.WatchWithContext(ctx, o)
+		},
+		status: st,
+		stop:   m.stopper(cancel),
+	}
 	_, nodeClaimController := cache.NewInformerWithOptions(cache.InformerOptions{
 		ListerWatcher: nodeClaimWatchList,
 		ObjectType:    &karpv1.NodeClaim{},
@@ -88,6 +251,7 @@ func (m *Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clu
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
+				st.event()
 				nc := obj.(*karpv1.NodeClaim)
 				if nc.Status.ProviderID == "" {
 					return
@@ -102,10 +266,12 @@ func (m *Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clu
 			},
 			DeleteFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
+				st.event()
 				cluster.DeleteNode(ignoreDeletedFinalStateUnknown(obj).(*karpv1.NodeClaim).Status.ProviderID)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				defer m.notifier.Changed()
+				st.event()
 				nc := newObj.(*karpv1.NodeClaim)
 				if nc.Status.ProviderID == "" {
 					return
@@ -123,10 +289,20 @@ func (m *Controller) startNodeClaimWatch(ctx context.Context, cluster *model.Clu
 	go nodeClaimController.Run(ctx.Done())
 }
 
-func (m *Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) {
-	nodeWatchList := cache.NewFilteredListWatchFromClient(m.kubeClient.CoreV1().RESTClient(), "nodes",
-		v1.NamespaceAll, func(options *metav1.ListOptions) {
-			options.LabelSelector = m.nodeSelector.String()
+func (m *Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster) cache.InformerSynced {
+	ctx, cancel := context.WithCancel(ctx)
+	st := m.newStatus()
+	selector := func(o metav1.ListOptions) metav1.ListOptions {
+		o.LabelSelector = m.nodeSelector.String()
+		return o
+	}
+	nodes := m.kubeClient.CoreV1().Nodes()
+	nodeWatchList := m.listWatch(cancel, st,
+		func(ctx context.Context, o metav1.ListOptions) (runtime.Object, error) {
+			return nodes.List(ctx, selector(o))
+		},
+		func(ctx context.Context, o metav1.ListOptions) (watch.Interface, error) {
+			return nodes.Watch(ctx, selector(o))
 		})
 	_, nodeController := cache.NewInformerWithOptions(cache.InformerOptions{
 		ListerWatcher: nodeWatchList,
@@ -135,6 +311,7 @@ func (m *Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster)
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
+				st.event()
 				node := model.NewNode(obj.(*v1.Node))
 				if node.ProviderID() == "" {
 					return
@@ -142,13 +319,18 @@ func (m *Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster)
 				m.updatePrice(node)
 				n := cluster.AddNode(node)
 				n.Show()
+				if n.IsFargate() {
+					m.startFargateWatch()
+				}
 			},
 			DeleteFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
+				st.event()
 				cluster.DeleteNode(ignoreDeletedFinalStateUnknown(obj).(*v1.Node).Spec.ProviderID)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				defer m.notifier.Changed()
+				st.event()
 				n := newObj.(*v1.Node)
 				if !n.DeletionTimestamp.IsZero() && len(n.Finalizers) == 0 {
 					cluster.DeleteNode(n.Spec.ProviderID)
@@ -163,11 +345,24 @@ func (m *Controller) startNodeWatch(ctx context.Context, cluster *model.Cluster)
 		},
 	})
 	go nodeController.Run(ctx.Done())
+	return nodeController.HasSynced
 }
 
-func (m *Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) {
-	podWatchList := cache.NewListWatchFromClient(m.kubeClient.CoreV1().RESTClient(), "pods",
-		v1.NamespaceAll, fields.Everything())
+func (m *Controller) startPodWatch(ctx context.Context, cluster *model.Cluster, selector fields.Selector) cache.InformerSynced {
+	ctx, cancel := context.WithCancel(ctx)
+	st := m.newStatus()
+	pods := m.kubeClient.CoreV1().Pods(v1.NamespaceAll)
+	withSelector := func(o metav1.ListOptions) metav1.ListOptions {
+		o.FieldSelector = selector.String()
+		return o
+	}
+	podWatchList := m.listWatch(cancel, st,
+		func(ctx context.Context, o metav1.ListOptions) (runtime.Object, error) {
+			return pods.List(ctx, withSelector(o))
+		},
+		func(ctx context.Context, o metav1.ListOptions) (watch.Interface, error) {
+			return pods.Watch(ctx, withSelector(o))
+		})
 
 	_, podController := cache.NewInformerWithOptions(cache.InformerOptions{
 		ListerWatcher: podWatchList,
@@ -176,6 +371,7 @@ func (m *Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) 
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
+				st.event()
 				p := obj.(*v1.Pod)
 				if !isTerminalPod(p) {
 					cluster.AddPod(model.NewPod(p))
@@ -188,11 +384,13 @@ func (m *Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) 
 			},
 			DeleteFunc: func(obj interface{}) {
 				defer m.notifier.Changed()
+				st.event()
 				p := ignoreDeletedFinalStateUnknown(obj).(*v1.Pod)
 				cluster.DeletePod(p.Namespace, p.Name)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				defer m.notifier.Changed()
+				st.event()
 				p := newObj.(*v1.Pod)
 				if isTerminalPod(p) {
 					cluster.DeletePod(p.Namespace, p.Name)
@@ -203,6 +401,7 @@ func (m *Controller) startPodWatch(ctx context.Context, cluster *model.Cluster) 
 		},
 	})
 	go podController.Run(ctx.Done())
+	return podController.HasSynced
 }
 
 func (m *Controller) updatePrice(node *model.Node) {

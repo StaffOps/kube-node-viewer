@@ -151,7 +151,13 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     Resource SKUs API with the machine's `az login`; no permission or no sign-in is said on the
     Recommendations screen; the copied autoscaler table goes.
     [requirements](azure-live-skus/requirements.md) · [design](azure-live-skus/design.md) · [tasks](azure-live-skus/tasks.md)
-37. [`decisions/`](decisions/) — decision records (index below).
+37. [`clusters-screen/`](clusters-screen/) — **active**. A Clusters screen: several contexts
+    connected at once, each cluster's cost and nodes in its own section (filters, sort and
+    group-by apply inside it), clusters grouped by cloud with a total per cloud and none across
+    clouds, `:clusters aws` for one cloud, pods watched only for unfolded sections, `enter` opens a
+    cluster in Overview.
+    [requirements](clusters-screen/requirements.md) · [design](clusters-screen/design.md) · [tasks](clusters-screen/tasks.md)
+38. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>
