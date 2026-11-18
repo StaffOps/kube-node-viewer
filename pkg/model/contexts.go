@@ -210,5 +210,5 @@ func (u *UIModel) contextsPanel() panelView {
 	if p.loading || p.switching != "" {
 		cursor = -1
 	}
-	return panelView{title: "Context", rows: rows, cursor: cursor}
+	return panelView{title: u.pickerTitle("Context"), rows: rows, cursor: cursor}
 }

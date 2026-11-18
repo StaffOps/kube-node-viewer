@@ -371,6 +371,9 @@ func (s *sessions) fleetContexts() ([]model.ContextInfo, error) {
 	}
 	out := make([]model.ContextInfo, 0, len(list))
 	for _, c := range list {
+		if !s.contexts.Shows(c.Name) {
+			continue // hidden by contexts.allow/deny (context-visibility R1, R2)
+		}
 		out = append(out, model.ContextInfo{Name: c.Name, Server: c.Server, Cloud: client.GuessCloud(c.Name, c.Server)})
 	}
 	return out, nil

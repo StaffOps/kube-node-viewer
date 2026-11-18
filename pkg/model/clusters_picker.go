@@ -190,5 +190,5 @@ func (u *UIModel) clusterPickerPanel() panelView {
 	if len(rows) == 0 {
 		rows = []string{"  no contexts in the kubeconfig"}
 	}
-	return panelView{title: "Clusters", rows: rows, cursor: p.cursor}
+	return panelView{title: u.pickerTitle("Clusters"), rows: rows, cursor: p.cursor}
 }

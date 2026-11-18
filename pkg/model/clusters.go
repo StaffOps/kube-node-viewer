@@ -165,6 +165,20 @@ func (fs *fleetState) memberLine(at time.Time) bool {
 	return !fs.issuesTo.IsZero() && !at.Before(fs.issuesFrom) && at.Before(fs.issuesTo)
 }
 
+// SetContextListsOff marks the pickers' titles: contexts.allow/deny are not
+// applied in this run (context-visibility R6).
+func (u *UIModel) SetContextListsOff() {
+	u.contextListsOff = true
+}
+
+// pickerTitle is a picker's title, marked when the context lists are off.
+func (u *UIModel) pickerTitle(title string) string {
+	if u.contextListsOff {
+		return title + " (lists off)"
+	}
+	return title
+}
+
 // SetFleet enables the Clusters screen; call it before the program runs.
 func (u *UIModel) SetFleet(f Fleet, store FleetStore) {
 	u.fl.fleet, u.fl.store = f, store
