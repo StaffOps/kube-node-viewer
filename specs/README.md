@@ -157,7 +157,11 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     clouds, `:clusters aws` for one cloud, pods watched only for unfolded sections, `enter` opens a
     cluster in Overview.
     [requirements](clusters-screen/requirements.md) · [design](clusters-screen/design.md) · [tasks](clusters-screen/tasks.md)
-38. [`decisions/`](decisions/) — decision records (index below).
+38. [`context-visibility/`](context-visibility/) — **active**. `contexts.allow` and
+    `contexts.deny` in `config.yaml` (with `*`) decide which contexts the pickers list;
+    the tool still opens on the context it starts on, and lists everything when that one is hidden.
+    [requirements](context-visibility/requirements.md) · [design](context-visibility/design.md) · [tasks](context-visibility/tasks.md)
+39. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>
