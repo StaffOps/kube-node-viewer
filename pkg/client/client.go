@@ -31,6 +31,8 @@ import (
 
 	karpv1apis "sigs.k8s.io/karpenter/pkg/apis"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+
+	"github.com/staffops/kube-node-viewer/pkg/model"
 )
 
 func NewKubernetes(kubeconfig, context string) (*kubernetes.Clientset, error) {
@@ -118,6 +120,59 @@ func Contexts(kubeconfig string) (names []string, current string, err error) {
 	}
 	sort.Strings(names)
 	return names, raw.CurrentContext, nil
+}
+
+// ContextServer is a kubeconfig context and its API server URL.
+type ContextServer struct {
+	Name   string
+	Server string
+}
+
+// ContextServers lists the kubeconfig's contexts, sorted by name, with their
+// API server URLs (clusters-screen T3), and the current context.
+func ContextServers(kubeconfig string) ([]ContextServer, string, error) {
+	raw, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{Precedence: strings.Split(kubeconfig, ":")},
+		&clientcmd.ConfigOverrides{}).RawConfig()
+	if err != nil {
+		return nil, "", err
+	}
+	var out []ContextServer
+	for name, ctx := range raw.Contexts {
+		c := ContextServer{Name: name}
+		if cluster, ok := raw.Clusters[ctx.Cluster]; ok {
+			c.Server = cluster.Server
+		}
+		out = append(out, c)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, raw.CurrentContext, nil
+}
+
+var eksContextARN = regexp.MustCompile(`^arn:aws(-[a-z]+)*:eks:`)
+
+// GuessCloud guesses a context's cloud from the kubeconfig alone, before any
+// connection (clusters-screen D5): "aws" for an EKS API server or ARN
+// context, "azure" for an AKS server, "gce" for a gcloud GKE context, and ""
+// when it cannot tell.
+func GuessCloud(context, server string) string {
+	switch {
+	case strings.Contains(hostOf(server), ".eks.amazonaws.com"), eksContextARN.MatchString(context):
+		return "aws"
+	case IsAKSServer(server):
+		return "azure"
+	case model.IsGKEContext(context):
+		return "gce"
+	}
+	return ""
+}
+
+func hostOf(server string) string {
+	u, err := url.Parse(server)
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(u.Hostname())
 }
 
 var eksServerRegion = regexp.MustCompile(`\.([a-z]{2}(?:-gov)?-[a-z]+-\d+)\.eks\.amazonaws\.com`)

@@ -360,6 +360,13 @@ func shortContext(name string) string {
 	return name
 }
 
+// IsGKEContext tells a gcloud GKE context name, gke_<project>_<location>_<cluster>
+// (clusters-screen T3); the multi-cloud gke_aws_… and gke_azure_… names are
+// not GKE nodes.
+func IsGKEContext(name string) bool {
+	return gkeContext.MatchString(name) && !gkeFleetContext.MatchString(name)
+}
+
 // displayServer is the API server URL the full panel shows: without the
 // project of a URL that names one (hide-cloud-ids R10).
 func displayServer(server string) string {

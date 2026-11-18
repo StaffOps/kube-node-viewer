@@ -47,3 +47,10 @@ func (b ByCloud) OnUpdate(f func()) {
 		}
 	}
 }
+
+// None prices nothing. A cloud with no price source (gce) is routed to it, so
+// no other cloud's provider prices its nodes (clusters-screen D4).
+type None struct{}
+
+func (None) NodePrice(*model.Node) (float64, bool) { return 0, false }
+func (None) OnUpdate(func())                       {}

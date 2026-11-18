@@ -55,6 +55,8 @@ type sessions struct {
 	azure azureOption
 	// sizes reads the current connection's Azure VM sizes; closed with it
 	sizes *azure.Sizes
+	// fleet is the Clusters screen's members (clusters-screen D3)
+	fleet *fleet
 }
 
 // azureOption is the Go option of azure-live-skus D6: zero is production
@@ -151,21 +153,71 @@ func (s *sessions) Contexts() ([]string, string, error) {
 	return client.Contexts(s.flags.Kubeconfig)
 }
 
+// conn is one connection to a context, built but not started
+// (clusters-screen T2): Switch and the Clusters screen's members share it.
+type conn struct {
+	cluster    client.Cluster
+	store      *model.Cluster
+	controller *client.Controller
+	prices     pricing.Provider
+	info       model.ClusterInfo
+	ctx        context.Context
+	cancel     context.CancelFunc
+}
+
+// priceFunc builds the price provider of a connection and the region to show.
+type priceFunc func(ctx context.Context, server string) (pricing.Provider, string, error)
+
+// connect builds the clients, store, controller and prices of a context;
+// notify hears the store's changes. The caller starts the watches.
+func (s *sessions) connect(name string, prices priceFunc, notify func(gen uint64)) (*conn, error) {
+	cluster, err := client.ResolveCluster(s.flags.Kubeconfig, name)
+	if err != nil {
+		return nil, err
+	}
+	cs, err := client.NewKubernetes(s.flags.Kubeconfig, cluster.Context)
+	if err != nil {
+		return nil, fmt.Errorf("creating client: %w", err)
+	}
+	nodeClaims, err := client.NewNodeClaims(s.flags.Kubeconfig, cluster.Context)
+	if err != nil {
+		return nil, fmt.Errorf("creating node claim client: %w", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	p, region, err := prices(ctx, cluster.Server)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	store := model.NewCluster()
+	gen := store.Generation()
+	controller := client.NewController(cs, nodeClaims, store, s.nodeSelector, p)
+	controller.SetNotifier(client.NewNotifier(ctx, changeInterval, func() { notify(gen) }))
+	return &conn{
+		cluster:    cluster,
+		store:      store,
+		controller: controller,
+		prices:     p,
+		info:       model.ClusterInfo{Context: cluster.Context, Server: cluster.Server, Region: region},
+		ctx:        ctx,
+		cancel:     cancel,
+	}, nil
+}
+
+// connStatus reads a controller's state for the model.
+func connStatus(c *client.Controller) func() model.ConnStatus {
+	return func() model.ConnStatus {
+		st := c.Status()
+		return model.ConnStatus{Synced: st.Synced, PodsSynced: st.PodsSynced, Err: st.Err}
+	}
+}
+
 // Switch connects to the context, then stops the previous connection.
 func (s *sessions) Switch(name string) (model.Session, error) {
 	cluster, err := client.ResolveCluster(s.flags.Kubeconfig, name)
 	if err != nil {
 		return model.Session{}, err
 	}
-	cs, err := client.NewKubernetes(s.flags.Kubeconfig, cluster.Context)
-	if err != nil {
-		return model.Session{}, fmt.Errorf("creating client: %w", err)
-	}
-	nodeClaims, err := client.NewNodeClaims(s.flags.Kubeconfig, cluster.Context)
-	if err != nil {
-		return model.Session{}, fmt.Errorf("creating node claim client: %w", err)
-	}
-
 	s.mu.Lock()
 	explicit := s.explicit
 	s.explicit = nil
@@ -181,49 +233,41 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 		return model.Session{}, err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	info := model.ClusterInfo{Context: cluster.Context, Server: cluster.Server}
-	prices, region, err := s.pricing(ctx, cluster.Server)
+	c, err := s.connect(name, s.pricing, func(gen uint64) {
+		s.program.Send(model.ChangedMsg{Gen: gen})
+	})
 	if err != nil {
-		cancel()
 		return model.Session{}, err
 	}
-	info.Region = region
-
-	store := model.NewCluster()
-	gen := store.Generation()
-	controller := client.NewController(cs, nodeClaims, store, s.nodeSelector, prices)
-	controller.SetNotifier(client.NewNotifier(ctx, changeInterval, func() {
-		s.program.Send(model.ChangedMsg{Gen: gen})
-	}))
 
 	var sizes *azure.Sizes
 	if !s.flags.DisablePricing {
-		sizes = s.azure.sizes(ctx)
+		sizes = s.azure.sizes(c.ctx)
 	}
 	s.mu.Lock()
 	if s.cancel != nil {
 		s.cancel()
 	}
 	old := s.sizes
-	s.cancel, s.sizes = cancel, sizes
+	s.cancel, s.sizes = c.cancel, sizes
 	s.mu.Unlock()
 	if old != nil {
 		old.Close() // a running az of the previous connection is killed
 	}
 	// Start makes a blocking API call
-	go controller.Start(ctx)
+	go c.controller.Start(c.ctx)
 
 	s.starts.opened(key, view, start != nil)
 	return model.Session{
-		Cluster: store,
-		Info:    info,
+		Cluster: c.store,
+		Info:    c.info,
 		View:    view,
 		Save: func(v model.ViewState) {
 			s.starts.changed(key, v)
 			s.saver.Save(key, v)
 		},
-		Advisor: newAdvisor(prices, s.flags.DisablePricing, sizes, s.azure.lister),
+		Advisor: newAdvisor(c.prices, s.flags.DisablePricing, sizes, s.azure.lister),
+		Status:  connStatus(c.controller),
 	}, nil
 }
 
@@ -256,13 +300,66 @@ func (s *sessions) pricing(ctx context.Context, server string) (pricing.Provider
 		}
 	}
 	return pricing.ByCloud{
-		Clouds:   map[string]pricing.Provider{"aws": awsPrices, "azure": azure.NewProvider(ctx, azure.Endpoint)},
+		Clouds: map[string]pricing.Provider{
+			"aws":   awsPrices,
+			"azure": azure.NewProvider(ctx, azure.Endpoint),
+			// no GCE price source yet: never AWS prices (clusters-screen D4)
+			"gce": pricing.None{},
+		},
 		Fallback: awsPrices,
 	}, region, nil
 }
 
-// Close stops the current connection, and kills a running az.
+// visitPricing is a visit's price set (clusters-screen D8): one AWS provider
+// per region, one Azure provider, nothing for GCE, all dropped with the
+// visit. Without an AWS config the AWS members are unpriced, not failed.
+func (s *sessions) visitPricing(ctx context.Context) priceFunc {
+	if s.flags.DisablePricing {
+		static := aws.NewStaticPricingProvider()
+		return func(context.Context, string) (pricing.Provider, string, error) {
+			return static, "", nil
+		}
+	}
+	var mu sync.Mutex
+	byRegion := map[string]pricing.Provider{}
+	var azureP pricing.Provider
+	cfg, cfgErr := config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile(""))
+	return func(_ context.Context, server string) (pricing.Provider, string, error) {
+		region := client.RegionFromServer(server)
+		mu.Lock()
+		defer mu.Unlock()
+		if azureP == nil {
+			azureP = azure.NewProvider(ctx, azure.Endpoint)
+		}
+		awsP, ok := byRegion[region]
+		if !ok {
+			switch {
+			case cfgErr != nil, client.IsAKSServer(server):
+				awsP = pricing.None{}
+			case region != "":
+				c := cfg.Copy()
+				c.Region = region
+				awsP = aws.NewPricingProvider(ctx, c)
+			default:
+				awsP = aws.NewRegionalPricingProvider(ctx, cfg)
+			}
+			if !client.IsAKSServer(server) {
+				byRegion[region] = awsP
+			}
+		}
+		return pricing.ByCloud{
+			Clouds:   map[string]pricing.Provider{"aws": awsP, "azure": azureP, "gce": pricing.None{}},
+			Fallback: awsP,
+		}, region, nil
+	}
+}
+
+// Close stops the current connection and the Clusters screen's members, and
+// kills a running az.
 func (s *sessions) Close() {
+	if s.fleet != nil {
+		s.fleet.Close()
+	}
 	s.mu.Lock()
 	if s.cancel != nil {
 		s.cancel()

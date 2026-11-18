@@ -41,6 +41,28 @@ type Session struct {
 	// Advisor is the session's catalog and prices for Recommendations, nil
 	// when not available
 	Advisor Advisor
+	// Status reads the connection's watches (clusters-screen D7); nil reads
+	// as synced, for sessions built in tests
+	Status func() ConnStatus
+}
+
+// ConnStatus is a connection's state as the Clusters screen shows it
+// (clusters-screen R2, R3, R15).
+type ConnStatus struct {
+	// Synced is the node watch's first list being in the store
+	Synced bool
+	// PodsSynced is the same for the full pod watch
+	PodsSynced bool
+	// Err is the last watch error, without the API server URL
+	Err string
+}
+
+// status reads s.Status, or a synced state when it is nil.
+func (s Session) status() ConnStatus {
+	if s.Status == nil {
+		return ConnStatus{Synced: true, PodsSynced: true}
+	}
+	return s.Status()
 }
 
 type contextsMsg struct {
@@ -53,6 +75,9 @@ type switchedMsg struct {
 	session Session
 	err     error
 	context string
+	// fromClusters is set by enter on the Clusters screen: the context opens
+	// in Overview (clusters-screen R6)
+	fromClusters bool
 }
 
 // contextsPanel is the context picker (c).
@@ -88,6 +113,9 @@ func (u *UIModel) Connect(s Session) {
 	u.SetClusterInfo(s.Info)
 	u.advisor = s.Advisor
 	u.recFor, u.recPending, u.recs, u.recCursor = "", false, recommend.Result{}, 0
+	u.fl.overview = s.Status
+	u.fl.switching = ""
+	u.fleetSync()
 }
 
 func (u *UIModel) openContexts() tea.Cmd {
@@ -148,7 +176,15 @@ func (u *UIModel) switched(msg switchedMsg) tea.Cmd {
 	if msg.err != nil {
 		u.contexts.switching = ""
 		u.contexts.err = fmt.Errorf("%s: %w", msg.context, msg.err)
+		if msg.fromClusters {
+			// no panel is open: the footer says it and the screen stays
+			u.fl.switching = ""
+			u.notify(u.contexts.err.Error())
+		}
 		return nil
+	}
+	if msg.fromClusters {
+		msg.session.View.Screen = ScreenOverview
 	}
 	if u.panel == panelContexts {
 		u.panel = panelNone
