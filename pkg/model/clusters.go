@@ -48,7 +48,8 @@ type ContextInfo struct {
 // Fleet is the Clusters screen's connections (clusters-screen D3). Every
 // call is made on the UI goroutine and must not block.
 type Fleet interface {
-	// Contexts lists the kubeconfig's contexts; it reads the kubeconfig
+	// Contexts lists the kubeconfig's contexts; it reads the kubeconfig,
+	// once per visit as the screen opens
 	Contexts() ([]ContextInfo, error)
 	// SetWanted is the desired set of members and the cloud scope ("" for
 	// every cloud); nil closes them all
@@ -147,9 +148,21 @@ type fleetState struct {
 	frame *clustersOverview
 	// paged is set by a page key: the cursor does not follow its row
 	paged bool
-	// issuesBefore hides, on Overview, the log lines of the members of the
-	// last visit (clusters-screen R7)
-	issuesBefore time.Time
+	// issuesFrom and issuesTo bound the last visit: Overview's header does
+	// not show log lines of that time, which the members wrote into the same
+	// log (clusters-screen R7)
+	issuesFrom, issuesTo time.Time
+}
+
+// memberLogGrace is how long after leaving the screen the closing members'
+// last log lines are still left out of Overview's header.
+const memberLogGrace = 5 * time.Second
+
+// memberLine tells a log line written during the last visit of the Clusters
+// screen, off it; Overview's own lines of that time are left out too, and
+// come back as its watches log again.
+func (fs *fleetState) memberLine(at time.Time) bool {
+	return !fs.issuesTo.IsZero() && !at.Before(fs.issuesFrom) && at.Before(fs.issuesTo)
 }
 
 // SetFleet enables the Clusters screen; call it before the program runs.
@@ -174,7 +187,7 @@ func (u *UIModel) fleetSync() {
 	}
 	if !u.onClusters() {
 		if u.fl.slots != nil {
-			u.fl.issuesBefore = time.Now()
+			u.fl.issuesTo = time.Now().Add(memberLogGrace)
 		}
 		u.fl.infos, u.fl.slots, u.fl.left, u.fl.unfolded, u.fl.podsAsked = nil, nil, nil, nil, nil
 		u.fl.asked = false
@@ -192,6 +205,7 @@ func (u *UIModel) fleetSync() {
 		}
 	}
 	if u.fl.slots == nil {
+		u.fl.issuesFrom = time.Now()
 		u.fl.slots, u.fl.left, u.fl.unfolded, u.fl.podsAsked = map[string]*slot{}, map[string]string{}, map[string]bool{}, map[string]bool{}
 	}
 	if !u.fl.saved && !u.fl.asked {

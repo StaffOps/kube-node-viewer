@@ -96,8 +96,20 @@ func newFleet(connect connector, send func(tea.Msg), contexts func() ([]model.Co
 	return &fleet{connect: connect, send: send, contexts: contexts, prices: prices, members: map[string]*member{}}
 }
 
+// Contexts reads the kubeconfig's contexts and keeps their guessed clouds
+// for the visit, so SetWanted reads nothing.
 func (f *fleet) Contexts() ([]model.ContextInfo, error) {
-	return f.contexts()
+	infos, err := f.contexts()
+	if err == nil {
+		guesses := make(map[string]string, len(infos))
+		for _, i := range infos {
+			guesses[i.Name] = i.Cloud
+		}
+		f.mu.Lock()
+		f.guesses = guesses
+		f.mu.Unlock()
+	}
+	return infos, err
 }
 
 // SetWanted makes the members those contexts; nil closes them all and ends
@@ -122,10 +134,9 @@ func (f *fleet) SetWanted(contexts []string, scope string) {
 		}
 	}
 	if f.guesses == nil {
-		// the model read the kubeconfig as it entered the screen; this is
-		// once per visit too
-		f.guesses = map[string]string{}
+		// Contexts was not called first (tests): read them now
 		if infos, err := f.contexts(); err == nil {
+			f.guesses = map[string]string{}
 			for _, i := range infos {
 				f.guesses[i.Name] = i.Cloud
 			}

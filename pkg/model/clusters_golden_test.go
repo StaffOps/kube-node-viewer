@@ -21,6 +21,8 @@ import (
 
 // fakeFleet records what the UI asks of the Clusters screen's fleet.
 type fakeFleet struct {
+	// dead are the contexts whose member Live says is no longer the one
+	dead   map[string]bool
 	infos  []ContextInfo
 	wanted [][]string
 	scopes []string
@@ -32,8 +34,8 @@ func (f *fakeFleet) SetWanted(c []string, scope string) {
 	f.wanted = append(f.wanted, slices.Clone(c))
 	f.scopes = append(f.scopes, scope)
 }
-func (f *fakeFleet) WatchPods(name string)    { f.pods = append(f.pods, name) }
-func (f *fakeFleet) Live(string, uint64) bool { return true }
+func (f *fakeFleet) WatchPods(name string)           { f.pods = append(f.pods, name) }
+func (f *fakeFleet) Live(name string, _ uint64) bool { return !f.dead[name] }
 
 // last is the last set of wanted members.
 func (f *fakeFleet) last() []string {

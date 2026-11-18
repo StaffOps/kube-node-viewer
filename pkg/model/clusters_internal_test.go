@@ -1255,3 +1255,46 @@ func TestClustersContextOnScreenAlwaysASection(t *testing.T) {
 		t.Errorf("wanted under azure: %v", e.f.last())
 	}
 }
+
+// A ready message of a member the fleet no longer runs is dropped
+// (clusters-screen M6 of the diff review): the slot keeps connecting.
+// clusters-screen R2, R9
+func TestClustersStaleReadyDropped(t *testing.T) {
+	u := clustersUI(t)
+	f := u.fl.fleet.(*fakeFleet)
+	f.dead = map[string]bool{"aks": true}
+	// a new visit: the slot is fresh, the old member's message arrives late
+	pressAll(u, "tab", ":", "c", "l", "enter")
+	stale := aksUI(t).cluster
+	run(u, MemberReadyMsg{Context: "aks", Serial: 1, Gen: stale.Generation(), Cluster: stale, Status: func() ConnStatus { return ConnStatus{Synced: true} }})
+	if s := u.fl.slots["aks"]; s == nil || s.ready {
+		t.Fatalf("a stale ready message filled the slot: %+v", s)
+	}
+	if l := lineWith(fscreen(u), "▸ aks"); !strings.Contains(l, "connecting…") {
+		t.Errorf("aks after a stale message: %q", l)
+	}
+}
+
+// Log lines written while the Clusters screen was open stay off Overview's
+// header after leaving; older and newer ones show.
+// clusters-screen R7
+func TestClustersMemberLinesOffOverviewHeader(t *testing.T) {
+	u := clustersUI(t)
+	var msg string
+	var at time.Time
+	u.SetIssues(func() (string, time.Time) { return msg, at }, "log")
+	during := time.Now()
+	pressAll(u, "tab")
+	msg, at = "member watch failed", during
+	if got := u.recentIssue(); got != "" {
+		t.Errorf("a member's line on Overview: %q", got)
+	}
+	msg, at = "overview watch failed", time.Now().Add(memberLogGrace+time.Second)
+	if got := u.recentIssue(); got != msg {
+		t.Errorf("a line after the visit: %q, want %q", got, msg)
+	}
+	msg, at = "before the visit", u.fl.issuesFrom.Add(-time.Second)
+	if got := u.recentIssue(); got != msg {
+		t.Errorf("a line before the visit: %q, want %q", got, msg)
+	}
+}

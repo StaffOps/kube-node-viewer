@@ -109,8 +109,6 @@ type Status struct {
 func (m *Controller) Status() Status {
 	m.mu.Lock()
 	nodes, pods := m.nodeSynced, m.podSynced
-	m.mu.Unlock()
-	m.mu.Lock()
 	statuses := slices.Clone(m.statuses)
 	m.mu.Unlock()
 	var s Status

@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
@@ -305,6 +306,32 @@ func TestStatusOtherWatchKeepsErr(t *testing.T) {
 	}
 }
 
+// A watch refused once, then a quiet stream: its first bookmark clears the
+// error, with no node event (clusters-screen D7).
+// clusters-screen R7
+func TestStatusQuietWatchClearsErr(t *testing.T) {
+	cs := fake.NewClientset()
+	var mu sync.Mutex
+	calls := 0
+	stream := watch.NewFake()
+	cs.PrependWatchReactor("nodes", func(k8stesting.Action) (bool, watch.Interface, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls++
+		if calls == 1 {
+			return true, nil, errors.New("connection refused")
+		}
+		return true, stream, nil
+	})
+	ctl, _, ctx := newTestController(t, cs)
+	ctl.SetMember(false)
+	ctl.StartNodes(ctx)
+	eventually(t, "the refused watch's error", func() bool { return ctl.Status().Err != "" })
+	eventually(t, "a second watch", func() bool { mu.Lock(); defer mu.Unlock(); return calls >= 2 })
+	stream.Action(watch.Bookmark, &v1.Node{ObjectMeta: metav1.ObjectMeta{ResourceVersion: "2"}})
+	eventually(t, "Err cleared by the bookmark", func() bool { return ctl.Status().Err == "" })
+}
+
 // A Fargate node is priced from its pod by the Fargate-only watch, before
 // the full pod watch.
 // clusters-screen R16
@@ -486,6 +513,7 @@ func TestSanitize(t *testing.T) {
 		{"DNS lookup", errors.New("dial tcp: lookup example.com on 192.0.2.53:53: no such host"), "no such host"},
 		{"IP and port", errors.New("dial tcp 192.0.2.10:443: connect: connection refused"), "connection refused"},
 		{"host and port", errors.New("tls: handshake with example.com:443 failed"), "handshake"},
+		{"x509 names", errors.New("tls: failed to verify certificate: x509: certificate is valid for example.com, kubernetes.default, not other.example.com"), "x509: certificate is valid for"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

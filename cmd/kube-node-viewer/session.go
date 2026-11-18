@@ -229,8 +229,17 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 		saved = &v
 	}
 	saved, start := s.starts.pick(key, saved)
+	// the flags still apply to the next connection when this one fails (R2)
+	keepExplicit := func() {
+		s.mu.Lock()
+		if s.explicit == nil {
+			s.explicit = explicit
+		}
+		s.mu.Unlock()
+	}
 	view, err := resolveView(s.flags.Config, saved, start, explicit)
 	if err != nil {
+		keepExplicit()
 		return model.Session{}, err
 	}
 
@@ -238,12 +247,7 @@ func (s *sessions) Switch(name string) (model.Session, error) {
 		s.program.Send(model.ChangedMsg{Gen: gen})
 	})
 	if err != nil {
-		// the flags still apply to the next connection (R2)
-		s.mu.Lock()
-		if s.explicit == nil {
-			s.explicit = explicit
-		}
-		s.mu.Unlock()
+		keepExplicit()
 		return model.Session{}, err
 	}
 
@@ -330,18 +334,17 @@ func (s *sessions) visitPricing(ctx context.Context) priceFunc {
 	var mu sync.Mutex
 	byRegion := map[string]pricing.Provider{}
 	var azureP pricing.Provider
-	// loaded by the first member that needs it, off the UI goroutine
+	// loaded by the first AWS member, off the UI goroutine and outside mu
 	var cfg awssdk.Config
 	var cfgErr error
-	var loaded bool
+	var load sync.Once
 	return func(_ context.Context, server string) (pricing.Provider, string, error) {
 		region := client.RegionFromServer(server)
+		if !client.IsAKSServer(server) {
+			load.Do(func() { cfg, cfgErr = config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile("")) })
+		}
 		mu.Lock()
 		defer mu.Unlock()
-		if !loaded && !client.IsAKSServer(server) {
-			loaded = true
-			cfg, cfgErr = config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile(""))
-		}
 		if azureP == nil {
 			azureP = azure.NewProvider(ctx, azure.Endpoint)
 		}

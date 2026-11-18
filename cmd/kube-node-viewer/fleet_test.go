@@ -926,3 +926,26 @@ func TestVisitPricing(t *testing.T) {
 		t.Error("pricing off, but the visit can reach the Azure prices API")
 	}
 }
+
+// Live names the member the fleet runs now: an older one of the same
+// context, closed by leaving the screen, is not.
+// clusters-screen R2, R9
+func TestFleetLive(t *testing.T) {
+	f, _, rec := newTestFleet(t, nil)
+	f.SetWanted([]string{"a"}, "")
+	waitFor(t, "a ready", func() bool { return len(rec.ready("a")) == 1 })
+	first := rec.ready("a")[0].Serial
+	if !f.Live("a", first) {
+		t.Fatal("the running member is not live")
+	}
+	f.SetWanted(nil, "")
+	if f.Live("a", first) {
+		t.Error("a closed member is live")
+	}
+	f.SetWanted([]string{"a"}, "")
+	waitFor(t, "a ready again", func() bool { return len(rec.ready("a")) == 2 })
+	second := rec.ready("a")[1].Serial
+	if second == first || !f.Live("a", second) || f.Live("a", first) {
+		t.Errorf("serials %d then %d: live %v / %v", first, second, f.Live("a", first), f.Live("a", second))
+	}
+}

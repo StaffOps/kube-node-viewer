@@ -105,7 +105,7 @@ func (u *UIModel) Connect(s Session) {
 	u.SetClusterInfo(s.Info)
 	u.advisor = s.Advisor
 	u.recFor, u.recPending, u.recs, u.recCursor = "", false, recommend.Result{}, 0
-	u.fl.overview = s.Status
+	u.fl.overview, u.fl.ovStatus = s.Status, ConnStatus{}
 	u.fl.switching = ""
 	u.fleetSync()
 }

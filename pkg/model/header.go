@@ -63,7 +63,7 @@ func (u *UIModel) recentIssue() string {
 	msg, at := u.issues()
 	// the Clusters screen's members log into the same file; their lines are
 	// not Overview's (clusters-screen R7)
-	if msg == "" || time.Since(at) > issueWindow || at.Before(u.fl.issuesBefore) {
+	if msg == "" || time.Since(at) > issueWindow || u.fl.memberLine(at) {
 		return ""
 	}
 	return msg

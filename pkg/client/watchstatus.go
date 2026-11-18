@@ -103,7 +103,15 @@ func (l *statusLW) WatchWithContext(ctx context.Context, o metav1.ListOptions) (
 		l.failed(err)
 		return nil, err
 	}
-	return w, nil
+	// any event of the stream, a bookmark included, shows it works: a quiet
+	// informer whose watch was refused once must not keep that error
+	status := l.status
+	return watch.Filter(w, func(e watch.Event) (watch.Event, bool) {
+		if e.Type != watch.Error {
+			status.event()
+		}
+		return e, true
+	}), nil
 }
 
 // IsWatchListSemanticsUnSupported passes on what the client says
@@ -144,6 +152,8 @@ var (
 	lookupPattern   = regexp.MustCompile(`lookup [^\s:]+`)
 	ipPattern       = regexp.MustCompile(`\[[0-9A-Fa-f:]+\](:[0-9]+)?|\b[0-9]{1,3}(\.[0-9]{1,3}){3}(:[0-9]+)?\b`)
 	hostPortPattern = regexp.MustCompile(`\b[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+:[0-9]+\b`)
+	// x509 errors list the names a certificate is valid for
+	dnsNamePattern = regexp.MustCompile(`\b[a-z0-9-]+(\.[a-z0-9-]+)+\b`)
 )
 
 // Sanitize gives an error's text without any URL, host or address, so a
@@ -161,5 +171,8 @@ func Sanitize(err error) string {
 	msg = lookupPattern.ReplaceAllString(msg, "lookup of the API server")
 	msg = ipPattern.ReplaceAllString(msg, "an address")
 	msg = hostPortPattern.ReplaceAllString(msg, "the API server")
+	if strings.Contains(msg, "x509:") {
+		msg = dnsNamePattern.ReplaceAllString(msg, "a name")
+	}
 	return strings.TrimSpace(msg)
 }
