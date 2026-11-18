@@ -8,6 +8,8 @@ metadata:
   description: "kube-node-viewer (StaffOps)"
   annotations:
     github.com/project-slug: StaffOps/kube-node-viewer
+    backstage.io/techdocs-ref: dir:.
+  tags: [go, bubbletea, kubernetes, cobra, goreleaser, cli]
   links:
     - url: https://github.com/StaffOps/kube-node-viewer
       title: Repository
@@ -24,7 +26,8 @@ metadata:
   description: "kube-node-viewer (StaffOps)"
   annotations:
     github.com/project-slug: StaffOps/kube-node-viewer
-  tags: [go]
+    backstage.io/techdocs-ref: dir:.
+  tags: [go, bubbletea, kubernetes]
 spec:
   type: tool
   lifecycle: production
