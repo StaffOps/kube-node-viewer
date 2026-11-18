@@ -1011,3 +1011,19 @@ func TestFleetPodListsFourAtATime(t *testing.T) {
 	fc.member(first).setStatus(model.ConnStatus{Synced: true, PodsSynced: true})
 	waitFor(t, "a fifth connect once one member's pods synced", func() bool { return fc.callCount() == maxStarting+1 })
 }
+
+// With pods watched as members connect, a member whose pod list fails gives
+// its start place back, so failing clusters never block the queue.
+// clusters-screen R2, R7, R18
+func TestFleetPodListErrorFreesPlace(t *testing.T) {
+	f, fc, _ := newTestFleet(t, nil)
+	f.podsOnConnect = true
+	all := names(5)
+	for _, n := range all {
+		fc.status[n] = model.ConnStatus{Synced: true}
+	}
+	f.SetWanted(all, "")
+	waitFor(t, "4 connects", func() bool { return fc.callCount() == maxStarting })
+	fc.member(fc.called()[0]).setStatus(model.ConnStatus{Synced: true, Err: "pods is forbidden"})
+	waitFor(t, "a fifth connect once one member's pod list failed", func() bool { return fc.callCount() == maxStarting+1 })
+}

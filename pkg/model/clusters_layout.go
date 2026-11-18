@@ -490,6 +490,10 @@ func (u *UIModel) sectionSummaries(sections []*clusterSection) map[*clusterSecti
 		return map[*clusterSection][]string{}
 	}
 	if len(lines) != len(order)*n {
+		if len(order) == 1 {
+			// this section's own values break its lines: show none
+			return map[*clusterSection][]string{}
+		}
 		// a value broke a line: lay each section out on its own rather than
 		// hand one section's lines to another
 		out := map[*clusterSection][]string{}

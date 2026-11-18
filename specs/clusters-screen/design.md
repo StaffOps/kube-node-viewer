@@ -210,7 +210,8 @@ changed: it keeps retrying as today.
 
 | Cost | Why acceptable |
 |------|----------------|
-| The limit is on starting, not on steady state: a list of 30 is 30 node watches (corrected 2026-11-18: and 30 pod watches with `clusters.pods: all`; the start place is then held until a member's pods synced, so at most 4 pod lists run at once) | [ASSUMPTION] node lists are small next to pod lists (D10, T12); the list is the user's choice, shown in the picker; first use asks |
+| The limit is on starting, not on steady state: a list of 30 is 30 node watches (corrected 2026-11-18: and 30 pod watches with `clusters.pods: all`; the start place is then held until a member's pods synced or its first error, so at most 4 pod lists run at once besides those that failed and retry) |
+| A pod list that failed gives its place back and retries beside 4 others | its failure costs little; holding the place would let 4 unreachable clusters block the queue | [ASSUMPTION] node lists are small next to pod lists (D10, T12); the list is the user's choice, shown in the picker; first use asks |
 | A stopped watch does not recover by itself after a fixed token or role | leaving and opening the screen again reconnects it (R7) |
 | Matching the exec error by text | pinned by a test to the client-go version |
 | Every visit pays the sync and the price set again | seconds per cluster (unmeasured, T12); sections fill as they arrive |
@@ -625,7 +626,7 @@ format asked for.
 - A member's full pod watch exists only after its section was unfolded
   (the Fargate-only watch aside, R16). Corrected 2026-11-18: with
   `clusters.pods: unfolded`; with `all`, at most 4 members are listing their
-  pods at once.
+  pods at once, besides those whose list failed and retries.
 
 ## Failure modes
 

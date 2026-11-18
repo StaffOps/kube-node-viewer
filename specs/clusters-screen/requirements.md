@@ -377,9 +377,11 @@ order nothing.
 > **Corrected 2026-11-18.** With `clusters.pods: all`, the default (R18), a
 > member's pod watch starts as it connects and unfolding starts nothing; the
 > first two criteria above hold only with `clusters.pods: unfolded`. Its
-> start place is held until its pods have synced, so at most 4 full pod
-> lists run at once (D3). The gate of figures made from pods holds in both
-> modes.
+> start place is held until its pods have synced, or until its first error,
+> so at most 4 full pod lists run at once while none fails; a member whose
+> list failed and retries runs beside them (D3). An unfold made while the
+> member is still connecting holds the place the same way in `unfolded`
+> mode. The gate of figures made from pods holds in both modes.
 
 **R16** WHEN a connected cluster has Fargate nodes THEN the system SHALL
 price them without watching all of the cluster's pods.
@@ -425,7 +427,8 @@ the default written out.
   looking at.
 - Opening the screen on 30 clusters SHALL NOT open 30 full pod watches.
   > **Corrected 2026-11-18.** With `clusters.pods: unfolded`. With `all`, the
-  > default, it SHALL NOT run more than 4 full pod lists at once (R15).
+  > default, it SHALL NOT start more than 4 full pod lists at once, nor more
+  > than 4 besides those that failed and retry (R15).
 - Idle SHALL NOT read as the node's whole price because its pods are not
   watched yet.
 - The same API server SHALL NOT be counted twice in a cloud total.

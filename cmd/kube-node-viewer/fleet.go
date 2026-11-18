@@ -266,8 +266,10 @@ func (f *fleet) run(m *member, prices priceFunc) {
 	f.send(model.MemberReadyMsg{Context: m.name, Serial: m.serial, Gen: c.store.Generation(), Cluster: c.store, Status: c.status})
 
 	// the start place is held until the node watch synced, or, when the
-	// pods were started with it (clusters.pods: all), until the pods synced
-	// too, so at most 4 full pod lists run at once (clusters-screen D3)
+	// pods were started with it (clusters.pods: all, or an unfold made
+	// while connecting), until the pods synced too, so at most 4 full pod
+	// lists run at once; the first error gives it back, so an unreachable
+	// cluster never holds one (clusters-screen D3)
 	ticker := time.NewTicker(statusPoll)
 	defer ticker.Stop()
 	for {
