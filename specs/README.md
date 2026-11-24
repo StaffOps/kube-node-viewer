@@ -161,7 +161,10 @@ in [`../AGENTS.md`](../AGENTS.md); what shipped lives in
     `contexts.deny` in `config.yaml` (with `*`) decide which contexts the pickers list;
     the tool still opens on the context it starts on, and lists everything when that one is hidden.
     [requirements](context-visibility/requirements.md) · [design](context-visibility/design.md) · [tasks](context-visibility/tasks.md)
-39. [`decisions/`](decisions/) — decision records (index below).
+39. [`fix-kind-azure-snapshot/`](fix-kind-azure-snapshot/) — **active**. The AKS kind integration test
+    applies the store's snapshot after connecting, so it no longer fails now and then on an empty screen.
+    [bugfix](fix-kind-azure-snapshot/bugfix.md) · [tasks](fix-kind-azure-snapshot/tasks.md)
+40. [`decisions/`](decisions/) — decision records (index below).
 
 Status values: **draft** (not reviewed) → **active** (reviewed, being
 implemented; the status line names the review, `Reviewed: <date>
