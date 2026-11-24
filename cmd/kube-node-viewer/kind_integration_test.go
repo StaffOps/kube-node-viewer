@@ -381,6 +381,8 @@ const kindSub = "00000000-0000-0000-0000-000000000000"
 // and once the role is granted the same screen, after its one-minute retry
 // (R6), reads them with the node's subscription and region and shows the
 // arm row they make possible.
+//
+// fix-kind-azure-snapshot R1
 func TestKindClusterAzureSizes(t *testing.T) {
 	kubeconfig, kubeContext := os.Getenv("KNV_IT_KUBECONFIG"), os.Getenv("KNV_IT_CONTEXT")
 	if kubeconfig == "" || kubeContext == "" {
@@ -562,7 +564,19 @@ func connectAzure(t *testing.T, kubeconfig, kubeContext string, opt azureOption)
 	if !ok {
 		t.Fatal("the program did not return the *model.UIModel it ran")
 	}
-	u.Update(model.ChangedMsg{Gen: first.Cluster.Generation()})
+	// The store can hold the nodes before the program applied the change
+	// that brought them: the notifier sends at most one change per 100ms,
+	// and the snapshot a change asks for is a command the stopped program
+	// may not have run. Run that command here (fix-kind-azure-snapshot), so
+	// the model shows every node, not the snapshot taken while the
+	// informers were still listing. A snapshot slower than drive's second is
+	// dropped, and the header check below then fails with the screen.
+	drive(u, model.ChangedMsg{Gen: first.Cluster.Generation()})
+	n := first.Cluster.Stats().NumNodes
+	want := fmt.Sprintf("Nodes:    %d of %d shown", n, n)
+	if screen := u.View(); !strings.Contains(screen, want) {
+		t.Fatalf("after connecting, want %q on the screen:\n%s", want, screen)
+	}
 	return u
 }
 
