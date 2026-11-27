@@ -14,7 +14,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.31
 	github.com/muesli/termenv v0.16.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/text v0.43.0
+	golang.org/x/text v0.44.0
 	k8s.io/api v0.37.2
 	k8s.io/apimachinery v0.37.2
 	k8s.io/client-go v0.37.2
@@ -97,7 +97,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/term v0.46.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
